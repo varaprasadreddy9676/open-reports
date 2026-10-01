@@ -1,0 +1,14 @@
+{
+  "name": "@reporting/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for the reporting platform: lets Claude, Codex, Cursor or any MCP client author, analyze and render reports with their own model (BYOK - no model keys here)",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": { "reporting-mcp": "./dist/cli.js" },
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -b", "test": "vitest run", "typecheck": "tsc -b --noEmit" },
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@reporting/ai-tools": "workspace:*" },
+  "devDependencies": { "typescript": "^5.6.3", "vitest": "^2.1.4" }
+}

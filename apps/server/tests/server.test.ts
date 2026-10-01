@@ -335,3 +335,25 @@ describe("capabilities, schema, blocks and ZPL", () => {
     expect(res.payload).toContain("^PW320");
   });
 });
+
+describe("analyze", () => {
+  it("returns page count, decisions and warnings without rendering", async () => {
+    const rows = Array.from({ length: 120 }, (_, i) => ({ n: i }));
+    const report = {
+      schemaVersion: "1.0", id: "a", name: "a",
+      datasets: [{ id: "d", source: "inline", query: { data: rows } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "d", repeatHeaderOnPageBreak: true, columns: [{ id: "n", header: "N", binding: "row.n" }] }] }],
+    };
+    const res = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report } });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.valid).toBe(true);
+    expect(body.pageCount).toBeGreaterThan(1);
+    expect(body.decisions.some((d: any) => d.kind === "table-split")).toBe(true);
+  });
+
+  it("reports schema problems with paths instead of failing", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report: { schemaVersion: "1.0", id: "x" } } });
+    expect(res.json()).toMatchObject({ valid: false, stage: "schema" });
+  });
+});

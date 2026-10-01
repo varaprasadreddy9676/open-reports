@@ -7,7 +7,7 @@ import { createDefaultDataSourceRegistry, secretsFromEnv } from "./datasources.j
 import { discoverFonts } from "@reporting/renderer-pdf";
 import { randomUUID } from "node:crypto";
 import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
-import { validateReport } from "@reporting/core";
+import { resolveReport, validateReport } from "@reporting/core";
 import { createAuthHook } from "./auth.js";
 import { SqliteStorage } from "./storage/sqlite-storage.js";
 import { assertStorageProvider, TemplateNotFoundError, VersionImmutableError, VersionNotFoundError, type StorageProvider } from "./storage/types.js";
@@ -22,6 +22,8 @@ export interface BuildAppOptions {
   designerDist?: string;
   /** Already-registered plugins (see @reporting/plugin-sdk loadPlugins). */
   plugins?: PluginRegistry;
+  /** Directory of example *.report.json files to expose at /api/v1/examples. */
+  examplesDir?: string;
 }
 
 export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: StorageProvider; jobs: JobStore } {
@@ -69,6 +71,21 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     };
   });
 
+  // --- Example reports (a directory of *.report.json, set with EXAMPLES_DIR); lets AI tools and the designer start from known-good documents ---
+  const examplesDir = options.examplesDir ?? process.env.EXAMPLES_DIR;
+  const readExamples = () => (examplesDir && fs.existsSync(examplesDir) ? fs.readdirSync(examplesDir).filter((f) => f.endsWith(".report.json")).map((f) => f.replace(".report.json", "")) : []);
+  app.get("/api/v1/examples", async () =>
+    readExamples().map((name) => {
+      const doc = JSON.parse(fs.readFileSync(`${examplesDir}/${name}.report.json`, "utf-8"));
+      return { name, title: doc.name, description: doc.description };
+    })
+  );
+  app.get("/api/v1/examples/:name", async (request, reply) => {
+    const { name } = request.params as { name: string };
+    if (!readExamples().includes(name)) return reply.code(404).send({ error: { code: "EXAMPLE_NOT_FOUND", message: `No example named "${name}".` } });
+    return JSON.parse(fs.readFileSync(`${examplesDir}/${name}.report.json`, "utf-8"));
+  });
+
   app.get("/api/v1/plugins", async () => ({ plugins: options.plugins?.statuses ?? [] }));
 
   // --- Reusable blocks (shared "My Components") ---
@@ -112,6 +129,33 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
       rowCount: Array.isArray(value) ? value.length : value == null ? 0 : 1,
       value,
     });
+  });
+
+  // --- Analyze: validation + real pagination, without producing a file. Built for the designer and AI tools. ---
+  app.post("/api/v1/analyze", async (request, reply) => {
+    const body = request.body as { report: unknown; parameters?: Record<string, unknown>; data?: Record<string, unknown> };
+    const parsed = parseReportDefinition(body?.report);
+    if (!parsed.valid) return reply.send({ valid: false, stage: "schema", issues: parsed.issues.map((i) => ({ ...i, severity: "error" as const })) });
+    const validation = validateReport(parsed.report);
+    const extra = Object.entries(body.data ?? {}).filter(([id]) => !parsed.report.datasets.some((d) => d.id === id)).map(([id, value]) => ({ id, source: "inline" as const, query: { data: value } }));
+    const report = extra.length ? { ...parsed.report, datasets: [...parsed.report.datasets, ...extra] } : parsed.report;
+    try {
+      const pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: body.parameters ?? {}, tolerant: true, functions: runtime.functions, customComponents: runtime.customComponents });
+      const pdf = runtime.renderers.pdf as { paginateOnly?: (i: unknown) => import("@reporting/layout").PaginatedReport };
+      const paginated = pdf.paginateOnly?.({ resolved: pipeline.resolved, resolvePageSection: pipeline.resolvePageSection });
+      reply.send({
+        valid: validation.valid && pipeline.issues.length === 0,
+        stage: "analyzed",
+        issues: [...validation.issues, ...pipeline.issues],
+        warnings: [...pipeline.resolved.warnings, ...(paginated?.warnings ?? [])],
+        pageCount: paginated?.pages.length,
+        pageSize: paginated?.pageSize,
+        decisions: paginated?.decisions ?? [],
+        pages: paginated?.pages.map((p) => ({ number: p.number, zones: p.zones, master: p.master })),
+      });
+    } catch (err) {
+      reply.code(422).send({ error: { code: "ANALYZE_FAILED", message: err instanceof Error ? err.message : String(err) } });
+    }
   });
 
   // --- Inline render ---
@@ -290,7 +334,10 @@ function buildOpenApiDocument(): Record<string, unknown> {
       "/health": { get: { summary: "Liveness probe (no auth)", security: [] } },
       "/api/v1/schema": { get: { summary: "The JSON Schema of a report definition (no auth)", security: [] } },
       "/api/v1/capabilities": { get: { summary: "Output formats and what they support, installed fonts, server secret names, plugin-provided components/functions" } },
+      "/api/v1/examples": { get: { summary: "Example reports" } },
+      "/api/v1/examples/{name}": { get: { summary: "One example report definition" } },
       "/api/v1/plugins": { get: { summary: "Loaded plugins and their status" } },
+      "/api/v1/analyze": { post: { summary: "Validate and paginate a report without rendering: page count, pagination decisions, warnings" } },
       "/api/v1/datasets/test": { post: { summary: "Run one dataset (with parameters) and return a preview" } },
       "/api/v1/blocks": { get: { summary: "List reusable blocks" } },
       "/api/v1/blocks/{id}": { put: { summary: "Create or replace a reusable block" }, delete: { summary: "Delete a reusable block" } },

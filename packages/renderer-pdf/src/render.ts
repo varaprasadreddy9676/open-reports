@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import type { RenderInput, RenderResult, RendererCapabilities, ReportRenderer } from "@reporting/core";
-import { paginate, type TextMeasurer } from "@reporting/layout";
+import { paginate, type PaginatedReport, type TextMeasurer } from "@reporting/layout";
 import { PdfFontRegistry, discoverFonts, type FontOptions } from "./fonts.js";
 import { drawNode } from "./draw-node.js";
 
@@ -24,6 +24,14 @@ export class PdfRenderer implements ReportRenderer {
     // Embed real Unicode fonts when available (Noto), instead of the 14 standard
     // PDF fonts, which have no Indic/Arabic glyphs and mangle symbols like the rupee sign.
     this.fontOptions = options.fonts ?? discoverFonts();
+  }
+
+  /** Pagination only (no drawing), using the same font metrics as render(): what the designer's analyzer and AI tools use. */
+  paginateOnly(input: RenderInput): PaginatedReport {
+    const doc = new PDFDocument({ autoFirstPage: false, margin: 0 });
+    const fonts = new PdfFontRegistry(doc, this.fontOptions);
+    const measurer = createPdfMeasurer(doc, fonts, input.resolved.theme?.fonts?.body);
+    return paginate(input.resolved, { resolvePageDependentSection: input.resolvePageSection, measurer });
   }
 
   async render(input: RenderInput): Promise<RenderResult> {

@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-core
 WORKDIR /app
 COPY --from=build /out/server ./
 COPY --from=build /out/designer ./designer
-ENV NODE_ENV=production PORT=4000 DB_PATH=/data/reporting.sqlite DESIGNER_DIST=/app/designer
+COPY --from=build /repo/examples ./examples
+ENV EXAMPLES_DIR=/app/examples NODE_ENV=production PORT=4000 DB_PATH=/data/reporting.sqlite DESIGNER_DIST=/app/designer
 USER reports
 VOLUME ["/data"]
 EXPOSE 4000
