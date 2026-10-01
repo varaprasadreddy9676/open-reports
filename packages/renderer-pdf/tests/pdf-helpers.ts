@@ -14,3 +14,14 @@ export async function extractPdfText(buffer: Buffer): Promise<{ numPages: number
   }
   return { numPages: doc.numPages, text };
 }
+
+/** Text of each page separately. */
+export async function extractPdfPages(buffer: Buffer): Promise<string[]> {
+  const doc = await getDocument({ data: new Uint8Array(buffer), disableFontFace: true, verbosity: 0 }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const content = await (await doc.getPage(i)).getTextContent();
+    pages.push(content.items.map((item: any) => item.str).join(" "));
+  }
+  return pages;
+}

@@ -77,7 +77,7 @@ export class ExpressionEngine {
         return truthy(cond) ? this.evalNode(node.then, ctx, source, depth + 1) : this.evalNode(node.else, ctx, source, depth + 1);
       }
       case "call": {
-        const fn = this.functions[node.name];
+        const fn = Object.prototype.hasOwnProperty.call(this.functions, node.name) ? this.functions[node.name] : undefined;
         if (!fn) {
           const suggestion = closestMatch(node.name, Object.keys(this.functions));
           throw new ExpressionError(`Unknown function "${node.name}".`, { expression: source, suggestion });
@@ -137,7 +137,7 @@ export class ExpressionEngine {
       throw new ExpressionError("Invalid path expression.", { expression: source });
     }
 
-    if (!(first.name in ctx)) {
+    if (!Object.prototype.hasOwnProperty.call(ctx, first.name)) {
       const suggestion = closestMatch(first.name, Object.keys(ctx));
       throw new ExpressionError(`Unknown field "${first.name}".`, { expression: source, suggestion });
     }
