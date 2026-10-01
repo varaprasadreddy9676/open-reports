@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "1.0",
+  "id": "absolute-form",
+  "name": "Certificate (absolute layout)",
+  "description": "Pixel-controlled positioning for forms, certificates and pre-printed stationery.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "cert",
+      "source": "inline",
+      "query": {
+        "data": {
+          "name": "Dr. Asha Rao",
+          "course": "Advanced Cardiac Life Support",
+          "date": "2025-03-14",
+          "id": "CERT-88213"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "landscape",
+    "unit": "mm",
+    "margin": {
+      "top": 10,
+      "right": 10,
+      "bottom": 10,
+      "left": 10
+    }
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "container",
+          "id": "canvas",
+          "layout": "absolute",
+          "height": 480,
+          "children": [
+            {
+              "type": "rectangle",
+              "id": "frame",
+              "x": 0,
+              "y": 0,
+              "width": 770,
+              "height": 470,
+              "style": {
+                "border": {
+                  "width": 3,
+                  "color": "#1d4ed8"
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "CERTIFICATE OF COMPLETION",
+              "id": "title",
+              "x": 0,
+              "y": 70,
+              "width": 770,
+              "style": {
+                "align": "center",
+                "fontSize": 30,
+                "fontWeight": "bold",
+                "color": "#1d4ed8"
+              }
+            },
+            {
+              "type": "text",
+              "value": "This is to certify that",
+              "id": "lead",
+              "x": 0,
+              "y": 150,
+              "width": 770,
+              "style": {
+                "align": "center",
+                "fontSize": 13
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.cert.name",
+              "id": "name",
+              "x": 0,
+              "y": 185,
+              "width": 770,
+              "style": {
+                "align": "center",
+                "fontSize": 28,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "value": "has successfully completed",
+              "id": "lead2",
+              "x": 0,
+              "y": 245,
+              "width": 770,
+              "style": {
+                "align": "center",
+                "fontSize": 13
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.cert.course",
+              "id": "course",
+              "x": 0,
+              "y": 275,
+              "width": 770,
+              "style": {
+                "align": "center",
+                "fontSize": 20
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Issued \" + formatDate(data.cert.date, \"dd MMM yyyy\")",
+              "id": "date",
+              "x": 60,
+              "y": 400,
+              "width": 200,
+              "style": {
+                "fontSize": 11
+              }
+            },
+            {
+              "type": "line",
+              "id": "sig-line",
+              "x": 520,
+              "y": 420,
+              "width": 190
+            },
+            {
+              "type": "text",
+              "value": "Programme Director",
+              "id": "sig",
+              "x": 520,
+              "y": 426,
+              "width": 190,
+              "style": {
+                "align": "center",
+                "fontSize": 10
+              }
+            },
+            {
+              "type": "qrcode",
+              "id": "verify",
+              "x": 340,
+              "y": 370,
+              "width": 70,
+              "height": 70,
+              "expression": "data.cert.id"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

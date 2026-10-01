@@ -1,15 +1,17 @@
 import type { ResolvedChartComponent, ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { resolveColumnWidths } from "@reporting/layout";
+import { measureFooterHeight, measureHeaderHeight, measureRowHeight, resolveColumnWidths, type TextMeasurer } from "@reporting/layout";
 import { renderChartSvg } from "@reporting/renderer-html";
 // @ts-expect-error -- svg-to-pdfkit ships no types
 import SVGtoPDF from "svg-to-pdfkit";
-import { PdfFontRegistry } from "./fonts.js";
+import { PdfFontRegistry, detectScript } from "./fonts.js";
 import { barcodeBuffer, qrCodeBuffer } from "./codes.js";
 import { resolveImageSource } from "./images.js";
 
 export interface DrawContext {
   doc: PDFKit.PDFDocument;
+  measurer: TextMeasurer;
+  defaultFamily?: string;
   fonts: PdfFontRegistry;
   warnings: { code: string; path: string; message: string }[];
 }
@@ -18,6 +20,28 @@ function spacing(value: unknown): { top: number; right: number; bottom: number; 
   if (typeof value === "number") return { top: value, right: value, bottom: value, left: value };
   const s = (value ?? {}) as any;
   return { top: s.top ?? 0, right: s.right ?? 0, bottom: s.bottom ?? 0, left: s.left ?? 0 };
+}
+
+/** Draws text as per-script runs so each run uses a font that has its glyphs (Latin, Devanagari, Telugu, ...). */
+function drawRuns(ctx: DrawContext, text: string, x: number, y: number, opts: Record<string, any>, family: string | undefined, bold: boolean, italic: boolean): void {
+  const runs = ctx.fonts.runs(text, family, bold, italic);
+  if (runs.length <= 1) {
+    ctx.doc.font(runs[0]?.font ?? ctx.fonts.resolve(family, bold, italic)).text(text, x, y, opts);
+    return;
+  }
+  runs.forEach((run, i) => {
+    ctx.doc.font(run.font);
+    if (i === 0) ctx.doc.text(run.text, x, y, { ...opts, continued: true });
+    else ctx.doc.text(run.text, { ...opts, continued: i < runs.length - 1 });
+  });
+}
+
+function startsRtl(text: string): boolean {
+  for (const ch of text) {
+    const script = detectScript(ch);
+    if (script) return script === "arabic";
+  }
+  return false;
 }
 
 function drawBoxDecoration(ctx: DrawContext, box: PositionedNode["box"], style: any): void {
@@ -45,18 +69,14 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
     case "field": {
       drawBoxDecoration(ctx, node.box, style);
       const pad = spacing(style.padding);
-      const fontName = ctx.fonts.resolve(style.fontFamily, style.fontWeight === "bold" || typeof style.fontWeight === "number" && style.fontWeight >= 700, Boolean(style.italic));
-      doc
-        .font(fontName)
-        .fontSize(style.fontSize ?? 10)
-        .fillColor(style.color ?? "#000000")
-        .text(component.text ?? "", node.box.x + pad.left, node.box.y + pad.top, {
-          width: node.box.width - pad.left - pad.right,
-          height: node.box.height - pad.top - pad.bottom,
-          align: style.align ?? "left",
-          underline: Boolean(style.underline),
-          strike: Boolean(style.strikethrough),
-        });
+      const isBold = style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700);
+      doc.fontSize(style.fontSize ?? 10).fillColor(style.color ?? "#000000");
+      drawRuns(ctx, component.text ?? "", node.box.x + pad.left, node.box.y + pad.top, {
+        width: node.box.width - pad.left - pad.right,
+        align: style.align ?? (startsRtl(component.text ?? "") ? "right" : "left"),
+        underline: Boolean(style.underline),
+        strike: Boolean(style.strikethrough),
+      }, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic));
       break;
     }
 
@@ -128,34 +148,48 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
 function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: PositionedNode): void {
   const { doc } = ctx;
   const widths = resolveColumnWidths(table, node.box.width);
-  const rowHeight = 16;
+  // Row heights come from the layout engine's own measurements so what is
+  // drawn here occupies exactly the space pagination reserved for it.
+  const headerHeight = measureHeaderHeight(table, ctx.measurer);
+  const footerHeight = measureFooterHeight(table, ctx.measurer);
+  const fontSize = (table.style?.fontSize as number | undefined) ?? 10;
   let y = node.box.y;
 
   doc.lineWidth(0.5).strokeColor("#000000");
 
   if (table.showHeader) {
     let x = node.box.x;
-    doc.font(ctx.fonts.resolve(undefined, true, false)).fontSize(10).fillColor("#000000");
+    doc.fontSize(fontSize).fillColor("#000000");
     table.columns.forEach((col, i) => {
-      doc.text(col.header, x + 2, y + 2, { width: widths[i]!.width - 4, align: (col.align as any) ?? "left" });
+      drawRuns(ctx, col.header, x + 2, y + 3, { width: widths[i]!.width - 4, align: (col.align as any) ?? "left", lineBreak: false }, ctx.defaultFamily, true, false);
       x += widths[i]!.width;
     });
-    y += rowHeight;
+    y += headerHeight;
     doc.moveTo(node.box.x, y).lineTo(node.box.x + node.box.width, y).stroke();
   }
 
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? table.rows.length;
-  doc.font(ctx.fonts.resolve(undefined, false, false));
 
   for (let i = start; i < end; i++) {
     const row = table.rows[i]!;
+    const rowHeight = measureRowHeight(table, i, widths, ctx.measurer);
+    const rowStyle = (row.style ?? {}) as any;
     let x = node.box.x;
-    if (table.alternateRowStyle && (i - start) % 2 === 1) {
-      doc.rect(node.box.x, y, node.box.width, rowHeight).fill("#f5f5f5").fillColor("#000000");
+    if (rowStyle.background) {
+      doc.rect(node.box.x, y, node.box.width, rowHeight).fill(rowStyle.background);
+    } else if (table.alternateRowStyle && (i - start) % 2 === 1) {
+      doc.rect(node.box.x, y, node.box.width, rowHeight).fill("#f5f5f5");
     }
+    const bold = rowStyle.fontWeight === "bold" || (typeof rowStyle.fontWeight === "number" && rowStyle.fontWeight >= 700);
+    doc.fontSize(fontSize);
     table.columns.forEach((col, ci) => {
-      doc.fillColor("#000000").text(row.formatted[col.id] ?? "", x + 2, y + 2, { width: widths[ci]!.width - 4, align: (col.align as any) ?? "left" });
+      doc.fillColor(rowStyle.color ?? "#000000");
+      drawRuns(ctx, row.formatted[col.id] ?? "", x + 2, y + 2, {
+        width: widths[ci]!.width - 4,
+        height: rowHeight - 2,
+        align: (col.align as any) ?? "left",
+      }, ctx.defaultFamily, bold, Boolean(rowStyle.italic));
       x += widths[ci]!.width;
     });
     y += rowHeight;
@@ -164,10 +198,11 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
   if (table.showFooter) {
     doc.moveTo(node.box.x, y).lineTo(node.box.x + node.box.width, y).stroke();
     let x = node.box.x;
-    doc.font(ctx.fonts.resolve(undefined, true, false));
+    doc.fontSize(fontSize).fillColor("#000000");
     table.columns.forEach((col, i) => {
-      doc.text(col.footer?.value ?? "", x + 2, y + 2, { width: widths[i]!.width - 4, align: (col.align as any) ?? "left" });
+      drawRuns(ctx, col.footer?.value ?? "", x + 2, y + 3, { width: widths[i]!.width - 4, align: (col.align as any) ?? "left", lineBreak: false }, ctx.defaultFamily, true, false);
       x += widths[i]!.width;
     });
+    y += footerHeight;
   }
 }

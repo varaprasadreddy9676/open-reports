@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "id": "conditional",
+  "name": "Conditional Report",
+  "description": "Rows and sections change colour and visibility based on values.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "accounts",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "customer": "Asha Traders",
+            "balance": 12500
+          },
+          {
+            "customer": "Bright Labs",
+            "balance": -4200
+          },
+          {
+            "customer": "Care Clinic",
+            "balance": 0
+          },
+          {
+            "customer": "Delta Pharma",
+            "balance": -18000
+          },
+          {
+            "customer": "Evergreen Foods",
+            "balance": 7600
+          }
+        ]
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "value": "Customer balances",
+          "style": {
+            "fontSize": 16,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "table",
+          "id": "balances",
+          "dataset": "accounts",
+          "rowStyleWhen": [
+            {
+              "when": "row.balance < 0",
+              "style": {
+                "color": "#b91c1c",
+                "fontWeight": "bold",
+                "background": "#fef2f2"
+              }
+            },
+            {
+              "when": "row.balance == 0",
+              "style": {
+                "color": "#6b7280"
+              }
+            }
+          ],
+          "columns": [
+            {
+              "id": "customer",
+              "header": "Customer",
+              "binding": "row.customer",
+              "width": "*"
+            },
+            {
+              "id": "balance",
+              "header": "Balance",
+              "binding": "row.balance",
+              "format": "currency:INR",
+              "width": 120,
+              "align": "right"
+            },
+            {
+              "id": "status",
+              "header": "Status",
+              "expression": "row.balance < 0 ? \"Overdue\" : row.balance == 0 ? \"Settled\" : \"Credit\"",
+              "width": 90
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 12
+        },
+        {
+          "type": "conditional",
+          "id": "attention",
+          "when": "count(data.accounts) > 3",
+          "children": [
+            {
+              "type": "text",
+              "value": "Attention: more than 3 customers listed - review overdue accounts.",
+              "style": {
+                "color": "#b45309",
+                "fontWeight": "bold"
+              }
+            }
+          ],
+          "otherwise": [
+            {
+              "type": "text",
+              "value": "Few customers listed.",
+              "style": {
+                "color": "#6b7280"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

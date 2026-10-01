@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "1.0",
+  "id": "receipt",
+  "name": "Receipt (80mm)",
+  "description": "Compact single-page thermal receipt.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "sale",
+      "source": "inline",
+      "query": {
+        "data": {
+          "shop": "ACME PHARMACY",
+          "address": "12 MG Road, Bengaluru",
+          "bill": "B-20931",
+          "time": "2025-01-15 16:20",
+          "items": [
+            {
+              "name": "Paracetamol 500mg",
+              "qty": 2,
+              "price": 18
+            },
+            {
+              "name": "Cough Syrup 100ml",
+              "qty": 1,
+              "price": 96
+            },
+            {
+              "name": "Vitamin C",
+              "qty": 3,
+              "price": 42
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "total",
+      "scope": "report",
+      "expression": "sumProduct(data.sale.items, \"qty\", \"price\")"
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 80,
+    "height": 170,
+    "unit": "mm",
+    "orientation": "portrait",
+    "margin": {
+      "top": 4,
+      "right": 4,
+      "bottom": 4,
+      "left": 4
+    }
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "binding": "data.sale.shop",
+          "style": {
+            "align": "center",
+            "fontWeight": "bold",
+            "fontSize": 12
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.sale.address",
+          "style": {
+            "align": "center",
+            "fontSize": 8
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 4
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "spacer",
+          "height": 2
+        },
+        {
+          "type": "text",
+          "expression": "\"Bill \" + data.sale.bill + \"   \" + data.sale.time",
+          "style": {
+            "fontSize": 8
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 2
+        },
+        {
+          "type": "table",
+          "id": "lines",
+          "dataset": "sale.items",
+          "showFooter": true,
+          "style": {
+            "fontSize": 8
+          },
+          "columns": [
+            {
+              "id": "name",
+              "header": "Item",
+              "binding": "row.name",
+              "width": "*"
+            },
+            {
+              "id": "qty",
+              "header": "Qty",
+              "binding": "row.qty",
+              "width": 26,
+              "align": "right"
+            },
+            {
+              "id": "amt",
+              "header": "Amt",
+              "expression": "row.qty * row.price",
+              "format": "number:2",
+              "width": 44,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "text",
+          "value": "Thank you - get well soon",
+          "style": {
+            "align": "center",
+            "fontSize": 8
+          }
+        },
+        {
+          "type": "qrcode",
+          "id": "rx-qr",
+          "expression": "data.sale.bill",
+          "width": 56,
+          "height": 56,
+          "style": {
+            "align": "center"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -25,6 +25,8 @@ export interface ResolveEnv {
   rowVarAccumulator: Record<string, unknown>;
   warnings: ResolvedWarning[];
   path: string;
+  /** Design-time mode: a component that throws becomes a visible error placeholder + warning instead of failing the whole report. */
+  tolerant?: boolean;
 }
 
 function resolveValueLike(component: Component, ctx: ResolveContext, env: ResolveEnv): unknown {
@@ -68,6 +70,18 @@ function toArray(value: unknown): unknown[] {
   return [value];
 }
 
+function applyStyleWhen(rules: { when: string; style: Record<string, unknown> }[], base: Record<string, unknown> | undefined, ctx: ResolveContext, env: ResolveEnv): Record<string, unknown> {
+  let style: Record<string, unknown> = { ...(base ?? {}) };
+  for (const rule of rules) {
+    try {
+      if (env.engine.evaluate(rule.when, ctx)) style = { ...style, ...rule.style };
+    } catch (err) {
+      env.warnings.push({ code: "STYLE_EXPRESSION_FAILED", path: env.path, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return style;
+}
+
 function toRowContext(ctx: ResolveContext, row: unknown): ResolveContext {
   return { ...ctx, row: row as Record<string, unknown>, parent: ctx.row };
 }
@@ -75,7 +89,21 @@ function toRowContext(ctx: ResolveContext, row: unknown): ResolveContext {
 export function resolveComponents(components: Component[], ctx: ResolveContext, env: ResolveEnv): ResolvedComponent[] {
   const out: ResolvedComponent[] = [];
   for (const component of components) {
-    const resolved = resolveComponent(component, ctx, env);
+    let resolved: ResolvedComponent | ResolvedComponent[] | null;
+    if (env.tolerant) {
+      try {
+        resolved = resolveComponent(component, ctx, env);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        env.warnings.push({ code: "COMPONENT_ERROR", path: env.path, message, componentId: component.id });
+        resolved = { id: component.id, type: "text", text: `\u26a0 ${message.replace(/^Expression error in ".*?": /, "")}`, style: { color: "#b91c1c", fontSize: 8 } } as ResolvedComponent;
+      }
+    } else {
+      resolved = resolveComponent(component, ctx, env);
+    }
+    if (resolved && !Array.isArray(resolved) && component.styleWhen) {
+      resolved = { ...resolved, style: applyStyleWhen(component.styleWhen, resolved.style, ctx, env) } as ResolvedComponent;
+    }
     if (resolved) out.push(...(Array.isArray(resolved) ? resolved : [resolved]));
   }
   return out;
@@ -236,7 +264,8 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
       raw[id] = value;
       formatted[id] = formatValue(value, col.format, env);
     });
-    return { raw, formatted };
+    const style = component.rowStyleWhen?.length ? applyStyleWhen(component.rowStyleWhen, undefined, { ...rowCtx, vars: env.rowVarAccumulator }, env) : undefined;
+    return { raw, formatted, style: style && Object.keys(style).length ? style : undefined };
   });
 
   if (component.showFooter) {

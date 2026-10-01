@@ -1,0 +1,303 @@
+{
+  "schemaVersion": "1.0",
+  "id": "purchase-order",
+  "name": "Purchase Order",
+  "description": "Multiple sections, vendor/ship-to blocks, terms and signature blocks kept together.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "po",
+      "source": "inline",
+      "query": {
+        "data": {
+          "number": "PO-7731",
+          "date": "2025-02-03",
+          "vendor": {
+            "name": "Medline Supplies Pvt Ltd",
+            "address": "Plot 4, Industrial Area, Hyderabad"
+          },
+          "shipTo": {
+            "name": "Acme Health - Central Stores",
+            "address": "12 MG Road, Bengaluru"
+          },
+          "lines": [
+            {
+              "sku": "GLV-100",
+              "item": "Nitrile Gloves (box of 100)",
+              "qty": 40,
+              "price": 310
+            },
+            {
+              "sku": "SYR-5",
+              "item": "Syringe 5ml (pack of 50)",
+              "qty": 25,
+              "price": 185
+            },
+            {
+              "sku": "MSK-3P",
+              "item": "3-ply Face Masks (box of 50)",
+              "qty": 60,
+              "price": 120
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "total",
+      "scope": "report",
+      "expression": "sumProduct(data.po.lines, \"qty\", \"price\")"
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "PURCHASE ORDER",
+              "width": "*",
+              "style": {
+                "fontSize": 16,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "data.po.number",
+              "style": {
+                "align": "right",
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Vendor",
+                  "style": {
+                    "fontSize": 8,
+                    "color": "#6b7280"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.po.vendor.name",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.po.vendor.address"
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Ship to",
+                  "style": {
+                    "fontSize": 8,
+                    "color": "#6b7280"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.po.shipTo.name",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.po.shipTo.address"
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 12
+        },
+        {
+          "type": "table",
+          "id": "lines",
+          "dataset": "po.lines",
+          "showFooter": true,
+          "keepFooterTogether": true,
+          "columns": [
+            {
+              "id": "sku",
+              "header": "SKU",
+              "binding": "row.sku",
+              "width": 70
+            },
+            {
+              "id": "item",
+              "header": "Item",
+              "binding": "row.item",
+              "width": "*"
+            },
+            {
+              "id": "qty",
+              "header": "Qty",
+              "binding": "row.qty",
+              "width": 45,
+              "align": "right"
+            },
+            {
+              "id": "price",
+              "header": "Unit price",
+              "binding": "row.price",
+              "format": "currency",
+              "width": 80,
+              "align": "right"
+            },
+            {
+              "id": "amount",
+              "header": "Amount",
+              "expression": "row.qty * row.price",
+              "format": "currency",
+              "width": 90,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 16
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "text",
+              "value": "Terms: Payment within 30 days of delivery. Goods subject to inspection on receipt.",
+              "style": {
+                "fontSize": 8,
+                "color": "#6b7280"
+              }
+            },
+            {
+              "type": "spacer",
+              "height": 30
+            },
+            {
+              "type": "row",
+              "children": [
+                {
+                  "type": "column",
+                  "children": [
+                    {
+                      "type": "line"
+                    },
+                    {
+                      "type": "text",
+                      "value": "Prepared by",
+                      "style": {
+                        "fontSize": 8
+                      }
+                    }
+                  ],
+                  "width": "*"
+                },
+                {
+                  "type": "column",
+                  "children": [
+                    {
+                      "type": "line"
+                    },
+                    {
+                      "type": "text",
+                      "value": "Approved by",
+                      "style": {
+                        "fontSize": 8
+                      }
+                    }
+                  ],
+                  "width": "*"
+                },
+                {
+                  "type": "column",
+                  "children": [
+                    {
+                      "type": "line"
+                    },
+                    {
+                      "type": "text",
+                      "value": "Vendor acknowledgement",
+                      "style": {
+                        "fontSize": 8
+                      }
+                    }
+                  ],
+                  "width": "*"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

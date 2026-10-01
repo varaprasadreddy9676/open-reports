@@ -1,0 +1,305 @@
+{
+  "schemaVersion": "1.0",
+  "id": "lab-report",
+  "name": "Laboratory Report",
+  "description": "Patient block, results table with out-of-range highlighting, interpretation kept with the result.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "report",
+      "source": "inline",
+      "query": {
+        "data": {
+          "patient": {
+            "name": "Sai Varaprasad",
+            "age": "31 Y",
+            "sex": "Male",
+            "uhid": "UH12345",
+            "consultant": "Dr. Smith"
+          },
+          "collected": "2025-10-01 16:20",
+          "test": "Complete Blood Count",
+          "results": [
+            {
+              "parameter": "Haemoglobin",
+              "value": 14.2,
+              "unit": "g/dL",
+              "low": 13,
+              "high": 17
+            },
+            {
+              "parameter": "WBC count",
+              "value": 11.8,
+              "unit": "10^3/uL",
+              "low": 4,
+              "high": 11
+            },
+            {
+              "parameter": "Platelets",
+              "value": 255,
+              "unit": "10^3/uL",
+              "low": 150,
+              "high": 410
+            },
+            {
+              "parameter": "Haematocrit",
+              "value": 38,
+              "unit": "%",
+              "low": 40,
+              "high": 50
+            }
+          ],
+          "interpretation": "Mild leukocytosis and borderline low haematocrit. Clinical correlation advised."
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "ACME DIAGNOSTICS",
+              "width": "*",
+              "style": {
+                "fontSize": 16,
+                "fontWeight": "bold",
+                "color": "#0f766e"
+              }
+            },
+            {
+              "type": "text",
+              "value": "Laboratory Report",
+              "style": {
+                "align": "right",
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Patient",
+                      "width": 70,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.report.patient.name",
+                      "style": {
+                        "fontWeight": "bold"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Age / Sex",
+                      "width": 70,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "expression": "data.report.patient.age + \" / \" + data.report.patient.sex"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "UHID",
+                      "width": 70,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.report.patient.uhid"
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Consultant",
+                      "width": 70,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.report.patient.consultant"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "text",
+          "binding": "data.report.test",
+          "style": {
+            "fontSize": 12,
+            "fontWeight": "bold"
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "table",
+          "id": "results",
+          "dataset": "report.results",
+          "minRowsAfterBreak": 2,
+          "rowStyleWhen": [
+            {
+              "when": "row.value < row.low || row.value > row.high",
+              "style": {
+                "fontWeight": "bold",
+                "color": "#b91c1c"
+              }
+            }
+          ],
+          "columns": [
+            {
+              "id": "parameter",
+              "header": "Parameter",
+              "binding": "row.parameter",
+              "width": "*"
+            },
+            {
+              "id": "value",
+              "header": "Result",
+              "binding": "row.value",
+              "width": 70,
+              "align": "right"
+            },
+            {
+              "id": "unit",
+              "header": "Unit",
+              "binding": "row.unit",
+              "width": 70
+            },
+            {
+              "id": "range",
+              "header": "Reference",
+              "expression": "row.low + \" - \" + row.high",
+              "width": 90
+            },
+            {
+              "id": "flag",
+              "header": "Flag",
+              "expression": "row.value < row.low ? \"LOW\" : row.value > row.high ? \"HIGH\" : \"\"",
+              "width": 50
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "text",
+              "value": "Interpretation",
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.report.interpretation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Dr. Smith, MD Pathology",
+              "width": "*",
+              "style": {
+                "fontSize": 8
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 8
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

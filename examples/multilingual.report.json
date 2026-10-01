@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "1.0",
+  "id": "multilingual",
+  "name": "Multilingual Report",
+  "description": "English, Hindi, Telugu, Kannada, Tamil and Arabic in one document (needs the Noto fonts for PDF).",
+  "locale": "en-IN",
+  "theme": {
+    "fonts": {
+      "body": "Noto Sans"
+    }
+  },
+  "datasets": [
+    {
+      "id": "greetings",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "language": "English",
+            "text": "Welcome to our hospital. Please keep this document safe.",
+            "dir": "ltr"
+          },
+          {
+            "language": "Hindi",
+            "text": "हमारे अस्पताल में आपका स्वागत है। कृपया इस दस्तावेज़ को सुरक्षित रखें।",
+            "dir": "ltr"
+          },
+          {
+            "language": "Telugu",
+            "text": "మా ఆసుపత్రికి స్వాగతం. దయచేసి ఈ పత్రాన్ని భద్రంగా ఉంచండి.",
+            "dir": "ltr"
+          },
+          {
+            "language": "Kannada",
+            "text": "ನಮ್ಮ ಆಸ್ಪತ್ರೆಗೆ ಸ್ವಾಗತ. ದಯವಿಟ್ಟು ಈ ದಾಖಲೆಯನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಇರಿಸಿ.",
+            "dir": "ltr"
+          },
+          {
+            "language": "Tamil",
+            "text": "எங்கள் மருத்துவமனைக்கு வரவேற்கிறோம். இந்த ஆவணத்தை பாதுகாப்பாக வைத்திருங்கள்.",
+            "dir": "ltr"
+          },
+          {
+            "language": "Arabic",
+            "text": "مرحبا بكم في مستشفانا. يرجى الاحتفاظ بهذه الوثيقة.",
+            "dir": "rtl"
+          }
+        ]
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "value": "Multilingual notice",
+          "style": {
+            "fontSize": 18,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "repeater",
+          "id": "lines",
+          "dataset": "greetings",
+          "children": [
+            {
+              "type": "text",
+              "binding": "row.language",
+              "style": {
+                "fontSize": 8,
+                "color": "#6b7280"
+              }
+            },
+            {
+              "type": "text",
+              "binding": "row.text",
+              "style": {
+                "fontSize": 12
+              }
+            },
+            {
+              "type": "spacer",
+              "height": 8
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -148,3 +148,16 @@ describe("security: no arbitrary JavaScript execution", () => {
     expect(() => engine.evaluate("global.process", {})).toThrow(/Unknown field "global"/);
   });
 });
+
+describe("sumProduct", () => {
+  it("sums the product of two fields across rows", () => {
+    expect(engine.evaluate('sumProduct(row.items, "q", "p")', { row: { items: [{ q: 2, p: 5 }, { q: 3, p: 10 }] } })).toBe(40);
+  });
+});
+
+describe("formatDate month names", () => {
+  it("supports MMM and MMMM", () => {
+    expect(engine.evaluate('formatDate(row.d, "dd MMM yyyy")', { row: { d: "2025-01-15T12:00:00Z" } })).toBe("15 Jan 2025");
+    expect(engine.evaluate('formatDate(row.d, "MMMM yyyy")', { row: { d: "2025-03-15T12:00:00Z" } })).toBe("March 2025");
+  });
+});

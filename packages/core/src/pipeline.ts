@@ -21,6 +21,8 @@ export interface RenderPipelineOptions {
   parameters?: Record<string, unknown>;
   maxRows?: number;
   datasetTimeoutMs?: number;
+  /** See ResolveEnv.tolerant -- used by the designer so one bad binding doesn't blank the canvas. */
+  tolerant?: boolean;
 }
 
 export interface RenderPipelineResult {
@@ -81,6 +83,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       rowVarAccumulator,
       warnings,
       path: `sections[${index}]`,
+      tolerant: options.tolerant,
     };
 
     let children;
@@ -127,6 +130,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       rowVarAccumulator: { ...rowVarAccumulator },
       warnings,
       path: `sections.${section.type}`,
+      tolerant: options.tolerant,
     };
     return resolveComponents(raw.children as any, { ...baseCtx, page }, env);
   };

@@ -23,7 +23,7 @@ export function formatValue(value: unknown, format: string | undefined, options:
       return new Intl.NumberFormat(options.locale, { style: "percent" }).format(toNumber(value));
     case "date": {
       const d = value instanceof Date ? value : new Date(value as string);
-      return formatDatePattern(d, arg ?? "yyyy-MM-dd");
+      return formatDatePattern(d, arg ?? "yyyy-MM-dd", options.locale);
     }
     default:
       return stringify(value);
@@ -41,15 +41,18 @@ function stringify(v: unknown): string {
   return String(v);
 }
 
-function formatDatePattern(date: Date, pattern: string): string {
+function formatDatePattern(date: Date, pattern: string, locale = "en-US"): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  const map: Record<string, string> = {
-    yyyy: String(date.getFullYear()),
-    MM: pad(date.getMonth() + 1),
-    dd: pad(date.getDate()),
-    HH: pad(date.getHours()),
-    mm: pad(date.getMinutes()),
-    ss: pad(date.getSeconds()),
+  const month = (style: "long" | "short") => new Intl.DateTimeFormat(locale, { month: style, timeZone: "UTC" }).format(new Date(Date.UTC(2000, date.getMonth(), 1)));
+  const map: Record<string, () => string> = {
+    yyyy: () => String(date.getFullYear()),
+    MMMM: () => month("long"),
+    MMM: () => month("short"),
+    MM: () => pad(date.getMonth() + 1),
+    dd: () => pad(date.getDate()),
+    HH: () => pad(date.getHours()),
+    mm: () => pad(date.getMinutes()),
+    ss: () => pad(date.getSeconds()),
   };
-  return pattern.replace(/yyyy|MM|dd|HH|mm|ss/g, (t) => map[t] ?? t);
+  return pattern.replace(/yyyy|MMMM|MMM|MM|dd|HH|mm|ss/g, (t) => map[t]?.() ?? t);
 }

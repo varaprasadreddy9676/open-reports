@@ -3,7 +3,7 @@ import type {
   ResolvedTableComponent,
 } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { resolveColumnWidths } from "@reporting/layout";
+import { defaultTextMeasurer, measureFooterHeight, measureHeaderHeight, measureRowHeight, resolveColumnWidths } from "@reporting/layout";
 import { escapeHtml } from "./escape.js";
 import { barcodeDataUrl, qrCodeDataUrl } from "./codes.js";
 import { chartTitle, renderChartSvg } from "./chart.js";
@@ -75,21 +75,21 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
   const end = node.rowRange?.end ?? table.rows.length;
 
   const headerRow = table.showHeader
-    ? `<thead><tr>${table.columns.map((c) => `<th style="text-align:${c.align ?? "left"};border-bottom:1px solid #000;padding:2px 4px;">${escapeHtml(c.header)}</th>`).join("")}</tr></thead>`
+    ? `<thead><tr style="height:${ptToPx(measureHeaderHeight(table, defaultTextMeasurer)).toFixed(2)}px">${table.columns.map((c) => `<th style="text-align:${c.align ?? "left"};border-bottom:1px solid #000;padding:2px 4px;">${escapeHtml(c.header)}</th>`).join("")}</tr></thead>`
     : "";
 
   const bodyRows = table.rows
     .slice(start, end)
     .map(
       (row, i) =>
-        `<tr${table.alternateRowStyle && (start + i) % 2 === 1 ? ' style="background:#f5f5f5"' : ""}>${table.columns
+        `<tr style="height:${ptToPx(measureRowHeight(table, start + i, widths, defaultTextMeasurer)).toFixed(2)}px;${table.alternateRowStyle && (start + i) % 2 === 1 ? "background:#f5f5f5;" : ""}${styleToCss(row.style)}">${table.columns
           .map((c) => `<td style="text-align:${c.align ?? "left"};padding:2px 4px;">${escapeHtml(row.formatted[c.id] ?? "")}</td>`)
           .join("")}</tr>`
     )
     .join("");
 
   const footerRow = table.showFooter
-    ? `<tfoot><tr>${table.columns.map((c) => `<td style="border-top:1px solid #000;font-weight:bold;padding:2px 4px;">${escapeHtml(c.footer?.value ?? "")}</td>`).join("")}</tr></tfoot>`
+    ? `<tfoot><tr style="height:${ptToPx(measureFooterHeight(table, defaultTextMeasurer)).toFixed(2)}px">${table.columns.map((c) => `<td style="border-top:1px solid #000;font-weight:bold;padding:2px 4px;">${escapeHtml(c.footer?.value ?? "")}</td>`).join("")}</tr></tfoot>`
     : "";
 
   return `<table style="${boxStyle}border-collapse:collapse;width:${ptToPx(node.box.width).toFixed(2)}px;">${colgroup}${headerRow}<tbody>${bodyRows}</tbody>${footerRow}</table>`;

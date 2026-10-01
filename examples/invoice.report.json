@@ -1,0 +1,336 @@
+{
+  "schemaVersion": "1.0",
+  "id": "invoice",
+  "name": "Invoice",
+  "description": "Logo block, customer details, item table, tax and totals, QR code, repeating footer.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "invoice",
+      "source": "inline",
+      "query": {
+        "data": {
+          "number": "INV-1001",
+          "date": "2025-01-15",
+          "status": "Due",
+          "customer": {
+            "name": "Sai Varaprasad",
+            "address": "12 MG Road, Bengaluru 560001",
+            "phone": "+91 98765 43210"
+          },
+          "items": [
+            {
+              "description": "Eye Examination",
+              "quantity": 1,
+              "rate": 500
+            },
+            {
+              "description": "Progressive Lenses",
+              "quantity": 2,
+              "rate": 3200
+            },
+            {
+              "description": "Titanium Frame",
+              "quantity": 1,
+              "rate": 4800
+            },
+            {
+              "description": "Lens Coating",
+              "quantity": 2,
+              "rate": 650
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "subtotal",
+      "scope": "report",
+      "expression": "sumProduct(data.invoice.items, \"quantity\", \"rate\")"
+    },
+    {
+      "id": "tax",
+      "scope": "report",
+      "expression": "vars.subtotal * 0.18"
+    },
+    {
+      "id": "total",
+      "scope": "report",
+      "expression": "vars.subtotal + vars.tax"
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "ACME HEALTH",
+              "id": "company",
+              "width": "*",
+              "style": {
+                "fontSize": 18,
+                "fontWeight": "bold",
+                "color": "#1d4ed8"
+              }
+            },
+            {
+              "type": "text",
+              "value": "INVOICE",
+              "style": {
+                "fontSize": 18,
+                "fontWeight": "bold",
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Bill to",
+                  "style": {
+                    "fontSize": 8,
+                    "color": "#6b7280"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.name",
+                  "style": {
+                    "fontSize": 12,
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.address"
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.phone"
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "expression": "\"Invoice # \" + data.invoice.number",
+                  "style": {
+                    "align": "right",
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Date: \" + formatDate(data.invoice.date, \"dd MMM yyyy\")",
+                  "style": {
+                    "align": "right"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Status: \" + data.invoice.status",
+                  "style": {
+                    "align": "right",
+                    "color": "#b45309"
+                  }
+                }
+              ],
+              "width": 200
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 14
+        },
+        {
+          "type": "table",
+          "id": "items",
+          "dataset": "invoice.items",
+          "showFooter": true,
+          "alternateRowStyle": true,
+          "keepRowTogether": true,
+          "columns": [
+            {
+              "id": "description",
+              "header": "Description",
+              "binding": "row.description",
+              "width": "*"
+            },
+            {
+              "id": "quantity",
+              "header": "Qty",
+              "binding": "row.quantity",
+              "width": 50,
+              "align": "right"
+            },
+            {
+              "id": "rate",
+              "header": "Rate",
+              "binding": "row.rate",
+              "format": "currency:INR",
+              "width": 90,
+              "align": "right"
+            },
+            {
+              "id": "amount",
+              "header": "Amount",
+              "expression": "row.quantity * row.rate",
+              "format": "currency:INR",
+              "width": 100,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 14
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "row",
+              "children": [
+                {
+                  "type": "qrcode",
+                  "id": "pay-qr",
+                  "expression": "\"upi://pay?pa=acme@bank&am=\" + vars.total",
+                  "width": 100,
+                  "height": 80
+                },
+                {
+                  "type": "column",
+                  "children": [
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Subtotal",
+                          "width": "*"
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(vars.subtotal)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "GST 18%",
+                          "width": "*"
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(vars.tax)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "line"
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Total",
+                          "width": "*",
+                          "style": {
+                            "fontSize": 13,
+                            "fontWeight": "bold"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(vars.total)",
+                          "width": 110,
+                          "style": {
+                            "align": "right",
+                            "fontSize": 13,
+                            "fontWeight": "bold"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "width": "*"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

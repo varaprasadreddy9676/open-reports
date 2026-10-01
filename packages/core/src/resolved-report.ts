@@ -25,6 +25,7 @@ export interface ResolvedWarning {
   code: string;
   path: string;
   message: string;
+  componentId?: string;
 }
 
 export interface ResolvedSection {
@@ -124,6 +125,8 @@ export interface ResolvedTableRow {
   raw: Record<string, unknown>;
   /** Formatted display strings, keyed by column id -- used by PDF/HTML. */
   formatted: Record<string, string>;
+  /** Style overrides from the table's rowStyleWhen rules that matched this row. */
+  style?: Record<string, unknown>;
 }
 
 export interface ResolvedTableComponent extends ResolvedComponentBase {

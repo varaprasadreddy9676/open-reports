@@ -5,12 +5,17 @@ import type {
   ResolvedGroupComponent,
 } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
-import { wrapLineCount } from "./measure.js";
+import { wrapLineCount, type TextStyleHint } from "./measure.js";
 import { resolveDimension } from "./units.js";
 import type { Box, PositionedNode } from "./types.js";
 
 const DEFAULT_FONT_SIZE = 10;
 const DEFAULT_UNIT = "pt" as const;
+
+function styleHint(component: ResolvedComponent): TextStyleHint {
+  const s = (component.style ?? {}) as Record<string, any>;
+  return { family: s.fontFamily, bold: s.fontWeight === "bold" || (typeof s.fontWeight === "number" && s.fontWeight >= 700), italic: Boolean(s.italic) };
+}
 
 function styleFontSize(component: ResolvedComponent): number {
   return (component.style?.fontSize as number | undefined) ?? DEFAULT_FONT_SIZE;
@@ -28,8 +33,10 @@ export function layoutComponent(component: ResolvedComponent, box: Box, measurer
     case "richText":
     case "field": {
       const fontSize = styleFontSize(component);
-      const lines = wrapLineCount((component as any).text, width, fontSize, measurer);
-      const height = resolveDimension(component.height, box.height, DEFAULT_UNIT) ?? lines * measurer.lineHeight(fontSize);
+      const hint = styleHint(component);
+      const pad = typeof (component.style as any)?.padding === "number" ? (component.style as any).padding : 0;
+      const lines = wrapLineCount((component as any).text, Math.max(1, width - pad * 2), fontSize, measurer, hint);
+      const height = resolveDimension(component.height, box.height, DEFAULT_UNIT) ?? lines * measurer.lineHeight(fontSize, hint) + pad * 2;
       return { component, box: { x: box.x, y: box.y, width, height } };
     }
 
@@ -198,7 +205,7 @@ const HEADER_FOOTER_PADDING = 6;
 export function measureRowHeight(table: ResolvedTableComponent, rowIndex: number, columnWidths: ColumnWidth[], measurer: TextMeasurer): number {
   const fontSize = styleFontSize(table);
   const row = table.rows[rowIndex]!;
-  const lineCounts = table.columns.map((col, i) => wrapLineCount(row.formatted[col.id] ?? "", columnWidths[i]!.width, fontSize, measurer));
+  const lineCounts = table.columns.map((col, i) => wrapLineCount(row.formatted[col.id] ?? "", Math.max(1, columnWidths[i]!.width - 4), fontSize, measurer));
   const maxLines = Math.max(1, ...lineCounts);
   return maxLines * measurer.lineHeight(fontSize) + ROW_PADDING;
 }

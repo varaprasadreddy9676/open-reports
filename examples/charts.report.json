@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "1.0",
+  "id": "charts",
+  "name": "Charts Report",
+  "description": "Bar, line and pie charts compiled to vector SVG.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "monthly",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "month": "Jan",
+            "revenue": 120,
+            "cost": 80
+          },
+          {
+            "month": "Feb",
+            "revenue": 150,
+            "cost": 95
+          },
+          {
+            "month": "Mar",
+            "revenue": 90,
+            "cost": 70
+          },
+          {
+            "month": "Apr",
+            "revenue": 180,
+            "cost": 100
+          },
+          {
+            "month": "May",
+            "revenue": 210,
+            "cost": 120
+          },
+          {
+            "month": "Jun",
+            "revenue": 170,
+            "cost": 110
+          }
+        ]
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "value": "Quarterly performance",
+          "style": {
+            "fontSize": 16,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "chart",
+          "id": "bar",
+          "chartType": "bar",
+          "title": "Revenue vs cost",
+          "dataset": "monthly",
+          "categoryBinding": "row.month",
+          "series": [
+            {
+              "name": "Revenue",
+              "binding": "row.revenue"
+            },
+            {
+              "name": "Cost",
+              "binding": "row.cost"
+            }
+          ],
+          "height": 190
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "chart",
+          "id": "line",
+          "chartType": "line",
+          "title": "Revenue trend",
+          "dataset": "monthly",
+          "categoryBinding": "row.month",
+          "series": [
+            {
+              "name": "Revenue",
+              "binding": "row.revenue"
+            }
+          ],
+          "height": 170
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "chart",
+          "id": "pie",
+          "chartType": "pie",
+          "title": "Revenue share",
+          "dataset": "monthly",
+          "categoryBinding": "row.month",
+          "series": [
+            {
+              "name": "Revenue",
+              "binding": "row.revenue"
+            }
+          ],
+          "height": 200
+        }
+      ]
+    }
+  ]
+}

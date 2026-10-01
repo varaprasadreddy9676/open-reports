@@ -47,7 +47,7 @@ export const numberFunctions: Record<string, ExpressionFunction> = {
 
 export const dateFunctions: Record<string, ExpressionFunction> = {
   now: () => new Date(),
-  formatDate: (v, pattern) => formatDate(toDate(v), toStr(pattern ?? "yyyy-MM-dd")),
+  formatDate: (v, pattern, locale) => formatDate(toDate(v), toStr(pattern ?? "yyyy-MM-dd"), locale ? toStr(locale) : undefined),
   addDays: (v, days) => {
     const d = new Date(toDate(v).getTime());
     d.setDate(d.getDate() + toNumber(days));
@@ -70,17 +70,20 @@ export const dateFunctions: Record<string, ExpressionFunction> = {
   },
 };
 
-function formatDate(date: Date, pattern: string): string {
+export function formatDate(date: Date, pattern: string, locale = "en-US"): string {
   const pad = (n: number, len = 2) => String(n).padStart(len, "0");
-  const map: Record<string, string> = {
-    yyyy: String(date.getFullYear()),
-    MM: pad(date.getMonth() + 1),
-    dd: pad(date.getDate()),
-    HH: pad(date.getHours()),
-    mm: pad(date.getMinutes()),
-    ss: pad(date.getSeconds()),
+  const month = (style: "long" | "short") => new Intl.DateTimeFormat(locale, { month: style, timeZone: "UTC" }).format(new Date(Date.UTC(2000, date.getMonth(), 1)));
+  const map: Record<string, () => string> = {
+    yyyy: () => String(date.getFullYear()),
+    MMMM: () => month("long"),
+    MMM: () => month("short"),
+    MM: () => pad(date.getMonth() + 1),
+    dd: () => pad(date.getDate()),
+    HH: () => pad(date.getHours()),
+    mm: () => pad(date.getMinutes()),
+    ss: () => pad(date.getSeconds()),
   };
-  return pattern.replace(/yyyy|MM|dd|HH|mm|ss/g, (token) => map[token] ?? token);
+  return pattern.replace(/yyyy|MMMM|MMM|MM|dd|HH|mm|ss/g, (token) => map[token]?.() ?? token);
 }
 
 export function createFormatFunctions(locale: string, currency: string): Record<string, ExpressionFunction> {
@@ -127,6 +130,10 @@ export const aggregationFunctions: Record<string, ExpressionFunction> = {
     const values = pluck(arr, field);
     return values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length;
   },
+  sumProduct: (arr, a, b) => toArray(arr).reduce<number>((acc, item) => {
+    const o = (item ?? {}) as Record<string, unknown>;
+    return acc + toNumber(o[toStr(a)]) * toNumber(o[toStr(b)]);
+  }, 0),
   minBy: (arr, field) => Math.min(...pluck(arr, field)),
   maxBy: (arr, field) => Math.max(...pluck(arr, field)),
 };

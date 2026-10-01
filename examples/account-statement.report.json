@@ -1,0 +1,1158 @@
+{
+  "schemaVersion": "1.0",
+  "id": "account-statement",
+  "name": "Account Statement",
+  "description": "Multi-page transaction table with repeating header; negative balances are highlighted.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "account",
+      "source": "inline",
+      "query": {
+        "data": {
+          "holder": "Sai Varaprasad",
+          "number": "XXXX-4471",
+          "period": "Jan - Mar 2025",
+          "transactions": [
+            {
+              "date": "2025-01-01",
+              "narration": "UPI payment Grocer",
+              "debit": 441,
+              "credit": 0,
+              "balance": 24559
+            },
+            {
+              "date": "2025-01-01",
+              "narration": "UPI payment Pharmacy",
+              "debit": 1113,
+              "credit": 0,
+              "balance": 23446
+            },
+            {
+              "date": "2025-01-02",
+              "narration": "UPI payment Fuel",
+              "debit": 128,
+              "credit": 0,
+              "balance": 23318
+            },
+            {
+              "date": "2025-01-02",
+              "narration": "UPI payment Utilities",
+              "debit": 592,
+              "credit": 0,
+              "balance": 22726
+            },
+            {
+              "date": "2025-01-03",
+              "narration": "NEFT credit REF1004",
+              "debit": 0,
+              "credit": 19893,
+              "balance": 42619
+            },
+            {
+              "date": "2025-01-03",
+              "narration": "NEFT credit REF1005",
+              "debit": 0,
+              "credit": 9994,
+              "balance": 52613
+            },
+            {
+              "date": "2025-01-04",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4307,
+              "credit": 0,
+              "balance": 48306
+            },
+            {
+              "date": "2025-01-04",
+              "narration": "UPI payment Fuel",
+              "debit": 454,
+              "credit": 0,
+              "balance": 47852
+            },
+            {
+              "date": "2025-01-05",
+              "narration": "UPI payment Utilities",
+              "debit": 4750,
+              "credit": 0,
+              "balance": 43102
+            },
+            {
+              "date": "2025-01-05",
+              "narration": "NEFT credit REF1009",
+              "debit": 0,
+              "credit": 17789,
+              "balance": 60891
+            },
+            {
+              "date": "2025-01-06",
+              "narration": "UPI payment Grocer",
+              "debit": 903,
+              "credit": 0,
+              "balance": 59988
+            },
+            {
+              "date": "2025-01-06",
+              "narration": "UPI payment Pharmacy",
+              "debit": 1295,
+              "credit": 0,
+              "balance": 58693
+            },
+            {
+              "date": "2025-01-07",
+              "narration": "NEFT credit REF1012",
+              "debit": 0,
+              "credit": 16430,
+              "balance": 75123
+            },
+            {
+              "date": "2025-01-07",
+              "narration": "UPI payment Utilities",
+              "debit": 4147,
+              "credit": 0,
+              "balance": 70976
+            },
+            {
+              "date": "2025-01-08",
+              "narration": "UPI payment Travel",
+              "debit": 304,
+              "credit": 0,
+              "balance": 70672
+            },
+            {
+              "date": "2025-01-08",
+              "narration": "UPI payment Grocer",
+              "debit": 2686,
+              "credit": 0,
+              "balance": 67986
+            },
+            {
+              "date": "2025-01-09",
+              "narration": "NEFT credit REF1016",
+              "debit": 0,
+              "credit": 16907,
+              "balance": 84893
+            },
+            {
+              "date": "2025-01-09",
+              "narration": "UPI payment Fuel",
+              "debit": 1904,
+              "credit": 0,
+              "balance": 82989
+            },
+            {
+              "date": "2025-01-10",
+              "narration": "UPI payment Utilities",
+              "debit": 3482,
+              "credit": 0,
+              "balance": 79507
+            },
+            {
+              "date": "2025-01-10",
+              "narration": "NEFT credit REF1019",
+              "debit": 0,
+              "credit": 14372,
+              "balance": 93879
+            },
+            {
+              "date": "2025-01-11",
+              "narration": "NEFT credit REF1020",
+              "debit": 0,
+              "credit": 8995,
+              "balance": 102874
+            },
+            {
+              "date": "2025-01-11",
+              "narration": "UPI payment Pharmacy",
+              "debit": 958,
+              "credit": 0,
+              "balance": 101916
+            },
+            {
+              "date": "2025-01-12",
+              "narration": "UPI payment Fuel",
+              "debit": 635,
+              "credit": 0,
+              "balance": 101281
+            },
+            {
+              "date": "2025-01-12",
+              "narration": "NEFT credit REF1023",
+              "debit": 0,
+              "credit": 11874,
+              "balance": 113155
+            },
+            {
+              "date": "2025-01-13",
+              "narration": "NEFT credit REF1024",
+              "debit": 0,
+              "credit": 7788,
+              "balance": 120943
+            },
+            {
+              "date": "2025-01-13",
+              "narration": "UPI payment Grocer",
+              "debit": 1360,
+              "credit": 0,
+              "balance": 119583
+            },
+            {
+              "date": "2025-01-14",
+              "narration": "UPI payment Pharmacy",
+              "debit": 1390,
+              "credit": 0,
+              "balance": 118193
+            },
+            {
+              "date": "2025-01-14",
+              "narration": "UPI payment Fuel",
+              "debit": 4414,
+              "credit": 0,
+              "balance": 113779
+            },
+            {
+              "date": "2025-01-15",
+              "narration": "NEFT credit REF1028",
+              "debit": 0,
+              "credit": 3854,
+              "balance": 117633
+            },
+            {
+              "date": "2025-01-15",
+              "narration": "NEFT credit REF1029",
+              "debit": 0,
+              "credit": 11646,
+              "balance": 129279
+            },
+            {
+              "date": "2025-01-16",
+              "narration": "UPI payment Grocer",
+              "debit": 1572,
+              "credit": 0,
+              "balance": 127707
+            },
+            {
+              "date": "2025-01-16",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4900,
+              "credit": 0,
+              "balance": 122807
+            },
+            {
+              "date": "2025-01-17",
+              "narration": "UPI payment Fuel",
+              "debit": 4608,
+              "credit": 0,
+              "balance": 118199
+            },
+            {
+              "date": "2025-01-17",
+              "narration": "NEFT credit REF1033",
+              "debit": 0,
+              "credit": 8659,
+              "balance": 126858
+            },
+            {
+              "date": "2025-01-18",
+              "narration": "NEFT credit REF1034",
+              "debit": 0,
+              "credit": 6133,
+              "balance": 132991
+            },
+            {
+              "date": "2025-01-18",
+              "narration": "UPI payment Grocer",
+              "debit": 2546,
+              "credit": 0,
+              "balance": 130445
+            },
+            {
+              "date": "2025-01-19",
+              "narration": "UPI payment Pharmacy",
+              "debit": 1218,
+              "credit": 0,
+              "balance": 129227
+            },
+            {
+              "date": "2025-01-19",
+              "narration": "UPI payment Fuel",
+              "debit": 3489,
+              "credit": 0,
+              "balance": 125738
+            },
+            {
+              "date": "2025-01-20",
+              "narration": "UPI payment Utilities",
+              "debit": 1048,
+              "credit": 0,
+              "balance": 124690
+            },
+            {
+              "date": "2025-01-20",
+              "narration": "UPI payment Travel",
+              "debit": 3471,
+              "credit": 0,
+              "balance": 121219
+            },
+            {
+              "date": "2025-01-21",
+              "narration": "NEFT credit REF1040",
+              "debit": 0,
+              "credit": 16339,
+              "balance": 137558
+            },
+            {
+              "date": "2025-01-21",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4197,
+              "credit": 0,
+              "balance": 133361
+            },
+            {
+              "date": "2025-01-22",
+              "narration": "UPI payment Fuel",
+              "debit": 766,
+              "credit": 0,
+              "balance": 132595
+            },
+            {
+              "date": "2025-01-22",
+              "narration": "UPI payment Utilities",
+              "debit": 2699,
+              "credit": 0,
+              "balance": 129896
+            },
+            {
+              "date": "2025-01-23",
+              "narration": "UPI payment Travel",
+              "debit": 4939,
+              "credit": 0,
+              "balance": 124957
+            },
+            {
+              "date": "2025-01-23",
+              "narration": "UPI payment Grocer",
+              "debit": 3735,
+              "credit": 0,
+              "balance": 121222
+            },
+            {
+              "date": "2025-01-24",
+              "narration": "UPI payment Pharmacy",
+              "debit": 228,
+              "credit": 0,
+              "balance": 120994
+            },
+            {
+              "date": "2025-01-24",
+              "narration": "UPI payment Fuel",
+              "debit": 4129,
+              "credit": 0,
+              "balance": 116865
+            },
+            {
+              "date": "2025-01-25",
+              "narration": "NEFT credit REF1048",
+              "debit": 0,
+              "credit": 15994,
+              "balance": 132859
+            },
+            {
+              "date": "2025-01-25",
+              "narration": "UPI payment Travel",
+              "debit": 1933,
+              "credit": 0,
+              "balance": 130926
+            },
+            {
+              "date": "2025-01-26",
+              "narration": "UPI payment Grocer",
+              "debit": 2449,
+              "credit": 0,
+              "balance": 128477
+            },
+            {
+              "date": "2025-01-26",
+              "narration": "NEFT credit REF1051",
+              "debit": 0,
+              "credit": 18275,
+              "balance": 146752
+            },
+            {
+              "date": "2025-01-27",
+              "narration": "UPI payment Fuel",
+              "debit": 1580,
+              "credit": 0,
+              "balance": 145172
+            },
+            {
+              "date": "2025-01-27",
+              "narration": "UPI payment Utilities",
+              "debit": 1320,
+              "credit": 0,
+              "balance": 143852
+            },
+            {
+              "date": "2025-01-28",
+              "narration": "UPI payment Travel",
+              "debit": 62,
+              "credit": 0,
+              "balance": 143790
+            },
+            {
+              "date": "2025-01-28",
+              "narration": "UPI payment Grocer",
+              "debit": 1833,
+              "credit": 0,
+              "balance": 141957
+            },
+            {
+              "date": "2025-01-29",
+              "narration": "UPI payment Pharmacy",
+              "debit": 1274,
+              "credit": 0,
+              "balance": 140683
+            },
+            {
+              "date": "2025-01-29",
+              "narration": "UPI payment Fuel",
+              "debit": 3504,
+              "credit": 0,
+              "balance": 137179
+            },
+            {
+              "date": "2025-01-30",
+              "narration": "UPI payment Utilities",
+              "debit": 3018,
+              "credit": 0,
+              "balance": 134161
+            },
+            {
+              "date": "2025-01-30",
+              "narration": "UPI payment Travel",
+              "debit": 1899,
+              "credit": 0,
+              "balance": 132262
+            },
+            {
+              "date": "2025-01-31",
+              "narration": "UPI payment Grocer",
+              "debit": 4680,
+              "credit": 0,
+              "balance": 127582
+            },
+            {
+              "date": "2025-01-31",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4604,
+              "credit": 0,
+              "balance": 122978
+            },
+            {
+              "date": "2025-02-01",
+              "narration": "NEFT credit REF1062",
+              "debit": 0,
+              "credit": 11427,
+              "balance": 134405
+            },
+            {
+              "date": "2025-02-01",
+              "narration": "NEFT credit REF1063",
+              "debit": 0,
+              "credit": 507,
+              "balance": 134912
+            },
+            {
+              "date": "2025-02-02",
+              "narration": "UPI payment Travel",
+              "debit": 2705,
+              "credit": 0,
+              "balance": 132207
+            },
+            {
+              "date": "2025-02-02",
+              "narration": "UPI payment Grocer",
+              "debit": 4761,
+              "credit": 0,
+              "balance": 127446
+            },
+            {
+              "date": "2025-02-03",
+              "narration": "NEFT credit REF1066",
+              "debit": 0,
+              "credit": 14152,
+              "balance": 141598
+            },
+            {
+              "date": "2025-02-03",
+              "narration": "NEFT credit REF1067",
+              "debit": 0,
+              "credit": 6176,
+              "balance": 147774
+            },
+            {
+              "date": "2025-02-04",
+              "narration": "UPI payment Utilities",
+              "debit": 3427,
+              "credit": 0,
+              "balance": 144347
+            },
+            {
+              "date": "2025-02-04",
+              "narration": "UPI payment Travel",
+              "debit": 1696,
+              "credit": 0,
+              "balance": 142651
+            },
+            {
+              "date": "2025-02-05",
+              "narration": "UPI payment Grocer",
+              "debit": 3832,
+              "credit": 0,
+              "balance": 138819
+            },
+            {
+              "date": "2025-02-05",
+              "narration": "NEFT credit REF1071",
+              "debit": 0,
+              "credit": 766,
+              "balance": 139585
+            },
+            {
+              "date": "2025-02-06",
+              "narration": "UPI payment Fuel",
+              "debit": 1516,
+              "credit": 0,
+              "balance": 138069
+            },
+            {
+              "date": "2025-02-06",
+              "narration": "UPI payment Utilities",
+              "debit": 3340,
+              "credit": 0,
+              "balance": 134729
+            },
+            {
+              "date": "2025-02-07",
+              "narration": "UPI payment Travel",
+              "debit": 1274,
+              "credit": 0,
+              "balance": 133455
+            },
+            {
+              "date": "2025-02-07",
+              "narration": "NEFT credit REF1075",
+              "debit": 0,
+              "credit": 10121,
+              "balance": 143576
+            },
+            {
+              "date": "2025-02-08",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4222,
+              "credit": 0,
+              "balance": 139354
+            },
+            {
+              "date": "2025-02-08",
+              "narration": "NEFT credit REF1077",
+              "debit": 0,
+              "credit": 18082,
+              "balance": 157436
+            },
+            {
+              "date": "2025-02-09",
+              "narration": "NEFT credit REF1078",
+              "debit": 0,
+              "credit": 10738,
+              "balance": 168174
+            },
+            {
+              "date": "2025-02-09",
+              "narration": "NEFT credit REF1079",
+              "debit": 0,
+              "credit": 19656,
+              "balance": 187830
+            },
+            {
+              "date": "2025-02-10",
+              "narration": "UPI payment Grocer",
+              "debit": 3924,
+              "credit": 0,
+              "balance": 183906
+            },
+            {
+              "date": "2025-02-10",
+              "narration": "UPI payment Pharmacy",
+              "debit": 2718,
+              "credit": 0,
+              "balance": 181188
+            },
+            {
+              "date": "2025-02-11",
+              "narration": "UPI payment Fuel",
+              "debit": 1248,
+              "credit": 0,
+              "balance": 179940
+            },
+            {
+              "date": "2025-02-11",
+              "narration": "NEFT credit REF1083",
+              "debit": 0,
+              "credit": 481,
+              "balance": 180421
+            },
+            {
+              "date": "2025-02-12",
+              "narration": "NEFT credit REF1084",
+              "debit": 0,
+              "credit": 8961,
+              "balance": 189382
+            },
+            {
+              "date": "2025-02-12",
+              "narration": "UPI payment Grocer",
+              "debit": 2876,
+              "credit": 0,
+              "balance": 186506
+            },
+            {
+              "date": "2025-02-13",
+              "narration": "UPI payment Pharmacy",
+              "debit": 153,
+              "credit": 0,
+              "balance": 186353
+            },
+            {
+              "date": "2025-02-13",
+              "narration": "UPI payment Fuel",
+              "debit": 2948,
+              "credit": 0,
+              "balance": 183405
+            },
+            {
+              "date": "2025-02-14",
+              "narration": "UPI payment Utilities",
+              "debit": 703,
+              "credit": 0,
+              "balance": 182702
+            },
+            {
+              "date": "2025-02-14",
+              "narration": "UPI payment Travel",
+              "debit": 1282,
+              "credit": 0,
+              "balance": 181420
+            },
+            {
+              "date": "2025-02-15",
+              "narration": "UPI payment Grocer",
+              "debit": 2803,
+              "credit": 0,
+              "balance": 178617
+            },
+            {
+              "date": "2025-02-15",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4874,
+              "credit": 0,
+              "balance": 173743
+            },
+            {
+              "date": "2025-02-16",
+              "narration": "UPI payment Fuel",
+              "debit": 2993,
+              "credit": 0,
+              "balance": 170750
+            },
+            {
+              "date": "2025-02-16",
+              "narration": "UPI payment Utilities",
+              "debit": 3502,
+              "credit": 0,
+              "balance": 167248
+            },
+            {
+              "date": "2025-02-17",
+              "narration": "UPI payment Travel",
+              "debit": 4578,
+              "credit": 0,
+              "balance": 162670
+            },
+            {
+              "date": "2025-02-17",
+              "narration": "NEFT credit REF1095",
+              "debit": 0,
+              "credit": 11102,
+              "balance": 173772
+            },
+            {
+              "date": "2025-02-18",
+              "narration": "UPI payment Pharmacy",
+              "debit": 3743,
+              "credit": 0,
+              "balance": 170029
+            },
+            {
+              "date": "2025-02-18",
+              "narration": "UPI payment Fuel",
+              "debit": 1387,
+              "credit": 0,
+              "balance": 168642
+            },
+            {
+              "date": "2025-02-19",
+              "narration": "UPI payment Utilities",
+              "debit": 1167,
+              "credit": 0,
+              "balance": 167475
+            },
+            {
+              "date": "2025-02-19",
+              "narration": "UPI payment Travel",
+              "debit": 1712,
+              "credit": 0,
+              "balance": 165763
+            },
+            {
+              "date": "2025-02-20",
+              "narration": "UPI payment Grocer",
+              "debit": 3892,
+              "credit": 0,
+              "balance": 161871
+            },
+            {
+              "date": "2025-02-20",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4137,
+              "credit": 0,
+              "balance": 157734
+            },
+            {
+              "date": "2025-02-21",
+              "narration": "UPI payment Fuel",
+              "debit": 3463,
+              "credit": 0,
+              "balance": 154271
+            },
+            {
+              "date": "2025-02-21",
+              "narration": "UPI payment Utilities",
+              "debit": 1771,
+              "credit": 0,
+              "balance": 152500
+            },
+            {
+              "date": "2025-02-22",
+              "narration": "NEFT credit REF1104",
+              "debit": 0,
+              "credit": 10463,
+              "balance": 162963
+            },
+            {
+              "date": "2025-02-22",
+              "narration": "NEFT credit REF1105",
+              "debit": 0,
+              "credit": 13689,
+              "balance": 176652
+            },
+            {
+              "date": "2025-02-23",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4014,
+              "credit": 0,
+              "balance": 172638
+            },
+            {
+              "date": "2025-02-23",
+              "narration": "NEFT credit REF1107",
+              "debit": 0,
+              "credit": 15909,
+              "balance": 188547
+            },
+            {
+              "date": "2025-02-24",
+              "narration": "NEFT credit REF1108",
+              "debit": 0,
+              "credit": 3239,
+              "balance": 191786
+            },
+            {
+              "date": "2025-02-24",
+              "narration": "UPI payment Travel",
+              "debit": 2582,
+              "credit": 0,
+              "balance": 189204
+            },
+            {
+              "date": "2025-02-25",
+              "narration": "UPI payment Grocer",
+              "debit": 42,
+              "credit": 0,
+              "balance": 189162
+            },
+            {
+              "date": "2025-02-25",
+              "narration": "UPI payment Pharmacy",
+              "debit": 262,
+              "credit": 0,
+              "balance": 188900
+            },
+            {
+              "date": "2025-02-26",
+              "narration": "NEFT credit REF1112",
+              "debit": 0,
+              "credit": 4551,
+              "balance": 193451
+            },
+            {
+              "date": "2025-02-26",
+              "narration": "UPI payment Utilities",
+              "debit": 4869,
+              "credit": 0,
+              "balance": 188582
+            },
+            {
+              "date": "2025-02-27",
+              "narration": "UPI payment Travel",
+              "debit": 3026,
+              "credit": 0,
+              "balance": 185556
+            },
+            {
+              "date": "2025-02-27",
+              "narration": "UPI payment Grocer",
+              "debit": 2499,
+              "credit": 0,
+              "balance": 183057
+            },
+            {
+              "date": "2025-02-28",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4644,
+              "credit": 0,
+              "balance": 178413
+            },
+            {
+              "date": "2025-02-28",
+              "narration": "UPI payment Fuel",
+              "debit": 768,
+              "credit": 0,
+              "balance": 177645
+            },
+            {
+              "date": "2025-03-01",
+              "narration": "NEFT credit REF1118",
+              "debit": 0,
+              "credit": 19355,
+              "balance": 197000
+            },
+            {
+              "date": "2025-03-01",
+              "narration": "NEFT credit REF1119",
+              "debit": 0,
+              "credit": 2377,
+              "balance": 199377
+            },
+            {
+              "date": "2025-03-02",
+              "narration": "UPI payment Grocer",
+              "debit": 3929,
+              "credit": 0,
+              "balance": 195448
+            },
+            {
+              "date": "2025-03-02",
+              "narration": "NEFT credit REF1121",
+              "debit": 0,
+              "credit": 17473,
+              "balance": 212921
+            },
+            {
+              "date": "2025-03-03",
+              "narration": "NEFT credit REF1122",
+              "debit": 0,
+              "credit": 1828,
+              "balance": 214749
+            },
+            {
+              "date": "2025-03-03",
+              "narration": "UPI payment Utilities",
+              "debit": 4652,
+              "credit": 0,
+              "balance": 210097
+            },
+            {
+              "date": "2025-03-04",
+              "narration": "UPI payment Travel",
+              "debit": 2880,
+              "credit": 0,
+              "balance": 207217
+            },
+            {
+              "date": "2025-03-04",
+              "narration": "NEFT credit REF1125",
+              "debit": 0,
+              "credit": 15239,
+              "balance": 222456
+            },
+            {
+              "date": "2025-03-05",
+              "narration": "NEFT credit REF1126",
+              "debit": 0,
+              "credit": 8908,
+              "balance": 231364
+            },
+            {
+              "date": "2025-03-05",
+              "narration": "NEFT credit REF1127",
+              "debit": 0,
+              "credit": 4763,
+              "balance": 236127
+            },
+            {
+              "date": "2025-03-06",
+              "narration": "UPI payment Utilities",
+              "debit": 2978,
+              "credit": 0,
+              "balance": 233149
+            },
+            {
+              "date": "2025-03-06",
+              "narration": "UPI payment Travel",
+              "debit": 779,
+              "credit": 0,
+              "balance": 232370
+            },
+            {
+              "date": "2025-03-07",
+              "narration": "UPI payment Grocer",
+              "debit": 695,
+              "credit": 0,
+              "balance": 231675
+            },
+            {
+              "date": "2025-03-07",
+              "narration": "NEFT credit REF1131",
+              "debit": 0,
+              "credit": 13703,
+              "balance": 245378
+            },
+            {
+              "date": "2025-03-08",
+              "narration": "UPI payment Fuel",
+              "debit": 1152,
+              "credit": 0,
+              "balance": 244226
+            },
+            {
+              "date": "2025-03-08",
+              "narration": "UPI payment Utilities",
+              "debit": 4076,
+              "credit": 0,
+              "balance": 240150
+            },
+            {
+              "date": "2025-03-09",
+              "narration": "NEFT credit REF1134",
+              "debit": 0,
+              "credit": 7992,
+              "balance": 248142
+            },
+            {
+              "date": "2025-03-09",
+              "narration": "UPI payment Grocer",
+              "debit": 617,
+              "credit": 0,
+              "balance": 247525
+            },
+            {
+              "date": "2025-03-10",
+              "narration": "UPI payment Pharmacy",
+              "debit": 4205,
+              "credit": 0,
+              "balance": 243320
+            },
+            {
+              "date": "2025-03-10",
+              "narration": "UPI payment Fuel",
+              "debit": 2243,
+              "credit": 0,
+              "balance": 241077
+            },
+            {
+              "date": "2025-03-11",
+              "narration": "UPI payment Utilities",
+              "debit": 1823,
+              "credit": 0,
+              "balance": 239254
+            },
+            {
+              "date": "2025-03-11",
+              "narration": "NEFT credit REF1139",
+              "debit": 0,
+              "credit": 5912,
+              "balance": 245166
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "credits",
+      "scope": "report",
+      "expression": "sumBy(data.account.transactions, \"credit\")"
+    },
+    {
+      "id": "debits",
+      "scope": "report",
+      "expression": "sumBy(data.account.transactions, \"debit\")"
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "ACCOUNT STATEMENT",
+              "width": "*",
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 14
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.account.number",
+              "style": {
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "text",
+          "expression": "data.account.holder + \"   |   \" + data.account.period",
+          "style": {
+            "fontSize": 9
+          }
+        },
+        {
+          "type": "text",
+          "expression": "\"Total credits \" + formatCurrency(vars.credits) + \"    Total debits \" + formatCurrency(vars.debits)",
+          "style": {
+            "fontSize": 9,
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "table",
+          "id": "transactions",
+          "dataset": "account.transactions",
+          "repeatHeaderOnPageBreak": true,
+          "minRowsAfterBreak": 3,
+          "style": {
+            "fontSize": 8
+          },
+          "rowStyleWhen": [
+            {
+              "when": "row.balance < 30000",
+              "style": {
+                "color": "#b91c1c"
+              }
+            }
+          ],
+          "columns": [
+            {
+              "id": "date",
+              "header": "Date",
+              "binding": "row.date",
+              "format": "date:dd/MM/yyyy",
+              "width": 62
+            },
+            {
+              "id": "narration",
+              "header": "Narration",
+              "binding": "row.narration",
+              "width": "*"
+            },
+            {
+              "id": "debit",
+              "header": "Debit",
+              "binding": "row.debit",
+              "format": "number:2",
+              "width": 70,
+              "align": "right"
+            },
+            {
+              "id": "credit",
+              "header": "Credit",
+              "binding": "row.credit",
+              "format": "number:2",
+              "width": 70,
+              "align": "right"
+            },
+            {
+              "id": "balance",
+              "header": "Balance",
+              "binding": "row.balance",
+              "format": "number:2",
+              "width": 80,
+              "align": "right"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

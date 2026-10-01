@@ -1,0 +1,213 @@
+{
+  "schemaVersion": "1.0",
+  "id": "grouped-sales",
+  "name": "Grouped Sales Report",
+  "description": "Group headers, group subtotals and a grand total.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "sales",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "region": "South",
+            "city": "Bangalore",
+            "amount": 20000
+          },
+          {
+            "region": "South",
+            "city": "Chennai",
+            "amount": 15000
+          },
+          {
+            "region": "North",
+            "city": "Delhi",
+            "amount": 25000
+          },
+          {
+            "region": "West",
+            "city": "Mumbai",
+            "amount": 31000
+          },
+          {
+            "region": "West",
+            "city": "Pune",
+            "amount": 12000
+          },
+          {
+            "region": "North",
+            "city": "Jaipur",
+            "amount": 9000
+          }
+        ]
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "groupTotal",
+      "scope": "group",
+      "expression": "sumBy(data.sales, \"amount\")"
+    },
+    {
+      "id": "grandTotal",
+      "scope": "report",
+      "expression": "sumBy(data.sales, \"amount\")"
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "reportHeader",
+      "children": [
+        {
+          "type": "text",
+          "value": "Sales by Region",
+          "style": {
+            "fontSize": 16,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "group",
+          "id": "by-region",
+          "dataset": "sales",
+          "groupBy": "row.region",
+          "header": [
+            {
+              "type": "spacer",
+              "height": 6
+            },
+            {
+              "type": "text",
+              "expression": "\"Region: \" + row.region",
+              "keepWithNext": true,
+              "style": {
+                "fontWeight": "bold",
+                "background": "#eef2ff",
+                "padding": 3
+              }
+            }
+          ],
+          "children": [
+            {
+              "type": "row",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "row.city",
+                  "width": "*"
+                },
+                {
+                  "type": "text",
+                  "expression": "formatCurrency(row.amount)",
+                  "style": {
+                    "align": "right"
+                  },
+                  "width": 120
+                }
+              ]
+            }
+          ],
+          "footer": [
+            {
+              "type": "line"
+            },
+            {
+              "type": "row",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Subtotal",
+                  "width": "*",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "formatCurrency(vars.groupTotal)",
+                  "width": 120,
+                  "style": {
+                    "align": "right",
+                    "fontWeight": "bold"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "reportFooter",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 12
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Grand total",
+              "width": "*",
+              "style": {
+                "fontSize": 12,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "formatCurrency(vars.grandTotal)",
+              "width": 140,
+              "style": {
+                "align": "right",
+                "fontSize": 12,
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

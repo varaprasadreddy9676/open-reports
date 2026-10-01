@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0",
+  "id": "specimen-label",
+  "name": "Specimen Label 40x25mm",
+  "description": "Tiny laboratory tube label with name, test, barcode and timestamp.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "sample",
+      "source": "inline",
+      "query": {
+        "data": {
+          "patient": "Sai Varaprasad",
+          "age": "31",
+          "sex": "M",
+          "test": "CBC",
+          "accession": "260100928374",
+          "collected": "2025-10-01 16:20"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 40,
+    "height": 25,
+    "unit": "mm",
+    "orientation": "landscape",
+    "margin": {
+      "top": 1.5,
+      "right": 2,
+      "bottom": 1.5,
+      "left": 2
+    }
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "LAB SAMPLE",
+              "width": "*",
+              "style": {
+                "fontSize": 5,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.sample.test",
+              "style": {
+                "fontSize": 6,
+                "fontWeight": "bold",
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "expression": "data.sample.patient + \"  \" + data.sample.age + \"/\" + data.sample.sex",
+          "style": {
+            "fontSize": 7,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "barcode",
+          "id": "acc-barcode",
+          "value": "",
+          "expression": "data.sample.accession",
+          "symbology": "code128",
+          "height": 28
+        },
+        {
+          "type": "text",
+          "binding": "data.sample.accession",
+          "style": {
+            "fontSize": 6,
+            "align": "center"
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.sample.collected",
+          "style": {
+            "fontSize": 5,
+            "align": "center",
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { componentBaseSchema, dimensionSchema } from "./common.js";
+import { componentBaseSchema, dimensionSchema, styleWhenSchema } from "./common.js";
 
 const valueOrBindingOrExpression = z.object({
   value: z.unknown().optional(),
@@ -128,6 +128,8 @@ export const tableComponentSchema = componentBaseSchema.extend({
    * page instead of leaving e.g. a single row dangling at the bottom). */
   minRowsAfterBreak: z.number().int().nonnegative().optional().default(0),
   alternateRowStyle: z.boolean().optional(),
+  /** Conditional row styling, e.g. { when: "row.balance < 0", style: { color: "#b91c1c" } }. */
+  rowStyleWhen: styleWhenSchema.optional(),
 });
 
 /**
