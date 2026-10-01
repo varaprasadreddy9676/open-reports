@@ -29,6 +29,8 @@ export interface RenderPipelineOptions {
   functions?: Record<string, (...args: unknown[]) => unknown>;
   /** Plugin component expanders keyed by `custom.kind`. */
   customComponents?: Map<string, CustomComponentExpander>;
+  /** Design view: expand each band once instead of per record/group (used by the designer's structure canvas). */
+  design?: { ghosts: number };
 }
 
 export interface RenderPipelineResult {
@@ -107,7 +109,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       children: resolveComponents(section.children as any, baseCtx, makeEnv(`sections[${index}]`)),
     });
   });
-  const bodyChildren = expandBodyBands({ report, engine, baseCtx, datasets, rowVarAccumulator, makeEnv });
+  const bodyChildren = expandBodyBands({ report, engine, baseCtx, datasets, rowVarAccumulator, makeEnv, design: options.design });
   const sections: ResolvedSection[] = [...pageSections, { type: "body", sourceIndex: -1, children: bodyChildren }];
 
   if (report.variables.some((v) => v.scope === "page")) {

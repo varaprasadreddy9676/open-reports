@@ -51,6 +51,17 @@ export const watermarkSchema = z.object({
 });
 export type Watermark = z.infer<typeof watermarkSchema>;
 
+/** A persistent alignment guide drawn on the design surface (page coordinates, points). */
+export const guideSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().optional(),
+  axis: z.enum(["x", "y"]),
+  /** Distance from the page's left (x) or top (y) edge, in points. */
+  pos: z.number(),
+  locked: z.boolean().optional(),
+});
+export type Guide = z.infer<typeof guideSchema>;
+
 export const fragmentDefinitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().optional(),
@@ -74,6 +85,7 @@ export const reportDefinitionSchema = z.object({
   fragments: z.array(fragmentDefinitionSchema).default([]),
   print: printProfileSchema.optional(),
   watermark: watermarkSchema.optional(),
+  guides: z.array(guideSchema).default([]),
   exports: exportsConfigSchema.optional(),
 });
 

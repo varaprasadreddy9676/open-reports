@@ -233,3 +233,57 @@ describe("backgrounds", () => {
     expect(textsOf(pag.pages[0]!.content)).not.toContain("BG");
   });
 });
+
+describe("design structure view", () => {
+  it("shows every band once in reading order with real heights, collapse and fixed heights", async () => {
+    const doc: any = {
+      schemaVersion: "1.0", id: "s", name: "s",
+      page: { size: "custom", width: 300, height: 600, unit: "pt", margin: { top: 10, right: 10, bottom: 10, left: 10 } },
+      datasets: [{ id: "d", source: "inline", query: { data: rows(30) } }],
+      groups: [{ id: "g", dataset: "d", by: "row.g" }],
+      sections: [
+        { type: "pageFooter", name: "Foot", children: [T("pf")] },
+        { type: "reportHeader", height: 50, children: [T("rh")] },
+        { type: "pageHeader", children: [T("ph")] },
+        { type: "groupHeader", groupId: "g", children: [X('"gh " + group.key')] },
+        { type: "detail", dataset: "d", collapsed: true, children: [B("row.id")] },
+        { type: "groupFooter", groupId: "g", children: [T("gf")] },
+        { type: "noData", dataset: "d", children: [T("nd")] },
+        { type: "reportFooter", children: [T("rf")] },
+      ],
+    };
+    const p = parseReportDefinition(doc);
+    if (!p.valid) throw new Error(JSON.stringify(p.issues));
+    const r = await resolveReport(p.report, { registry, parameters: {}, design: { ghosts: 0 } });
+    const { layoutStructure } = await import("../src/design.js");
+    const s = layoutStructure(r.resolved, p.report.sections);
+    expect(s.bands.map((b) => b.type)).toEqual(["reportHeader", "pageHeader", "groupHeader", "detail", "groupFooter", "noData", "reportFooter", "pageFooter"]);
+    expect(s.bands[0]!.height).toBe(50);
+    expect(s.bands[0]!.fixedHeight).toBe(true);
+    expect(s.bands[3]!.collapsed).toBe(true);
+    expect(s.bands[3]!.height).toBe(20);
+    // one record, one group: exactly one group header text, bands are contiguous
+    expect(textsOf(s.pages[0]!.content).filter((t) => t.startsWith("gh"))).toEqual(["gh G1"]);
+    for (let i = 1; i < s.bands.length; i++) expect(s.bands[i]!.y).toBeCloseTo(s.bands[i - 1]!.y + s.bands[i - 1]!.height, 5);
+    expect(s.pageSize.height).toBeCloseTo(s.bands.at(-1)!.y + s.bands.at(-1)!.height + 10, 5);
+  });
+
+  it("ghost records repeat the detail band inside the same group", async () => {
+    const doc: any = { schemaVersion: "1.0", id: "s", name: "s", datasets: [{ id: "d", source: "inline", query: { data: rows(9) } }], groups: [{ id: "g", dataset: "d", by: "row.g" }], sections: [{ type: "groupHeader", groupId: "g", children: [T("GH")] }, { type: "detail", dataset: "d", children: [B("row.id")] }, { type: "groupFooter", groupId: "g", children: [T("GF")] }] };
+    const p = parseReportDefinition(doc);
+    if (!p.valid) throw new Error("x");
+    const r = await resolveReport(p.report, { registry, parameters: {}, design: { ghosts: 3 } });
+    const { layoutStructure } = await import("../src/design.js");
+    const s = layoutStructure(r.resolved, p.report.sections);
+    expect(s.bands.map((b) => b.type)).toEqual(["groupHeader", "detail", "detail", "detail", "groupFooter"]);
+  });
+
+  it("works with no sample data yet (blank record) and tolerates unevaluable group keys", async () => {
+    const doc: any = { schemaVersion: "1.0", id: "s", name: "s", datasets: [{ id: "d", source: "inline", query: { data: [] } }], groups: [{ id: "g", dataset: "d", by: "row.missing.deep" }], sections: [{ type: "groupHeader", groupId: "g", children: [T("GH")] }, { type: "detail", dataset: "d", children: [T("row")] }] };
+    const p = parseReportDefinition(doc);
+    if (!p.valid) throw new Error("x");
+    const r = await resolveReport(p.report, { registry, parameters: {}, design: { ghosts: 0 }, tolerant: true });
+    const { layoutStructure } = await import("../src/design.js");
+    expect(layoutStructure(r.resolved, p.report.sections).bands.map((b) => b.type)).toEqual(["groupHeader", "detail"]);
+  });
+});

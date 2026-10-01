@@ -387,3 +387,226 @@ export function setLocked(doc: Doc, ids: string[], locked: boolean): Doc {
   for (const id of ids) d = update(d, id, { locked: locked ? true : undefined });
   return d;
 }
+
+// ------------------------------------------------------------------ bands and groups
+export const BAND_TYPES = ["reportHeader", "pageHeader", "dataHeader", "groupHeader", "detail", "child", "groupFooter", "dataFooter", "noData", "reportFooter", "pageFooter", "background"] as const;
+export type BandType = (typeof BAND_TYPES)[number];
+export const PAGE_BANDS = new Set<string>(["pageHeader", "pageFooter", "background"]);
+
+export const BAND_TITLES: Record<string, string> = {
+  reportHeader: "Report Header",
+  pageHeader: "Page Header",
+  dataHeader: "Data Header",
+  groupHeader: "Group Header",
+  detail: "Detail",
+  child: "Child Band",
+  groupFooter: "Group Footer",
+  dataFooter: "Data Footer",
+  noData: "No Data",
+  reportFooter: "Report Footer",
+  pageFooter: "Page Footer",
+  background: "Background",
+};
+export const BAND_CODES: Record<string, string> = { reportHeader: "RH", pageHeader: "PH", dataHeader: "DH", groupHeader: "GH", detail: "D", child: "C", groupFooter: "GF", dataFooter: "DF", noData: "ND", reportFooter: "RF", pageFooter: "PF", background: "BG" };
+
+/** Reading-order key: bands in the data region must stay in this order (inner group footers before outer ones, etc.). */
+function orderKey(doc: Doc, s: { type: string; groupId?: string }): number {
+  const level = s.groupId ? Math.max(0, (doc.groups ?? []).findIndex((g: any) => g.id === s.groupId)) : 0;
+  switch (s.type) {
+    case "reportHeader":
+      return 0;
+    case "dataHeader":
+      return 1;
+    case "groupHeader":
+      return 2 + level / 100;
+    case "detail":
+    case "child":
+      return 3;
+    case "groupFooter":
+      return 4 + (1 - level / 100);
+    case "dataFooter":
+      return 5;
+    case "noData":
+      return 6;
+    case "reportFooter":
+      return 9;
+    default:
+      return -1; // page-level bands are not part of the data region order
+  }
+}
+
+export function bandDisplayName(doc: Doc, s: any): string {
+  if (s.name) return s.name;
+  const base = BAND_TITLES[s.type] ?? s.type;
+  if ((s.type === "groupHeader" || s.type === "groupFooter") && s.groupId) {
+    const g = (doc.groups ?? []).find((x: any) => x.id === s.groupId);
+    return `${base} — ${g?.name ?? s.groupId}`;
+  }
+  return s.appliesTo && s.appliesTo !== "all" ? `${base} · ${s.appliesTo}` : base;
+}
+
+/** Where a new band of `type` belongs so the report keeps reading in order. */
+export function defaultBandIndex(doc: Doc, type: string, groupId?: string, parent?: string): number {
+  const sections: any[] = doc.sections ?? [];
+  if (type === "child" && parent) {
+    const p = sections.findIndex((s) => s.id === parent);
+    if (p >= 0) {
+      let i = p + 1;
+      while (i < sections.length && sections[i].type === "child" && sections[i].parent === parent) i++;
+      return i;
+    }
+  }
+  if (PAGE_BANDS.has(type)) return type === "pageHeader" ? sections.findIndex((s) => s.type !== "reportHeader") === -1 ? sections.length : sections.findIndex((s) => s.type !== "reportHeader") : sections.length;
+  const key = orderKey(doc, { type, groupId });
+  let at = 0;
+  sections.forEach((s, i) => {
+    if (PAGE_BANDS.has(s.type)) return;
+    if (orderKey(doc, s) <= key) at = i + 1;
+  });
+  // keep trailing page bands where they were: never insert after a page band that sits before body bands
+  return at;
+}
+
+function uniqueId(doc: Doc, base: string): string {
+  const ids = new Set<string>([...(doc.groups ?? []).map((g: any) => g.id), ...(doc.sections ?? []).map((s: any) => s.id).filter(Boolean)]);
+  let id = base;
+  for (let n = 2; ids.has(id); n++) id = `${base}-${n}`;
+  return id;
+}
+
+export function addBand(doc: Doc, type: string, props: Record<string, any> = {}, index?: number): { doc: Doc; index: number } {
+  const next = clone(doc);
+  next.sections ??= [];
+  const at = index ?? defaultBandIndex(next, type, props.groupId, props.parent);
+  const section: any = { type, children: [], ...props };
+  if (type === "detail" && props.dataset === undefined) {
+    const ds = (next.datasets ?? [])[0]?.id;
+    if (ds) section.dataset = ds;
+  }
+  if (type === "child" && !section.id && props.parent === undefined) section.id = uniqueId(next, "child");
+  next.sections.splice(at, 0, section);
+  return { doc: next, index: at };
+}
+
+export function updateBand(doc: Doc, index: number, patch: Record<string, any>): Doc {
+  const next = clone(doc);
+  const s = next.sections?.[index];
+  if (!s) return doc;
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined || v === "" || v === false && ["repeatEveryPage", "newPageBefore", "newPageAfter", "keepTogether", "keepWithNext", "keepWithPrevious", "suppressWhenBlank", "allowSplit", "collapsed", "printAtBottom"].includes(k)) delete s[k];
+    else s[k] = v;
+  }
+  return next;
+}
+
+/** Can the band at `from` be moved so it ends up at index `to` (index in the resulting array)? */
+export function canMoveBand(doc: Doc, from: number, to: number): boolean {
+  const sections: any[] = doc.sections ?? [];
+  if (from < 0 || from >= sections.length || to < 0 || to >= sections.length) return false;
+  const moving = sections[from];
+  if (PAGE_BANDS.has(moving.type)) return true;
+  const rest = sections.filter((_, i) => i !== from);
+  const before = rest.slice(0, to).reverse().find((s) => !PAGE_BANDS.has(s.type));
+  const after = rest.slice(to).find((s) => !PAGE_BANDS.has(s.type));
+  const k = orderKey(doc, moving);
+  if (before && orderKey(doc, before) > k) return false;
+  if (after && orderKey(doc, after) < k) return false;
+  // a child band must stay after its parent
+  if (moving.type === "child" && moving.parent) {
+    const parentIdx = rest.findIndex((s) => s.id === moving.parent);
+    if (parentIdx >= to) return false;
+  }
+  return true;
+}
+
+export function moveBand(doc: Doc, from: number, to: number): Doc | undefined {
+  if (from === to || !canMoveBand(doc, from, to)) return undefined;
+  const next = clone(doc);
+  const [s] = next.sections.splice(from, 1);
+  next.sections.splice(to, 0, s);
+  return next;
+}
+
+export function duplicateBand(doc: Doc, index: number): { doc: Doc; index: number } {
+  const next = clone(doc);
+  const src = next.sections[index];
+  const copy = clone(src);
+  delete copy.id;
+  copy.name = src.name ? `${src.name} (copy)` : undefined;
+  copy.children = (copy.children ?? []).map((c: Comp) => reId(next, c));
+  next.sections.splice(index + 1, 0, copy);
+  return { doc: next, index: index + 1 };
+}
+
+export interface GroupSpec {
+  dataset: string;
+  by: string;
+  name?: string;
+  sort?: "asc" | "desc" | "none";
+  header?: boolean;
+  footer?: boolean;
+  repeatHeader?: boolean;
+  newPage?: "none" | "before" | "after";
+  keepTogether?: boolean;
+  minDetailRows?: number;
+}
+
+/** Adds a grouping level (innermost) with its header/footer bands in the right places. */
+export function addGroup(doc: Doc, spec: GroupSpec): { doc: Doc; groupId: string } {
+  const next = clone(doc);
+  next.groups ??= [];
+  const label = spec.name ?? spec.by.replace(/^row\./, "").replace(/[._]/g, " ");
+  const id = uniqueId(next, (label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "group").slice(0, 30));
+  next.groups.push({ id, name: label.replace(/^./, (c: string) => c.toUpperCase()), dataset: spec.dataset, by: spec.by, sort: spec.sort ?? "asc", repeatHeader: spec.repeatHeader ?? false, newPage: spec.newPage ?? "none", keepTogether: spec.keepTogether ?? false, minDetailRows: spec.minDetailRows ?? 1 });
+  let working: Doc = next;
+  if (spec.header !== false) working = addBand(working, "groupHeader", { groupId: id }).doc;
+  if (spec.footer !== false) working = addBand(working, "groupFooter", { groupId: id }).doc;
+  // make sure the dataset has a detail band to group
+  if (!working.sections.some((s: any) => s.type === "detail" && (!s.dataset || s.dataset === spec.dataset))) working = addBand(working, "detail", { dataset: spec.dataset }).doc;
+  return { doc: working, groupId: id };
+}
+
+export function updateGroup(doc: Doc, groupId: string, patch: Record<string, any>): Doc {
+  const next = clone(doc);
+  const g = (next.groups ?? []).find((x: any) => x.id === groupId);
+  if (!g) return doc;
+  Object.assign(g, patch);
+  return next;
+}
+
+/** Removes a group and its header/footer bands (detail bands stay). */
+export function removeGroup(doc: Doc, groupId: string): Doc {
+  const next = clone(doc);
+  next.groups = (next.groups ?? []).filter((g: any) => g.id !== groupId);
+  next.sections = (next.sections ?? []).filter((s: any) => s.groupId !== groupId);
+  return next;
+}
+
+export function bandIndexOf(doc: Doc, componentId: string): number {
+  const loc = find(doc, componentId);
+  if (!loc) return -1;
+  const m = /^sections\[(\d+)\]/.exec(loc.path);
+  return m ? Number(m[1]) : -1;
+}
+
+export function addGuide(doc: Doc, axis: "x" | "y", pos: number): { doc: Doc; id: string } {
+  const next = clone(doc);
+  next.guides ??= [];
+  const id = uniqueId({ ...next, groups: [], sections: next.guides.map((g: any) => ({ id: g.id })) }, `guide-${axis}`);
+  next.guides.push({ id, axis, pos: Math.round(pos * 10) / 10 });
+  return { doc: next, id };
+}
+
+export function updateGuide(doc: Doc, id: string, patch: Record<string, any>): Doc {
+  const next = clone(doc);
+  const g = (next.guides ?? []).find((x: any) => x.id === id);
+  if (!g) return doc;
+  Object.assign(g, patch);
+  return next;
+}
+
+export function removeGuide(doc: Doc, id: string): Doc {
+  const next = clone(doc);
+  next.guides = (next.guides ?? []).filter((g: any) => g.id !== id);
+  return next;
+}

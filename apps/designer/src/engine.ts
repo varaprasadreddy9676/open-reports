@@ -9,7 +9,7 @@ import {
   type PageSectionResolver,
   type ResolvedReport,
 } from "@reporting/core";
-import { paginate, type PaginatedReport, type PositionedNode } from "@reporting/layout";
+import { layoutStructure, paginate, type PaginatedReport, type PositionedNode, type StructureLayout } from "@reporting/layout";
 import { findByPath, type Doc } from "./model/ops";
 import { datasetValue } from "./lib/fields";
 
@@ -39,6 +39,8 @@ export interface Capabilities {
 }
 
 export interface EngineOptions {
+  /** Extra example records shown per detail band in the structure view. */
+  ghosts?: number;
   sampleRows?: number;
   target?: string;
   capabilities?: Capabilities;
@@ -47,6 +49,8 @@ export interface EngineOptions {
 export interface EngineResult {
   resolved?: ResolvedReport;
   paginated?: PaginatedReport;
+  /** Every band once, stacked (the structure view). */
+  structure?: StructureLayout;
   resolvePageSection?: PageSectionResolver;
   problems: Problem[];
 }
@@ -154,7 +158,14 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
       problems.push({ severity: "suggestion", code: "SAMPLE_ROWS", message: `Design view shows the first ${opts.sampleRows} sample rows for speed. Preview renders every row with the real pagination engine.` });
     }
     analyse(doc, pipeline.resolved, paginated, problems, opts);
-    return { resolved: pipeline.resolved, paginated, resolvePageSection: pipeline.resolvePageSection, problems };
+    let structure: StructureLayout | undefined;
+    try {
+      const d = await resolveReport(reparsed.report, { registry, parameters, tolerant: true, design: { ghosts: opts.ghosts ?? 0 } });
+      structure = layoutStructure(d.resolved, reparsed.report.sections);
+    } catch {
+      /* the structure view falls back to the paginated pages */
+    }
+    return { resolved: pipeline.resolved, paginated, structure, resolvePageSection: pipeline.resolvePageSection, problems };
   } catch (err) {
     problems.push({ severity: "error", code: "ENGINE_FAILED", message: err instanceof Error ? err.message : String(err) });
     return { problems };

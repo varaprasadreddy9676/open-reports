@@ -13,6 +13,11 @@ export interface BandDeps {
   datasets: Record<string, unknown>;
   rowVarAccumulator: Record<string, unknown>;
   makeEnv(path: string): ResolveEnv;
+  /**
+   * Design-time structure view: every band appears once (one record / one group chain, `ghosts` extra records),
+   * nothing is dropped by visibility rules and expressions that cannot be evaluated yet degrade to placeholders.
+   */
+  design?: { ghosts: number };
 }
 
 interface Entry {
@@ -89,9 +94,21 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
   const band = (entry: Entry, ctx: ResolveContext, meta: Partial<BandMeta> = {}): ResolvedComponent[] => {
     const { s, index } = entry;
     const env = deps.makeEnv(`sections[${index}]`);
-    if (s.visibleWhen && !truthy(engine.evaluate(s.visibleWhen, ctx))) return [];
+    let hiddenByRule = false;
+    if (s.visibleWhen) {
+      let visible = true;
+      try {
+        visible = truthy(engine.evaluate(s.visibleWhen, ctx));
+      } catch (err) {
+        if (!deps.design) throw err;
+      }
+      if (!visible) {
+        if (!deps.design) return [];
+        hiddenByRule = true;
+      }
+    }
     const children = resolveComponents(s.children as any, ctx, env);
-    if (s.suppressWhenBlank && isBlank(children)) return [];
+    if (s.suppressWhenBlank && isBlank(children) && !deps.design) return [];
     const node: any = {
       id: s.id,
       type: "container",
@@ -108,7 +125,7 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       keepTogether: s.keepTogether,
       keepWithNext: s.keepWithNext,
       children,
-      band: { sectionIndex: index, sectionId: s.id, type: s.type, name: s.name, allowSplit: s.allowSplit ?? meta.allowSplit, ...meta } as BandMeta,
+      band: { sectionIndex: index, sectionId: s.id, type: s.type, name: s.name, allowSplit: s.allowSplit ?? meta.allowSplit, ...(hiddenByRule ? { hiddenByRule } : {}), ...meta } as BandMeta,
     };
     const result: ResolvedComponent[] = [node];
     for (const child of childrenOf.get(s.id ?? "") ?? []) {
@@ -150,14 +167,31 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
 
     const ofType = (type: string, groupId?: string) => bands.filter((b) => b.s.type === type && (groupId === undefined || bandGroup.get(b) === groupId));
 
-    if (rows.length === 0) {
+    if (deps.design) {
+      // one example record (or a blank one while the dataset has no sample data yet), plus any requested ghosts
+      const want = Math.max(1, deps.design.ghosts);
+      if (!rows.length) rows = [{}];
+      else if (groups.length) {
+        // example records that belong to the same outermost group, so the group header/footer print once around them
+        const k0 = (() => { try { return engine.evaluate(groups[0]!.by, { ...baseCtx, row: rows[0]! }); } catch { return undefined; } })();
+        rows = rows.filter((r) => { try { return compareKeys(engine.evaluate(groups[0]!.by, { ...baseCtx, row: r }), k0) === 0; } catch { return true; } }).slice(0, want);
+      } else rows = rows.slice(0, want);
+    } else if (rows.length === 0) {
       for (const b of ofType("noData")) out.push(...band(b, baseCtx));
       return;
     }
 
     // --- sort by every group key (stable), outermost first
-    if (groups.some((g) => g.sort !== "none")) {
-      const keyed = rows.map((row, i) => ({ row, i, keys: groups.map((g) => engine.evaluate(g.by, { ...baseCtx, row })) }));
+    const evalKey = (g: GroupDefinition, row: Record<string, unknown>) => {
+      try {
+        return engine.evaluate(g.by, { ...baseCtx, row });
+      } catch (err) {
+        if (deps.design) return undefined;
+        throw err;
+      }
+    };
+    if (groups.some((g) => g.sort !== "none") && !deps.design) {
+      const keyed = rows.map((row, i) => ({ row, i, keys: groups.map((g) => evalKey(g, row)) }));
       keyed.sort((a, b) => {
         for (let k = 0; k < groups.length; k++) {
           if (groups[k]!.sort === "none") continue;
@@ -196,7 +230,7 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       // partition consecutive records with the same key
       const parts: { key: unknown; rows: Record<string, unknown>[] }[] = [];
       for (const row of levelRows) {
-        const key = engine.evaluate(g.by, { ...baseCtx, row });
+        const key = evalKey(g, row);
         const last = parts[parts.length - 1];
         if (last && compareKeys(last.key, key) === 0) last.rows.push(row);
         else parts.push({ key, rows: [row] });
@@ -244,6 +278,7 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
 
     emitLevel(0, rows);
     for (const b of ofType("dataFooter")) out.push(...band(b, ctxFor(rows[rows.length - 1])));
+    if (deps.design) for (const b of ofType("noData")) out.push(...band(b, baseCtx));
   };
 
   let i = 0;

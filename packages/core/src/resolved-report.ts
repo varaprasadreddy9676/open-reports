@@ -100,6 +100,8 @@ export interface BandMeta {
   allowSplit?: boolean;
   /** Unique number of the group instance (all bands of one group occurrence share it). */
   instance?: number;
+  /** Design view: the band's visibility rule currently hides it (shown dimmed). */
+  hiddenByRule?: boolean;
   /** True when this node is a copy of a group header repeated on a continuation page. */
   repeated?: boolean;
 }
