@@ -606,6 +606,49 @@ function TableProps({ comp }: { comp: ops.Comp }) {
           </Field>
         </div>
       </Section>
+      <Section title="Highlight rows" open={!!comp.rowStyleWhen?.length}>
+        {(() => {
+          const rule = (comp.rowStyleWhen ?? [])[0] as { when: string; style?: Record<string, any> } | undefined;
+          const setRule = (r: { when: string; style?: Record<string, any> }) => patch(comp.id, { rowStyleWhen: r.when || r.style?.color || r.style?.fontWeight ? [r] : undefined });
+          return (
+            <>
+              <Field label="When this is true" wide>
+                <FormulaInput
+                  value={rule?.when ?? ""}
+                  placeholder="e.g. row.value < row.low || row.value > row.high"
+                  testId="row-rule-when"
+                  candidates={candidatesFor(doc, sample, comp.id, comp.dataset)}
+                  onChange={(v) => setRule({ when: v, style: rule?.style ?? { fontWeight: "bold", color: "#b91c1c" } })}
+                />
+              </Field>
+              {rule && (
+                <div className="grid2">
+                  <Field label="Text colour">
+                    <Color label="Highlight colour" value={rule.style?.color} onChange={(v) => setRule({ ...rule, style: { ...rule.style, color: v } })} />
+                  </Field>
+                  <label className="check">
+                    <input type="checkbox" checked={rule.style?.fontWeight === "bold"} onChange={(e) => setRule({ ...rule, style: { ...rule.style, fontWeight: e.target.checked ? "bold" : undefined } })} /> Bold
+                  </label>
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </Section>
+      <Section title="When there is no data" open={false}>
+        <Field label="Show" wide>
+          <select aria-label="Empty state" value={comp.emptyState ?? "headers"} onChange={(e) => patch(comp.id, { emptyState: e.target.value })}>
+            <option value="headers">Headers only</option>
+            <option value="message">A message</option>
+            <option value="hide">Hide the table</option>
+          </select>
+        </Field>
+        {comp.emptyState === "message" && (
+          <Field label="Message" wide>
+            <input aria-label="Empty message" value={comp.emptyMessage ?? ""} placeholder="No records found" onChange={(e) => patch(comp.id, { emptyMessage: e.target.value })} />
+          </Field>
+        )}
+      </Section>
       <Section title="Typography" open={false}>
         <Typography comp={comp} />
       </Section>

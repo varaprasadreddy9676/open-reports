@@ -255,7 +255,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   // --- Template render ---
   app.post("/api/v1/templates/:id/render", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { format: string; parameters?: Record<string, unknown>; version?: number };
+    const body = request.body as { format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; version?: number };
 
     const version = body.version !== undefined ? await storage.getVersion(id, body.version) : await storage.getLatestPublishedVersion(id);
     if (!version) {
@@ -265,7 +265,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     }
 
     try {
-      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters }, runtime);
+      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters, data: body.data }, runtime);
       reply.header("content-type", result.mimeType).header("x-render-id", renderId).send(result.content);
     } catch (err) {
       sendRenderError(reply, err);

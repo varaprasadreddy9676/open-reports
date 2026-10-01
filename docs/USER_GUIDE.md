@@ -35,8 +35,11 @@ Shortcuts: `Ctrl+K` command palette · `Ctrl+S` save · `Ctrl+Z/Y` undo/redo · 
 ## 5. Printing and labels
 - **Page → Print & labels**: choose a preset (80/58 mm receipt, 50×30 or 100×50 mm label, wristband…). The panel shows the physical size and the dot size at the printer's DPI, and the safe area is drawn on the canvas.
 - QR/barcodes are checked for scannable size; **Fix** enlarges them.
-- **Preview → ZPL** shows the label program and warnings (for example non-Latin text needs a PDF/image label, since Zebra's built-in fonts are Latin). **Download .zpl** to send to a printer.
+- **Preview → ZPL** (or *Export → ESC/POS receipt* for thermal receipt printers) shows the label program and warnings (for example non-Latin text needs a PDF/image label, since Zebra's built-in fonts are Latin). **Download .zpl** to send to a printer.
 - **Sticker sheets**: insert **Label sheet**, pick a stock (e.g. A4 2×4), design **one** label inside it, fill from a dataset (one label per record) or repeat the same label. *Start at position* reuses a partly used sheet. Print at **Actual size**; use *Draw label outlines* on plain paper to check alignment.
+
+## 5b. Watermarks, bookmarks, highlighting
+**Page → Watermark** (DRAFT/CONFIDENTIAL…), element *Advanced → PDF bookmark*, table → **Highlight rows** (e.g. out-of-range results in red) and **When there is no data** (headers / message / hide).
 
 ## 6. Reuse
 Select elements → right-click → **Save as reusable component**. They appear under *My Components* for every report on that server.

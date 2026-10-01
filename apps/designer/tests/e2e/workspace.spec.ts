@@ -425,3 +425,16 @@ test("watermark and bookmark settings write to the report", async ({ page }) => 
   await page.getByTestId("flag-bookmark").check();
   expect(JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc))).toContain('"bookmark":true');
 });
+
+test("table: highlight rows rule and empty-state options write to the report", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-lab-report").click();
+  await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
+  if ((await page.getByTestId("row-rule-when").count()) === 0) await page.getByRole("button", { name: /Highlight rows/ }).click();
+  await page.getByTestId("row-rule-when").fill("row.value > 100");
+  const d = JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc));
+  expect(d).toContain("row.value > 100");
+  await page.getByRole("button", { name: /When there is no data/ }).click();
+  await page.getByLabel("Empty state").selectOption("message");
+  expect(JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc))).toContain('"emptyState":"message"');
+});

@@ -8,3 +8,4 @@ test-output/
 *.log
 .env
 .env.local
+data/

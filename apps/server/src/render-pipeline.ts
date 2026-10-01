@@ -57,14 +57,15 @@ export function createRuntime(plugins?: PluginRegistry): RenderRuntime {
 
 const defaultRuntime = createRuntime();
 
+/** Caller-supplied `data` wins: a dataset with the same id is replaced by it (so one template renders any record), and unknown ids become new inline datasets. */
 function withInlineData(report: ReportDefinition, data: Record<string, unknown> | undefined): ReportDefinition {
   if (!data) return report;
-  const existingIds = new Set(report.datasets.map((d) => d.id));
+  const replaced = report.datasets.map((d) => (Object.prototype.hasOwnProperty.call(data, d.id) ? { id: d.id, source: "inline" as const, query: { data: data[d.id] } } : d));
+  const existing = new Set(report.datasets.map((d) => d.id));
   const extra = Object.entries(data)
-    .filter(([id]) => !existingIds.has(id))
+    .filter(([id]) => !existing.has(id))
     .map(([id, value]) => ({ id, source: "inline" as const, query: { data: value } }));
-  if (extra.length === 0) return report;
-  return { ...report, datasets: [...report.datasets, ...extra] };
+  return { ...report, datasets: [...replaced, ...extra] } as ReportDefinition;
 }
 
 export async function runRender(input: RunRenderInput, runtime: RenderRuntime = defaultRuntime): Promise<RunRenderOutput> {

@@ -1746,3 +1746,16 @@ kbd {
 .ai-explain { margin: 6px 0; font-size: 13px; }
 .ai-changes { margin: 4px 0 8px; padding-left: 18px; font-size: 12px; max-height: 140px; overflow: auto; }
 .ai-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* toolbar must never squeeze the report title to nothing */
+.toolbar { overflow: hidden; }
+.brand { flex: 1 1 260px; min-width: 230px; }
+.title-input { flex: 1 1 120px; width: auto; min-width: 110px; max-width: 260px; text-overflow: ellipsis; }
+.toolbar-group, .mode-switch, .toolbar-group.right { flex: none; }
+.target select { min-width: 74px; }
+@media (max-width: 1700px) {
+  .target > span, .toolbar [aria-label="Actual size"], .toolbar [aria-label="Zoom to selection"], .save-state { display: none; }
+}
+@media (max-width: 1400px) {
+  .toolbar [aria-label="Fit to width"], .toolbar [aria-label="Zoom out"], .toolbar [aria-label="Zoom in"], .toolbar [data-testid="btn-palette"] { display: none; }
+}

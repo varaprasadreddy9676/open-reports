@@ -369,3 +369,20 @@ describe("ESC/POS output", () => {
     expect(caps.formats.some((f: any) => f.id === "escpos")).toBe(true);
   });
 });
+
+describe("data override", () => {
+  it("caller data replaces a same-id dataset, so one template renders any record", async () => {
+    const report = {
+      schemaVersion: "1.0", id: "ov", name: "ov",
+      datasets: [{ id: "p", source: "inline", query: { data: { name: "Default" } } }],
+      sections: [{ type: "detail", children: [{ type: "text", binding: "data.p.name" }] }],
+    };
+    await app.inject({ method: "POST", url: "/api/v1/templates", payload: { id: "ov-tpl", name: "ov", definition: report } });
+    await app.inject({ method: "POST", url: "/api/v1/templates/ov-tpl/versions/1/publish" });
+    const a = await app.inject({ method: "POST", url: "/api/v1/templates/ov-tpl/render", payload: { format: "html" } });
+    expect(a.payload).toContain("Default");
+    const b = await app.inject({ method: "POST", url: "/api/v1/templates/ov-tpl/render", payload: { format: "html", data: { p: { name: "Asha" } } } });
+    expect(b.payload).toContain("Asha");
+    expect(b.payload).not.toContain("Default");
+  });
+});

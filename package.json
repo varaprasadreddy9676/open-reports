@@ -10,7 +10,12 @@
     "test:unit": "pnpm -r --filter=./packages/** test",
     "lint": "pnpm -r --filter=./packages/** lint",
     "typecheck": "pnpm -r --filter=./packages/** typecheck",
-    "dev": "echo 'see apps/server and apps/designer'"
+    "build:all": "pnpm -r --filter \"./packages/**\" build && pnpm --filter @reporting/server build && pnpm --filter @reporting/designer build",
+    "start": "node scripts/start.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "examples": "node scripts/build-examples.mjs",
+    "test:all": "pnpm -r test",
+    "dev": "node scripts/dev.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
@@ -20,9 +25,12 @@
   },
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "better-sqlite3"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "better-sqlite3"
+    ]
   }
 }
