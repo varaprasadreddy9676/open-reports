@@ -81,11 +81,15 @@ export function describeFormula(expr: string): string {
     .trim();
 }
 
+const ACRONYMS = new Set(["id", "mrn", "dob", "uhid", "sku", "url", "qr", "gst", "uom", "pdf", "csv", "api", "pan", "upi", "ifsc", "hsn"]);
+
 export function titleCase(s: string): string {
   return s
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .split(" ")
+    .map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
 }
 
 export function checkExpression(expr: string): string | undefined {

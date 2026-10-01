@@ -1,0 +1,425 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useStore, type Mode } from "../store";
+import { api, ApiError, settings, type TemplateRecord } from "../lib/api";
+import { STARTERS, blankReport } from "../lib/templates";
+import { generateReportFromJson } from "../lib/generate";
+import { insertFromPalette, PALETTE_ITEMS } from "./LeftPanel";
+import { exportReport } from "./Preview";
+import { DatasetEditor } from "./DatasetEditor";
+
+// ------------------------------------------------------------------ toolbar
+export function Toolbar() {
+  const { doc, meta, zoom, showGrid, snap, showRulers, past, future, engineBusy } = useStore();
+  const s = useStore.getState;
+  const set = useStore((st) => st.set);
+  const [menu, setMenu] = useState<null | "export">(null);
+  return (
+    <header className="toolbar" role="toolbar" aria-label="Main toolbar">
+      <div className="brand">
+        <span className="logo" aria-hidden="true">▤</span>
+        <button className="crumb" onClick={() => set({ dialog: "open" })}>
+          Reports
+        </button>
+        <span className="sep-slash">/</span>
+        <input
+          className="title-input"
+          data-testid="title-input"
+          aria-label="Report name"
+          value={doc.name ?? ""}
+          onChange={(e) => s().setDoc({ ...s().doc, name: e.target.value }, { coalesce: "name" })}
+        />
+        <span className={`status-pill ${meta.status ?? "draft"}`} data-testid="status-pill">
+          {meta.id ? `${meta.status ?? "draft"} · v${meta.version ?? 1}` : "unsaved"}
+          {meta.dirty ? " •" : ""}
+        </span>
+        {engineBusy && <span className="busy" aria-label="Updating">⟳</span>}
+      </div>
+      <div className="toolbar-group">
+        <button className="icon-btn" data-testid="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!past.length} onClick={() => s().undo()}>↶</button>
+        <button className="icon-btn" data-testid="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled={!future.length} onClick={() => s().redo()}>↷</button>
+        <span className="sep" />
+        <button className="icon-btn" aria-label="Zoom out" title="Zoom out" onClick={() => set({ zoom: Math.max(0.25, +(zoom - 0.1).toFixed(2)) })}>−</button>
+        <span className="zoom-label" data-testid="zoom-label">{Math.round(zoom * 100)}%</span>
+        <button className="icon-btn" aria-label="Zoom in" title="Zoom in" onClick={() => set({ zoom: Math.min(3, +(zoom + 0.1).toFixed(2)) })}>+</button>
+        <button className="icon-btn" title="Fit to width" aria-label="Fit to width" onClick={() => set({ zoom: fitZoom() })}>⤢</button>
+        <span className="sep" />
+        <button className={`icon-btn ${showGrid ? "on" : ""}`} data-testid="toggle-grid" aria-pressed={showGrid} title="Grid" onClick={() => set({ showGrid: !showGrid })}>▦</button>
+        <button className={`icon-btn ${snap ? "on" : ""}`} data-testid="toggle-snap" aria-pressed={snap} title="Snap to grid" onClick={() => set({ snap: !snap })}>⌗</button>
+        <button className={`icon-btn ${showRulers ? "on" : ""}`} data-testid="toggle-rulers" aria-pressed={showRulers} title="Rulers" onClick={() => set({ showRulers: !showRulers })}>📏</button>
+      </div>
+      <div className="toolbar-group right">
+        <button className="btn" data-testid="btn-palette" title="Command palette (Ctrl+K)" onClick={() => set({ dialog: "palette" })}>⌘K</button>
+        <button className="btn" data-testid="btn-new" onClick={() => set({ dialog: "new" })}>New</button>
+        <button className="btn" data-testid="btn-open" onClick={() => set({ dialog: "open" })}>Open</button>
+        <div className="menu-wrap">
+          <button className="btn" data-testid="btn-export" aria-haspopup="menu" aria-expanded={menu === "export"} onClick={() => setMenu(menu ? null : "export")}>Export ▾</button>
+          {menu === "export" && (
+            <div className="menu" role="menu" onMouseLeave={() => setMenu(null)}>
+              {(["pdf", "html", "xlsx", "csv"] as const).map((f) => (
+                <button key={f} role="menuitem" data-testid={`export-${f}`} onClick={() => (setMenu(null), exportReport(f))}>
+                  {f.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview" })}>▶ Preview</button>
+        <button className="btn primary" data-testid="btn-save" onClick={() => s().save()}>Save</button>
+        <button className="btn" data-testid="btn-publish" onClick={() => s().publish()}>Publish</button>
+        <button className="icon-btn" aria-label="Settings" title="Server settings" onClick={() => set({ dialog: "settings" })}>⚙</button>
+      </div>
+    </header>
+  );
+}
+
+export function fitZoom(): number {
+  const el = document.querySelector(".canvas-scroll") as HTMLElement | null;
+  const s = useStore.getState();
+  const w = s.engine.paginated?.pageSize.width;
+  if (!el || !w) return 1;
+  return Math.max(0.25, Math.min(3, +((el.clientWidth - 80) / (w * (4 / 3))).toFixed(2)));
+}
+
+// ------------------------------------------------------------------ bottom bar + problems
+export function BottomBar() {
+  const { mode, engine, problemsOpen } = useStore();
+  const set = useStore((s) => s.set);
+  const errors = engine.problems.filter((p) => p.severity === "error").length;
+  const warnings = engine.problems.filter((p) => p.severity === "warning").length;
+  const suggestions = engine.problems.filter((p) => p.severity === "suggestion").length;
+  return (
+    <footer className="bottombar">
+      <div className="tabs" role="tablist" aria-label="Editor mode">
+        {(["design", "code", "preview"] as Mode[]).map((m) => (
+          <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? "active" : ""} data-testid={`mode-${m}`} onClick={() => set({ mode: m })}>
+            {m === "design" ? "Design" : m === "code" ? "Code" : "Preview"}
+          </button>
+        ))}
+        <button role="tab" aria-selected={problemsOpen} className={problemsOpen ? "active" : ""} data-testid="toggle-problems" onClick={() => set({ problemsOpen: !problemsOpen })}>
+          Problems
+        </button>
+      </div>
+      <div className="counts" data-testid="problem-counts">
+        <span className={errors ? "err" : ""}>{errors} errors</span>
+        <span className={warnings ? "warn" : ""}>{warnings} warnings</span>
+        <span>{suggestions} suggestions</span>
+        {engine.paginated && <span className="muted">{engine.paginated.pages.length} page{engine.paginated.pages.length === 1 ? "" : "s"}</span>}
+      </div>
+    </footer>
+  );
+}
+
+export function ProblemsPanel() {
+  const { engine, problemsOpen } = useStore();
+  if (!problemsOpen) return null;
+  const order = { error: 0, warning: 1, suggestion: 2 } as const;
+  const list = [...engine.problems].sort((a, b) => order[a.severity] - order[b.severity]);
+  return (
+    <div className="problems" role="region" aria-label="Problems" data-testid="problems">
+      {list.length === 0 && <div className="muted pad">No problems found.</div>}
+      {list.map((p, i) => (
+        <button
+          key={i}
+          className={`problem ${p.severity}`}
+          data-testid={`problem-${p.severity}`}
+          onClick={() => {
+            if (p.componentId) {
+              useStore.getState().select([p.componentId]);
+              useStore.getState().set({ mode: "design" });
+            }
+          }}
+        >
+          <span className="sev">{p.severity === "error" ? "ERROR" : p.severity === "warning" ? "WARNING" : "SUGGESTION"}</span>
+          <span className="msg">{p.message}</span>
+          {p.componentId && <span className="where">{p.componentId}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ dialogs
+function Modal({ children, onClose, wide }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+  return (
+    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={`modal ${wide ? "wide" : ""}`}>{children}</div>
+    </div>
+  );
+}
+
+function NewDialog() {
+  const set = useStore((s) => s.set);
+  const groups = ["Documents", "Healthcare", "Printing", "Data"] as const;
+  const create = (doc: any) => {
+    useStore.getState().loadDoc(doc);
+    set({ dialog: null, mode: "design" });
+  };
+  return (
+    <Modal wide onClose={() => set({ dialog: null })}>
+      <h2>New report</h2>
+      <div className="starter-actions">
+        <button className="starter blank" data-testid="starter-blank" onClick={() => create(blankReport())}>
+          <strong>Blank report</strong>
+          <span>Start from an empty A4 page</span>
+        </button>
+        <button className="starter blank" data-testid="starter-json" onClick={() => set({ dialog: "generate" })}>
+          <strong>From sample JSON</strong>
+          <span>Paste data - fields, tables and layout are generated</span>
+        </button>
+      </div>
+      {groups.map((g) => (
+        <div key={g}>
+          <div className="group-title">{g}</div>
+          <div className="starter-grid">
+            {STARTERS.filter((t) => t.group === g).map((t) => (
+              <button
+                key={t.key}
+                className="starter"
+                data-testid={`starter-${t.key}`}
+                onClick={() => create({ ...structuredClone(t.doc), id: `${t.doc.id}-${Date.now().toString(36).slice(-4)}` })}
+              >
+                <strong>{t.name}</strong>
+                <span>{t.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </Modal>
+  );
+}
+
+const SAMPLE_JSON = `{
+  "patient": { "name": "Sai Varaprasad", "mrn": "MRN-1042", "dob": "1994-05-12", "gender": "Male" },
+  "invoice": {
+    "number": "INV-2001",
+    "date": "2025-02-10",
+    "items": [
+      { "description": "Consultation", "quantity": 1, "rate": 600 },
+      { "description": "Blood test (CBC)", "quantity": 1, "rate": 450 },
+      { "description": "X-ray chest", "quantity": 2, "rate": 700 }
+    ]
+  }
+}`;
+
+function GenerateDialog() {
+  const set = useStore((s) => s.set);
+  const [json, setJson] = useState(SAMPLE_JSON);
+  const [name, setName] = useState("Patient invoice");
+  const [error, setError] = useState("");
+  return (
+    <Modal wide onClose={() => set({ dialog: "new" })}>
+      <h2>Create a report from sample JSON</h2>
+      <p className="muted">Paste a response from your API. Datasets, bound fields and tables are created for you - then adjust visually.</p>
+      <label className="field wide">
+        <span className="field-label">Report name</span>
+        <input data-testid="generate-name" value={name} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <textarea className="mono" data-testid="generate-json" rows={14} spellCheck={false} value={json} onChange={(e) => setJson(e.target.value)} aria-label="Sample JSON" />
+      {error && <div className="field-error" role="alert">{error}</div>}
+      <div className="dialog-actions">
+        <button className="btn" onClick={() => set({ dialog: "new" })}>Back</button>
+        <span className="spacer" />
+        <button
+          className="btn primary"
+          data-testid="generate-create"
+          onClick={() => {
+            try {
+              const doc = generateReportFromJson(JSON.parse(json), name || "New report");
+              useStore.getState().loadDoc(doc);
+              useStore.getState().set({ dialog: null, mode: "design", leftTab: "data" });
+            } catch (e) {
+              setError((e as Error).message);
+            }
+          }}
+        >
+          Create report
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function OpenDialog() {
+  const set = useStore((s) => s.set);
+  const [items, setItems] = useState<TemplateRecord[] | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api.listTemplates().then(setItems).catch((e) => setError((e as Error).message));
+  }, []);
+  return (
+    <Modal onClose={() => set({ dialog: null })}>
+      <h2>Open a saved report</h2>
+      {error && <div className="field-error" role="alert">{error}</div>}
+      {items && items.length === 0 && <p className="muted">Nothing saved yet. Use Save to store this report on the server.</p>}
+      <ul className="template-list" data-testid="template-list">
+        {(items ?? []).map((t) => (
+          <li key={t.id}>
+            <button data-testid={`open-${t.id}`} onClick={() => useStore.getState().openTemplate(t.id)}>
+              <strong>{t.name}</strong>
+              <span className={`status-pill ${t.status}`}>{t.status} · v{t.currentVersion}</span>
+              <span className="muted small">{t.id}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Modal>
+  );
+}
+
+function SettingsDialog() {
+  const set = useStore((s) => s.set);
+  const [key, setKey] = useState(settings.apiKey);
+  const [base, setBase] = useState(settings.apiBase);
+  const [health, setHealth] = useState("");
+  return (
+    <Modal onClose={() => set({ dialog: null })}>
+      <h2>Server settings</h2>
+      <label className="field wide">
+        <span className="field-label">API base URL (blank = same origin / dev proxy)</span>
+        <input value={base} onChange={(e) => setBase(e.target.value)} placeholder="http://localhost:4000" />
+      </label>
+      <label className="field wide">
+        <span className="field-label">API key</span>
+        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} />
+      </label>
+      {health && <p className={health.startsWith("OK") ? "ok-text" : "field-error"}>{health}</p>}
+      <div className="dialog-actions">
+        <button
+          className="btn"
+          onClick={async () => {
+            settings.apiBase = base;
+            settings.apiKey = key;
+            try {
+              const r = await fetch(`${base}/health`);
+              setHealth(r.ok ? "OK - server reachable" : `Server responded ${r.status}`);
+            } catch {
+              setHealth("Cannot reach the server");
+            }
+          }}
+        >
+          Test connection
+        </button>
+        <span className="spacer" />
+        <button className="btn primary" onClick={() => ((settings.apiBase = base), (settings.apiKey = key), set({ dialog: null }))}>
+          Save
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------------------ command palette
+interface Command {
+  id: string;
+  label: string;
+  hint?: string;
+  run: () => void;
+}
+
+function useCommands(): Command[] {
+  return useMemo(() => {
+    const s = () => useStore.getState();
+    const cmds: Command[] = [
+      { id: "save", label: "Save report", hint: "Ctrl+S", run: () => s().save() },
+      { id: "publish", label: "Publish current version", run: () => s().publish() },
+      { id: "new", label: "New report...", run: () => s().set({ dialog: "new" }) },
+      { id: "open", label: "Open report...", run: () => s().set({ dialog: "open" }) },
+      { id: "dataset", label: "Create dataset", run: () => s().set({ dialog: "dataset", editingDataset: null }) },
+      { id: "json", label: "Paste sample JSON to generate a report", run: () => s().set({ dialog: "generate" }) },
+      { id: "undo", label: "Undo", hint: "Ctrl+Z", run: () => s().undo() },
+      { id: "redo", label: "Redo", hint: "Ctrl+Shift+Z", run: () => s().redo() },
+      { id: "design", label: "Switch to Design", run: () => s().set({ mode: "design" }) },
+      { id: "code", label: "Open report JSON", run: () => s().set({ mode: "code" }) },
+      { id: "preview", label: "Preview PDF", run: () => s().set({ mode: "preview" }) },
+      ...(["pdf", "html", "xlsx", "csv"] as const).map((f) => ({ id: `export-${f}`, label: `Export ${f.toUpperCase()}`, run: () => exportReport(f) })),
+      { id: "landscape", label: "Change page to landscape", run: () => s().setDoc({ ...s().doc, page: { ...s().doc.page, orientation: "landscape" } }) },
+      { id: "portrait", label: "Change page to portrait", run: () => s().setDoc({ ...s().doc, page: { ...s().doc.page, orientation: "portrait" } }) },
+      { id: "grid", label: "Toggle grid", run: () => s().set({ showGrid: !s().showGrid }) },
+      { id: "rulers", label: "Toggle rulers", run: () => s().set({ showRulers: !s().showRulers }) },
+      { id: "problems", label: "Toggle problems panel", run: () => s().set({ problemsOpen: !s().problemsOpen }) },
+      { id: "fit", label: "Zoom to fit width", run: () => s().set({ zoom: fitZoom() }) },
+      ...PALETTE_ITEMS.map((i) => ({ id: `add-${i.label}`, label: `Add ${i.label.toLowerCase()}`, run: () => insertFromPalette(i) })),
+      ...((useStore.getState().doc.sections ?? []) as any[]).flatMap((sec) => (sec.children ?? []).map((c: any) => ({ id: `find-${c.id}`, label: `Find component: ${c.id}`, run: () => s().select([c.id]) }))),
+    ];
+    return cmds;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useStore.getState().dialog]);
+}
+
+function CommandPalette() {
+  const set = useStore((s) => s.set);
+  const [q, setQ] = useState("");
+  const [active, setActive] = useState(0);
+  const cmds = useCommands();
+  const list = cmds.filter((c) => c.label.toLowerCase().includes(q.toLowerCase())).slice(0, 12);
+  const run = (c: Command) => {
+    set({ dialog: null });
+    setTimeout(c.run, 0);
+  };
+  return (
+    <Modal onClose={() => set({ dialog: null })}>
+      <input
+        autoFocus
+        className="palette-input"
+        data-testid="palette-input"
+        placeholder="Type a command... (add table, create dataset, preview PDF)"
+        aria-label="Command"
+        value={q}
+        onChange={(e) => (setQ(e.target.value), setActive(0))}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") (e.preventDefault(), setActive((a) => Math.min(a + 1, list.length - 1)));
+          if (e.key === "ArrowUp") (e.preventDefault(), setActive((a) => Math.max(a - 1, 0)));
+          if (e.key === "Enter" && list[active]) run(list[active]!);
+        }}
+      />
+      <ul className="palette-list" role="listbox">
+        {list.map((c, i) => (
+          <li key={c.id} role="option" aria-selected={i === active} className={i === active ? "active" : ""} onMouseEnter={() => setActive(i)} onClick={() => run(c)}>
+            <span>{c.label}</span>
+            {c.hint && <kbd>{c.hint}</kbd>}
+          </li>
+        ))}
+        {list.length === 0 && <li className="muted">No matching command</li>}
+      </ul>
+    </Modal>
+  );
+}
+
+export function Dialogs() {
+  const dialog = useStore((s) => s.dialog);
+  const set = useStore((s) => s.set);
+  if (!dialog) return null;
+  if (dialog === "new") return <NewDialog />;
+  if (dialog === "open") return <OpenDialog />;
+  if (dialog === "settings") return <SettingsDialog />;
+  if (dialog === "generate") return <GenerateDialog />;
+  if (dialog === "palette") return <CommandPalette />;
+  if (dialog === "dataset")
+    return (
+      <Modal wide onClose={() => set({ dialog: null })}>
+        <DatasetEditor key={useStore.getState().editingDataset ?? "new"} />
+      </Modal>
+    );
+  return null;
+}
+
+export function Toasts() {
+  const toasts = useStore((s) => s.toasts);
+  return (
+    <div className="toasts" aria-live="polite">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast ${t.kind}`} data-testid="toast">
+          {t.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export { ApiError };

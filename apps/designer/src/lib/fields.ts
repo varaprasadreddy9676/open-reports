@@ -30,3 +30,34 @@ export function inferFields(value: unknown, basePath = "", depth = 0): FieldNode
 export function flatFieldPaths(nodes: FieldNode[]): string[] {
   return nodes.flatMap((n) => (n.children && n.kind === "object" ? flatFieldPaths(n.children) : n.kind === "array" ? [] : [n.path]));
 }
+
+/** Value of a dataset reference ("invoice" or "invoice.items") from sample data or inline definition data. */
+export function datasetValue(doc: Record<string, any>, sample: Record<string, unknown>, ref: string): unknown {
+  const [root, ...rest] = ref.split(".");
+  if (!root) return undefined;
+  let value: unknown = root in sample ? sample[root] : (doc.datasets ?? []).find((d: any) => d.id === root)?.query?.data;
+  for (const key of rest) {
+    if (value === null || value === undefined || typeof value !== "object") return undefined;
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
+
+/** Every dataset reference usable by a table/repeater: each array dataset plus arrays nested inside object datasets. */
+export function arrayRefs(doc: Record<string, any>, sample: Record<string, unknown>): string[] {
+  const refs: string[] = [];
+  for (const ds of doc.datasets ?? []) {
+    const v = datasetValue(doc, sample, ds.id);
+    if (Array.isArray(v)) refs.push(ds.id);
+    else if (v && typeof v === "object") {
+      const walk = (node: FieldNode[]) => {
+        for (const f of node) {
+          if (f.kind === "array") refs.push(`${ds.id}.${f.path}`);
+          else if (f.kind === "object" && f.children) walk(f.children);
+        }
+      };
+      walk(inferFields(v));
+    } else if (ds.source !== "inline") refs.push(ds.id);
+  }
+  return refs;
+}

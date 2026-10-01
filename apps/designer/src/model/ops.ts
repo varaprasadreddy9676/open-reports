@@ -279,3 +279,15 @@ export const PALETTE: Record<string, () => Comp> = {
   chart: () => ({ type: "chart", chartType: "bar", dataset: "", series: [], height: 180 }),
   pageBreak: () => ({ type: "pageBreak" }),
 };
+
+/** The dataset a component's `row.` bindings refer to (nearest enclosing repeater/group/table), if any. */
+export function rowDatasetAt(doc: Doc, id: string | undefined): string | undefined {
+  let loc = id ? find(doc, id) : undefined;
+  let own = loc && ["repeater", "group", "table"].includes(loc.comp.type) && (loc.comp.type !== "table") ? loc.comp.dataset : undefined;
+  if (own) return own;
+  while (loc && !loc.parent.startsWith("section:")) {
+    loc = find(doc, loc.parent);
+    if (loc && ["repeater", "group"].includes(loc.comp.type) && loc.comp.dataset) return loc.comp.dataset;
+  }
+  return undefined;
+}
