@@ -14,6 +14,8 @@ export interface DrawContext {
   defaultFamily?: string;
   fonts: PdfFontRegistry;
   warnings: { code: string; path: string; message: string }[];
+  /** Open outline (bookmark) items by depth, so nested bookmarks form a tree. */
+  outlineStack?: any[];
 }
 
 function spacing(value: unknown): { top: number; right: number; bottom: number; left: number } {
@@ -58,10 +60,26 @@ function drawBoxDecoration(ctx: DrawContext, box: PositionedNode["box"], style: 
   }
 }
 
+function addBookmark(ctx: DrawContext, component: any, node: PositionedNode): void {
+  const title = typeof component.bookmark === "string" ? component.bookmark : String(component.text ?? component.id ?? "").trim();
+  if (!title) return;
+  const outline = (ctx.doc as any).outline;
+  if (!outline) return;
+  const stack = (ctx.outlineStack ??= [outline]);
+  const level = Math.min(component.bookmarkLevel ?? 1, stack.length);
+  const parent = stack[level - 1] ?? outline;
+  const item = parent.addItem(title);
+  stack.length = level; // entries deeper than this one are closed
+  stack.push(item);
+  void node;
+}
+
 export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<void> {
   const component = node.component as any;
   const { doc } = ctx;
   const style = component.style ?? {};
+
+  if (component.bookmark) addBookmark(ctx, component, node);
 
   switch (component.type) {
     case "text":

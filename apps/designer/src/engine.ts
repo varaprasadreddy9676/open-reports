@@ -30,6 +30,7 @@ export interface Problem {
 }
 
 export interface Capabilities {
+  sqlConnections?: string[];
   customComponents?: { kind: string; description?: string; props?: Record<string, string> }[];
   formats: { id: string; supports: string[] }[];
   fonts: string[];

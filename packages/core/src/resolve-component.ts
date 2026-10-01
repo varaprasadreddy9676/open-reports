@@ -138,6 +138,8 @@ function base(component: Component) {
     minHeight: component.minHeight,
     maxHeight: component.maxHeight,
     exports: component.exports,
+    bookmark: component.bookmark,
+    bookmarkLevel: component.bookmarkLevel,
   };
 }
 

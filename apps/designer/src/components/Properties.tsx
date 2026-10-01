@@ -420,6 +420,10 @@ function Advanced({ comp }: { comp: ops.Comp }) {
   return (
     <Section title="Advanced" open={false}>
       <ConditionBuilder comp={comp} />
+      <label className="check">
+        <input type="checkbox" data-testid="flag-bookmark" checked={!!comp.bookmark} onChange={(e) => patch(comp.id, { bookmark: e.target.checked ? true : undefined })} />
+        PDF bookmark (shows in the PDF outline / navigation pane)
+      </label>
       <div className="group-title small">Overflow</div>
       <Field label="When text is too long">
         <select aria-label="Overflow" value={comp.style?.overflow ?? ""} onChange={(e) => useStore.getState().patchStyle(comp.id, { overflow: e.target.value || undefined })}>
@@ -1153,6 +1157,25 @@ function PageProps() {
             </Field>
           ))}
         </div>
+      </Section>
+      <Section title="Watermark" open={!!doc.watermark}>
+        <Field label="Text" wide>
+          <input aria-label="Watermark text" data-testid="watermark-text" placeholder="DRAFT, CONFIDENTIAL, COPY…" value={doc.watermark?.text ?? ""} onChange={(e) => setDoc({ ...doc, watermark: e.target.value ? { ...(doc.watermark ?? {}), text: e.target.value } : undefined }, { coalesce: "wm" })} />
+        </Field>
+        {doc.watermark && (
+          <div className="grid2">
+            <Field label="Opacity">
+              <Num label="Watermark opacity" min={0} step={0.05} value={doc.watermark.opacity ?? 0.18} onChange={(v) => setDoc({ ...doc, watermark: { ...doc.watermark, opacity: Math.min(1, v ?? 0.18) } }, { coalesce: "wm" })} />
+            </Field>
+            <Field label="Pages">
+              <select aria-label="Watermark pages" value={doc.watermark.pages ?? "all"} onChange={(e) => setDoc({ ...doc, watermark: { ...doc.watermark, pages: e.target.value } })}>
+                <option value="all">Every page</option>
+                <option value="first">First page</option>
+              </select>
+            </Field>
+          </div>
+        )}
+        <p className="muted small">Shown in Preview and exports (PDF, HTML).</p>
       </Section>
       <PageMasters />
       <PrintProfilePanel />

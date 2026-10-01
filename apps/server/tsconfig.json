@@ -38,6 +38,12 @@
     },
     {
       "path": "../../packages/datasource-json"
+    },
+    {
+      "path": "../../packages/renderer-escpos"
+    },
+    {
+      "path": "../../packages/datasource-sql"
     }
   ],
   "include": [

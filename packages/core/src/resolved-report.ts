@@ -19,6 +19,7 @@ export interface ResolvedReport {
   sections: ResolvedSection[];
   exports?: ExportsConfig;
   print?: import("@reporting/schema").PrintProfile;
+  watermark?: import("@reporting/schema").Watermark;
   warnings: ResolvedWarning[];
 }
 
@@ -74,6 +75,8 @@ export interface ResolvedComponentBase {
   minHeight?: number | string;
   maxHeight?: number | string;
   exports?: Record<string, unknown>;
+  bookmark?: boolean | string;
+  bookmarkLevel?: number;
 }
 
 export interface ResolvedTextComponent extends ResolvedComponentBase {

@@ -357,3 +357,15 @@ describe("analyze", () => {
     expect(res.json()).toMatchObject({ valid: false, stage: "schema" });
   });
 });
+
+describe("ESC/POS output", () => {
+  it("renders a receipt as printer bytes (reset, text, cut)", async () => {
+    const report = { schemaVersion: "1.0", id: "e", name: "e", page: { size: "custom", width: 80, height: 200, unit: "mm" }, sections: [{ type: "detail", children: [{ type: "text", value: "HELLO PRINTER" }] }] };
+    const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "escpos" } });
+    expect(res.statusCode).toBe(200);
+    expect([...res.rawPayload.subarray(0, 2)]).toEqual([0x1b, 0x40]);
+    expect(res.rawPayload.includes(Buffer.from("HELLO PRINTER"))).toBe(true);
+    const caps = (await app.inject({ url: "/api/v1/capabilities" })).json();
+    expect(caps.formats.some((f: any) => f.id === "escpos")).toBe(true);
+  });
+});

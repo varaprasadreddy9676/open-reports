@@ -57,12 +57,15 @@ export class PdfRenderer implements ReportRenderer {
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     const ended = new Promise<void>((resolve) => doc.on("end", () => resolve()));
 
+    const drawCtx = { doc, fonts, warnings, defaultFamily, measurer };
     for (const page of paginated.pages) {
       doc.addPage({ size: [paginated.pageSize.width, paginated.pageSize.height], margin: 0 });
       doc.fillColor("#000000");
       for (const node of [...page.header, ...page.content, ...page.footer]) {
-        await drawNode({ doc, fonts, warnings, defaultFamily, measurer }, node);
+        await drawNode(drawCtx, node);
       }
+      const wm = input.resolved.watermark;
+      if (wm && (wm.pages !== "first" || page.number === 1)) drawWatermark(doc, fonts, wm, paginated.pageSize.width, paginated.pageSize.height, defaultFamily);
     }
 
     if (paginated.pages.length === 0) {
@@ -94,4 +97,16 @@ export function createPdfMeasurer(doc: PDFKit.PDFDocument, fonts: PdfFontRegistr
       return doc.font(fonts.resolve(hint?.family ?? defaultFamily, Boolean(hint?.bold), Boolean(hint?.italic))).fontSize(fontSize).currentLineHeight(true);
     },
   };
+}
+
+/** Diagonal watermark centred on the page, drawn last so it sits above content with low opacity. */
+function drawWatermark(doc: PDFKit.PDFDocument, fonts: PdfFontRegistry, wm: { text: string; color?: string; opacity?: number; fontSize?: number; angle?: number }, w: number, h: number, family?: string): void {
+  const size = wm.fontSize ?? Math.min(w, h) / 6;
+  doc.save();
+  doc.translate(w / 2, h / 2).rotate(-(wm.angle ?? 45));
+  doc.fillColor(wm.color ?? "#9ca3af").fillOpacity(wm.opacity ?? 0.18).fontSize(size);
+  doc.font(fonts.runs(wm.text, family, true, false)[0]?.font ?? fonts.resolve(family, true, false));
+  const tw = doc.widthOfString(wm.text);
+  doc.text(wm.text, -tw / 2, -size / 2, { lineBreak: false });
+  doc.restore();
 }

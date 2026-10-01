@@ -126,6 +126,9 @@ importers:
       '@reporting/datasource-rest':
         specifier: workspace:*
         version: link:../../packages/datasource-rest
+      '@reporting/datasource-sql':
+        specifier: workspace:*
+        version: link:../../packages/datasource-sql
       '@reporting/layout':
         specifier: workspace:*
         version: link:../../packages/layout
@@ -135,6 +138,9 @@ importers:
       '@reporting/renderer-csv':
         specifier: workspace:*
         version: link:../../packages/renderer-csv
+      '@reporting/renderer-escpos':
+        specifier: workspace:*
+        version: link:../../packages/renderer-escpos
       '@reporting/renderer-html':
         specifier: workspace:*
         version: link:../../packages/renderer-html
@@ -354,6 +360,25 @@ importers:
       '@reporting/core':
         specifier: workspace:*
         version: link:../core
+      '@reporting/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.4
+        version: 2.1.9(@types/node@22.20.4)
+
+  packages/renderer-escpos:
+    dependencies:
+      '@reporting/core':
+        specifier: workspace:*
+        version: link:../core
+      '@reporting/layout':
+        specifier: workspace:*
+        version: link:../layout
       '@reporting/schema':
         specifier: workspace:*
         version: link:../schema

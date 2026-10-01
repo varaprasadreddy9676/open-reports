@@ -120,7 +120,7 @@ export const api = {
   async deleteBlock(id: string): Promise<void> {
     await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
-  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "zpl"): Promise<{ blob: Blob; renderId: string | null }> {
+  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos"): Promise<{ blob: Blob; renderId: string | null }> {
     const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format }) });
     return { blob: await res.blob(), renderId: res.headers.get("x-render-id") };
   },

@@ -413,3 +413,15 @@ test.describe("AI assistant (BYOK, mocked provider)", () => {
     await expect(page.getByTestId("ai-bar")).toBeVisible();
   });
 });
+
+test("watermark and bookmark settings write to the report", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByRole("button", { name: /^▸ Watermark|^▾ Watermark/ }).click().catch(() => {});
+  await page.getByTestId("watermark-text").fill("CONFIDENTIAL");
+  expect((await page.evaluate(() => (window as any).__designer.getState().doc)).watermark.text).toBe("CONFIDENTIAL");
+  await page.getByTestId("palette-text").click();
+  await page.getByRole("button", { name: /Advanced/ }).click();
+  await page.getByTestId("flag-bookmark").check();
+  expect(JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc))).toContain('"bookmark":true');
+});

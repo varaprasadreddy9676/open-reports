@@ -39,6 +39,18 @@ export const printProfileSchema = z.object({
 });
 export type PrintProfile = z.infer<typeof printProfileSchema>;
 
+/** Diagonal text stamped on every page (e.g. DRAFT, CONFIDENTIAL, COPY). */
+export const watermarkSchema = z.object({
+  text: z.string().min(1),
+  color: z.string().optional(),
+  opacity: z.number().min(0).max(1).optional(),
+  fontSize: z.number().positive().optional(),
+  /** Degrees, counter-clockwise. Default 45. */
+  angle: z.number().optional(),
+  pages: z.enum(["all", "first"]).optional(),
+});
+export type Watermark = z.infer<typeof watermarkSchema>;
+
 export const fragmentDefinitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().optional(),
@@ -59,6 +71,7 @@ export const reportDefinitionSchema = z.object({
   sections: z.array(sectionSchema).default([]),
   fragments: z.array(fragmentDefinitionSchema).default([]),
   print: printProfileSchema.optional(),
+  watermark: watermarkSchema.optional(),
   exports: exportsConfigSchema.optional(),
 });
 

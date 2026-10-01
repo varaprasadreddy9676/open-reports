@@ -1,6 +1,6 @@
 # Open Reports
 
-An open-source, **AI-ready reporting, document and print platform**. You describe a document once as plain JSON; the engine turns it into pixel-stable **PDF, HTML, Excel, CSV and Zebra (ZPL) labels** — invoices, 100-page clinical reports, receipts, wristbands, and sheets of stickers.
+An open-source, **AI-ready reporting, document and print platform**. You describe a document once as plain JSON; the engine turns it into pixel-stable **PDF, HTML, Excel, CSV, Zebra (ZPL) labels and ESC/POS receipts** — invoices, 100-page clinical reports, receipts, wristbands, and sheets of stickers.
 
 ```
 Report Definition (JSON)  →  params → datasets → expressions → Resolved Tree → pagination → PDF · HTML · XLSX · CSV · ZPL · (plugins)
@@ -50,7 +50,7 @@ curl -X POST localhost:4000/api/v1/render -H 'content-type: application/json' -H
 | `@reporting/expressions` | Safe formula language (no `eval`) |
 | `@reporting/core` | Validation, parameters, datasets, Resolved Report Tree |
 | `@reporting/layout` | Box layout and the pagination engine |
-| `@reporting/renderer-{pdf,html,xlsx,csv,zpl}` | Output formats |
+| `@reporting/renderer-{pdf,html,xlsx,csv,zpl,escpos}` | Output formats (PDF has bookmarks and watermarks; ESC/POS targets 58/80 mm thermal receipt printers) |
 | `@reporting/datasource-{json,rest,sql}` | Data sources (REST is SSRF-guarded; SQL is parameterised; PostgreSQL + MySQL) |
 | `@reporting/plugin-sdk` | Extension API ([guide](docs/PLUGIN_DEVELOPMENT.md)) |
 | `@reporting/ai-tools`, `@reporting/mcp-server` | AI tool catalogue and the MCP server ([guide](docs/AI_AND_MCP.md)) |
@@ -70,7 +70,7 @@ Indicative speed on a laptop-class CPU (see `benchmarks/results.json`): 100 000-
 
 ## Status and roadmap
 Done: engine, all five renderers, datasources, server, designer, plugin system, label sheets, MCP server and designer AI bar (BYOK), docs, Docker, CI, test suites.
-Not built yet: a typed **SDK** and **CLI** (use the REST API or MCP meanwhile), PDF/A and digital signatures, footnotes/TOC/bookmarks, EPL and ESC/POS output, and streaming for million-row exports. Known limitation: subreports are declared in the schema but not executed.
+Not built yet: a typed **SDK** and **CLI** (use the REST API or MCP meanwhile), PDF/A and digital signatures, footnotes and an automatic table of contents, EPL output, and streaming for million-row exports. Known limitation: subreports are declared in the schema but not executed.
 
 ## License
 MIT — see [LICENSE](LICENSE).

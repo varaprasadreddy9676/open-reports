@@ -122,3 +122,13 @@ describe("HtmlRenderer", () => {
     expect(html).toContain("<rect");
   });
 });
+
+describe("watermark", () => {
+  it("is drawn on each page and its text is escaped", async () => {
+    const r = await renderReport({ schemaVersion: "1.0", id: "w", name: "w", watermark: { text: "<DRAFT>" }, sections: [{ type: "detail", children: [{ type: "text", value: "x" }] }] });
+    const html = String(r.content);
+    expect(html).toContain('class="watermark"');
+    expect(html).toContain("&lt;DRAFT&gt;");
+    expect(html).not.toContain("<DRAFT>");
+  });
+});

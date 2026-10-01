@@ -38,6 +38,7 @@ const TARGETS = [
   { id: "xlsx", label: "Excel" },
   { id: "csv", label: "CSV (data)" },
   { id: "zpl", label: "Label (ZPL)" },
+  { id: "escpos", label: "Receipt (ESC/POS)" },
 ];
 
 export function Toolbar() {
@@ -148,9 +149,9 @@ export function Toolbar() {
           <button className="btn" data-testid="btn-export" aria-haspopup="menu" aria-expanded={menu === "export"} onClick={() => setMenu(menu === "export" ? null : "export")}>Export ▾</button>
           {menu === "export" && (
             <div className="menu" role="menu">
-              {(["pdf", "html", "xlsx", "csv", "zpl"] as const).map((f) => (
+              {(["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as const).map((f) => (
                 <button key={f} role="menuitem" data-testid={`export-${f}`} onClick={() => (setMenu(null), exportReport(f))}>
-                  {f === "zpl" ? "ZPL label" : f.toUpperCase()}
+                  {f === "zpl" ? "ZPL label" : f === "escpos" ? "ESC/POS receipt" : f.toUpperCase()}
                 </button>
               ))}
               <hr />

@@ -8,7 +8,7 @@
   "types": "./dist/index.d.ts",
   "bin": { "reporting-mcp": "./dist/cli.js" },
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "scripts": { "build": "tsc -b", "test": "vitest run", "typecheck": "tsc -b --noEmit" },
+  "scripts": { "build": "tsc -b", "test": "vitest run --passWithNoTests", "typecheck": "tsc -b --noEmit" },
   "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@reporting/ai-tools": "workspace:*" },
   "devDependencies": { "typescript": "^5.6.3", "vitest": "^2.1.4" }
 }

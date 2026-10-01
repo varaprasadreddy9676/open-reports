@@ -30,3 +30,33 @@ export class SqlConnectionRegistry {
     return config;
   }
 }
+
+/** postgres://user:pass@host:5432/db?ssl=true  or  mysql://user:pass@host/db */
+export function parseConnectionUrl(url: string): SqlConnectionConfig {
+  const u = new URL(url);
+  const scheme = u.protocol.replace(":", "");
+  const driver = scheme === "postgres" || scheme === "postgresql" ? "postgres" : scheme === "mysql" || scheme === "mariadb" ? "mysql" : undefined;
+  if (!driver) throw new Error(`Unsupported database URL scheme "${scheme}" (use postgres:// or mysql://).`);
+  const database = decodeURIComponent(u.pathname.replace(/^\//, ""));
+  if (!u.hostname || !database) throw new Error("Database URL needs a host and a database name.");
+  return {
+    driver,
+    host: u.hostname,
+    port: u.port ? Number(u.port) : undefined,
+    database,
+    user: decodeURIComponent(u.username),
+    password: decodeURIComponent(u.password),
+    ssl: ["1", "true", "require"].includes(u.searchParams.get("ssl") ?? ""),
+  };
+}
+
+/** REPORT_SQL_<NAME>=postgres://... registers connection id "<name>" (lower-case, "_" -> "-"). Reports reference only the id. */
+export function connectionsFromEnv(env: NodeJS.ProcessEnv = process.env): Record<string, SqlConnectionConfig> {
+  const out: Record<string, SqlConnectionConfig> = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (!k.startsWith("REPORT_SQL_") || !v) continue;
+    const id = k.slice("REPORT_SQL_".length).toLowerCase().replace(/_/g, "-");
+    out[id] = parseConnectionUrl(v);
+  }
+  return out;
+}

@@ -1,6 +1,7 @@
 import { DataSourceRegistry, InlineDataSource } from "@reporting/core";
 import { RestDataSource } from "@reporting/datasource-rest";
 import { JsonDataSource } from "@reporting/datasource-json";
+import { SqlConnectionRegistry, SqlDataSource, connectionsFromEnv } from "@reporting/datasource-sql";
 
 /** Default registry for the dev server: inline data (always safe) and REST
  * (SSRF-guarded by default). SQL datasources need real credentials
@@ -13,7 +14,18 @@ export function createDefaultDataSourceRegistry(): DataSourceRegistry {
   registry.register(new RestDataSource({ secrets: secretsFromEnv() }));
   // File-based JSON datasets are off unless the operator names a directory they may read from (JSON_DATA_ROOT).
   if (process.env.JSON_DATA_ROOT) registry.register(new JsonDataSource({ rootDir: process.env.JSON_DATA_ROOT }));
+  // Databases: REPORT_SQL_<NAME>=postgres://user:pass@host/db  (or mysql://). Reports reference the connection id only, never credentials.
+  const connections = connectionsFromEnv();
+  if (Object.keys(connections).length) {
+    const sql = new SqlConnectionRegistry();
+    for (const [id, cfg] of Object.entries(connections)) sql.register(id, cfg);
+    registry.register(new SqlDataSource(sql));
+  }
   return registry;
+}
+
+export function sqlConnectionIds(env: NodeJS.ProcessEnv = process.env): string[] {
+  return Object.keys(env).filter((k) => k.startsWith("REPORT_SQL_") && env[k]).map((k) => k.slice(11).toLowerCase().replace(/_/g, "-"));
 }
 
 /** Secrets are named `REPORT_SECRET_<NAME>` in the server environment and referenced from datasets as {{secrets.NAME}}. */

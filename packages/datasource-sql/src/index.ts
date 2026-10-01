@@ -5,7 +5,7 @@ import type { DataSet, DataSource, ExecutionContext } from "@reporting/core";
 import { SqlConnectionRegistry, type SqlConnectionConfig } from "./connections.js";
 import { resolveSqlParams } from "./params.js";
 
-export { SqlConnectionRegistry, type SqlConnectionConfig } from "./connections.js";
+export { SqlConnectionRegistry, parseConnectionUrl, connectionsFromEnv, type SqlConnectionConfig } from "./connections.js";
 
 interface SqlQuery {
   connectionId: string;

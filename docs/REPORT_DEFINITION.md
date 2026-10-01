@@ -12,11 +12,14 @@ The authoritative, machine-readable description is the JSON Schema at `GET /api/
   "datasets": [{ "id": "invoice", "source": "inline|json|rest|sql|plugin:<name>", "query": { } }],
   "variables": [{ "id": "total", "scope": "report", "expression": "sumProduct(data.invoice.items, \"quantity\", \"rate\")" }],
   "fragments": [{ "id": "letterhead", "children": [ ] }],
+  "watermark": { "text": "CONFIDENTIAL", "opacity": 0.18, "pages": "all" },
   "print": { "printerType": "label", "language": "zpl", "dpi": 203, "safeMargin": 1.5 },
   "sections": [ { "type": "pageHeader", "appliesTo": "first", "children": [ ] }, { "type": "detail", "children": [ ] } ]
 }
 ```
 Units are **points** for component sizes (1 pt = 1/72 in) and `page.unit` for the page. Label-sheet sizes are in **mm**.
+
+`watermark` stamps diagonal text on every page (PDF, HTML). Any component can set `bookmark: true` (use its own text) or a string, plus `bookmarkLevel` 1–4, to create PDF outline entries.
 
 ## Sections
 `reportHeader`, `pageHeader`, `groupHeader`, `detail`, `groupFooter`, `pageFooter`, `reportFooter`. Headers/footers take `appliesTo`: `first | last | odd | even | standard | all` (page masters).

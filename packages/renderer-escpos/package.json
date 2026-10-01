@@ -1,0 +1,17 @@
+{
+  "name": "@reporting/renderer-escpos",
+  "version": "0.1.0",
+  "description": "ESC/POS renderer: continuous receipts for thermal receipt printers (Epson-compatible): text, alignment, bold, double size, tables, barcodes, QR, cut",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -b", "test": "vitest run", "typecheck": "tsc -b --noEmit" },
+  "dependencies": {
+    "@reporting/core": "workspace:*",
+    "@reporting/layout": "workspace:*",
+    "@reporting/schema": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.6.3", "vitest": "^2.1.4" }
+}

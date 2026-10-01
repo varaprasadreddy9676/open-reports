@@ -124,6 +124,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     sections,
     exports: report.exports,
     print: report.print,
+    watermark: report.watermark,
     warnings,
   };
 

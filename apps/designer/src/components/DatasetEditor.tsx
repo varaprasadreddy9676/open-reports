@@ -81,6 +81,7 @@ export function DatasetEditor() {
   const [params, setParams] = useState(j(q.params));
   const [csv, setCsv] = useState("");
   const secrets = useStore((st) => st.capabilities?.secrets ?? []);
+  const sqlIds = useStore((st) => st.capabilities?.sqlConnections ?? []);
   const [preview, setPreview] = useState<unknown>(sample[id]);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -230,7 +231,8 @@ export function DatasetEditor() {
         <>
           <label className="field wide">
             <span className="field-label">Connection (PostgreSQL or MySQL, configured on the server - credentials never enter the report)</span>
-            <input value={connectionId} onChange={(e) => setConnectionId(e.target.value)} />
+            <input list="sql-connections" data-testid="dataset-connection" value={connectionId} onChange={(e) => setConnectionId(e.target.value)} placeholder={sqlIds.length ? sqlIds[0] : "set REPORT_SQL_<NAME> on the server"} />
+            <datalist id="sql-connections">{sqlIds.map((i) => <option key={i} value={i} />)}</datalist>
           </label>
           <label className="field wide">
             <span className="field-label">SQL (parameterized: $1 for Postgres, ? for MySQL)</span>

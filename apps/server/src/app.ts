@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import fs from "node:fs";
 import { executeDatasets } from "@reporting/core";
-import { createDefaultDataSourceRegistry, secretsFromEnv } from "./datasources.js";
+import { createDefaultDataSourceRegistry, secretsFromEnv, sqlConnectionIds } from "./datasources.js";
 import { discoverFonts } from "@reporting/renderer-pdf";
 import { randomUUID } from "node:crypto";
 import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
@@ -60,11 +60,13 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
         { id: "xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", supports: ["table", "text", "field"] },
         { id: "csv", mimeType: "text/csv", supports: ["table"] },
         ...[...(options.plugins?.renderers.values() ?? [])].map((r) => ({ id: r.format, mimeType: r.mimeType, supports: r.supports, plugin: true })),
+        { id: "escpos", mimeType: "application/octet-stream", supports: ["text", "richText", "field", "line", "spacer", "barcode", "qrcode", "table", "container", "row", "column", "grid", "repeater", "group", "keepTogether"] },
         { id: "zpl", mimeType: "text/plain", supports: ["text", "richText", "field", "line", "rectangle", "spacer", "barcode", "qrcode", "table", "container", "row", "column", "grid", "repeater", "group", "keepTogether", "pageBreak"] },
       ],
       fonts: Object.keys(fonts.families ?? {}),
       scriptFonts: fonts.scriptFamilies ?? {},
       secrets: Object.keys(secretsFromEnv()),
+      sqlConnections: sqlConnectionIds(),
       customComponents: [...(options.plugins?.components.entries() ?? [])].map(([kind, c]) => ({ kind, description: c.description, props: c.props })),
       functions: [...(options.plugins?.functionDocs.entries() ?? [])].map(([name, doc]) => ({ name, doc })),
       dataSources: [...(options.plugins?.dataSources.keys() ?? [])].map((n) => `plugin:${n}`),

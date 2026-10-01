@@ -118,6 +118,10 @@ export const componentBaseSchema = z.object({
    * on the table component itself, expressed as lines for text-shaped content. */
   minLinesAtBottom: z.number().int().nonnegative().optional(),
   minLinesAtTop: z.number().int().nonnegative().optional(),
+  /** PDF bookmark (outline entry) pointing here. `true` uses the element's own text. */
+  bookmark: z.union([z.boolean(), z.string()]).optional(),
+  /** Nesting depth in the outline, 1 = top level. */
+  bookmarkLevel: z.number().int().min(1).max(4).optional(),
   exports: z.record(z.string(), z.unknown()).optional(),
 });
 export type ComponentBase = z.infer<typeof componentBaseSchema>;
