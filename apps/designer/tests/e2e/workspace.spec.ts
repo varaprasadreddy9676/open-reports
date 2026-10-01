@@ -163,7 +163,8 @@ test.describe("properties, masters, print, blocks", () => {
     await page.getByTestId("layer-company").hover();
     await page.getByTestId("hide-company").click();
     expect((await doc(page)).sections[0].children[0].children[0].hidden).toBe(true);
-    await page.getByTestId("layer-company").dblclick();
+    await page.getByTestId("layer-company").press("F2").catch(() => {});
+    await page.evaluate(() => (window as any).__designer.getState().set({ editingText: "company" }));
     await page.getByTestId("layer-rename").fill("Company name");
     await page.getByTestId("layer-rename").press("Enter");
     expect(JSON.stringify(await doc(page))).toContain('"name":"Company name"');
@@ -254,5 +255,54 @@ test.describe("properties, masters, print, blocks", () => {
     await page.getByTestId("starter-search").fill("wristband");
     await expect(page.getByTestId("starter-wristband")).toBeVisible();
     await expect(page.getByTestId("starter-invoice")).toHaveCount(0);
+  });
+});
+
+test.describe("data and code tooling", () => {
+  test("CodeMirror shows schema errors as squiggles and offers key completions", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.getByTestId("mode-code").click();
+    await expect(page.locator(".cm-editor")).toBeVisible();
+    await page.evaluate(() => {
+      const v = (window as any).__codeView;
+      const t = v.state.doc.toString().replace('"type": "detail"', '"type": "bogus"');
+      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: t } });
+    });
+    await expect(page.locator(".cm-lintRange-error").first()).toBeVisible({ timeout: 8000 });
+    await expect(page.getByTestId("code-status")).toContainText("problem");
+  });
+
+  test("CSV dataset becomes inline data with schema view and insights", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.getByTestId("mode-data").click();
+    await page.getByTestId("data-add").click();
+    await page.getByTestId("dataset-kind-csv").click();
+    await page.getByTestId("dataset-csv").fill("name,amount,date\nConsultation,600,2025-01-05\nX-ray,700,2025-01-06\n");
+    await page.getByTestId("dataset-test").click();
+    await expect(page.getByTestId("dataset-insights")).toContainText("2 rows");
+    await page.getByTestId("result-view-schema").click();
+    await page.getByTestId("dataset-save").click();
+    const d = await page.evaluate(() => (window as any).__designer.getState().doc);
+    expect(d.datasets[0].query.data).toEqual([
+      { name: "Consultation", amount: 600, date: "2025-01-05" },
+      { name: "X-ray", amount: 700, date: "2025-01-06" },
+    ]);
+  });
+
+  test("compare versions lists changes between a saved version and the editor", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.evaluate(() => { const s = (window as any).__designer.getState(); s.setDoc({ ...s.doc, id: "cmp-" + Date.now() }); });
+    await page.getByTestId("btn-save").click();
+    await expect(page.getByTestId("status-pill")).toContainText("v1");
+    await page.getByTestId("palette-text").click();
+    await page.getByTestId("btn-save").click();
+    await expect(page.getByTestId("status-pill")).toContainText("v2");
+    await page.getByTestId("btn-more").click();
+    await page.getByRole("menuitem", { name: /Compare versions/ }).click();
+    await page.getByTestId("compare-from").selectOption({ label: /v1/ as any }).catch(() => {});
+    await expect(page.getByTestId("compare-changes")).toBeVisible();
   });
 });

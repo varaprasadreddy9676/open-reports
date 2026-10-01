@@ -7,6 +7,7 @@ import { insertFromPalette, PALETTE_ITEMS } from "./LeftPanel";
 import { exportReport } from "./Preview";
 import { DatasetEditor } from "./DatasetEditor";
 import { SaveBlockDialogBody } from "./CanvasTools";
+import { CompareDialogBody } from "./CompareDialog";
 
 // ------------------------------------------------------------------ toolbar
 function useOutsideClose(open: boolean, close: () => void) {
@@ -101,6 +102,15 @@ export function Toolbar() {
                   {label}
                 </button>
               ))}
+              <label className="menu-field">
+                Design with
+                <select data-testid="sample-rows" value={useStore.getState().sampleRows} onChange={(e) => (set({ sampleRows: Number(e.target.value) }), s().refresh())}>
+                  <option value={0}>all rows</option>
+                  <option value={5}>first 5 rows</option>
+                  <option value={20}>first 20 rows</option>
+                  <option value={50}>first 50 rows</option>
+                </select>
+              </label>
               <button role="menuitemcheckbox" aria-checked={snap} data-testid="toggle-snap" onClick={() => set({ snap: !snap })}>
                 <span className="check">{snap ? "✓" : ""}</span>Snap to grid & components
               </button>
@@ -658,6 +668,12 @@ export function Dialogs() {
   if (dialog === "settings") return <SettingsDialog />;
   if (dialog === "generate") return <GenerateDialog />;
   if (dialog === "palette") return <CommandPalette />;
+  if (dialog === "compare")
+    return (
+      <Modal wide onClose={() => set({ dialog: null })}>
+        <CompareDialogBody />
+      </Modal>
+    );
   if (dialog === "block")
     return (
       <Modal onClose={() => set({ dialog: null })}>

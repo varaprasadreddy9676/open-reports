@@ -229,18 +229,18 @@ test.describe("data, code and problems", () => {
     await page.goto("/");
     await page.getByTestId("starter-receipt").click();
     await page.getByTestId("mode-code").click();
-    const area = page.getByTestId("code-textarea");
-    const original = await area.inputValue();
+    const setCode = (t: string) => page.evaluate((text) => { const v = (window as any).__codeView; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } }); }, t);
+    const original = await page.evaluate(() => (window as any).__codeView.state.doc.toString());
     expect(original).toContain("ACME PHARMACY");
     const edited = original.replace("Thank you - get well soon", "Edited from code");
-    await area.fill(edited);
+    await setCode(edited);
     await expect(page.getByTestId("code-status")).toContainText("valid");
     await page.getByTestId("mode-design").click();
     await expect(page.getByTestId("canvas")).toContainText("Edited from code");
 
     // invalid JSON is reported with a position and does not clobber the design
     await page.getByTestId("mode-code").click();
-    await area.fill("{ nope");
+    await setCode("{ nope");
     await expect(page.getByTestId("code-status")).toContainText("problem");
     await expect(page.getByRole("alert")).toContainText(/Line \d+/);
     await page.getByTestId("mode-design").click();
@@ -252,22 +252,17 @@ test.describe("data, code and problems", () => {
     await page.getByTestId("starter-invoice").click();
     await page.evaluate(() => (window as any).__designer.getState().select(["pay-qr"]));
     await page.getByTestId("open-in-code").click();
-    const selected = await page.getByTestId("code-textarea").evaluate((el: HTMLTextAreaElement) => el.value.slice(el.selectionStart, el.selectionEnd));
+    const selected = await page.evaluate(() => { const v = (window as any).__codeView; const r = v.state.selection.main; return v.state.doc.sliceString(r.from, r.to); });
     expect(selected).toContain('"id": "pay-qr"');
 
     await page.evaluate(() => (window as any).__designer.getState().select([]));
-    await page.getByTestId("code-textarea").evaluate((el: HTMLTextAreaElement) => {
-      const i = el.value.indexOf('"id": "items"');
-      el.focus();
-      el.setSelectionRange(i + 5, i + 5);
+    await page.evaluate(() => {
+      const v = (window as any).__codeView;
+      v.focus();
+      const i = v.state.doc.toString().indexOf('"id": "items"');
+      v.dispatch({ selection: { anchor: i + 5 } });
     });
-    await page.getByTestId("code-textarea").click({ position: { x: 5, y: 5 } }).catch(() => {});
-    await page.getByTestId("code-textarea").evaluate((el: HTMLTextAreaElement) => {
-      const i = el.value.indexOf('"id": "items"');
-      el.setSelectionRange(i + 5, i + 5);
-      el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    expect((await state(page)).selection).toEqual(["items"]);
+    await expect.poll(async () => (await state(page)).selection).toEqual(["items"]);
   });
 
   test("problems panel reports an unknown dataset and clicking it selects the component", async ({ page }) => {

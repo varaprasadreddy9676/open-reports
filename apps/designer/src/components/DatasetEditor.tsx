@@ -1,33 +1,62 @@
 import React, { useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
+import { parseCsv } from "../lib/csv";
+import { inferFields } from "../lib/fields";
+import { SchemaTree } from "./DataMode";
 
-type Kind = "inline" | "rest" | "sql";
+type Kind = "inline" | "rest" | "sql" | "csv";
 
 function ResultPreview({ value }: { value: unknown }) {
+  const [view, setView] = useState<"table" | "json" | "schema">("table");
   const rows = Array.isArray(value) ? value : value && typeof value === "object" ? [value] : [];
   const cols = rows.length ? Object.keys(rows[0] as object).slice(0, 8) : [];
+  const fields = inferFields(value);
+  const count = (k: string) => fields.filter((f) => f.kind === k).length;
+  const hints: string[] = [];
+  if (Array.isArray(value)) hints.push(`${value.length} row${value.length === 1 ? "" : "s"} - ideal for a table`);
+  const nested = fields.filter((f) => f.kind === "array");
+  if (nested.length) hints.push(`Nested lists found: ${nested.map((f) => f.path).join(", ")} - drag one onto the page to make a table`);
+  if (count("date")) hints.push(`${count("date")} date field${count("date") > 1 ? "s" : ""} - you can format them as dates`);
   if (!rows.length) return <p className="muted">No rows returned.</p>;
   return (
     <div className="result-preview" data-testid="dataset-result">
-      <table>
-        <thead>
-          <tr>
-            {cols.map((c) => (
-              <th key={c}>{c}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.slice(0, 8).map((r, i) => (
-            <tr key={i}>
+      <div className="seg small" role="tablist" aria-label="Response view">
+        {(["table", "json", "schema"] as const).map((v) => (
+          <button key={v} role="tab" aria-selected={view === v} className={view === v ? "active" : ""} data-testid={`result-view-${v}`} onClick={() => setView(v)}>
+            {v === "table" ? "Table" : v === "json" ? "Raw JSON" : "Schema"}
+          </button>
+        ))}
+      </div>
+      {hints.length > 0 && (
+        <ul className="insights" data-testid="dataset-insights">
+          {hints.map((h) => (
+            <li key={h}>{h}</li>
+          ))}
+        </ul>
+      )}
+      {view === "table" && (
+        <table>
+          <thead>
+            <tr>
               {cols.map((c) => (
-                <td key={c}>{typeof (r as any)[c] === "object" ? JSON.stringify((r as any)[c]) : String((r as any)[c])}</td>
+                <th key={c}>{c}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.slice(0, 8).map((r, i) => (
+              <tr key={i}>
+                {cols.map((c) => (
+                  <td key={c}>{typeof (r as any)[c] === "object" ? JSON.stringify((r as any)[c]) : String((r as any)[c])}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {view === "json" && <pre className="csv">{JSON.stringify(Array.isArray(value) ? value.slice(0, 20) : value, null, 2)}</pre>}
+      {view === "schema" && <SchemaTree nodes={fields} />}
     </div>
   );
 }
@@ -50,6 +79,8 @@ export function DatasetEditor() {
   const [connectionId, setConnectionId] = useState(q.connectionId ?? "");
   const [sql, setSql] = useState(q.sql ?? "SELECT * FROM table WHERE id = $1");
   const [params, setParams] = useState(j(q.params));
+  const [csv, setCsv] = useState("");
+  const secrets = useStore((st) => st.capabilities?.secrets ?? []);
   const [preview, setPreview] = useState<unknown>(sample[id]);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -65,6 +96,11 @@ export function DatasetEditor() {
 
   function definition() {
     if (kind === "inline") return { id, source: "inline", query: { data: parseJson(data, "Data") } };
+    if (kind === "csv") {
+      const rows = parseCsv(csv);
+      if (rows.length === 0) throw new Error("The CSV has no data rows. The first line must be the column names.");
+      return { id, source: "inline", query: { data: rows } };
+    }
     if (kind === "rest") {
       return { id, source: "rest", query: { url, method, headers: parseJson(headers, "Headers"), query: parseJson(query, "Query parameters"), body: parseJson(body, "Body"), resultPath: resultPath || undefined } };
     }
@@ -76,7 +112,7 @@ export function DatasetEditor() {
     setBusy(true);
     try {
       const def = definition();
-      if (kind === "inline") {
+      if (kind === "inline" || kind === "csv") {
         setPreview((def.query as any).data);
       } else {
         const res = await api.testDataset(def, useStore.getState().parameters);
@@ -99,7 +135,7 @@ export function DatasetEditor() {
       const list = existing ? (doc.datasets as any[]).map((d) => (d.id === editingDataset ? def : d)) : [...(doc.datasets ?? []), def];
       s.setDoc({ ...doc, datasets: list });
       if (kind !== "inline" && preview !== undefined) s.setSample(id, preview);
-      else if (kind === "inline") {
+      else if (kind === "inline" || kind === "csv") {
         // inline data lives in the definition; drop any stale sample override
         const { [id]: _drop, ...rest } = s.sample;
         void _drop;
@@ -120,9 +156,9 @@ export function DatasetEditor() {
         <input data-testid="dataset-id" value={id} onChange={(e) => setId(e.target.value)} />
       </label>
       <div className="seg" role="tablist">
-        {(["inline", "rest", "sql"] as const).map((k) => (
+        {(["inline", "rest", "sql", "csv"] as const).map((k) => (
           <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? "active" : ""} data-testid={`dataset-kind-${k}`} onClick={() => setKind(k)}>
-            {k === "inline" ? "JSON data" : k === "rest" ? "REST API" : "SQL"}
+            {k === "inline" ? "JSON" : k === "rest" ? "REST API" : k === "sql" ? "Database (SQL)" : "CSV file"}
           </button>
         ))}
       </div>
@@ -132,6 +168,23 @@ export function DatasetEditor() {
           <span className="field-label">JSON (object or array)</span>
           <textarea className="mono" data-testid="dataset-json" rows={10} value={data} onChange={(e) => setData(e.target.value)} spellCheck={false} />
         </label>
+      )}
+      {kind === "csv" && (
+        <>
+          <label className="field wide">
+            <span className="field-label">Upload a CSV (or paste below). The first row becomes the field names.</span>
+            <input
+              type="file"
+              accept=".csv,text/csv,text/plain"
+              data-testid="dataset-csv-file"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (f) setCsv(await f.text());
+              }}
+            />
+          </label>
+          <textarea className="mono" data-testid="dataset-csv" rows={8} value={csv} onChange={(e) => setCsv(e.target.value)} spellCheck={false} placeholder={"name,amount\nConsultation,600"} aria-label="CSV text" />
+        </>
       )}
       {kind === "rest" && (
         <>
@@ -143,7 +196,7 @@ export function DatasetEditor() {
             <input aria-label="URL" data-testid="dataset-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.example.com/invoices/{{params.invoiceId}}" />
           </div>
           <label className="field wide">
-            <span className="field-label">Headers (JSON) - never put secrets in templates; use server-side config</span>
+            <span className="field-label">Headers (JSON) - for API keys use {"{{secrets.NAME}}"}; the real value stays on the server</span>
             <textarea className="mono" rows={2} value={headers} onChange={(e) => setHeaders(e.target.value)} spellCheck={false} />
           </label>
           <label className="field wide">
@@ -161,12 +214,22 @@ export function DatasetEditor() {
             <input value={resultPath} onChange={(e) => setResultPath(e.target.value)} />
           </label>
           <p className="muted small">Use {"{{params.name}}"} to insert report parameters.</p>
+          {secrets.length > 0 && (
+            <div className="secret-chips" data-testid="secret-chips">
+              <span className="muted small">Server secrets:</span>
+              {secrets.map((n) => (
+                <button key={n} className="mini" onClick={() => setHeaders(headers.trim() ? headers.replace(/}\s*$/, `, "Authorization": "Bearer {{secrets.${n}}}" }`) : `{ "Authorization": "Bearer {{secrets.${n}}}" }`)}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
         </>
       )}
       {kind === "sql" && (
         <>
           <label className="field wide">
-            <span className="field-label">Connection id (configured on the server)</span>
+            <span className="field-label">Connection (PostgreSQL or MySQL, configured on the server - credentials never enter the report)</span>
             <input value={connectionId} onChange={(e) => setConnectionId(e.target.value)} />
           </label>
           <label className="field wide">

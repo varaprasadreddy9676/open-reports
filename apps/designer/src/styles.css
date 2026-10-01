@@ -1717,3 +1717,18 @@ kbd {
 .zpl-warnings { margin: 0; padding: 8px 12px 8px 28px; background: #fffbeb; color: var(--warn); font-size: 12px; }
 .starter.blank { display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: default; }
 .starter-main { background: none; border: 0; text-align: left; padding: 0; display: flex; flex-direction: column; gap: 2px; color: inherit; }
+.insights { margin: 6px 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+.secret-chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.compare-pick { display: flex; gap: 12px; align-items: end; margin-bottom: 8px; }
+.compare-pick label { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+.change-list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+.change-list li { padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.change-list .chip { display: inline-block; min-width: 62px; text-align: center; font-size: 10px; text-transform: uppercase; border-radius: 999px; padding: 1px 8px; background: var(--accent-soft); color: var(--accent); }
+.change-list .added .chip { background: #dcfce7; color: #166534; }
+.change-list .removed .chip { background: #fee2e2; color: #991b1b; }
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 360px; overflow: auto; }
+.side-by-side pre { margin: 0; font-size: 11px; background: var(--panel-2); padding: 8px; overflow: auto; }
+.menu-field { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 4px 10px; font-size: 12px; }
+.cm-host { flex: 1; min-height: 0; overflow: hidden; display: block; }
+.cm-host .cm-editor { height: 100%; }
+.cm-doc-tip { padding: 6px 8px; max-width: 280px; font-size: 12px; }
