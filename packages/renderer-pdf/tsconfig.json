@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "skipLibCheck": true
+  },
+  "references": [{ "path": "../schema" }, { "path": "../core" }, { "path": "../layout" }, { "path": "../renderer-html" }],
+  "include": ["src"]
+}

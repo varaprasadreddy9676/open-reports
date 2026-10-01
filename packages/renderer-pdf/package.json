@@ -1,0 +1,37 @@
+{
+  "name": "@reporting/renderer-pdf",
+  "version": "0.1.0",
+  "description": "PDF renderer: draws a paginated Resolved Report Tree to a multi-page, searchable, embedded-font PDF using pdfkit, hidden behind the shared ReportRenderer interface",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@reporting/core": "workspace:*",
+    "@reporting/layout": "workspace:*",
+    "@reporting/renderer-html": "workspace:*",
+    "@reporting/schema": "workspace:*",
+    "bwip-js": "^4.5.1",
+    "pdfkit": "^0.15.1",
+    "qrcode": "^1.5.4",
+    "svg-to-pdfkit": "^0.1.8"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "^0.13.5",
+    "@types/qrcode": "^1.5.5",
+    "pdfjs-dist": "4.0.379",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
