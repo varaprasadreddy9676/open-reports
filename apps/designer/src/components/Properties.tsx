@@ -5,6 +5,7 @@ import { buildCalc, CALC_OPS, parseCalc, buildFormat, checkExpression, condition
 import { candidatesFor, FUNCTION_CANDIDATES, type Candidate } from "../lib/bindings";
 import { datasetValue, inferFields, arrayRefs } from "../lib/fields";
 import { Icon } from "./Icon";
+import { BandProps } from "./BandProps";
 
 // ------------------------------------------------------------------ small controls
 function Section({ title, children, open = true }: { title: string; children: React.ReactNode; open?: boolean }) {
@@ -1318,9 +1319,11 @@ function ComponentProps({ id }: { id: string }) {
 
 export function Properties() {
   const selection = useStore((s) => s.selection);
+  const selectedBand = useStore((s) => s.selectedBand);
   return (
     <aside className="panel right" aria-label="Properties" data-testid="properties">
-      {selection.length === 0 && <PageProps />}
+      {selection.length === 0 && selectedBand !== null && <BandProps key={selectedBand} index={selectedBand} />}
+      {selection.length === 0 && selectedBand === null && <PageProps />}
       {selection.length === 1 && <ComponentProps id={selection[0]!} />}
       {selection.length > 1 && <MultiProps ids={selection} />}
     </aside>

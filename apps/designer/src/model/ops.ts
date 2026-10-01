@@ -493,7 +493,7 @@ export function updateBand(doc: Doc, index: number, patch: Record<string, any>):
   const s = next.sections?.[index];
   if (!s) return doc;
   for (const [k, v] of Object.entries(patch)) {
-    if (v === undefined || v === "" || v === false && ["repeatEveryPage", "newPageBefore", "newPageAfter", "keepTogether", "keepWithNext", "keepWithPrevious", "suppressWhenBlank", "allowSplit", "collapsed", "printAtBottom"].includes(k)) delete s[k];
+    if (v === undefined || v === "" || v === false && ["newPageBefore", "newPageAfter", "keepTogether", "keepWithNext", "keepWithPrevious", "suppressWhenBlank", "collapsed", "printAtBottom"].includes(k)) delete s[k];
     else s[k] = v;
   }
   return next;

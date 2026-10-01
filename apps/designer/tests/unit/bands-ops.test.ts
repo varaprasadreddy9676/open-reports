@@ -74,6 +74,14 @@ describe("band and guide edits", () => {
     expect(dup.sections).toHaveLength(2);
     expect(dup.sections[1].children[0].id).not.toBe("t");
   });
+  it("preserves an explicit no-split choice while clearing ordinary unchecked flags", () => {
+    let d = ops.updateBand(base(), 0, { allowSplit: false, repeatEveryPage: false, newPageBefore: false });
+    expect(d.sections[0].allowSplit).toBe(false);
+    expect(d.sections[0].repeatEveryPage).toBe(false);
+    expect(d.sections[0].newPageBefore).toBeUndefined();
+    d = ops.updateBand(d, 0, { allowSplit: undefined });
+    expect(d.sections[0].allowSplit).toBeUndefined();
+  });
   it("guides: add, move, remove", () => {
     let d = base();
     const a = ops.addGuide(d, "x", 123.456);

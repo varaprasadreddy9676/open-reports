@@ -1,6 +1,6 @@
 # Open Reports — Engineering Handover
 
-Branch: `claude/upbeat-volta-pe84n7` (all work is committed and pushed; last commit `7102de4`). Working tree was clean at handover.
+Branch: `claude/upbeat-volta-pe84n7`. Check the current commit and working tree before continuing; the baseline was fast-forwarded to `95d47c9` on 2026-10-01.
 Repo: `varaprasadreddy9676/open-reports`. pnpm monorepo, Node 22, TypeScript strict.
 
 Read first, in this order: this file → `docs/GAP_ANALYSIS.md` (audit with P0/P1/P2 and exact files/functions) → `docs/ARCHITECTURE.md` → `docs/REPORT_DEFINITION.md`.
@@ -25,10 +25,10 @@ Thesis: Open Reports had a page/component designer; it must become a true **repo
 7. Report explorer — **NOT DONE** (old `LayersTab` in `LeftPanel.tsx` still lists sections with the old 5-type "Add section" select)
 8. Report/page/group/data headers+footers — **engine DONE**, designer UI only via "+" menu
 9. Group designer (wizard, nested groups) — **ops DONE (`addGroup/updateGroup/removeGroup`), UI NOT DONE**
-10. Section-Expert style properties panel — **NOT DONE** (schema fields exist, no UI)
+10. Section-Expert style properties panel — **DONE (2026-10-01)** (`BandProps.tsx` opens when a band is selected; all principal schema fields, group settings, and band actions are editable)
 11. Table designer (merge/spans/multi-level headers) — NOT DONE (also GAP P2-3, task #17)
 12. Real pagination visualization on the canvas — NOT DONE on structure canvas (a decisions log + Pagination bottom panel exist for pages view)
-13. Figma-style Auto Layout inside bands — NOT DONE (band `layout/gap/alignItems/justifyContent/columns` exist in schema/engine; no UI)
+13. Figma-style Auto Layout inside bands — PARTIAL (`layout/gap/alignItems/justifyContent/columns` are editable in Section Expert; drag/reflow controls remain)
 14. AI awareness of bands/pagination — NOT DONE (`apps/designer/src/lib/ai.ts`, `packages/mcp`)
 
 Remaining spec items (from the 50-item list, none started unless noted): multiple sections of same type with printOn first/last/odd/even (schema `appliesTo` exists), column bands/multi-column, cross-band objects, page masters UI beyond existing, pagination simulation/debugger ("why did this move to page 4?"), design+preview split with the real pipeline, page thumbnails, physical print mode + calibration wizard, layers, reusable sections, styles/tokens, low-code condition/calculation builders for bands, test bench (0/1/N/N+1/stress rows), linting, data lineage, subreports, crosstab, ghost repetitions UI (engine support done, a basic "Examples +N" selector exists), constraints, overflow policies, export-aware design, code/split mode for bands, command palette entries, keyboard workflow.
@@ -67,6 +67,15 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 
 - Packages: all builds pass (`pnpm -r --filter "./packages/*" build`); layout 53 tests, core/other suites passed when last run; designer unit 30 passed; designer e2e **49 passed, 5 skipped** (`cd apps/designer && npx playwright test`, needs `pnpm build` of packages and server dist; uses :3100/:4100, Chromium at `/opt/pw-browsers`).
 - Re-run the whole suite first thing (`pnpm -r test`, designer unit, e2e) before changing anything.
+
+### 2026-10-01 continuation
+
+- Fast-forwarded this branch to `95d47c9` before edits. Untracked `output/` contains prior UI screenshots and was left alone.
+- Baseline under Node 22: package builds passed; designer unit 30 passed; designer browser suite 49 passed, 5 skipped. `pnpm -r test` stopped in `datasource-sql` because local PostgreSQL (:5432) and MySQL (:3306) are unavailable. No SQL assertion failure was observed.
+- Added `components/BandProps.tsx` and wired `Properties.tsx` to show it for `selectedBand`. The panel edits name, dataset/group/parent, page applicability, size/layout, visibility expression and simple condition, pagination controls, and the owning group's settings; it also duplicates, deletes, and moves bands.
+- `ops.updateBand` now preserves explicit `allowSplit: false` and `repeatEveryPage: false`; both override inherited defaults. Unit and browser tests cover these cases.
+- Verification after the change: designer build/typecheck passed, 31 unit tests passed, 52 browser tests passed and 5 skipped. The full recursive workspace test suite remains unverified until SQL services are available.
+- ESC/POS long-receipt review: the renderer emits all resolved rows and cuts once at the end, but table cells truncate to their allotted width; no long-bill stress or physical-printer test exists. PDF uses fixed-height pages.
 
 ## 5. Next steps (do in this order)
 
