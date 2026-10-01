@@ -202,8 +202,9 @@ function layoutContentIntoPages(
       const placed = layoutComponent(clone, { x: marginOf(clone).left, y: y + n.top, width: Math.max(1, width - marginOf(clone).left - marginOf(clone).right), height: 0 }, measurer);
       pages[pages.length - 1]!.push(placed);
       y = placed.box.y + placed.box.height + n.bottom;
-      decide({
+      decisions.push({
         kind: "group-header-repeated",
+        page: pages.length,
         componentId: (n.comp as any).id,
         message: `Group header ${label(n.comp)} is repeated at the top of page ${pages.length} because its group continues here.`,
         actions: [{ label: "Stop repeating this header", patch: { repeatEveryPage: false } }],
@@ -357,7 +358,7 @@ function layoutContentIntoPages(
 
     if (anyC.pageBreakAfter) {
       newPage();
-      decide({ kind: "forced-break", componentId: anyC.id, message: `A page break follows ${label(component)}.`, actions: [{ label: "Remove page break", patch: { pageBreakAfter: false } }] });
+      decisions.push({ kind: "forced-break", page: pages.length, componentId: anyC.id, message: `A page break follows ${label(component)}.`, actions: [{ label: "Remove page break", patch: { pageBreakAfter: false } }] });
     }
   }
 

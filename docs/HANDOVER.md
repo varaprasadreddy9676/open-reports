@@ -79,6 +79,7 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - A 500-row synthetic 80 mm ESC/POS receipt produced 24,116 bytes, contained all 500 SKU identifiers, and ended with a cut command. The rendered first row showed its long product name truncated; physical printer/spooler behavior remains unverified.
 - Replaced the old 5-type "Add section" list with a report explorer in `LeftPanel.tsx`: nested group names, band rows that open Section Expert, collapse, add and drag-reorder guarded by `ops.moveBand`, plus existing component rename/hide/lock/drag actions. Browser checks cover valid and invalid reorder, group hierarchy, selection, and adding a band.
 - Added `GroupWizard.tsx` and connected it to the explorer and group-band insertion. It discovers array datasets and sample fields, accepts a formula, and sets name, sort, optional header/footer, repeat header, page break, keep together, and minimum detail rows. Creating a second group makes an inner level; group removal keeps the detail band. Unit and browser checks cover this flow.
+- Pagination decision page numbers were corrected in `packages/layout/src/paginate.ts` for post-break and repeated group-header decisions. Previously they pointed one page ahead, which would misplace structure-canvas explanations. All 53 layout tests pass with added page-number assertions.
 
 ## 5. Next steps (do in this order)
 

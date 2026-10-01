@@ -164,6 +164,7 @@ describe("group pagination rules", () => {
     const ids = flat(pag).filter((t) => /^\d+$/.test(t)).map(Number);
     expect(ids).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
     expect(pag.decisions.some((d) => d.kind === "group-header-repeated")).toBe(true);
+    expect(pag.decisions.filter((d) => d.kind === "group-header-repeated").every((d) => d.page > 1 && (pag.pages[d.page - 1]?.content ?? []).some((n) => (n.component as any).band?.repeated))).toBe(true);
     expect(pag.pages.flatMap((p) => p.content).some((n) => (n.component as any).band?.repeated)).toBe(true);
   });
 

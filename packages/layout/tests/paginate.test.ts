@@ -144,6 +144,7 @@ describe("paginate: forced breaks and keepTogether", () => {
     const report = reportWith([{ type: "detail", children: [text1, text2] }]);
     const result = paginate(report);
     expect(result.pages).toHaveLength(2);
+    expect(result.decisions).toContainEqual(expect.objectContaining({ kind: "forced-break", page: 2 }));
   });
 
   it("keeps a keepTogether block whole on the next page when it doesn't fit the remainder of the current one", () => {
