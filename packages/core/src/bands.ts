@@ -1,0 +1,280 @@
+import type { GroupDefinition, ReportDefinition, ReportSection } from "@reporting/schema";
+import { DATA_BAND_TYPES, PAGE_BAND_TYPES } from "@reporting/schema";
+import type { ExpressionEngine } from "@reporting/expressions";
+import type { ResolveContext } from "./context.js";
+import { computeGroupVariables } from "./variables.js";
+import { lookupDataset, resolveComponents, type ResolveEnv } from "./resolve-component.js";
+import type { BandMeta, ResolvedComponent } from "./resolved-report.js";
+
+export interface BandDeps {
+  report: ReportDefinition;
+  engine: ExpressionEngine;
+  baseCtx: ResolveContext;
+  datasets: Record<string, unknown>;
+  rowVarAccumulator: Record<string, unknown>;
+  makeEnv(path: string): ResolveEnv;
+}
+
+interface Entry {
+  s: ReportSection;
+  index: number;
+}
+
+/** What `group.*` exposes to expressions inside a group's bands. */
+export interface GroupContext {
+  id: string;
+  key: unknown;
+  level: number;
+  /** Zero-based index of this group instance within its parent. */
+  index: number;
+  count: number;
+  rows: unknown[];
+  first: unknown;
+  last: unknown;
+}
+
+const isPageBand = (s: ReportSection) => (PAGE_BAND_TYPES as readonly string[]).includes(s.type);
+const isDataBand = (s: ReportSection) => (DATA_BAND_TYPES as readonly string[]).includes(s.type);
+const truthy = (v: unknown) => Boolean(v) && v !== "false" && v !== 0;
+
+function compareKeys(a: unknown, b: unknown): number {
+  if (a === b) return 0;
+  if (a === null || a === undefined) return -1;
+  if (b === null || b === undefined) return 1;
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+
+/** True when a resolved subtree prints nothing (empty text only). */
+function isBlank(components: ResolvedComponent[]): boolean {
+  return components.every((c: any) => {
+    if (c.type === "text" || c.type === "richText" || c.type === "field") return String(c.text ?? "").trim() === "";
+    if (Array.isArray(c.children)) return isBlank(c.children);
+    if (c.type === "spacer") return true;
+    return false;
+  });
+}
+
+/**
+ * Turns the report's body bands into the ordered list of band **instances** that get paginated:
+ * static bands once, and for every data region the group / detail / footer bands expanded per record and group.
+ * Pagination rules (keep-with-next chains, repeated group headers, page breaks) are attached here as band metadata
+ * so the layout engine can enforce them and explain every decision.
+ */
+export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
+  const { report, engine, baseCtx } = deps;
+  const out: ResolvedComponent[] = [];
+  const warn = (path: string, code: string, message: string) => deps.makeEnv(path).warnings.push({ code, path, message });
+
+  const all: Entry[] = report.sections.map((s, index) => ({ s, index }));
+  const body = all.filter((e) => !isPageBand(e.s) && e.s.type !== "columnHeader" && e.s.type !== "columnFooter");
+  for (const e of all) if (e.s.type === "columnHeader" || e.s.type === "columnFooter") warn(`sections[${e.index}]`, "COLUMN_BANDS_NOT_SUPPORTED", `"${e.s.type}" bands need multi-column reports, which are not supported yet; the band was skipped.`);
+
+  // child bands travel with their parent
+  const byId = new Map(body.filter((e) => e.s.id).map((e) => [e.s.id!, e]));
+  const childrenOf = new Map<string, Entry[]>();
+  const attached = new Set<Entry>();
+  for (const e of body) {
+    if (e.s.type !== "child") continue;
+    const parent = e.s.parent ? byId.get(e.s.parent) : undefined;
+    if (!parent) {
+      warn(`sections[${e.index}]`, "CHILD_BAND_WITHOUT_PARENT", `Child band "${e.s.name ?? e.s.id ?? e.index}" has no valid "parent"; it prints as a detail band instead.`);
+      continue;
+    }
+    childrenOf.set(parent.s.id!, [...(childrenOf.get(parent.s.id!) ?? []), e]);
+    attached.add(e);
+  }
+  const standalone = body.filter((e) => !attached.has(e));
+
+  const band = (entry: Entry, ctx: ResolveContext, meta: Partial<BandMeta> = {}): ResolvedComponent[] => {
+    const { s, index } = entry;
+    const env = deps.makeEnv(`sections[${index}]`);
+    if (s.visibleWhen && !truthy(engine.evaluate(s.visibleWhen, ctx))) return [];
+    const children = resolveComponents(s.children as any, ctx, env);
+    if (s.suppressWhenBlank && isBlank(children)) return [];
+    const node: any = {
+      id: s.id,
+      type: "container",
+      layout: s.layout,
+      height: s.height,
+      minHeight: s.minHeight,
+      gap: s.gap,
+      alignItems: s.alignItems,
+      justifyContent: s.justifyContent,
+      columns: s.columns,
+      style: s.style,
+      pageBreakBefore: s.newPageBefore,
+      pageBreakAfter: s.newPageAfter,
+      keepTogether: s.keepTogether,
+      keepWithNext: s.keepWithNext,
+      children,
+      band: { sectionIndex: index, sectionId: s.id, type: s.type, name: s.name, allowSplit: s.allowSplit ?? meta.allowSplit, ...meta } as BandMeta,
+    };
+    const result: ResolvedComponent[] = [node];
+    for (const child of childrenOf.get(s.id ?? "") ?? []) {
+      result.push(...band(child, ctx, { ...meta }));
+    }
+    if (result.length > 1) for (const n of result.slice(0, -1)) (n as any).keepWithNext = true; // a band stays with its child bands
+    return result;
+  };
+
+  let instanceCounter = 0;
+  const emitStatic = (entry: Entry) => out.push(...band(entry, baseCtx, { allowSplit: true }));
+
+  const emitRegion = (bands: Entry[]) => {
+    const ownDataset = bands.find((b) => b.s.dataset)?.s.dataset;
+    // --- groups used by this region (explicit ones keep report order, implicit ones follow)
+    const explicit = report.groups.filter((g) => bands.some((b) => b.s.groupId === g.id));
+    const implicit: GroupDefinition[] = [];
+    const bandGroup = new Map<Entry, string>();
+    for (const b of bands) {
+      if (b.s.type === "groupHeader" && !b.s.groupId && b.s.groupBy) {
+        const id = `@${b.index}`;
+        implicit.push({ id, by: b.s.groupBy, sort: "asc", repeatHeader: false, newPage: "none", keepTogether: false, minDetailRows: 1 });
+        bandGroup.set(b, id);
+      } else if (b.s.groupId) bandGroup.set(b, b.s.groupId);
+    }
+    const open = [...implicit.map((g) => g.id)];
+    for (const b of [...bands].reverse()) {
+      if (b.s.type === "groupFooter" && !b.s.groupId) {
+        const id = open.pop();
+        if (id) bandGroup.set(b, id);
+      }
+    }
+    const groups: GroupDefinition[] = [...explicit, ...implicit];
+    for (const b of bands) if (b.s.groupId && !report.groups.some((g) => g.id === b.s.groupId)) warn(`sections[${b.index}]`, "UNKNOWN_GROUP", `Band "${b.s.name ?? b.s.type}" refers to group "${b.s.groupId}", which is not declared in report.groups.`);
+
+    const datasetId = ownDataset ?? groups.find((g) => g.dataset)?.dataset;
+    const found = datasetId ? lookupDataset(deps.datasets, datasetId) : undefined;
+    let rows: Record<string, unknown>[] = Array.isArray(found) ? (found as Record<string, unknown>[]) : [];
+
+    const ofType = (type: string, groupId?: string) => bands.filter((b) => b.s.type === type && (groupId === undefined || bandGroup.get(b) === groupId));
+
+    if (rows.length === 0) {
+      for (const b of ofType("noData")) out.push(...band(b, baseCtx));
+      return;
+    }
+
+    // --- sort by every group key (stable), outermost first
+    if (groups.some((g) => g.sort !== "none")) {
+      const keyed = rows.map((row, i) => ({ row, i, keys: groups.map((g) => engine.evaluate(g.by, { ...baseCtx, row })) }));
+      keyed.sort((a, b) => {
+        for (let k = 0; k < groups.length; k++) {
+          if (groups[k]!.sort === "none") continue;
+          const c = compareKeys(a.keys[k], b.keys[k]);
+          if (c !== 0) return groups[k]!.sort === "desc" ? -c : c;
+        }
+        return a.i - b.i;
+      });
+      rows = keyed.map((k) => k.row);
+    }
+
+    const ctxFor = (row: Record<string, unknown> | undefined, group?: GroupContext, groupRows?: unknown[]): ResolveContext => {
+      const ctx: ResolveContext = { ...baseCtx, row: (row ?? {}) as Record<string, unknown>, vars: { ...baseCtx.vars, ...deps.rowVarAccumulator } };
+      if (group) {
+        (ctx as any).group = group;
+        if (groupRows && report.variables.some((v) => v.scope === "group")) {
+          Object.assign(ctx.vars, computeGroupVariables(report.variables, engine, ctx, datasetId, groupRows));
+        }
+      }
+      return ctx;
+    };
+
+    for (const b of ofType("dataHeader")) out.push(...band(b, ctxFor(rows[0])));
+
+    const details = bands.filter((b) => b.s.type === "detail" || (b.s.type === "child" && !attached.has(b)));
+
+    const emitLevel = (level: number, levelRows: Record<string, unknown>[], parentGroup?: GroupContext, parentInstance?: number) => {
+      if (level >= groups.length) {
+        levelRows.forEach((row, rowIndex) => {
+          const ctx = ctxFor(row, parentGroup, parentGroup?.rows);
+          for (const d of details) out.push(...band(d, ctx, { rowIndex, level: parentGroup?.level, groupId: parentGroup?.id, groupKey: parentGroup?.key, instance: parentInstance }));
+        });
+        return;
+      }
+      const g = groups[level]!;
+      // partition consecutive records with the same key
+      const parts: { key: unknown; rows: Record<string, unknown>[] }[] = [];
+      for (const row of levelRows) {
+        const key = engine.evaluate(g.by, { ...baseCtx, row });
+        const last = parts[parts.length - 1];
+        if (last && compareKeys(last.key, key) === 0) last.rows.push(row);
+        else parts.push({ key, rows: [row] });
+      }
+      parts.forEach((part, index) => {
+        const gctx: GroupContext = { id: g.id, key: part.key, level, index, count: part.rows.length, rows: part.rows, first: part.rows[0], last: part.rows[part.rows.length - 1] };
+        const start = out.length;
+        const instance = ++instanceCounter;
+        const headers = ofType("groupHeader", g.id);
+        for (const h of headers) {
+          const nodes = band(h, ctxFor(part.rows[0], gctx, part.rows), { groupId: g.id, level, groupKey: part.key, instance, repeatEveryPage: h.s.repeatEveryPage ?? g.repeatHeader });
+          out.push(...nodes);
+        }
+        const headerEnd = out.length;
+        emitLevel(level + 1, part.rows, gctx, instance);
+        const bodyEnd = out.length;
+        for (const f of ofType("groupFooter", g.id)) out.push(...band(f, ctxFor(part.rows[part.rows.length - 1], gctx, part.rows), { groupId: g.id, level, groupKey: part.key, instance }));
+        const end = out.length;
+        if (end === start) return;
+
+        const node = (i: number) => out[i] as any;
+        // keep the header with its first detail record(s)
+        if (headerEnd > start && g.minDetailRows > 0 && bodyEnd > headerEnd) {
+          for (let i = start; i < headerEnd; i++) node(i).keepWithNext = true;
+          let rowsKept = 0;
+          let lastRow = -1;
+          for (let i = headerEnd; i < bodyEnd && rowsKept < g.minDetailRows; i++) {
+            const ri = node(i).band?.rowIndex;
+            if (ri !== undefined && ri !== lastRow) {
+              lastRow = ri;
+              rowsKept++;
+              if (rowsKept === g.minDetailRows) break; // the first node of the last kept row ends the chain
+            }
+            node(i).keepWithNext = true;
+          }
+        }
+        // keep the last detail record with the group footer(s), unless the band opts out
+        const firstFooter = ofType("groupFooter", g.id)[0];
+        if (end > bodyEnd && bodyEnd > headerEnd && firstFooter && firstFooter.s.keepWithPrevious !== false) node(bodyEnd - 1).keepWithNext = true;
+        if (g.keepTogether) for (let i = start; i < end - 1; i++) node(i).keepWithNext = true;
+        if (g.newPage === "before") node(start).pageBreakBefore = true;
+        if (g.newPage === "after") node(end - 1).pageBreakAfter = true;
+      });
+    };
+
+    emitLevel(0, rows);
+    for (const b of ofType("dataFooter")) out.push(...band(b, ctxFor(rows[rows.length - 1])));
+  };
+
+  let i = 0;
+  while (i < standalone.length) {
+    const entry = standalone[i]!;
+    if (!isDataBand(entry.s)) {
+      emitStatic(entry);
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < standalone.length && isDataBand(standalone[j]!.s)) j++;
+    // split into regions when consecutive bands name different datasets
+    let region: Entry[] = [];
+    let regionDataset: string | undefined;
+    const flush = () => {
+      if (!region.length) return;
+      const dynamic = region.some((b) => b.s.dataset || b.s.groupId || b.s.groupBy) || region.some((b) => ["groupHeader", "groupFooter", "dataHeader", "dataFooter", "noData"].includes(b.s.type));
+      if (dynamic) emitRegion(region);
+      else for (const b of region) emitStatic(b);
+      region = [];
+      regionDataset = undefined;
+    };
+    for (const e of standalone.slice(i, j)) {
+      if (e.s.dataset && regionDataset && e.s.dataset !== regionDataset) flush();
+      if (e.s.dataset) regionDataset ??= e.s.dataset;
+      region.push(e);
+    }
+    flush();
+    i = j;
+  }
+  void byId;
+  return out;
+}

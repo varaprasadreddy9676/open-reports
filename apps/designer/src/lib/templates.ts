@@ -34,6 +34,7 @@ const GROUPS: Record<string, StarterTemplate["group"]> = {
   prescription: "Healthcare",
   "radiology-report": "Healthcare",
   "discharge-summary": "Healthcare",
+  "department-report": "Data",
 };
 
 export const STARTERS: StarterTemplate[] = Object.entries(files)

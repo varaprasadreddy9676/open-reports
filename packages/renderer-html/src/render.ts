@@ -24,6 +24,7 @@ export class HtmlRenderer implements ReportRenderer {
 
     const pagesHtml = await Promise.all(
       paginated.pages.map(async (page) => {
+        const background = (await Promise.all(page.background.map(renderNode))).join("");
         const header = (await Promise.all(page.header.map(renderNode))).join("");
         const footer = (await Promise.all(page.footer.map(renderNode))).join("");
         const content = (await Promise.all(page.content.map(renderNode))).join("");
@@ -32,7 +33,7 @@ export class HtmlRenderer implements ReportRenderer {
           wm && (wm.pages !== "first" || page.number === 1)
             ? `<div class="watermark" aria-hidden="true" style="font-size:${ptToPx(wm.fontSize ?? Math.min(paginated.pageSize.width, paginated.pageSize.height) / 6)}px;color:${escapeHtml(wm.color ?? "#9ca3af")};opacity:${wm.opacity ?? 0.18};transform:translate(-50%,-50%) rotate(${-(wm.angle ?? 45)}deg)">${escapeHtml(wm.text)}</div>`
             : "";
-        return `<section class="page" style="width:${pageWidthPx}px;height:${pageHeightPx}px;">${header}${content}${footer}${mark}</section>`;
+        return `<section class="page" style="width:${pageWidthPx}px;height:${pageHeightPx}px;">${background}${header}${content}${footer}${mark}</section>`;
       })
     );
 

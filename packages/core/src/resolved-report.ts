@@ -77,6 +77,31 @@ export interface ResolvedComponentBase {
   exports?: Record<string, unknown>;
   bookmark?: boolean | string;
   bookmarkLevel?: number;
+  /** Present on the container that represents one printed instance of a report band. */
+  band?: BandMeta;
+}
+
+/** What the engine knows about a printed band: used by pagination (repeat/keep rules) and by the designer (structure overlay, explanations). */
+export interface BandMeta {
+  sectionIndex: number;
+  sectionId?: string;
+  type: string;
+  name?: string;
+  groupId?: string;
+  /** Group nesting level, 0 = outermost. */
+  level?: number;
+  /** groupHeader: print again at the top of every page the group continues onto. */
+  repeatEveryPage?: boolean;
+  /** Group key of the instance (headers/footers/details inside a group). */
+  groupKey?: unknown;
+  /** Zero-based record index for detail bands. */
+  rowIndex?: number;
+  /** Whether pagination may split this band between its children when it does not fit the page. */
+  allowSplit?: boolean;
+  /** Unique number of the group instance (all bands of one group occurrence share it). */
+  instance?: number;
+  /** True when this node is a copy of a group header repeated on a continuation page. */
+  repeated?: boolean;
 }
 
 export interface ResolvedTextComponent extends ResolvedComponentBase {
@@ -159,6 +184,7 @@ export interface ResolvedTableComponent extends ResolvedComponentBase {
 export interface ResolvedContainerComponent extends ResolvedComponentBase {
   type: "container" | "row" | "column" | "grid" | "repeater" | "keepTogether";
   columns?: number;
+  /** Band containers: explicit/minimum height in points. */
   children: ResolvedComponent[];
 }
 

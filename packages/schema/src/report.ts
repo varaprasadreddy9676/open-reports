@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { pageConfigSchema } from "./page.js";
 import { themeSchema } from "./theme.js";
-import { sectionSchema } from "./sections.js";
+import { groupDefinitionSchema, sectionSchema } from "./sections.js";
 import { componentSchema } from "./components.js";
 import { datasetDefinitionSchema } from "./datasets.js";
 import { parameterDefinitionSchema } from "./parameters.js";
@@ -68,6 +68,8 @@ export const reportDefinitionSchema = z.object({
   variables: z.array(variableDefinitionSchema).default([]),
   page: pageConfigSchema.default({}),
   theme: themeSchema.optional(),
+  /** Grouping levels (outermost first) referenced by groupHeader/groupFooter bands. */
+  groups: z.array(groupDefinitionSchema).default([]),
   sections: z.array(sectionSchema).default([]),
   fragments: z.array(fragmentDefinitionSchema).default([]),
   print: printProfileSchema.optional(),

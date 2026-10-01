@@ -26,6 +26,8 @@ export interface PageLayout {
   header: PositionedNode[];
   footer: PositionedNode[];
   content: PositionedNode[];
+  /** Background band content, drawn first (behind everything) on this page. */
+  background: PositionedNode[];
   zones: PageZones;
   /** sourceIndex of the header/footer section (page master) used on this page. */
   master: { header?: number; footer?: number };
@@ -33,7 +35,7 @@ export interface PageLayout {
 
 /** A recorded layout decision -- the answer to "why did this move to the next page?". */
 export interface PaginationDecision {
-  kind: "forced-break" | "keep-together" | "keep-with-next" | "cannot-split" | "table-split" | "orphan-control" | "widow-control" | "overflow";
+  kind: "forced-break" | "keep-together" | "keep-with-next" | "cannot-split" | "table-split" | "orphan-control" | "widow-control" | "overflow" | "group-header-repeated" | "keep-chain";
   /** The page the content moved onto (1-based). */
   page: number;
   componentId?: string;

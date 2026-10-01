@@ -37,7 +37,8 @@ export function paginate(report: ResolvedReport, options: PaginateOptions = {}):
 
   const headers = report.sections.filter((s) => s.type === "pageHeader");
   const footers = report.sections.filter((s) => s.type === "pageFooter");
-  const contentComponents = report.sections.filter((s) => s.type !== "pageHeader" && s.type !== "pageFooter").flatMap((s) => s.children);
+  const backgrounds = report.sections.filter((s) => s.type === "background");
+  const contentComponents = report.sections.filter((s) => s.type !== "pageHeader" && s.type !== "pageFooter" && s.type !== "background").flatMap((s) => s.children);
 
   const heightCache = new Map<ResolvedSection, number>();
   const heightOf = (s: ResolvedSection | undefined): number => {
@@ -82,10 +83,21 @@ export function paginate(report: ResolvedReport, options: PaginateOptions = {}):
       y: geometry.height - geometry.margin.bottom - fh,
     }).nodes;
 
+    const bgSection = pickMaster(backgrounds, number, total);
+    const background = bgSection
+      ? layoutBlock(
+          [{ type: "container", layout: "absolute", width: geometry.width, height: geometry.height, children: options.resolvePageDependentSection ? options.resolvePageDependentSection(bgSection, { number, total }) : bgSection.children } as any],
+          geometry.width,
+          measurer,
+          { x: 0, y: 0 }
+        ).nodes
+      : [];
+
     return {
       number,
       header,
       footer,
+      background,
       content: offsetNodes(content, geometry.margin.left, geometry.margin.top + hh),
       zones: {
         header: { y: geometry.margin.top, height: hh },
@@ -102,7 +114,7 @@ export function paginate(report: ResolvedReport, options: PaginateOptions = {}):
     margin: geometry.margin,
     pages: pages.length
       ? pages
-      : [{ number: 1, header: [], footer: [], content: [], zones: { header: { y: 0, height: 0 }, body: { y: 0, height: geometry.height }, footer: { y: geometry.height, height: 0 } }, master: {} }],
+      : [{ number: 1, header: [], footer: [], background: [], content: [], zones: { header: { y: 0, height: 0 }, body: { y: 0, height: geometry.height }, footer: { y: geometry.height, height: 0 } }, master: {} }],
     decisions: run.decisions,
     warnings,
   };
@@ -143,20 +155,60 @@ const label = (c: ResolvedComponent) => `"${(c as any).id ?? c.type}"`;
  * (repeating the header on continuation pages). Every move to a new page is
  * recorded as a decision so the designer can explain it. */
 function layoutContentIntoPages(
-  components: ResolvedComponent[],
+  input: ResolvedComponent[],
   width: number,
   pageHeightAt: (pageIndex: number) => number,
   measurer: TextMeasurer
 ): ContentRun {
+  // work on a copy: containers that cannot fit a page are replaced by their children while we paginate
+  const components: ResolvedComponent[] = [...input];
   const pages: PositionedNode[][] = [[]];
   const decisions: PaginationDecision[] = [];
   const warnings: PaginatedReport["warnings"] = [];
   let y = 0;
 
   const decide = (d: Omit<PaginationDecision, "page">) => decisions.push({ ...d, page: pages.length + 1 });
+  // Group headers marked repeatEveryPage that are currently "open": they are printed again at the top of every continuation page.
+  const repeatStack: { level: number; instance: number; comps: ResolvedComponent[] }[] = [];
+  let repeatWarned = false;
+  const repeatMeasure = (): { total: number; nodes: { comp: ResolvedComponent; height: number; top: number; bottom: number }[] } => {
+    const nodes = repeatStack.flatMap((e) => e.comps).map((comp) => {
+      const mm = marginOf(comp);
+      const n = layoutComponent(comp, { x: 0, y: 0, width: Math.max(1, width - mm.left - mm.right), height: 0 }, measurer);
+      return { comp, height: n.box.height, top: mm.top, bottom: mm.bottom };
+    });
+    return { total: nodes.reduce((a, n) => a + n.height + n.top + n.bottom, 0), nodes };
+  };
+  /** Height consumed at the top of every continuation page by repeated group headers. */
+  const repeatHeight = () => {
+    if (!repeatStack.length) return 0;
+    const { total } = repeatMeasure();
+    return total > pageHeightAt(pages.length) * 0.4 ? 0 : total;
+  };
   const newPage = () => {
     pages.push([]);
     y = 0;
+    if (!repeatStack.length) return;
+    const { total, nodes } = repeatMeasure();
+    if (total > pageHeightAt(pages.length - 1) * 0.4) {
+      if (!repeatWarned) {
+        repeatWarned = true;
+        warnings.push({ code: "REPEATED_HEADERS_TOO_TALL", path: "groups", message: "Repeated group headers take more than 40% of a page, so they are not repeated on continuation pages." });
+      }
+      return;
+    }
+    for (const n of nodes) {
+      const clone: any = { ...n.comp, pageBreakBefore: false, pageBreakAfter: false, keepWithNext: false, band: { ...(n.comp as any).band, repeated: true } };
+      const placed = layoutComponent(clone, { x: marginOf(clone).left, y: y + n.top, width: Math.max(1, width - marginOf(clone).left - marginOf(clone).right), height: 0 }, measurer);
+      pages[pages.length - 1]!.push(placed);
+      y = placed.box.y + placed.box.height + n.bottom;
+      decide({
+        kind: "group-header-repeated",
+        componentId: (n.comp as any).id,
+        message: `Group header ${label(n.comp)} is repeated at the top of page ${pages.length} because its group continues here.`,
+        actions: [{ label: "Stop repeating this header", patch: { repeatEveryPage: false } }],
+      });
+    }
   };
   const currentPage = () => pages[pages.length - 1]!;
   const pageHeight = () => pageHeightAt(pages.length - 1);
@@ -172,21 +224,66 @@ function layoutContentIntoPages(
       currentPage().push(node);
     };
 
+    // Containers (and bands, groups, repeaters) are laid out as one box. When one cannot fit a page, dissolve it into
+    // its children so they paginate individually: nothing is ever drawn below the page edge.
+    const parts = flowParts(component);
+    if (parts) {
+      const probe = layoutComponent(component, { x: 0, y: 0, width: innerWidth, height: 0 }, measurer);
+      const needed = probe.box.height + m.top + m.bottom;
+      const tooTall = needed > pageHeightAt(pages.length) - repeatHeight();
+      const bandInfo = anyC.band as { allowSplit?: boolean } | undefined;
+      const splitNow = tooTall || (bandInfo?.allowSplit === true && !anyC.keepTogether && needed > remaining());
+      if (splitNow && parts.length > 0) {
+        decide({ kind: "cannot-split", componentId: anyC.id, message: `${label(component)} is ${tooTall ? "taller than a page" : "split because it does not fit the space left"} (${pt(needed)} needed, ${pt(remaining())} left), so its contents continue on the next page.`, required: needed, available: remaining() });
+        const first = parts[0] as any;
+        const last = parts[parts.length - 1] as any;
+        if (anyC.pageBreakBefore) first.pageBreakBefore = true;
+        if (anyC.pageBreakAfter) last.pageBreakAfter = true;
+        if (anyC.keepWithNext) last.keepWithNext = true;
+        const meta = anyC.band as any;
+        if (meta?.type === "groupHeader" || meta?.type === "groupFooter") for (const p of parts as any[]) p.band ??= { ...meta, repeatEveryPage: false };
+        components.splice(idx, 1, ...parts);
+        idx--;
+        continue;
+      }
+    }
+
+    const band = anyC.band as { type?: string; level?: number; instance?: number; repeatEveryPage?: boolean } | undefined;
+    if (band?.type === "groupHeader") {
+      // a new instance of this group (or an outer one) closes any repeated header of the same or deeper level
+      for (let k = repeatStack.length - 1; k >= 0; k--) if (repeatStack[k]!.level >= (band.level ?? 0) && repeatStack[k]!.instance !== band.instance) repeatStack.splice(k, 1);
+    }
+
     if (anyC.pageBreakBefore && y > 0) {
       decide({ kind: "forced-break", componentId: anyC.id, message: `${label(component)} starts on a new page (page break before).`, actions: [{ label: "Remove page break", patch: { pageBreakBefore: false } }] });
       newPage();
     }
 
-    if (anyC.keepWithNext && idx + 1 < components.length && y > 0) {
-      const next = components[idx + 1]!;
-      const a = layoutComponent(component, { x: 0, y, width: innerWidth, height: 0 }, measurer);
-      const b = layoutComponent(next, { x: 0, y: y + a.box.height, width: innerWidth, height: 0 }, measurer);
-      const combined = a.box.height + b.box.height + m.top + m.bottom;
-      if (combined > remaining() && combined <= pageHeightAt(pages.length)) {
+    // keep-with-next *chains*: a run of consecutive keepWithNext components (a group header + its first records,
+    // a whole keep-together group, a band and its child bands) must start on a page where the whole run fits.
+    const prevKept = idx > 0 && Boolean((components[idx - 1] as any).keepWithNext);
+    if (anyC.keepWithNext && !prevKept && idx + 1 < components.length && y > 0) {
+      const freshRoom = pageHeightAt(pages.length) - repeatHeight();
+      let combined = 0;
+      let members = 0;
+      let k = idx;
+      for (; k < components.length; k++) {
+        const c = components[k]!;
+        const cm = marginOf(c);
+        const n = layoutComponent(c, { x: 0, y: 0, width: Math.max(1, width - cm.left - cm.right), height: 0 }, measurer);
+        combined += n.box.height + cm.top + cm.bottom;
+        members++;
+        if (combined > freshRoom || !(c as any).keepWithNext) break;
+      }
+      if (combined > remaining() && combined <= freshRoom) {
+        const names = components.slice(idx, idx + members).map((c) => ((c as any).band?.name ?? (c as any).id ?? c.type) as string);
         decide({
-          kind: "keep-with-next",
+          kind: members > 2 ? "keep-chain" : "keep-with-next",
           componentId: anyC.id,
-          message: `${label(component)} is kept with the next element; together they need ${pt(combined)} but only ${pt(remaining())} is left.`,
+          message:
+            members > 2
+              ? `${label(component)} is kept together with the ${members - 1} elements after it (${[...new Set(names)].slice(0, 3).join(", ")}): they need ${pt(combined)} but only ${pt(remaining())} is left.`
+              : `${label(component)} is kept with the next element; together they need ${pt(combined)} but only ${pt(remaining())} is left.`,
           required: combined,
           available: remaining(),
           actions: [{ label: "Release keep-with-next", patch: { keepWithNext: false } }],
@@ -212,7 +309,7 @@ function layoutContentIntoPages(
       const probe = layoutComponent(component, { x: 0, y: y + m.top, width: innerWidth, height: 0 }, measurer);
       const needed = probe.box.height + m.top + m.bottom;
       const fitsCurrent = needed <= remaining();
-      const fitsFresh = needed <= pageHeightAt(pages.length);
+      const fitsFresh = needed <= pageHeightAt(pages.length) - repeatHeight();
 
       if (!fitsCurrent && y > 0) {
         if (fitsFresh) {
@@ -250,6 +347,13 @@ function layoutContentIntoPages(
       place(placed);
       y = placed.box.y + placed.box.height + m.bottom;
     }
+
+    if (band?.type === "groupHeader" && band.repeatEveryPage) {
+      let entry = repeatStack.find((e) => e.instance === band.instance && e.level === (band.level ?? 0));
+      if (!entry) repeatStack.push((entry = { level: band.level ?? 0, instance: band.instance ?? -1, comps: [] }));
+      entry.comps.push(component);
+    }
+    if (band?.type === "groupFooter") for (let k = repeatStack.length - 1; k >= 0; k--) if (repeatStack[k]!.level >= (band.level ?? 0)) repeatStack.splice(k, 1);
 
     if (anyC.pageBreakAfter) {
       newPage();
@@ -378,4 +482,19 @@ function placeTable(
   } else {
     flushSlice(rowIndex, table.showFooter);
   }
+}
+
+
+/** The children a container can be dissolved into without changing what is printed (flow layout, no fixed size, no decoration). */
+function flowParts(component: ResolvedComponent): ResolvedComponent[] | undefined {
+  const c = component as any;
+  if (c.type === "group") {
+    return (c.groups ?? []).flatMap((g: any) => [...(g.header ?? []), ...(g.children ?? []), ...(g.footer ?? [])]);
+  }
+  if (!["container", "column", "repeater", "keepTogether"].includes(c.type)) return undefined;
+  if (c.layout && c.layout !== "flow") return undefined;
+  if (c.height !== undefined || c.minHeight !== undefined) return undefined;
+  const st = c.style ?? {};
+  if (st.background || st.border || st.padding) return undefined;
+  return Array.isArray(c.children) ? c.children : undefined;
 }

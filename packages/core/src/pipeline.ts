@@ -4,6 +4,8 @@ import { DataSourceRegistry } from "./datasource.js";
 import { resolveParameters, type ParameterIssue } from "./parameters.js";
 import { executeDatasets, type DatasetExecutionIssue } from "./datasets.js";
 import { computeReportVariables } from "./variables.js";
+import { PAGE_BAND_TYPES } from "@reporting/schema";
+import { expandBodyBands } from "./bands.js";
 import { lookupDataset, resolveComponents, type CustomComponentExpander, type ResolveEnv } from "./resolve-component.js";
 import type { ResolvedComponent, ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
 import type { ResolveContext } from "./context.js";
@@ -79,33 +81,34 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
   const warnings: ResolvedWarning[] = [];
   const rowVarAccumulator: Record<string, unknown> = {};
 
-  const sections: ResolvedSection[] = report.sections.map((section, index) => {
-    const env: ResolveEnv = {
-      engine,
-      locale,
-      currency,
-      variables: report.variables,
-      rowVarAccumulator,
-      warnings,
-      path: `sections[${index}]`,
-      tolerant: options.tolerant,
-      fragments,
-      customComponents: options.customComponents,
-    };
-
-    let children;
-    if (section.dataset) {
-      const found = lookupDataset(datasets, section.dataset);
-      const rows = Array.isArray(found) ? (found as unknown[]) : [];
-      children = rows.flatMap((row) =>
-        resolveComponents(section.children as any, { ...baseCtx, row: row as Record<string, unknown>, vars: { ...baseCtx.vars, ...rowVarAccumulator } }, env)
-      );
-    } else {
-      children = resolveComponents(section.children as any, baseCtx, env);
-    }
-
-    return { type: section.type, repeat: section.repeat, sourceIndex: index, appliesTo: section.appliesTo, children };
+  const makeEnv = (path: string): ResolveEnv => ({
+    engine,
+    locale,
+    currency,
+    variables: report.variables,
+    rowVarAccumulator,
+    warnings,
+    path,
+    tolerant: options.tolerant,
+    fragments,
+    customComponents: options.customComponents,
   });
+
+  // Page-level bands (page header/footer masters, backgrounds) keep their own resolved section so they can be
+  // re-resolved per page; every other band is expanded into printed band instances (see bands.ts).
+  const pageSections: ResolvedSection[] = [];
+  report.sections.forEach((section, index) => {
+    if (!PAGE_BAND_TYPES.includes(section.type as any)) return;
+    pageSections.push({
+      type: section.type,
+      repeat: section.repeat,
+      sourceIndex: index,
+      appliesTo: section.appliesTo,
+      children: resolveComponents(section.children as any, baseCtx, makeEnv(`sections[${index}]`)),
+    });
+  });
+  const bodyChildren = expandBodyBands({ report, engine, baseCtx, datasets, rowVarAccumulator, makeEnv });
+  const sections: ResolvedSection[] = [...pageSections, { type: "body", sourceIndex: -1, children: bodyChildren }];
 
   if (report.variables.some((v) => v.scope === "page")) {
     warnings.push({

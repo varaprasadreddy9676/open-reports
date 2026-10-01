@@ -622,4 +622,40 @@ write("sticker-sheet", base("sticker-sheet", "Sticker Sheet (A4, 2x4 labels)", "
   }] }],
 }));
 
+// ---------------------------------------------------------------- banded report (groups, repeated headers, subtotals)
+{
+  const r = rng(11);
+  const depts = ["Cardiology", "Orthopaedics", "Paediatrics"];
+  const docs = { Cardiology: ["Dr. Rao", "Dr. Iyer"], Orthopaedics: ["Dr. Khan", "Dr. Mathew"], Paediatrics: ["Dr. Das", "Dr. Reddy"] };
+  const visits = [];
+  for (let i = 0; i < 90; i++) {
+    const dept = depts[Math.floor(r() * 3)];
+    visits.push({ dept, doctor: docs[dept][Math.floor(r() * 2)], patient: `Patient ${String(i + 1).padStart(3, "0")}`, uhid: `UH${1000 + i}`, amount: Math.round(r() * 3000 + 300), note: r() > 0.7 ? "Follow-up advised in two weeks with repeat investigations." : "" });
+  }
+  write("department-report", base("department-report", "Department Revenue (banded)", "Report header, page header/footer, nested groups (department → doctor) with repeated group headers, two detail bands, subtotals, grand total and a no-data band.", {
+    theme: { currency: "INR" },
+    datasets: [{ id: "visits", source: "inline", query: { data: visits } }],
+    groups: [
+      { id: "dept", name: "Department", dataset: "visits", by: "row.dept", sort: "asc", repeatHeader: true, newPage: "none", keepTogether: false, minDetailRows: 2 },
+      { id: "doctor", name: "Doctor", by: "row.doctor", sort: "asc", repeatHeader: false, minDetailRows: 1 },
+    ],
+    page: A4(),
+    watermark: { text: "SAMPLE", opacity: 0.08, pages: "first" },
+    sections: [
+      { type: "reportHeader", name: "Report title", children: [T("Department Revenue Report", { style: { fontSize: 18, fontWeight: "bold", color: "#0f766e" } }), T("Outpatient visits grouped by department and doctor", { style: { fontSize: 9, ...muted } }), spacer(6)] },
+      { type: "pageHeader", name: "Page header", appliesTo: "standard", children: [row([T("ACME HOSPITAL", { width: "*", style: { fontSize: 9, fontWeight: "bold" } }), T("Department Revenue", { style: { fontSize: 9, align: "right", ...muted } })]), line()] },
+      { type: "pageFooter", name: "Page footer", children: [line(), X('"Page " + page.number + " of " + page.total', { style: { fontSize: 8, align: "right", ...muted } })] },
+      { type: "dataHeader", name: "Column headings", dataset: "visits", children: [row([T("Patient", { width: "*", style: { fontWeight: "bold", fontSize: 9 } }), T("UHID", { width: 70, style: { fontWeight: "bold", fontSize: 9 } }), T("Amount", { width: 80, style: { fontWeight: "bold", fontSize: 9, align: "right" } })]), line()] },
+      { type: "groupHeader", name: "Department header", groupId: "dept", children: [X('"Department: " + group.key', { style: { fontSize: 12, fontWeight: "bold", color: "#1d4ed8" }, expression: '"Department: " + group.key' })], style: { background: "#eff6ff" } },
+      { type: "groupHeader", name: "Doctor header", groupId: "doctor", children: [X('"   " + group.key + "  (" + group.count + " visits)"', { style: { fontWeight: "bold", fontSize: 10 } })] },
+      { type: "detail", id: "visit-line", name: "Visit", dataset: "visits", children: [row([B("row.patient", { width: "*", style: { fontSize: 9 } }), B("row.uhid", { width: 70, style: { fontSize: 9, ...muted } }), B("row.amount", { width: 80, format: "currency", style: { fontSize: 9, align: "right" } })])] },
+      { type: "child", name: "Visit note", parent: "visit-line", suppressWhenBlank: true, children: [B("row.note", { style: { fontSize: 8, color: "#b45309" } })] },
+      { type: "groupFooter", name: "Doctor subtotal", groupId: "doctor", children: [row([T("Doctor total", { width: "*", style: { fontSize: 9, ...muted } }), X('sumBy(group.rows, "amount")', { width: 80, format: "currency", style: { fontSize: 9, fontWeight: "bold", align: "right" } })]), spacer(4)] },
+      { type: "groupFooter", name: "Department subtotal", groupId: "dept", children: [row([T("Department total", { width: "*", style: { fontWeight: "bold" } }), X('sumBy(group.rows, "amount")', { width: 80, format: "currency", style: { fontWeight: "bold", align: "right" } })]), line(), spacer(8)] },
+      { type: "dataFooter", name: "Grand total", dataset: "visits", children: [row([T("GRAND TOTAL", { width: "*", style: { fontSize: 12, fontWeight: "bold" } }), X('sumBy(data.visits, "amount")', { width: 100, format: "currency", style: { fontSize: 12, fontWeight: "bold", align: "right" } })])] },
+      { type: "noData", name: "No visits", dataset: "visits", children: [T("No visits in the selected period.", { style: { align: "center", ...muted } })] },
+    ],
+  }));
+}
+
 console.log("examples written to", out);

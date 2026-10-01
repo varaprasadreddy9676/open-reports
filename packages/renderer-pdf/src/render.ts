@@ -61,7 +61,7 @@ export class PdfRenderer implements ReportRenderer {
     for (const page of paginated.pages) {
       doc.addPage({ size: [paginated.pageSize.width, paginated.pageSize.height], margin: 0 });
       doc.fillColor("#000000");
-      for (const node of [...page.header, ...page.content, ...page.footer]) {
+      for (const node of [...page.background, ...page.header, ...page.content, ...page.footer]) {
         await drawNode(drawCtx, node);
       }
       const wm = input.resolved.watermark;

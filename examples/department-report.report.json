@@ -1,0 +1,1110 @@
+{
+  "schemaVersion": "1.0",
+  "id": "department-report",
+  "name": "Department Revenue (banded)",
+  "description": "Report header, page header/footer, nested groups (department → doctor) with repeated group headers, two detail bands, subtotals, grand total and a no-data band.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "visits",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 001",
+            "uhid": "UH1000",
+            "amount": 1354,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 002",
+            "uhid": "UH1001",
+            "amount": 555,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 003",
+            "uhid": "UH1002",
+            "amount": 2663,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 004",
+            "uhid": "UH1003",
+            "amount": 1855,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 005",
+            "uhid": "UH1004",
+            "amount": 2305,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 006",
+            "uhid": "UH1005",
+            "amount": 2619,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 007",
+            "uhid": "UH1006",
+            "amount": 2028,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 008",
+            "uhid": "UH1007",
+            "amount": 2720,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 009",
+            "uhid": "UH1008",
+            "amount": 1387,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 010",
+            "uhid": "UH1009",
+            "amount": 2879,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 011",
+            "uhid": "UH1010",
+            "amount": 2552,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 012",
+            "uhid": "UH1011",
+            "amount": 1686,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 013",
+            "uhid": "UH1012",
+            "amount": 1062,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 014",
+            "uhid": "UH1013",
+            "amount": 2577,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 015",
+            "uhid": "UH1014",
+            "amount": 1502,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 016",
+            "uhid": "UH1015",
+            "amount": 729,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 017",
+            "uhid": "UH1016",
+            "amount": 1134,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 018",
+            "uhid": "UH1017",
+            "amount": 907,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 019",
+            "uhid": "UH1018",
+            "amount": 1455,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 020",
+            "uhid": "UH1019",
+            "amount": 3244,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 021",
+            "uhid": "UH1020",
+            "amount": 2691,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 022",
+            "uhid": "UH1021",
+            "amount": 1954,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 023",
+            "uhid": "UH1022",
+            "amount": 2239,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 024",
+            "uhid": "UH1023",
+            "amount": 2987,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 025",
+            "uhid": "UH1024",
+            "amount": 3036,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 026",
+            "uhid": "UH1025",
+            "amount": 626,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 027",
+            "uhid": "UH1026",
+            "amount": 1869,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 028",
+            "uhid": "UH1027",
+            "amount": 3009,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 029",
+            "uhid": "UH1028",
+            "amount": 2626,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 030",
+            "uhid": "UH1029",
+            "amount": 1601,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 031",
+            "uhid": "UH1030",
+            "amount": 481,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 032",
+            "uhid": "UH1031",
+            "amount": 1594,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 033",
+            "uhid": "UH1032",
+            "amount": 3014,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 034",
+            "uhid": "UH1033",
+            "amount": 2254,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 035",
+            "uhid": "UH1034",
+            "amount": 1276,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 036",
+            "uhid": "UH1035",
+            "amount": 2196,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 037",
+            "uhid": "UH1036",
+            "amount": 1782,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 038",
+            "uhid": "UH1037",
+            "amount": 2603,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 039",
+            "uhid": "UH1038",
+            "amount": 2451,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 040",
+            "uhid": "UH1039",
+            "amount": 2380,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 041",
+            "uhid": "UH1040",
+            "amount": 2478,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 042",
+            "uhid": "UH1041",
+            "amount": 3243,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 043",
+            "uhid": "UH1042",
+            "amount": 1143,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 044",
+            "uhid": "UH1043",
+            "amount": 754,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 045",
+            "uhid": "UH1044",
+            "amount": 559,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 046",
+            "uhid": "UH1045",
+            "amount": 3282,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 047",
+            "uhid": "UH1046",
+            "amount": 359,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 048",
+            "uhid": "UH1047",
+            "amount": 911,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 049",
+            "uhid": "UH1048",
+            "amount": 2320,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 050",
+            "uhid": "UH1049",
+            "amount": 1281,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 051",
+            "uhid": "UH1050",
+            "amount": 921,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 052",
+            "uhid": "UH1051",
+            "amount": 366,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 053",
+            "uhid": "UH1052",
+            "amount": 1841,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 054",
+            "uhid": "UH1053",
+            "amount": 2191,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 055",
+            "uhid": "UH1054",
+            "amount": 2398,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 056",
+            "uhid": "UH1055",
+            "amount": 489,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 057",
+            "uhid": "UH1056",
+            "amount": 2917,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 058",
+            "uhid": "UH1057",
+            "amount": 3290,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 059",
+            "uhid": "UH1058",
+            "amount": 1046,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 060",
+            "uhid": "UH1059",
+            "amount": 1450,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 061",
+            "uhid": "UH1060",
+            "amount": 1999,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 062",
+            "uhid": "UH1061",
+            "amount": 1120,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 063",
+            "uhid": "UH1062",
+            "amount": 2745,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 064",
+            "uhid": "UH1063",
+            "amount": 3149,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 065",
+            "uhid": "UH1064",
+            "amount": 1130,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 066",
+            "uhid": "UH1065",
+            "amount": 1426,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 067",
+            "uhid": "UH1066",
+            "amount": 2937,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 068",
+            "uhid": "UH1067",
+            "amount": 3158,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 069",
+            "uhid": "UH1068",
+            "amount": 2885,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 070",
+            "uhid": "UH1069",
+            "amount": 2091,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 071",
+            "uhid": "UH1070",
+            "amount": 2563,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 072",
+            "uhid": "UH1071",
+            "amount": 659,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 073",
+            "uhid": "UH1072",
+            "amount": 2305,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 074",
+            "uhid": "UH1073",
+            "amount": 3079,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 075",
+            "uhid": "UH1074",
+            "amount": 2999,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 076",
+            "uhid": "UH1075",
+            "amount": 378,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Mathew",
+            "patient": "Patient 077",
+            "uhid": "UH1076",
+            "amount": 2837,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 078",
+            "uhid": "UH1077",
+            "amount": 1363,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 079",
+            "uhid": "UH1078",
+            "amount": 998,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 080",
+            "uhid": "UH1079",
+            "amount": 1524,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 081",
+            "uhid": "UH1080",
+            "amount": 2271,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 082",
+            "uhid": "UH1081",
+            "amount": 874,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 083",
+            "uhid": "UH1082",
+            "amount": 1620,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 084",
+            "uhid": "UH1083",
+            "amount": 1729,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 085",
+            "uhid": "UH1084",
+            "amount": 2677,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Reddy",
+            "patient": "Patient 086",
+            "uhid": "UH1085",
+            "amount": 1428,
+            "note": ""
+          },
+          {
+            "dept": "Orthopaedics",
+            "doctor": "Dr. Khan",
+            "patient": "Patient 087",
+            "uhid": "UH1086",
+            "amount": 1180,
+            "note": ""
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Iyer",
+            "patient": "Patient 088",
+            "uhid": "UH1087",
+            "amount": 982,
+            "note": ""
+          },
+          {
+            "dept": "Paediatrics",
+            "doctor": "Dr. Das",
+            "patient": "Patient 089",
+            "uhid": "UH1088",
+            "amount": 2343,
+            "note": "Follow-up advised in two weeks with repeat investigations."
+          },
+          {
+            "dept": "Cardiology",
+            "doctor": "Dr. Rao",
+            "patient": "Patient 090",
+            "uhid": "UH1089",
+            "amount": 2671,
+            "note": ""
+          }
+        ]
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "dept",
+      "name": "Department",
+      "dataset": "visits",
+      "by": "row.dept",
+      "sort": "asc",
+      "repeatHeader": true,
+      "newPage": "none",
+      "keepTogether": false,
+      "minDetailRows": 2
+    },
+    {
+      "id": "doctor",
+      "name": "Doctor",
+      "by": "row.doctor",
+      "sort": "asc",
+      "repeatHeader": false,
+      "minDetailRows": 1
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "watermark": {
+    "text": "SAMPLE",
+    "opacity": 0.08,
+    "pages": "first"
+  },
+  "sections": [
+    {
+      "type": "reportHeader",
+      "name": "Report title",
+      "children": [
+        {
+          "type": "text",
+          "value": "Department Revenue Report",
+          "style": {
+            "fontSize": 18,
+            "fontWeight": "bold",
+            "color": "#0f766e"
+          }
+        },
+        {
+          "type": "text",
+          "value": "Outpatient visits grouped by department and doctor",
+          "style": {
+            "fontSize": 9,
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 6
+        }
+      ]
+    },
+    {
+      "type": "pageHeader",
+      "name": "Page header",
+      "appliesTo": "standard",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "ACME HOSPITAL",
+              "width": "*",
+              "style": {
+                "fontSize": 9,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "value": "Department Revenue",
+              "style": {
+                "fontSize": 9,
+                "align": "right",
+                "color": "#6b7280"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "name": "Page footer",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "fontSize": 8,
+            "align": "right",
+            "color": "#6b7280"
+          }
+        }
+      ]
+    },
+    {
+      "type": "dataHeader",
+      "name": "Column headings",
+      "dataset": "visits",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Patient",
+              "width": "*",
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 9
+              }
+            },
+            {
+              "type": "text",
+              "value": "UHID",
+              "width": 70,
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 9
+              }
+            },
+            {
+              "type": "text",
+              "value": "Amount",
+              "width": 80,
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 9,
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "groupHeader",
+      "name": "Department header",
+      "groupId": "dept",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Department: \" + group.key",
+          "style": {
+            "fontSize": 12,
+            "fontWeight": "bold",
+            "color": "#1d4ed8"
+          }
+        }
+      ],
+      "style": {
+        "background": "#eff6ff"
+      }
+    },
+    {
+      "type": "groupHeader",
+      "name": "Doctor header",
+      "groupId": "doctor",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"   \" + group.key + \"  (\" + group.count + \" visits)\"",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 10
+          }
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "id": "visit-line",
+      "name": "Visit",
+      "dataset": "visits",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "binding": "row.patient",
+              "width": "*",
+              "style": {
+                "fontSize": 9
+              }
+            },
+            {
+              "type": "text",
+              "binding": "row.uhid",
+              "width": 70,
+              "style": {
+                "fontSize": 9,
+                "color": "#6b7280"
+              }
+            },
+            {
+              "type": "text",
+              "binding": "row.amount",
+              "width": 80,
+              "format": "currency",
+              "style": {
+                "fontSize": 9,
+                "align": "right"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "child",
+      "name": "Visit note",
+      "parent": "visit-line",
+      "suppressWhenBlank": true,
+      "children": [
+        {
+          "type": "text",
+          "binding": "row.note",
+          "style": {
+            "fontSize": 8,
+            "color": "#b45309"
+          }
+        }
+      ]
+    },
+    {
+      "type": "groupFooter",
+      "name": "Doctor subtotal",
+      "groupId": "doctor",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Doctor total",
+              "width": "*",
+              "style": {
+                "fontSize": 9,
+                "color": "#6b7280"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "sumBy(group.rows, \"amount\")",
+              "width": 80,
+              "format": "currency",
+              "style": {
+                "fontSize": 9,
+                "fontWeight": "bold",
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 4
+        }
+      ]
+    },
+    {
+      "type": "groupFooter",
+      "name": "Department subtotal",
+      "groupId": "dept",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Department total",
+              "width": "*",
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "sumBy(group.rows, \"amount\")",
+              "width": 80,
+              "format": "currency",
+              "style": {
+                "fontWeight": "bold",
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        }
+      ]
+    },
+    {
+      "type": "dataFooter",
+      "name": "Grand total",
+      "dataset": "visits",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "GRAND TOTAL",
+              "width": "*",
+              "style": {
+                "fontSize": 12,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "sumBy(data.visits, \"amount\")",
+              "width": 100,
+              "format": "currency",
+              "style": {
+                "fontSize": 12,
+                "fontWeight": "bold",
+                "align": "right"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "noData",
+      "name": "No visits",
+      "dataset": "visits",
+      "children": [
+        {
+          "type": "text",
+          "value": "No visits in the selected period.",
+          "style": {
+            "align": "center",
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

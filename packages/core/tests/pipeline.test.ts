@@ -1,3 +1,4 @@
+import { sectionChildren } from "./helpers.js";
 import { describe, it, expect } from "vitest";
 import { parseReportDefinition } from "@reporting/schema";
 import { DataSourceRegistry, InlineDataSource, resolveReport } from "../src/index.js";
@@ -68,10 +69,10 @@ describe("resolveReport (full pipeline)", () => {
 
     expect(issues).toEqual([]);
 
-    const header = resolved.sections[0]!.children[0] as ResolvedTextComponent;
+    const header = sectionChildren(resolved, 0)[0] as ResolvedTextComponent;
     expect(header.text).toBe("Invoice #1001");
 
-    const table = resolved.sections[1]!.children[0] as ResolvedTableComponent;
+    const table = sectionChildren(resolved, 1)[0] as ResolvedTableComponent;
     expect(table.rows).toHaveLength(2);
     expect(table.rows[0]!.raw.amount).toBe(1000);
     expect(table.rows[0]!.formatted.amount).toBe("$1,000.00");
@@ -110,7 +111,7 @@ describe("resolveReport (full pipeline)", () => {
     expect(parsed.valid).toBe(true);
     if (!parsed.valid) return;
     const { resolved } = await resolveReport(parsed.report, { registry: registry(), parameters: { invoiceId: 1 } });
-    const repeater = resolved.sections[1]!.children[0] as any;
+    const repeater = sectionChildren(resolved, 1)[0] as any;
     // Only "Eye Examination" has quantity 2 (> 1); "Frame" has quantity 1 and is hidden.
     expect(repeater.children).toHaveLength(1);
     expect(repeater.children[0].text).toBe("Eye Examination");
@@ -160,7 +161,7 @@ describe("resolveReport grouping and variables", () => {
     if (!parsed.valid) return;
 
     const { resolved } = await resolveReport(parsed.report, { registry: registry(), parameters: {} });
-    const group = resolved.sections[0]!.children[0] as ResolvedGroupComponent;
+    const group = sectionChildren(resolved, 0)[0] as ResolvedGroupComponent;
     expect(group.groups).toHaveLength(2);
 
     const south = group.groups.find((g) => g.key === "South")!;
@@ -183,7 +184,7 @@ describe("nested dataset paths", () => {
     });
     if (!parsed.valid) throw new Error("invalid");
     const { resolved } = await resolveReport(parsed.report, { registry: registry(), parameters: {} });
-    const table = resolved.sections[0]!.children[0] as ResolvedTableComponent;
+    const table = sectionChildren(resolved, 0)[0] as ResolvedTableComponent;
     expect(table.rows).toHaveLength(2);
   });
 });
@@ -200,7 +201,7 @@ describe("hidden, empty states and reusable fragments", () => {
     const parsed = parseReportDefinition({ ...base, sections: [{ type: "detail", children: [{ type: "text", value: "shown" }, { type: "text", value: "secret", hidden: true }] }] });
     if (!parsed.valid) throw new Error("invalid");
     const { resolved } = await resolveReport(parsed.report, { registry: registry() });
-    expect(resolved.sections[0]!.children.map((c: any) => c.text)).toEqual(["shown"]);
+    expect(sectionChildren(resolved, 0).map((c: any) => c.text)).toEqual(["shown"]);
   });
 
   it("table empty state: hide, message, or headers only", async () => {
@@ -209,7 +210,7 @@ describe("hidden, empty states and reusable fragments", () => {
     const run = async (es?: string) => {
       const p = mk(es);
       if (!p.valid) throw new Error("invalid");
-      return (await resolveReport(p.report, { registry: registry() })).resolved.sections[0]!.children as any[];
+      return sectionChildren((await resolveReport(p.report, { registry: registry() })).resolved, 0);
     };
     expect(await run("hide")).toHaveLength(0);
     expect((await run("message"))[0].text).toBe("Nothing here");
@@ -225,7 +226,7 @@ describe("hidden, empty states and reusable fragments", () => {
     });
     if (!parsed.valid) throw new Error("invalid");
     const { resolved } = await resolveReport(parsed.report, { registry: registry() });
-    const first = resolved.sections[0]!.children[0] as any;
+    const first = sectionChildren(resolved, 0)[0] as any;
     expect(first.children[0].text).toBe("ACME");
     expect(resolved.warnings.some((w) => w.code === "UNKNOWN_FRAGMENT")).toBe(true);
   });
@@ -235,7 +236,7 @@ describe("hidden, empty states and reusable fragments", () => {
     if (!parsed.valid) throw new Error("invalid");
     await expect(resolveReport(parsed.report, { registry: registry() })).rejects.toThrow();
     const { resolved } = await resolveReport(parsed.report, { registry: registry(), tolerant: true });
-    expect((resolved.sections[0]!.children[0] as any).text).toContain("⚠");
+    expect((sectionChildren(resolved, 0)[0] as any).text).toContain("⚠");
     expect(resolved.warnings.find((w) => w.code === "COMPONENT_ERROR")?.componentId).toBe("bad");
   });
 });

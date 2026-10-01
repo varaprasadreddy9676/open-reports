@@ -60,6 +60,8 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
     });
   });
 
+  validateBands(report, issues);
+
   for (const f of report.fragments) {
     walkComponents(f.children as Component[], `fragments.${f.id}`, { fragmentIds, datasetIds, issues, seenComponentIds: new Set(), targetRenderers: options.targetRenderers });
   }
@@ -225,4 +227,55 @@ function collectSubreportIds(report: ReportDefinition): string[] {
   };
   for (const section of report.sections) walk(section.children as Component[]);
   return ids;
+}
+
+/** Structural rules for bands and groups (see packages/schema/src/sections.ts). */
+function validateBands(report: ReportDefinition, issues: ValidationIssue[]): void {
+  const groupIds = new Set(report.groups.map((g) => g.id));
+  checkDuplicates(report.groups.map((g) => g.id), "groups", issues);
+  const datasetIds = new Set(report.datasets.map((d) => d.id));
+  const sectionIds = new Map<string, number>();
+  const parse = (expr: string, path: string) => {
+    try {
+      Parser.parse(expr);
+    } catch (err) {
+      issues.push({ severity: "error", code: "INVALID_EXPRESSION", path, message: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
+  report.groups.forEach((g, i) => {
+    parse(g.by, `groups[${i}].by`);
+    if (g.dataset && !datasetIds.has(g.dataset.split(".")[0]!)) issues.push(missingDataset(g.dataset, `groups[${i}]`, Array.from(datasetIds)));
+  });
+
+  report.sections.forEach((s, i) => {
+    const path = `sections[${i}]`;
+    if (s.id) {
+      if (sectionIds.has(s.id)) issues.push({ severity: "error", code: "DUPLICATE_ID", path, message: `Duplicate band id "${s.id}".` });
+      sectionIds.set(s.id, i);
+    }
+    if (s.groupBy) parse(s.groupBy, `${path}.groupBy`);
+    if (s.visibleWhen) parse(s.visibleWhen, `${path}.visibleWhen`);
+    if ((s.type === "groupHeader" || s.type === "groupFooter") && s.groupId && !groupIds.has(s.groupId)) {
+      issues.push({ severity: "error", code: "UNKNOWN_GROUP", path, message: `Band refers to group "${s.groupId}", which is not declared in "groups".` });
+    }
+    if ((s.type === "groupHeader" || s.type === "groupFooter") && !s.groupId && !s.groupBy && s.type === "groupHeader") {
+      issues.push({ severity: "warning", code: "GROUP_BAND_WITHOUT_GROUP", path, message: "A group header needs a group: choose one in the band's properties (or add one under Groups)." });
+    }
+    if (s.type === "child" && !(s.parent && report.sections.some((o) => o.id === s.parent))) {
+      issues.push({ severity: "error", code: "UNKNOWN_PARENT_BAND", path, message: `Child band refers to parent "${s.parent ?? ""}", which is not a band id.` });
+    }
+    if (s.type === "child" && s.parent === s.id) issues.push({ severity: "error", code: "UNKNOWN_PARENT_BAND", path, message: "A child band cannot be its own parent." });
+    if ((s.type === "pageHeader" || s.type === "pageFooter" || s.type === "background") && (s.dataset || s.groupId)) {
+      issues.push({ severity: "warning", code: "PAGE_BAND_WITH_DATA", path, message: `A ${s.type} band cannot be bound to a dataset or group; the binding is ignored.` });
+    }
+    if (s.repeatEveryPage && s.type !== "groupHeader") {
+      issues.push({ severity: "warning", code: "REPEAT_ON_NON_GROUP_HEADER", path, message: "\"Repeat on every page\" only applies to group headers (use page headers for page-level repetition)." });
+    }
+  });
+
+  // a group declared but used by no band is almost certainly a mistake
+  for (const g of report.groups) {
+    if (!report.sections.some((s) => s.groupId === g.id)) issues.push({ severity: "warning", code: "UNUSED_GROUP", path: `groups.${g.id}`, message: `Group "${g.id}" has no header or footer band, so it only sorts and subdivides records.` });
+  }
 }

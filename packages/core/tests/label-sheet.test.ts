@@ -1,3 +1,4 @@
+import { sectionChildren } from "./helpers.js";
 import { describe, it, expect } from "vitest";
 import { parseReportDefinition } from "@reporting/schema";
 import { DataSourceRegistry, InlineDataSource, resolveReport } from "../src/index.js";
@@ -19,7 +20,7 @@ async function sheets(sheet: Record<string, unknown>) {
   const parsed = parseReportDefinition(report(sheet));
   if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
   const { resolved } = await resolveReport(parsed.report, { registry, parameters: {} });
-  return resolved.sections[0]!.children as any[];
+  return sectionChildren(resolved, 0);
 }
 
 const texts = (sheet: any) => sheet.children.map((l: any) => l.children[0]?.text);
