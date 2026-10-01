@@ -12,6 +12,7 @@ import { snapBox, rectsIntersect, type Guide, type Distance } from "../lib/snap"
 import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
 import { Rulers } from "./Rulers";
 import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
+import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
@@ -208,7 +209,7 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, gridMode } = useStore();
+  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, gridMode } = useStore();
   const k = PT * zoom;
   const structure = canvasView === "structure" ? engine.structure : undefined;
   const paginated = structure ?? engine.paginated;
@@ -460,6 +461,8 @@ export function Canvas() {
   return (
     <div className={`canvas-scroll ${structure ? "structure" : ""}`} ref={scroller} data-testid="canvas">
       <BandBar />
+      {structure && engine.paginated && <StructurePageStrip paginated={engine.paginated} />}
+      <div className={structure && previewSplit ? "canvas-layout with-preview" : "canvas-layout"}>
       <div className="pages">
         {paginated.pages.map((page, pi) => {
           const allNodes = [...flat([...page.header, ...page.content, ...page.footer])];
@@ -536,7 +539,8 @@ export function Canvas() {
                   return target ? <InlineEditor id={editingText} box={target.box} k={k} /> : null;
                 })()}
                 {view.diagnostics && <Diagnostics nodes={allNodes} k={k} />}
-                {bottom === "pagination" && <PaginationMarkers page={pi} nodes={allNodes} k={k} />}
+                {structure && engine.paginated && <StructureBreakLayer structure={structure} paginated={engine.paginated} k={k} />}
+                {bottom === "pagination" && !structure && <PaginationMarkers page={pi} nodes={allNodes} k={k} />}
                 {guides && guides.page === pi && <SmartGuides g={guides} k={k} />}
                 {marquee && marquee.page === pi && (
                   <div className="marquee" style={{ left: Math.min(marquee.x0, marquee.x1) * k, top: Math.min(marquee.y0, marquee.y1) * k, width: Math.abs(marquee.x1 - marquee.x0) * k, height: Math.abs(marquee.y1 - marquee.y0) * k }} />
@@ -560,10 +564,26 @@ export function Canvas() {
           );
         })}
       </div>
+      {structure && previewSplit && engine.paginated && <PaginatedPreviewPane paginated={engine.paginated} />}
+      </div>
       <DropPromptMenu />
       <ContextMenu />
     </div>
   );
+}
+
+function PaginatedPreviewPane({ paginated }: { paginated: import("@reporting/layout").PaginatedReport }) {
+  const k = Math.min(0.6, 300 / paginated.pageSize.width);
+  return <aside className="structure-preview-pane" aria-label="Paginated sample preview" data-testid="structure-preview-pane">
+    <strong>Paginated sample</strong>
+    <span className="muted small">{paginated.pages.length} page{paginated.pages.length === 1 ? "" : "s"} from the current sample data</span>
+    {paginated.pages.map((page, i) => <div key={i} className="structure-preview-page-wrap">
+      <div className="page structure-preview-page" data-testid="structure-preview-page" style={{ width: paginated.pageSize.width * k, height: paginated.pageSize.height * k }}>
+        {[...page.background, ...page.header, ...page.content, ...page.footer].map((node, j) => <NodeView key={j} node={node} k={k} />)}
+      </div>
+      <span className="muted small">Page {i + 1}</span>
+    </div>)}
+  </aside>;
 }
 
 const MM = 25.4 / 72;

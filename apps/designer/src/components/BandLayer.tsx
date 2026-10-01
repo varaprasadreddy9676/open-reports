@@ -20,7 +20,7 @@ const ADDABLE: { type: string; hint: string }[] = [
 
 /** Toolbar floating above the page: structure/pages switch, example records, ruler unit, grid style. */
 export function BandBar() {
-  const { canvasView, ghosts, rulerUnit, gridMode, showGrid } = useStore();
+  const { canvasView, previewSplit, ghosts, rulerUnit, gridMode, showGrid } = useStore();
   const set = useStore((s) => s.set);
   return (
     <div className="band-bar" data-testid="band-bar">
@@ -32,6 +32,11 @@ export function BandBar() {
           Pages
         </button>
       </div>
+      {canvasView === "structure" && (
+        <button className={previewSplit ? "on" : ""} data-testid="toggle-preview-split" aria-pressed={previewSplit} onClick={() => set({ previewSplit: !previewSplit })} title="Show the paginated sample beside the structure">
+          Split preview
+        </button>
+      )}
       {canvasView === "structure" && (
         <label title="Show extra example records in each detail band">
           Examples{" "}

@@ -27,7 +27,7 @@ Thesis: Open Reports had a page/component designer; it must become a true **repo
 9. Group designer (wizard, nested groups) — **DONE (2026-10-01)** (`GroupWizard.tsx` selects an array dataset and field/expression, print rules, header/footer; uses `ops.addGroup`; the explorer adds/removes levels)
 10. Section-Expert style properties panel — **DONE (2026-10-01)** (`BandProps.tsx` opens when a band is selected; all principal schema fields, group settings, and band actions are editable)
 11. Table designer (merge/spans/multi-level headers) — NOT DONE (also GAP P2-3, task #17)
-12. Real pagination visualization on the canvas — NOT DONE on structure canvas (a decisions log + Pagination bottom panel exist for pages view)
+12. Real pagination visualization on the canvas — **PARTIAL (2026-10-01)** (structure view maps real sample page starts to source bands, shows page thumbnails, decision popovers, and a paginated sample split pane; shared PDF font measurement and exhaustive break explanations remain)
 13. Figma-style Auto Layout inside bands — PARTIAL (`layout/gap/alignItems/justifyContent/columns` are editable in Section Expert; drag/reflow controls remain)
 14. AI awareness of bands/pagination — NOT DONE (`apps/designer/src/lib/ai.ts`, `packages/mcp`)
 
@@ -80,6 +80,8 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - Replaced the old 5-type "Add section" list with a report explorer in `LeftPanel.tsx`: nested group names, band rows that open Section Expert, collapse, add and drag-reorder guarded by `ops.moveBand`, plus existing component rename/hide/lock/drag actions. Browser checks cover valid and invalid reorder, group hierarchy, selection, and adding a band.
 - Added `GroupWizard.tsx` and connected it to the explorer and group-band insertion. It discovers array datasets and sample fields, accepts a formula, and sets name, sort, optional header/footer, repeat header, page break, keep together, and minimum detail rows. Creating a second group makes an inner level; group removal keeps the detail band. Unit and browser checks cover this flow.
 - Pagination decision page numbers were corrected in `packages/layout/src/paginate.ts` for post-break and repeated group-header decisions. Previously they pointed one page ahead, which would misplace structure-canvas explanations. All 53 layout tests pass with added page-number assertions.
+- `lib/pagination-map.ts` maps page starts back to source bands, including dissolved table slices and repeated group headers. `StructurePagination.tsx` adds page thumbnails and source-band break explanations; `Canvas.tsx` can show the paginated sample beside the structure. The line marks which band a page starts within; for repeated data it is a symbolic source location rather than literal paper geometry. Designer unit and browser checks cover a 120-row table. PDF parity remains blocked by the shared-font-measurer gap.
+- Verification for this increment: package builds and designer typecheck passed; `pnpm -r test` passed with local PostgreSQL 16 and MySQL 8 test databases and Noto fonts supplied through `FONTS_DIR`; designer browser suite passed 56 tests with 5 skipped. The PDF watermark test requires Noto Sans Devanagari on this Mac, matching the CI font setup.
 
 ## 5. Next steps (do in this order)
 

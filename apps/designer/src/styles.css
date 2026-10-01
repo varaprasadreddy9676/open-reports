@@ -1803,3 +1803,19 @@ kbd {
 .band-bar select { font-size: 12px; }
 
 .canvas-scroll.structure { padding-left: 160px; padding-right: 60px; }
+.structure-page-strip { display: flex; align-items: flex-start; gap: 10px; overflow-x: auto; padding: 0 4px 10px; margin: 0 auto 18px; max-width: 100%; width: fit-content; }
+.structure-page-strip > .muted { white-space: nowrap; padding-top: 6px; }
+.structure-page-thumb { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel); color: var(--text); font-size: 10px; cursor: pointer; }
+.structure-page-thumb:hover, .structure-page-thumb:focus-visible { border-color: var(--accent); }
+.structure-page-mini { position: relative; display: block; background: #fff; border: 1px solid var(--border); overflow: hidden; }
+.structure-page-box { position: absolute; display: block; background: #cbd5e1; }
+.structure-break { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #ea580c; z-index: 8; pointer-events: none; }
+.structure-break-label { position: absolute; right: 6px; top: -22px; max-width: 75%; padding: 2px 7px; border: 0; border-radius: 4px; background: #9a3412; color: #fff; font-size: 10px; text-align: right; cursor: pointer; pointer-events: auto; }
+.structure-break-popover { position: absolute; z-index: 50; top: 8px; right: 6px; width: min(320px, 90%); max-height: 240px; overflow: auto; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); font-size: 11px; pointer-events: auto; }
+.structure-break-detail { border-top: 1px solid var(--border); margin-top: 7px; padding-top: 7px; }
+.structure-break-detail p { margin: 3px 0; }
+.canvas-layout.with-preview { display: grid; grid-template-columns: minmax(min-content, 1fr) 326px; align-items: start; gap: 24px; width: max-content; }
+.structure-preview-pane { position: sticky; top: 10px; display: flex; flex-direction: column; align-items: center; gap: 9px; width: 326px; max-height: calc(100vh - 210px); overflow: auto; padding: 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text); }
+.structure-preview-page-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.structure-preview-page { overflow: hidden; pointer-events: none; }
+.structure-preview-page .cn { cursor: default; }

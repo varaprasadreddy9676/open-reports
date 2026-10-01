@@ -72,6 +72,7 @@ interface State {
   snap: boolean;
   showRulers: boolean;
   canvasView: CanvasView;
+  previewSplit: boolean;
   /** Example records shown per detail band in the structure view. */
   ghosts: number;
   rulerUnit: RulerUnit;
@@ -224,6 +225,7 @@ export const useStore = create<State>((set, get) => ({
   snap: true,
   showRulers: true,
   canvasView: pref("canvasView", "structure") as CanvasView,
+  previewSplit: false,
   ghosts: 0,
   rulerUnit: pref("rulerUnit", "mm") as RulerUnit,
   gridMode: "lines",

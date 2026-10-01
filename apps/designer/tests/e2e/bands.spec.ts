@@ -200,3 +200,25 @@ test("adding a group band with no group opens the wizard", async ({ page }) => {
   await page.getByRole("button", { name: "Cancel" }).click();
   expect((await doc(page)).groups ?? []).toHaveLength(0);
 });
+
+test("structure view locates real page starts and opens their pagination reasons", async ({ page }) => {
+  await page.evaluate(() => {
+    const st = (window as any).__designer.getState();
+    st.setDoc({ ...st.doc,
+      datasets: [{ id: "items", source: "inline", query: { data: Array.from({ length: 120 }, (_, i) => ({ n: `Item ${i + 1}` })) } }],
+      sections: [{ type: "detail", children: [{ type: "table", id: "items-table", dataset: "items", columns: [{ id: "n", header: "Item", binding: "row.n" }] }] }],
+    });
+  });
+  await expect.poll(() => page.getByTestId("structure-page-thumb").count()).toBeGreaterThan(1);
+  await expect(page.getByTestId("structure-break-marker").first()).toBeVisible();
+  await page.getByTestId("structure-break-marker").first().locator("button").click();
+  await expect(page.getByTestId("structure-break-popover")).toContainText("Page 2");
+  await expect(page.getByTestId("structure-break-popover")).toContainText("Table");
+  await page.getByTestId("toggle-preview-split").click();
+  await expect(page.getByTestId("structure-preview-pane")).toBeVisible();
+  expect(await page.getByTestId("structure-preview-page").count()).toBe(await page.getByTestId("structure-page-thumb").count());
+  await expect(page.getByTestId("structure-preview-pane")).toContainText("Item 120");
+  await page.getByTestId("structure-page-thumb").nth(1).click();
+  await expect(page.getByTestId("view-pages")).toHaveClass(/on/);
+  await expect(page.getByTestId("page-2")).toBeVisible();
+});
