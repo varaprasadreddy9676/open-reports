@@ -1,0 +1,220 @@
+{
+  "schemaVersion": "1.0",
+  "id": "prescription",
+  "name": "Prescription",
+  "description": "Doctor's prescription with patient block, medicine table and signature area.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "rx",
+      "source": "inline",
+      "query": {
+        "data": {
+          "doctor": {
+            "name": "Dr. A. Smith",
+            "reg": "KMC 48213",
+            "clinic": "ACME Health Clinic, Bengaluru"
+          },
+          "patient": {
+            "name": "Sai Varaprasad",
+            "age": "31",
+            "sex": "Male",
+            "uhid": "UH12345",
+            "date": "2025-10-01"
+          },
+          "diagnosis": "Acute pharyngitis",
+          "medicines": [
+            {
+              "name": "Amoxicillin 500 mg",
+              "dose": "1-0-1",
+              "days": 5,
+              "notes": "After food"
+            },
+            {
+              "name": "Paracetamol 650 mg",
+              "dose": "SOS",
+              "days": 3,
+              "notes": "Max 3 per day"
+            },
+            {
+              "name": "Saline gargle",
+              "dose": "1-1-1",
+              "days": 5,
+              "notes": ""
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A5",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "appliesTo": "first",
+      "children": [
+        {
+          "type": "text",
+          "binding": "data.rx.doctor.name",
+          "style": {
+            "fontSize": 15,
+            "fontWeight": "bold",
+            "color": "#0f766e"
+          }
+        },
+        {
+          "type": "text",
+          "expression": "data.rx.doctor.reg + \" · \" + data.rx.doctor.clinic",
+          "style": {
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Prescription · \" + data.rx.patient.name",
+          "style": {
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "expression": "\"Patient: \" + data.rx.patient.name + \" (\" + data.rx.patient.age + \"/\" + data.rx.patient.sex + \")\"",
+              "width": "*",
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Date: \" + data.rx.patient.date",
+              "style": {
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "expression": "\"Diagnosis: \" + data.rx.diagnosis",
+          "style": {
+            "fontSize": 9
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Rx",
+          "style": {
+            "fontSize": 18,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "table",
+          "id": "medicines",
+          "dataset": "rx.medicines",
+          "columns": [
+            {
+              "id": "name",
+              "header": "Medicine",
+              "binding": "row.name",
+              "width": "*"
+            },
+            {
+              "id": "dose",
+              "header": "Dose",
+              "binding": "row.dose",
+              "width": 50
+            },
+            {
+              "id": "days",
+              "header": "Days",
+              "binding": "row.days",
+              "width": 36,
+              "align": "right"
+            },
+            {
+              "id": "notes",
+              "header": "Notes",
+              "binding": "row.notes",
+              "width": 90
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 40
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "line"
+            },
+            {
+              "type": "text",
+              "value": "Doctor's signature",
+              "style": {
+                "fontSize": 8,
+                "align": "right",
+                "color": "#6b7280"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
-import { buildFormat, checkExpression, conditionToExpression, describeFormula, expressionToCondition, OPERATORS, parseFormat, titleCase, type Condition } from "../lib/lowcode";
+import { buildCalc, CALC_OPS, parseCalc, buildFormat, checkExpression, conditionToExpression, describeFormula, expressionToCondition, OPERATORS, parseFormat, titleCase, type Condition } from "../lib/lowcode";
 import { candidatesFor, FUNCTION_CANDIDATES, type Candidate } from "../lib/bindings";
 import { datasetValue, inferFields, arrayRefs } from "../lib/fields";
 import { Icon } from "./Icon";
@@ -169,8 +169,73 @@ function ValueEditor({ comp, valueKey = "value" }: { comp: ops.Comp; valueKey?: 
           ))}
         </select>
       )}
-      {mode === "formula" && <FormulaInput value={comp.expression ?? ""} candidates={candidates} onChange={(v) => patch(comp.id, { expression: v })} />}
+      {mode === "formula" && <FormulaOrCalc comp={comp} candidates={candidates} />}
     </div>
+  );
+}
+
+function CalcBuilder({ expr, candidates, onChange }: { expr: string; candidates: Candidate[]; onChange: (v: string) => void }) {
+  const terms = parseCalc(expr) ?? [{ operand: "" }];
+  const fields = candidates.filter((c) => c.group !== "Functions" && c.group !== "Page");
+  const setTerm = (i: number, patchTerm: Partial<(typeof terms)[number]>) => onChange(buildCalc(terms.map((t, j) => (j === i ? { ...t, ...patchTerm } : t))));
+  return (
+    <div className="calc-builder" data-testid="calc-builder">
+      {terms.map((t, i) => (
+        <div key={i} className="calc-term">
+          {i > 0 && (
+            <select aria-label="Operator" value={t.op ?? "+"} onChange={(e) => setTerm(i, { op: e.target.value as any })}>
+              {CALC_OPS.map((o) => (
+                <option key={o.op} value={o.op}>{o.label}</option>
+              ))}
+            </select>
+          )}
+          <select
+            aria-label={`Operand ${i + 1}`}
+            value={fields.some((f) => f.value === t.operand) ? t.operand : "__number"}
+            onChange={(e) => setTerm(i, { operand: e.target.value === "__number" ? "0" : e.target.value })}
+          >
+            {fields.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+            <option value="__number">A number…</option>
+          </select>
+          {!fields.some((f) => f.value === t.operand) && (
+            <input aria-label={`Number ${i + 1}`} type="number" value={t.operand} onChange={(e) => setTerm(i, { operand: e.target.value === "" ? "0" : e.target.value })} />
+          )}
+          {terms.length > 1 && (
+            <button className="mini danger" aria-label="Remove term" onClick={() => onChange(buildCalc(terms.filter((_, j) => j !== i).map((x, j) => (j === 0 ? { operand: x.operand } : x))))}>
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      <button className="mini" data-testid="calc-add" onClick={() => onChange(buildCalc([...terms, { op: "+", operand: fields[0]?.value ?? "0" }]))}>
+        + Add
+      </button>
+    </div>
+  );
+}
+
+function FormulaOrCalc({ comp, candidates }: { comp: ops.Comp; candidates: Candidate[] }) {
+  const patch = useStore((s) => s.patch);
+  const expr = comp.expression ?? "";
+  const simple = parseCalc(expr) !== undefined && /[+\-*/]/.test(expr);
+  const [view, setView] = useState<"builder" | "formula">(simple ? "builder" : "formula");
+  const canBuild = parseCalc(expr) !== undefined || expr.trim() === "";
+  return (
+    <>
+      {canBuild && (
+        <div className="seg small" role="tablist" aria-label="Formula style">
+          <button role="tab" aria-selected={view === "builder"} className={view === "builder" ? "active" : ""} data-testid="calc-view-builder" onClick={() => setView("builder")}>Builder</button>
+          <button role="tab" aria-selected={view === "formula"} className={view === "formula" ? "active" : ""} data-testid="calc-view-formula" onClick={() => setView("formula")}>Formula</button>
+        </div>
+      )}
+      {view === "builder" && canBuild ? (
+        <CalcBuilder expr={expr} candidates={candidates} onChange={(v) => patch(comp.id, { expression: v })} />
+      ) : (
+        <FormulaInput value={expr} candidates={candidates} onChange={(v) => patch(comp.id, { expression: v })} />
+      )}
+    </>
   );
 }
 
@@ -352,20 +417,9 @@ function Appearance({ comp }: { comp: ops.Comp }) {
 
 function Advanced({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
-  const flag = (key: string, label: string) => (
-    <label className="check" key={key}>
-      <input type="checkbox" data-testid={`flag-${key}`} checked={!!comp[key]} onChange={(e) => patch(comp.id, { [key]: e.target.checked ? true : undefined })} />
-      {label}
-    </label>
-  );
   return (
     <Section title="Advanced" open={false}>
       <ConditionBuilder comp={comp} />
-      <div className="group-title small">Pagination</div>
-      {flag("keepTogether", "Keep together (never split across pages)")}
-      {flag("keepWithNext", "Keep with next element")}
-      {flag("pageBreakBefore", "Start on a new page")}
-      {flag("pageBreakAfter", "Page break after")}
       <div className="group-title small">Overflow</div>
       <Field label="When text is too long">
         <select aria-label="Overflow" value={comp.style?.overflow ?? ""} onChange={(e) => useStore.getState().patchStyle(comp.id, { overflow: e.target.value || undefined })}>
@@ -664,57 +718,276 @@ function ImageProps({ comp }: { comp: ops.Comp }) {
   );
 }
 
+function SpacingEditor({ comp, prop, label }: { comp: ops.Comp; prop: "margin" | "padding"; label: string }) {
+  const patchStyle = useStore((s) => s.patchStyle);
+  const raw = comp.style?.[prop];
+  const edges = typeof raw === "number" ? { top: raw, right: raw, bottom: raw, left: raw } : { top: 0, right: 0, bottom: 0, left: 0, ...(raw ?? {}) };
+  const set = (side: "top" | "right" | "bottom" | "left", v: number | undefined) => {
+    const next = { ...edges, [side]: v ?? 0 };
+    patchStyle(comp.id, { [prop]: Object.values(next).every((x) => x === 0) ? undefined : next });
+  };
+  return (
+    <div className="spacing">
+      <span className="field-label">{label}</span>
+      <div className="grid4">
+        {(["top", "right", "bottom", "left"] as const).map((side) => (
+          <input key={side} type="number" min={0} aria-label={`${label} ${side}`} title={side} placeholder={side[0]!.toUpperCase()} value={edges[side] || ""} onChange={(e) => set(side, e.target.value === "" ? undefined : Number(e.target.value))} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LayoutProps({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
   const isContainer = ["container", "row", "column", "grid", "repeater", "keepTogether"].includes(comp.type);
   const absolute = typeof comp.x === "number" || typeof comp.y === "number";
+  const parentLayout = ops.parentLayout(useStore.getState().doc, comp.id);
+  const flag = (key: string, label: string) => (
+    <label className="check" key={key}>
+      <input type="checkbox" data-testid={`flag-${key}`} checked={!!comp[key]} onChange={(e) => patch(comp.id, { [key]: e.target.checked ? true : undefined })} />
+      {label}
+    </label>
+  );
   return (
-    <Section title="Layout">
-      {isContainer && (
-        <Field label="Arrange children">
-          <select aria-label="Layout" value={comp.layout ?? (comp.type === "row" ? "row" : comp.type === "grid" ? "grid" : "flow")} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
-            <option value="flow">Stacked (flow)</option>
-            <option value="row">Side by side (row)</option>
-            <option value="grid">Grid</option>
-            <option value="absolute">Free position (absolute)</option>
-          </select>
-        </Field>
-      )}
-      {comp.type === "grid" && (
-        <Field label="Columns">
-          <Num label="Grid columns" min={1} value={comp.columns} onChange={(v) => patch(comp.id, { columns: v ?? 1 })} />
-        </Field>
-      )}
-      {comp.type === "repeater" && (
-        <Field label="Dataset">
-          <select aria-label="Repeater dataset" value={comp.dataset ?? ""} onChange={(e) => patch(comp.id, { dataset: e.target.value })}>
-            <option value="">Choose...</option>
-            {arrayRefs(useStore.getState().doc, useStore.getState().sample).map((r) => (
-              <option key={r}>{r}</option>
+    <>
+      <Section title="Layout">
+        {isContainer && (
+          <Field label="Arrange children">
+            <select aria-label="Layout" value={comp.layout ?? (comp.type === "row" ? "row" : comp.type === "grid" ? "grid" : "flow")} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
+              <option value="flow">Stacked (flow)</option>
+              <option value="row">Side by side (row)</option>
+              <option value="grid">Grid</option>
+              <option value="absolute">Free position (absolute)</option>
+            </select>
+          </Field>
+        )}
+        {comp.type === "grid" && (
+          <Field label="Columns">
+            <Num label="Grid columns" min={1} value={comp.columns} onChange={(v) => patch(comp.id, { columns: v ?? 1 })} />
+          </Field>
+        )}
+        {comp.type === "repeater" && (
+          <Field label="Dataset">
+            <select aria-label="Repeater dataset" value={comp.dataset ?? ""} onChange={(e) => patch(comp.id, { dataset: e.target.value })}>
+              <option value="">Choose...</option>
+              {arrayRefs(useStore.getState().doc, useStore.getState().sample).map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {isContainer && (
+          <>
+            <div className="grid2">
+              <Field label="Gap">
+                <Num label="Gap between children" min={0} value={comp.gap} onChange={(v) => patch(comp.id, { gap: v })} />
+              </Field>
+              <Field label="Align items">
+                <select aria-label="Align items" value={comp.alignItems ?? ""} onChange={(e) => patch(comp.id, { alignItems: e.target.value || undefined })}>
+                  <option value="">Default</option>
+                  {["start", "center", "end", "stretch"].map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <Field label="Distribute">
+              <select aria-label="Justify content" value={comp.justifyContent ?? ""} onChange={(e) => patch(comp.id, { justifyContent: e.target.value || undefined })}>
+                <option value="">Default</option>
+                {["start", "center", "end", "space-between", "space-around"].map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
+            </Field>
+          </>
+        )}
+        <div className="grid2">
+          <Field label="Width">
+            <Dim label="Width" value={comp.width} onChange={(v) => patch(comp.id, { width: v })} />
+          </Field>
+          <Field label="Height">
+            <Dim label="Height" value={comp.height} onChange={(v) => patch(comp.id, { height: v })} />
+          </Field>
+        </div>
+        {absolute && (
+          <div className="grid2">
+            <Field label="X">
+              <Num label="X position" value={typeof comp.x === "number" ? comp.x : undefined} onChange={(v) => patch(comp.id, { x: v })} />
+            </Field>
+            <Field label="Y">
+              <Num label="Y position" value={typeof comp.y === "number" ? comp.y : undefined} onChange={(v) => patch(comp.id, { y: v })} />
+            </Field>
+          </div>
+        )}
+        {!absolute && parentLayout === "absolute" && <button className="btn" onClick={() => patch(comp.id, { x: 0, y: 0 })}>Position freely</button>}
+        {!absolute && parentLayout === "absolute" ? null : absolute && (
+          <button className="btn" onClick={() => patch(comp.id, { x: undefined, y: undefined })}>Return to flow</button>
+        )}
+        <SpacingEditor comp={comp} prop="margin" label="Margin" />
+        <SpacingEditor comp={comp} prop="padding" label="Padding" />
+        {parentLayout === "row" && (
+          <Field label="Grow (share extra width)">
+            <Num label="Grow" min={0} value={comp.grow} onChange={(v) => patch(comp.id, { grow: v })} />
+          </Field>
+        )}
+      </Section>
+      <Section title="Size limits" open={false}>
+        <div className="grid2">
+          <Field label="Min width"><Dim label="Min width" value={comp.minWidth} onChange={(v) => patch(comp.id, { minWidth: v })} /></Field>
+          <Field label="Max width"><Dim label="Max width" value={comp.maxWidth} onChange={(v) => patch(comp.id, { maxWidth: v })} /></Field>
+          <Field label="Min height"><Dim label="Min height" value={comp.minHeight} onChange={(v) => patch(comp.id, { minHeight: v })} /></Field>
+          <Field label="Max height"><Dim label="Max height" value={comp.maxHeight} onChange={(v) => patch(comp.id, { maxHeight: v })} /></Field>
+        </div>
+      </Section>
+      <Section title="Page breaks" open={false}>
+        {flag("keepTogether", "Keep together (never split across pages)")}
+        {flag("keepWithNext", "Keep with next element")}
+        {comp.type === "text" && (
+          <div className="grid2">
+            <Field label="Min lines at top"><Num label="Minimum lines at top of page" min={0} value={comp.minLinesAtTop} onChange={(v) => patch(comp.id, { minLinesAtTop: v })} /></Field>
+            <Field label="Min lines at bottom"><Num label="Minimum lines at bottom of page" min={0} value={comp.minLinesAtBottom} onChange={(v) => patch(comp.id, { minLinesAtBottom: v })} /></Field>
+          </div>
+        )}
+        {flag("pageBreakBefore", "Start on a new page")}
+        {flag("pageBreakAfter", "Page break after")}
+      </Section>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ page masters
+const MASTER_ROWS: { kind: ops.MasterKind; label: string; hint: string }[] = [
+  { kind: "first", label: "First page", hint: "Letterhead on page 1, compact header afterwards" },
+  { kind: "standard", label: "Standard pages", hint: "Used on every page without a more specific master" },
+  { kind: "last", label: "Last page", hint: "Totals / signature footer on the final page" },
+  { kind: "odd", label: "Odd pages", hint: "Mirrored layouts for double-sided printing" },
+  { kind: "even", label: "Even pages", hint: "Mirrored layouts for double-sided printing" },
+];
+
+function PageMasters() {
+  const { doc } = useStore();
+  const setDoc = useStore((s) => s.setDoc);
+  const select = useStore((s) => s.select);
+  const set = useStore((s) => s.set);
+  const has = (type: "pageHeader" | "pageFooter", kind: ops.MasterKind) =>
+    (doc.sections ?? []).findIndex((x: any) => x.type === type && (kind === "standard" ? !x.appliesTo || x.appliesTo === "all" || x.appliesTo === "standard" : x.appliesTo === kind));
+  const open = (index: number) => {
+    const first = (doc.sections?.[index]?.children ?? [])[0];
+    set({ leftTab: "layers", leftOpen: true });
+    if (first) select([first.id]);
+  };
+  return (
+    <Section title="Headers & footers" open={false}>
+      <p className="muted small">Different headers and footers per page type, like a word processor — without duplicating the report.</p>
+      {(["pageHeader", "pageFooter"] as const).map((type) => (
+        <div key={type} className="masters" data-testid={`masters-${type}`}>
+          <div className="group-title small">{type === "pageHeader" ? "Header" : "Footer"}</div>
+          {MASTER_ROWS.map((r) => {
+            const idx = has(type, r.kind);
+            return (
+              <div key={r.kind} className="master-row" title={r.hint}>
+                <span className={idx >= 0 ? "" : "muted"}>{r.label}</span>
+                <span className="spacer" />
+                {idx >= 0 ? (
+                  <>
+                    <button className="mini" data-testid={`master-open-${type}-${r.kind}`} onClick={() => open(idx)}>Edit</button>
+                    {r.kind !== "standard" && (
+                      <button className="mini danger" aria-label={`Remove ${r.label} ${type}`} data-testid={`master-remove-${type}-${r.kind}`} onClick={() => setDoc(ops.removeSection(doc, idx))}>×</button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button className="mini" data-testid={`master-add-${type}-${r.kind}`} title="Start from a copy of the standard one" onClick={() => setDoc(ops.addMaster(doc, type, r.kind))}>+ Copy</button>
+                    <button className="mini" data-testid={`master-hide-${type}-${r.kind}`} title="Show nothing on these pages" onClick={() => setDoc(ops.addMaster(doc, type, r.kind, true))}>Hide</button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </Section>
+  );
+}
+
+const PRINT_PRESETS: { label: string; profile: Record<string, unknown>; page?: Record<string, unknown> }[] = [
+  { label: "Office printer (A4)", profile: { printerType: "document", language: "pdf", dpi: 300, safeMargin: 5 } },
+  { label: "Thermal receipt 80 mm", profile: { printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 80, height: 200, unit: "mm", orientation: "portrait" } },
+  { label: "Thermal receipt 58 mm", profile: { printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 58, height: 200, unit: "mm", orientation: "portrait" } },
+  { label: "Label 50 × 30 mm (ZPL 203 dpi)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 50, height: 30, unit: "mm", orientation: "landscape" } },
+  { label: "Label 100 × 50 mm (ZPL 300 dpi)", profile: { printerType: "label", language: "zpl", dpi: 300, safeMargin: 2 }, page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape" } },
+  { label: "Wristband 25 × 250 mm (ZPL)", profile: { printerType: "wristband", language: "zpl", dpi: 300, safeMargin: 1 }, page: { size: "custom", width: 25, height: 250, unit: "mm", orientation: "portrait" } },
+];
+
+function PrintProfilePanel() {
+  const { doc, engine } = useStore();
+  const setDoc = useStore((s) => s.setDoc);
+  const print = doc.print;
+  const pag = engine.paginated;
+  const mm = (pt: number) => (pt * 25.4) / 72;
+  const dpi = print?.dpi ?? 203;
+  const set = (p: Record<string, unknown>) => setDoc({ ...doc, print: { ...(doc.print ?? {}), ...p } }, { coalesce: "print" });
+  return (
+    <Section title="Print & labels" open={!!print}>
+      <Field label="Preset" wide>
+        <select
+          aria-label="Print preset"
+          data-testid="print-preset"
+          value=""
+          onChange={(e) => {
+            const preset = PRINT_PRESETS[Number(e.target.value)];
+            if (!preset) return;
+            setDoc({ ...doc, print: { ...(doc.print ?? {}), ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
+          }}
+        >
+          <option value="">Choose a printer / media…</option>
+          {PRINT_PRESETS.map((p, i) => (
+            <option key={p.label} value={i}>{p.label}</option>
+          ))}
+        </select>
+      </Field>
+      <div className="grid2">
+        <Field label="Printer type">
+          <select aria-label="Printer type" value={print?.printerType ?? ""} onChange={(e) => set({ printerType: e.target.value || undefined })}>
+            <option value="">Not set</option>
+            {["document", "label", "receipt", "card", "wristband"].map((o) => (
+              <option key={o}>{o}</option>
             ))}
           </select>
         </Field>
-      )}
-      <div className="grid2">
-        <Field label="Width">
-          <Dim label="Width" value={comp.width} onChange={(v) => patch(comp.id, { width: v })} />
+        <Field label="Language">
+          <select aria-label="Printer language" value={print?.language ?? ""} onChange={(e) => set({ language: e.target.value || undefined })}>
+            <option value="">PDF</option>
+            <option value="zpl">ZPL</option>
+            <option value="escpos">ESC/POS</option>
+          </select>
         </Field>
-        <Field label="Height">
-          <Dim label="Height" value={comp.height} onChange={(v) => patch(comp.id, { height: v })} />
+        <Field label="Resolution (dpi)">
+          <select aria-label="DPI" data-testid="print-dpi" value={print?.dpi ?? ""} onChange={(e) => set({ dpi: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Default</option>
+            {[152, 203, 300, 600].map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Safe margin (mm)">
+          <Num label="Safe margin" min={0} step={0.5} value={print?.safeMargin} onChange={(v) => set({ safeMargin: v })} />
         </Field>
       </div>
-      {absolute && (
-        <div className="grid2">
-          <Field label="X">
-            <Num label="X position" value={typeof comp.x === "number" ? comp.x : undefined} onChange={(v) => patch(comp.id, { x: v })} />
-          </Field>
-          <Field label="Y">
-            <Num label="Y position" value={typeof comp.y === "number" ? comp.y : undefined} onChange={(v) => patch(comp.id, { y: v })} />
-          </Field>
+      {pag && (
+        <div className="print-facts" data-testid="print-facts">
+          <div>Physical size <strong>{mm(pag.pageSize.width).toFixed(1)} × {mm(pag.pageSize.height).toFixed(1)} mm</strong></div>
+          <div>
+            At {dpi} dpi <strong>{Math.round((mm(pag.pageSize.width) / 25.4) * dpi)} × {Math.round((mm(pag.pageSize.height) / 25.4) * dpi)} dots</strong>
+          </div>
+          {print?.safeMargin ? <div>Keep content {print.safeMargin} mm from the edge (shown on the canvas)</div> : null}
         </div>
       )}
-      {!absolute && ops.parentLayout(useStore.getState().doc, comp.id) === "absolute" && (
-        <button className="btn" onClick={() => patch(comp.id, { x: 0, y: 0 })}>Position freely</button>
+      {print && (
+        <button className="btn" onClick={() => setDoc({ ...doc, print: undefined })}>
+          Remove print profile
+        </button>
       )}
     </Section>
   );
@@ -786,6 +1059,8 @@ function PageProps() {
           ))}
         </div>
       </Section>
+      <PageMasters />
+      <PrintProfilePanel />
       <Section title="Locale & theme" open={false}>
         <Field label="Locale">
           <input aria-label="Locale" value={doc.locale ?? ""} placeholder="en-US" onChange={(e) => setDoc({ ...doc, locale: e.target.value || undefined }, { coalesce: "locale" })} />
@@ -843,8 +1118,8 @@ function ComponentProps({ id }: { id: string }) {
     <>
       <div className="prop-head">
         <Icon name={t === "chart" ? `chart-${comp.chartType}` : t} />
-        <strong>{t}</strong>
-        <span className="muted small">{comp.id}</span>
+        <input className="name-input" data-testid="component-name" aria-label="Element name" placeholder={ops.layerName({ ...comp, name: undefined })} value={comp.name ?? ""} onChange={(e) => useStore.getState().rename(comp.id, e.target.value)} />
+        <span className="muted small">{t}</span>
         <span className="spacer" />
         <button className="mini" data-testid="open-in-code" title="Open this element in the code editor" onClick={() => useStore.getState().openCode(comp.id)}>
           {"</>"}

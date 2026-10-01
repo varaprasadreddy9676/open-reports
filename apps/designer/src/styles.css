@@ -1686,3 +1686,34 @@ kbd {
 .ctx-menu .danger { color: var(--danger); }
 .ctx-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
 .ctx-menu kbd { color: var(--muted); font-size: 11px; }
+
+/* ---------- redesign: layers & blocks */
+.layer { align-items: center; }
+.layer .layer-actions { margin-left: auto; display: none; gap: 2px; }
+.layer:hover .layer-actions, .layer.selected .layer-actions { display: inline-flex; }
+.layer .layer-btn { background: none; border: 0; font-size: 11px; padding: 0 2px; opacity: 0.6; }
+.layer .layer-btn.on { opacity: 1; }
+.layer.is-hidden .layer-name { opacity: 0.45; text-decoration: line-through; }
+.layer.pseudo { color: var(--muted); font-size: 12px; cursor: default; }
+.layer-rename { flex: 1; min-width: 0; font-size: 12px; padding: 1px 4px; }
+.block-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.block-item { flex: 1; display: flex; align-items: center; gap: 8px; text-align: left; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; }
+.block-item:hover { border-color: var(--accent); }
+
+/* ---------- redesign: properties */
+.name-input { flex: 1; min-width: 0; font-weight: 600; border: 1px solid transparent; background: transparent; padding: 2px 4px; border-radius: 4px; }
+.name-input:hover, .name-input:focus { border-color: var(--border); background: var(--panel-2); outline: none; }
+.calc-builder { display: flex; flex-direction: column; gap: 6px; }
+.calc-term { display: flex; gap: 4px; align-items: center; }
+.calc-term select, .calc-term input { min-width: 0; flex: 1; }
+.calc-term select:first-child:not(:only-child) { flex: 0 0 52px; }
+.seg.small button { padding: 2px 8px; font-size: 11px; }
+.spacing { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.spacing .grid4 input { width: 100%; text-align: center; }
+.master-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; font-size: 12px; }
+.print-facts { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; margin: 6px 0; }
+.print-facts strong { color: var(--text); }
+.safe-area { position: absolute; border: 1px dashed rgba(220, 38, 38, 0.5); pointer-events: none; }
+.zpl-warnings { margin: 0; padding: 8px 12px 8px 28px; background: #fffbeb; color: var(--warn); font-size: 12px; }
+.starter.blank { display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: default; }
+.starter-main { background: none; border: 0; text-align: left; padding: 0; display: flex; flex-direction: column; gap: 2px; color: inherit; }

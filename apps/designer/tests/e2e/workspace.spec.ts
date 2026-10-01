@@ -151,6 +151,108 @@ test.describe("canvas interactions", () => {
     await page.getByTestId("starter-account-statement").click();
     await page.getByTestId("left-tab-pages").click();
     await expect(page.getByTestId("page-thumb").first()).toBeVisible();
-    expect(await page.getByTestId("page-thumb").count()).toBeGreaterThan(1);
+    await expect.poll(() => page.getByTestId("page-thumb").count()).toBeGreaterThan(1);
+  });
+});
+
+test.describe("properties, masters, print, blocks", () => {
+  test("layers: rename, hide and lock rows; table shows header/detail/footer pseudo rows", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-invoice").click();
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId("layer-company").hover();
+    await page.getByTestId("hide-company").click();
+    expect((await doc(page)).sections[0].children[0].children[0].hidden).toBe(true);
+    await page.getByTestId("layer-company").dblclick();
+    await page.getByTestId("layer-rename").fill("Company name");
+    await page.getByTestId("layer-rename").press("Enter");
+    expect(JSON.stringify(await doc(page))).toContain('"name":"Company name"');
+    await expect(page.getByTestId("layers-tab")).toContainText("Header row");
+  });
+
+  test("layout inspector edits margin, padding and size limits; calculated-value builder writes the expression", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.getByTestId("palette-text").click();
+    await page.getByLabel("Margin top").fill("6");
+    await page.getByLabel("Padding left").fill("4");
+    const d = JSON.stringify(await doc(page));
+    expect(d).toContain('"margin":{"top":6');
+    expect(d).toContain('"padding":{"top":0,"right":0,"bottom":0,"left":4}');
+
+    await page.getByTestId("value-mode-formula").click();
+    await page.getByTestId("formula-input").fill("params.a * params.b");
+    await page.getByTestId("calc-view-builder").click();
+    await expect(page.getByTestId("calc-builder")).toBeVisible();
+    await page.getByTestId("calc-add").click();
+    expect(JSON.stringify(await doc(page))).toMatch(/params\.a \* params\.b [+] /);
+  });
+
+  test("page masters: different first page is added from the page panel", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-invoice").click();
+    await page.evaluate(() => (window as any).__designer.getState().select([]));
+    await page.getByRole("button", { name: /Headers & footers/ }).click();
+    await page.getByTestId("master-add-pageHeader-first").click();
+    const sections = (await doc(page)).sections;
+    expect(sections.some((s: any) => s.type === "pageHeader" && s.appliesTo === "first")).toBe(true);
+    await page.getByTestId("master-remove-pageHeader-first").click();
+    expect((await doc(page)).sections.some((s: any) => s.appliesTo === "first")).toBe(false);
+  });
+
+  test("print profile: preset sets page size and dpi; ZPL preview shows source and download", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.evaluate(() => (window as any).__designer.getState().select([]));
+    await page.getByRole("button", { name: /Print & labels/ }).click();
+    await page.getByTestId("print-preset").selectOption({ label: "Label 50 × 30 mm (ZPL 203 dpi)" });
+    const d = await doc(page);
+    expect(d.print).toMatchObject({ printerType: "label", language: "zpl", dpi: 203 });
+    expect(d.page.width).toBe(50);
+    await expect(page.getByTestId("print-facts")).toContainText("50.0 × 30.0 mm");
+    await page.getByTestId("palette-qr-code").click();
+    await page.getByTestId("mode-preview").click();
+    await page.getByTestId("preview-tab-zpl").click();
+    await expect(page.getByTestId("zpl-text")).toContainText("^XA");
+    await expect(page.getByTestId("zpl-info")).toContainText("203 dpi");
+  });
+
+  test("label starter: barcode too small gets a one-click fix", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-search").fill("pharmacy");
+    await page.getByTestId("starter-pharmacy-label").click();
+    await page.evaluate(() => {
+      const s = (window as any).__designer.getState();
+      s.patch("rx-qr", { width: 12, height: 12 });
+    });
+    await page.getByTestId("toggle-problems").click();
+    await expect(page.getByTestId("problems")).toContainText(/QR code .* should be at least/, { timeout: 8000 });
+    await page.getByTestId("problem-fix").first().click();
+    expect(JSON.stringify(await doc(page))).not.toContain('"width":12,"height":12');
+  });
+
+  test("My Components: save a selection as a reusable block and insert it again", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.getByTestId("palette-text").click();
+    await page.getByTestId("save-block").click();
+    await page.getByTestId("block-name").fill("Letterhead " + Date.now().toString(36));
+    await page.getByTestId("block-save").click();
+    await expect(page.getByTestId("my-components").locator(".block-item").first()).toBeVisible();
+    const before = (await doc(page)).sections[0].children.length;
+    await page.getByTestId("my-components").locator(".block-item").first().click();
+    expect((await doc(page)).sections[0].children.length).toBe(before + 1);
+  });
+
+  test("new-report dialog: size picker and template search", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("blank-size").selectOption({ label: "Receipt 58 mm" });
+    await page.getByTestId("starter-blank").click();
+    expect((await doc(page)).page.width).toBe(58);
+    await page.getByTestId("btn-more").click();
+    await page.getByTestId("btn-new").click();
+    await page.getByTestId("starter-search").fill("wristband");
+    await expect(page.getByTestId("starter-wristband")).toBeVisible();
+    await expect(page.getByTestId("starter-invoice")).toHaveCount(0);
   });
 });

@@ -1,0 +1,352 @@
+{
+  "schemaVersion": "1.0",
+  "id": "discharge-summary",
+  "name": "Discharge Summary",
+  "description": "Multi-page hospital discharge summary with first-page letterhead and repeating patient banner.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "adm",
+      "source": "inline",
+      "query": {
+        "data": {
+          "patient": {
+            "name": "Sai Varaprasad",
+            "age": "31 Y",
+            "sex": "Male",
+            "uhid": "UH12345",
+            "ward": "Ward 4B"
+          },
+          "admitted": "2025-09-28",
+          "discharged": "2025-10-01",
+          "doctor": "Dr. A. Smith",
+          "diagnosis": "Acute appendicitis - post laparoscopic appendicectomy",
+          "course": "Patient presented with right iliac fossa pain and fever. Ultrasound confirmed appendicitis. Underwent laparoscopic appendicectomy under general anaesthesia on 29 Sep. Post-operative course was uneventful. Oral intake resumed on day 1. Wounds healthy at discharge.",
+          "medicines": [
+            {
+              "name": "Cefuroxime 500 mg",
+              "dose": "1-0-1",
+              "days": 5
+            },
+            {
+              "name": "Paracetamol 650 mg",
+              "dose": "SOS",
+              "days": 5
+            },
+            {
+              "name": "Pantoprazole 40 mg",
+              "dose": "1-0-0",
+              "days": 7
+            }
+          ],
+          "followup": "Review in surgical OPD after 7 days with the histopathology report. Return immediately for fever, vomiting or wound discharge."
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "appliesTo": "first",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "ACME HOSPITAL",
+              "width": "*",
+              "style": {
+                "fontSize": 20,
+                "fontWeight": "bold",
+                "color": "#0f766e"
+              }
+            },
+            {
+              "type": "text",
+              "value": "Discharge Summary",
+              "style": {
+                "align": "right",
+                "fontSize": 12,
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "text",
+          "expression": "data.adm.patient.name + \" · UHID \" + data.adm.patient.uhid + \" · Discharge Summary\"",
+          "style": {
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Patient",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.patient.name",
+                      "style": {
+                        "fontWeight": "bold"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Age / Sex",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "expression": "data.adm.patient.age + \" / \" + data.adm.patient.sex"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Admitted",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.admitted"
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Discharged",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.discharged"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "text",
+          "value": "Diagnosis",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "text",
+          "binding": "data.adm.diagnosis"
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Hospital course",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "text",
+          "binding": "data.adm.course",
+          "minLinesAtTop": 2,
+          "minLinesAtBottom": 2
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Medicines on discharge",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "table",
+          "id": "discharge-meds",
+          "dataset": "adm.medicines",
+          "columns": [
+            {
+              "id": "name",
+              "header": "Medicine",
+              "binding": "row.name",
+              "width": "*"
+            },
+            {
+              "id": "dose",
+              "header": "Dose",
+              "binding": "row.dose",
+              "width": 60
+            },
+            {
+              "id": "days",
+              "header": "Days",
+              "binding": "row.days",
+              "width": 40,
+              "align": "right"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "text",
+              "value": "Follow-up",
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 11
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.adm.followup"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "appliesTo": "last",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "binding": "data.adm.doctor",
+              "width": "*",
+              "style": {
+                "fontSize": 9,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 8
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "value": "Signature and stamp",
+          "style": {
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

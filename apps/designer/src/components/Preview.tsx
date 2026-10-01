@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { findComponentsByType } from "@reporting/core";
 import { CsvRenderer } from "@reporting/renderer-csv";
+import { ZplRenderer } from "@reporting/renderer-zpl";
 import { useStore } from "../store";
 import { withSampleData } from "../engine";
 import { api } from "../lib/api";
@@ -209,12 +210,55 @@ function CsvPreview() {
   );
 }
 
+function ZplPreview() {
+  const { doc, engine } = useStore();
+  const [text, setText] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    (async () => {
+      if (!engine.resolved || !engine.resolvePageSection) return;
+      try {
+        const r = await new ZplRenderer().render({ resolved: engine.resolved, resolvePageSection: engine.resolvePageSection});
+        setText(String(r.content));
+        setWarnings(r.warnings.map((w) => w.message));
+        setError("");
+      } catch (e) {
+        setText("");
+        setError((e as Error).message);
+      }
+    })();
+  }, [engine, doc.print?.dpi]);
+  const pag = engine.paginated;
+  const mm = (pt: number) => ((pt * 25.4) / 72).toFixed(1);
+  return (
+    <div className="preview-pane">
+      <div className="preview-bar">
+        <span data-testid="zpl-info">
+          {pag ? `${mm(pag.pageSize.width)} × ${mm(pag.pageSize.height)} mm · ${doc.print?.dpi ?? 203} dpi · ${pag.pages.length} label${pag.pages.length === 1 ? "" : "s"}` : ""}
+        </span>
+        <span className="spacer" />
+        <button className="btn" data-testid="download-zpl" onClick={() => exportReport("zpl")}>Download .zpl</button>
+      </div>
+      {warnings.length > 0 && (
+        <ul className="zpl-warnings" role="alert" data-testid="zpl-warnings">
+          {warnings.map((w, i) => (
+            <li key={i}>{w}</li>
+          ))}
+        </ul>
+      )}
+      {error ? <div className="field-error big" role="alert">{error}</div> : <pre className="csv" data-testid="zpl-text">{text}</pre>}
+    </div>
+  );
+}
+
 export function Preview() {
-  const [tab, setTab] = useState<PreviewTab>("pdf");
+  const target = useStore((s) => s.target);
+  const [tab, setTab] = useState<PreviewTab>(target === "zpl" || target === "xlsx" || target === "csv" || target === "html" ? (target as PreviewTab) : "pdf");
   return (
     <div className="preview" data-testid="preview">
       <div className="tabs sub" role="tablist">
-        {(["pdf", "html", "xlsx", "csv"] as const).map((t) => (
+        {(["pdf", "html", "xlsx", "csv", "zpl"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`preview-tab-${t}`} onClick={() => setTab(t)}>
             {t.toUpperCase()}
           </button>
@@ -224,6 +268,7 @@ export function Preview() {
       {tab === "html" && <HtmlPreview />}
       {tab === "xlsx" && <XlsxPreview />}
       {tab === "csv" && <CsvPreview />}
+      {tab === "zpl" && <ZplPreview />}
     </div>
   );
 }

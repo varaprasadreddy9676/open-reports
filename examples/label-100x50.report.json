@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "1.0",
+  "id": "label-100x50",
+  "name": "Label 100x50mm",
+  "description": "Shipping-style label with a large title, address block and barcode.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "ship",
+      "source": "inline",
+      "query": {
+        "data": {
+          "to": "Sai Varaprasad",
+          "address": "12 MG Road, Bengaluru 560001",
+          "ref": "SHP-2025-0098",
+          "code": "SHP20250098"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 100,
+    "height": 50,
+    "unit": "mm",
+    "orientation": "landscape",
+    "margin": {
+      "top": 3,
+      "right": 4,
+      "bottom": 3,
+      "left": 4
+    }
+  },
+  "print": {
+    "name": "300 dpi label printer",
+    "printerType": "label",
+    "language": "zpl",
+    "dpi": 300,
+    "safeMargin": 2
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "value": "SHIP TO",
+          "style": {
+            "fontSize": 7,
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.ship.to",
+          "style": {
+            "fontSize": 16,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.ship.address",
+          "style": {
+            "fontSize": 10
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 4
+        },
+        {
+          "type": "barcode",
+          "id": "ship-barcode",
+          "value": "",
+          "expression": "data.ship.code",
+          "symbology": "code128",
+          "width": 250,
+          "height": 40
+        },
+        {
+          "type": "text",
+          "binding": "data.ship.ref",
+          "style": {
+            "fontSize": 8,
+            "align": "center"
+          }
+        }
+      ]
+    }
+  ]
+}

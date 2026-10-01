@@ -391,4 +391,209 @@ write("lab-report", base("lab-report", "Laboratory Report", "Patient block, resu
   ],
 }));
 
+// ---------------------------------------------------------------- label & healthcare starters
+const labelPage = (w, h, extra = {}) => ({ size: "custom", width: w, height: h, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 }, ...extra });
+const patientData = { name: "Sai Varaprasad", uhid: "UH12345", age: "31", sex: "M", dob: "1994-05-12", ward: "Ward 4B", bed: "12", doctor: "Dr. Smith", allergy: "Penicillin", admitted: "2025-10-01 09:40" };
+
+write("wristband", base("wristband", "Patient Wristband 25x250mm", "Long thin patient wristband: name, UHID, DOB and a scannable barcode.", {
+  datasets: [{ id: "patient", source: "inline", query: { data: patientData } }],
+  page: { size: "custom", width: 250, height: 25, unit: "mm", orientation: "landscape", margin: { top: 2, right: 4, bottom: 2, left: 4 } },
+  print: { name: "Zebra wristband", printerType: "wristband", language: "zpl", dpi: 300, safeMargin: 1 },
+  sections: [{ type: "detail", children: [
+    row([
+      col([B("data.patient.name", { style: { fontSize: 12, fontWeight: "bold" } }), X('"UHID " + data.patient.uhid + "   DOB " + data.patient.dob + "   " + data.patient.sex', { style: { fontSize: 8 } }), X('"Allergy: " + data.patient.allergy', { style: { fontSize: 8, fontWeight: "bold", color: "#b91c1c" } })], { width: "*" }),
+      { type: "barcode", id: "uhid-barcode", value: "", expression: "data.patient.uhid", symbology: "code128", width: 90, height: 18 },
+    ], { alignItems: "center", gap: 6 }),
+  ] }],
+}));
+
+write("pharmacy-label", base("pharmacy-label", "Pharmacy Label 50x30mm", "Medication label: drug, dose, patient, expiry and QR for dispensing records.", {
+  datasets: [{ id: "rx", source: "inline", query: { data: { drug: "Amoxicillin 500 mg", dose: "1 capsule every 8 hours after food", patient: "Sai Varaprasad", qty: "21 capsules", expiry: "2026-08", batch: "B2291", code: "RX-884201" } } }],
+  page: labelPage(50, 30),
+  print: { name: "Zebra ZD421 203dpi", printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 },
+  sections: [{ type: "detail", children: [
+    B("data.rx.drug", { style: { fontSize: 9, fontWeight: "bold" } }),
+    B("data.rx.dose", { style: { fontSize: 6.5 } }),
+    row([
+      col([B("data.rx.patient", { style: { fontSize: 7, fontWeight: "bold" } }), X('data.rx.qty + " · Exp " + data.rx.expiry', { style: { fontSize: 6 } }), X('"Batch " + data.rx.batch', { style: { fontSize: 6, ...muted } })], { width: "*" }),
+      { type: "qrcode", id: "rx-qr", value: "", expression: "data.rx.code", width: 34, height: 34 },
+    ], { gap: 4 }),
+  ] }],
+}));
+
+write("blood-bag-label", base("blood-bag-label", "Blood Bag Label 100x50mm", "Blood bag label with group, unit number barcode and expiry. Verify every field before use.", {
+  datasets: [{ id: "unit", source: "inline", query: { data: { group: "O POSITIVE", unit: "W0123 25 456789", component: "Packed Red Cells", collected: "2025-10-01", expiry: "2025-11-05", volume: "350 mL" } } }],
+  page: labelPage(100, 50, { margin: { top: 3, right: 4, bottom: 3, left: 4 } }),
+  print: { name: "Zebra ZT411 300dpi", printerType: "label", language: "zpl", dpi: 300, safeMargin: 2 },
+  sections: [{ type: "detail", children: [
+    row([B("data.unit.group", { width: "*", style: { fontSize: 22, fontWeight: "bold" } }), B("data.unit.component", { style: { fontSize: 9, align: "right" } })], { alignItems: "center" }),
+    { type: "barcode", id: "unit-barcode", value: "", expression: 'replace(data.unit.unit, " ", "")', symbology: "code128", width: 250, height: 40 },
+    B("data.unit.unit", { style: { fontSize: 9, align: "center" } }),
+    row([X('"Collected " + data.unit.collected', { width: "*", style: { fontSize: 8 } }), X('"Expiry " + data.unit.expiry', { style: { fontSize: 8, fontWeight: "bold", align: "right" } })]),
+    B("data.unit.volume", { style: { fontSize: 8, ...muted } }),
+  ] }],
+}));
+
+write("patient-id-card", base("patient-id-card", "Patient ID Card", "CR80 card (85.6x54mm) with patient photo placeholder, UHID and QR.", {
+  datasets: [{ id: "patient", source: "inline", query: { data: patientData } }],
+  page: { size: "custom", width: 85.6, height: 54, unit: "mm", orientation: "landscape", margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+  print: { name: "Card printer", printerType: "card", language: "pdf", dpi: 300, safeMargin: 2 },
+  sections: [{ type: "detail", children: [
+    T("ACME HEALTH", { style: { fontSize: 9, fontWeight: "bold", color: "#0f766e" } }),
+    row([
+      col([B("data.patient.name", { style: { fontSize: 11, fontWeight: "bold" } }), X('"UHID: " + data.patient.uhid', { style: { fontSize: 8 } }), X('"DOB: " + data.patient.dob + "  " + data.patient.sex', { style: { fontSize: 8 } })], { width: "*" }),
+      { type: "qrcode", id: "card-qr", value: "", expression: "data.patient.uhid", width: 52, height: 52 },
+    ], { gap: 6 }),
+  ] }],
+}));
+
+write("receipt-58mm", base("receipt-58mm", "Receipt 58mm", "Narrow thermal receipt with line items and total.", {
+  theme: { currency: "INR" },
+  datasets: [{ id: "sale", source: "inline", query: { data: { store: "ACME PHARMACY", number: "R-5521", date: "2025-10-01 16:40", items: [{ name: "Paracetamol 500", qty: 2, price: 24 }, { name: "ORS sachet", qty: 3, price: 18 }, { name: "Vitamin C", qty: 1, price: 95 }] } } }],
+  variables: [{ id: "total", scope: "report", expression: 'sumProduct(data.sale.items, "qty", "price")' }],
+  page: { size: "custom", width: 58, height: 160, unit: "mm", orientation: "portrait", margin: { top: 3, right: 3, bottom: 3, left: 3 } },
+  print: { name: "58mm thermal", printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 },
+  sections: [{ type: "detail", children: [
+    B("data.sale.store", { style: { fontSize: 10, fontWeight: "bold", align: "center" } }),
+    X('data.sale.number + "  " + data.sale.date', { style: { fontSize: 6, align: "center", ...muted } }),
+    line(),
+    { type: "table", id: "lines", dataset: "sale.items", showHeader: false, style: { fontSize: 7 }, columns: [
+      { id: "name", header: "Item", binding: "row.name", width: "*" },
+      { id: "qty", header: "Qty", binding: "row.qty", width: 14, align: "right" },
+      { id: "amt", header: "Amt", expression: "row.qty * row.price", format: "currency", width: 34, align: "right" },
+    ] },
+    line(),
+    row([T("TOTAL", { width: "*", style: { fontSize: 9, fontWeight: "bold" } }), X("vars.total", { format: "currency", style: { fontSize: 9, fontWeight: "bold", align: "right" } })]),
+    T("Thank you", { style: { fontSize: 6, align: "center", ...muted } }),
+  ] }],
+}));
+
+write("label-50x30", base("label-50x30", "Label 50x30mm", "Generic product / sample label: title, two lines of detail and a barcode.", {
+  datasets: [{ id: "item", source: "inline", query: { data: { title: "SAMPLE ITEM", line1: "Lot 2291  ·  Exp 2026-08", line2: "Store below 25 °C", code: "8901234567890" } } }],
+  page: labelPage(50, 30),
+  print: { name: "203 dpi label printer", printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 },
+  sections: [{ type: "detail", children: [
+    B("data.item.title", { style: { fontSize: 9, fontWeight: "bold" } }),
+    B("data.item.line1", { style: { fontSize: 6.5 } }),
+    B("data.item.line2", { style: { fontSize: 6, ...muted } }),
+    { type: "barcode", id: "item-barcode", value: "", expression: "data.item.code", symbology: "code128", width: 125, height: 30 },
+  ] }],
+}));
+
+write("label-100x50", base("label-100x50", "Label 100x50mm", "Shipping-style label with a large title, address block and barcode.", {
+  datasets: [{ id: "ship", source: "inline", query: { data: { to: "Sai Varaprasad", address: "12 MG Road, Bengaluru 560001", ref: "SHP-2025-0098", code: "SHP20250098" } } }],
+  page: labelPage(100, 50, { margin: { top: 3, right: 4, bottom: 3, left: 4 } }),
+  print: { name: "300 dpi label printer", printerType: "label", language: "zpl", dpi: 300, safeMargin: 2 },
+  sections: [{ type: "detail", children: [
+    T("SHIP TO", { style: { fontSize: 7, ...muted } }),
+    B("data.ship.to", { style: { fontSize: 16, fontWeight: "bold" } }),
+    B("data.ship.address", { style: { fontSize: 10 } }),
+    spacer(4),
+    { type: "barcode", id: "ship-barcode", value: "", expression: "data.ship.code", symbology: "code128", width: 250, height: 40 },
+    B("data.ship.ref", { style: { fontSize: 8, align: "center" } }),
+  ] }],
+}));
+
+write("prescription", base("prescription", "Prescription", "Doctor's prescription with patient block, medicine table and signature area.", {
+  datasets: [{ id: "rx", source: "inline", query: { data: {
+    doctor: { name: "Dr. A. Smith", reg: "KMC 48213", clinic: "ACME Health Clinic, Bengaluru" },
+    patient: { name: "Sai Varaprasad", age: "31", sex: "Male", uhid: "UH12345", date: "2025-10-01" },
+    diagnosis: "Acute pharyngitis",
+    medicines: [
+      { name: "Amoxicillin 500 mg", dose: "1-0-1", days: 5, notes: "After food" },
+      { name: "Paracetamol 650 mg", dose: "SOS", days: 3, notes: "Max 3 per day" },
+      { name: "Saline gargle", dose: "1-1-1", days: 5, notes: "" },
+    ],
+  } } }],
+  page: A4({ size: "A5" }),
+  sections: [
+    { type: "pageHeader", appliesTo: "first", children: [B("data.rx.doctor.name", { style: { fontSize: 15, fontWeight: "bold", color: "#0f766e" } }), X('data.rx.doctor.reg + " · " + data.rx.doctor.clinic', { style: { fontSize: 8, ...muted } }), line()] },
+    { type: "pageHeader", children: [X('"Prescription · " + data.rx.patient.name', { style: { fontSize: 8, ...muted } }), line()] },
+    { type: "detail", children: [
+      spacer(6),
+      row([X('"Patient: " + data.rx.patient.name + " (" + data.rx.patient.age + "/" + data.rx.patient.sex + ")"', { width: "*", style: bold }), X('"Date: " + data.rx.patient.date', { style: { align: "right" } })]),
+      X('"Diagnosis: " + data.rx.diagnosis', { style: { fontSize: 9 } }),
+      spacer(8),
+      T("Rx", { style: { fontSize: 18, fontWeight: "bold" } }),
+      { type: "table", id: "medicines", dataset: "rx.medicines", columns: [
+        { id: "name", header: "Medicine", binding: "row.name", width: "*" },
+        { id: "dose", header: "Dose", binding: "row.dose", width: 50 },
+        { id: "days", header: "Days", binding: "row.days", width: 36, align: "right" },
+        { id: "notes", header: "Notes", binding: "row.notes", width: 90 },
+      ] },
+      spacer(40),
+      { type: "keepTogether", children: [line(), T("Doctor's signature", { style: { fontSize: 8, align: "right", ...muted } })] },
+    ] },
+    footerPages(),
+  ],
+}));
+
+write("radiology-report", base("radiology-report", "Radiology Report", "Imaging report with findings kept with their headings and an impression at the end.", {
+  datasets: [{ id: "study", source: "inline", query: { data: {
+    patient: { name: "Sai Varaprasad", age: "31 Y", sex: "Male", uhid: "UH12345" },
+    exam: "X-ray chest PA view", date: "2025-10-01", radiologist: "Dr. R. Rao, MD Radiology",
+    sections: [
+      { heading: "Technique", text: "Single frontal chest radiograph obtained in erect position at full inspiration." },
+      { heading: "Findings", text: "Both lung fields are clear. No consolidation, effusion or pneumothorax. Cardiac silhouette is normal in size. Both costophrenic angles are sharp. Bony thorax and soft tissues are unremarkable." },
+    ],
+    impression: "No acute cardiopulmonary abnormality.",
+  } } }],
+  page: A4(),
+  sections: [
+    { type: "pageHeader", children: [row([T("ACME RADIOLOGY", { width: "*", style: { fontSize: 16, fontWeight: "bold", color: "#1d4ed8" } }), T("Radiology Report", { style: { align: "right", fontWeight: "bold" } })]), line()] },
+    { type: "detail", children: [
+      spacer(8),
+      row([X('"Patient: " + data.study.patient.name + " · " + data.study.patient.age + " / " + data.study.patient.sex', { width: "*", style: bold }), X('"UHID: " + data.study.patient.uhid')]),
+      row([B("data.study.exam", { width: "*" }), X('"Date: " + data.study.date', { style: { align: "right" } })]),
+      spacer(10),
+      { type: "repeater", id: "findings", dataset: "study.sections", children: [
+        { type: "keepTogether", children: [B("row.heading", { style: { fontWeight: "bold", fontSize: 11 }, keepWithNext: true }), B("row.text", { minLinesAtTop: 2, minLinesAtBottom: 2 }), spacer(6)] },
+      ] },
+      { type: "keepTogether", children: [T("Impression", { style: { fontWeight: "bold", fontSize: 11 } }), B("data.study.impression", { style: bold })] },
+    ] },
+    { type: "pageFooter", children: [row([B("data.study.radiologist", { width: "*", style: { fontSize: 8 } }), X('"Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 8 } })])] },
+  ],
+}));
+
+write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi-page hospital discharge summary with first-page letterhead and repeating patient banner.", {
+  datasets: [{ id: "adm", source: "inline", query: { data: {
+    patient: { name: "Sai Varaprasad", age: "31 Y", sex: "Male", uhid: "UH12345", ward: "Ward 4B" },
+    admitted: "2025-09-28", discharged: "2025-10-01", doctor: "Dr. A. Smith", diagnosis: "Acute appendicitis - post laparoscopic appendicectomy",
+    course: "Patient presented with right iliac fossa pain and fever. Ultrasound confirmed appendicitis. Underwent laparoscopic appendicectomy under general anaesthesia on 29 Sep. Post-operative course was uneventful. Oral intake resumed on day 1. Wounds healthy at discharge.",
+    medicines: [
+      { name: "Cefuroxime 500 mg", dose: "1-0-1", days: 5 },
+      { name: "Paracetamol 650 mg", dose: "SOS", days: 5 },
+      { name: "Pantoprazole 40 mg", dose: "1-0-0", days: 7 },
+    ],
+    followup: "Review in surgical OPD after 7 days with the histopathology report. Return immediately for fever, vomiting or wound discharge.",
+  } } }],
+  page: A4(),
+  sections: [
+    { type: "pageHeader", appliesTo: "first", children: [row([T("ACME HOSPITAL", { width: "*", style: { fontSize: 20, fontWeight: "bold", color: "#0f766e" } }), T("Discharge Summary", { style: { align: "right", fontSize: 12, fontWeight: "bold" } })]), line()] },
+    { type: "pageHeader", children: [X('data.adm.patient.name + " · UHID " + data.adm.patient.uhid + " · Discharge Summary"', { style: { fontSize: 8, ...muted } }), line()] },
+    { type: "detail", children: [
+      spacer(6),
+      row([
+        col([row([T("Patient", { width: 60, style: muted }), B("data.adm.patient.name", { style: bold })]), row([T("Age / Sex", { width: 60, style: muted }), X('data.adm.patient.age + " / " + data.adm.patient.sex')])], { width: "*" }),
+        col([row([T("Admitted", { width: 60, style: muted }), B("data.adm.admitted")]), row([T("Discharged", { width: 60, style: muted }), B("data.adm.discharged")])], { width: "*" }),
+      ]),
+      spacer(10),
+      T("Diagnosis", { style: { fontWeight: "bold", fontSize: 11 }, keepWithNext: true }), B("data.adm.diagnosis"),
+      spacer(8),
+      T("Hospital course", { style: { fontWeight: "bold", fontSize: 11 }, keepWithNext: true }), B("data.adm.course", { minLinesAtTop: 2, minLinesAtBottom: 2 }),
+      spacer(8),
+      T("Medicines on discharge", { style: { fontWeight: "bold", fontSize: 11 }, keepWithNext: true }),
+      { type: "table", id: "discharge-meds", dataset: "adm.medicines", columns: [
+        { id: "name", header: "Medicine", binding: "row.name", width: "*" },
+        { id: "dose", header: "Dose", binding: "row.dose", width: 60 },
+        { id: "days", header: "Days", binding: "row.days", width: 40, align: "right" },
+      ] },
+      spacer(8),
+      { type: "keepTogether", children: [T("Follow-up", { style: { fontWeight: "bold", fontSize: 11 } }), B("data.adm.followup")] },
+    ] },
+    { type: "pageFooter", appliesTo: "last", children: [row([B("data.adm.doctor", { width: "*", style: { fontSize: 9, fontWeight: "bold" } }), X('"Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 8 } })]), T("Signature and stamp", { style: { fontSize: 8, ...muted } })] },
+    footerPages(),
+  ],
+}));
+
 console.log("examples written to", out);

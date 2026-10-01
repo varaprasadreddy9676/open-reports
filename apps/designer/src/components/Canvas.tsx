@@ -502,6 +502,9 @@ export function Canvas() {
                 onDrop={(e) => onDrop(e, pi)}
               >
                 {view.margins && <div className="margin-guide" style={{ left: paginated.margin.left * k, top: paginated.margin.top * k, right: paginated.margin.right * k, bottom: paginated.margin.bottom * k }} />}
+                {view.margins && doc.print?.safeMargin ? (
+                  <div className="safe-area" title="Printer safe area" style={{ left: (doc.print.safeMargin / MM) * k, top: (doc.print.safeMargin / MM) * k, right: (doc.print.safeMargin / MM) * k, bottom: (doc.print.safeMargin / MM) * k }} />
+                ) : null}
                 {view.margins && <PageZones page={page} paginated={paginated} k={k} />}
                 {[...page.header, ...page.content, ...page.footer].map((n, i) => (
                   <NodeView key={i} node={n} k={k} />

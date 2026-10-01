@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0",
+  "id": "patient-id-card",
+  "name": "Patient ID Card",
+  "description": "CR80 card (85.6x54mm) with patient photo placeholder, UHID and QR.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "patient",
+      "source": "inline",
+      "query": {
+        "data": {
+          "name": "Sai Varaprasad",
+          "uhid": "UH12345",
+          "age": "31",
+          "sex": "M",
+          "dob": "1994-05-12",
+          "ward": "Ward 4B",
+          "bed": "12",
+          "doctor": "Dr. Smith",
+          "allergy": "Penicillin",
+          "admitted": "2025-10-01 09:40"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 85.6,
+    "height": 54,
+    "unit": "mm",
+    "orientation": "landscape",
+    "margin": {
+      "top": 4,
+      "right": 4,
+      "bottom": 4,
+      "left": 4
+    }
+  },
+  "print": {
+    "name": "Card printer",
+    "printerType": "card",
+    "language": "pdf",
+    "dpi": 300,
+    "safeMargin": 2
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "value": "ACME HEALTH",
+          "style": {
+            "fontSize": 9,
+            "fontWeight": "bold",
+            "color": "#0f766e"
+          }
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.patient.name",
+                  "style": {
+                    "fontSize": 11,
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"UHID: \" + data.patient.uhid",
+                  "style": {
+                    "fontSize": 8
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"DOB: \" + data.patient.dob + \"  \" + data.patient.sex",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "qrcode",
+              "id": "card-qr",
+              "value": "",
+              "expression": "data.patient.uhid",
+              "width": 52,
+              "height": 52
+            }
+          ],
+          "gap": 6
+        }
+      ]
+    }
+  ]
+}

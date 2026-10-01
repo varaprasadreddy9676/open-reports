@@ -38,6 +38,9 @@ importers:
       '@reporting/renderer-html':
         specifier: workspace:*
         version: link:../../packages/renderer-html
+      '@reporting/renderer-zpl':
+        specifier: workspace:*
+        version: link:../../packages/renderer-zpl
       '@reporting/schema':
         specifier: workspace:*
         version: link:../../packages/schema

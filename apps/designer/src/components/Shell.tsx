@@ -385,8 +385,22 @@ function Modal({ children, onClose, wide }: { children: React.ReactNode; onClose
   );
 }
 
+const DOC_SIZES: { label: string; page: Record<string, unknown> }[] = [
+  { label: "A4", page: { size: "A4", orientation: "portrait" } },
+  { label: "A4 landscape", page: { size: "A4", orientation: "landscape" } },
+  { label: "A5", page: { size: "A5", orientation: "portrait" } },
+  { label: "Letter", page: { size: "Letter", orientation: "portrait" } },
+  { label: "Receipt 80 mm", page: { size: "custom", width: 80, height: 200, unit: "mm", margin: { top: 3, right: 3, bottom: 3, left: 3 } } },
+  { label: "Receipt 58 mm", page: { size: "custom", width: 58, height: 160, unit: "mm", margin: { top: 3, right: 3, bottom: 3, left: 3 } } },
+  { label: "Label 40 × 25 mm", page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } },
+  { label: "Label 50 × 30 mm", page: { size: "custom", width: 50, height: 30, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } },
+  { label: "Label 100 × 50 mm", page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape", margin: { top: 3, right: 4, bottom: 3, left: 4 } } },
+];
+
 function NewDialog() {
   const set = useStore((s) => s.set);
+  const [q, setQ] = useState("");
+  const [size, setSize] = useState(0);
   const groups = ["Documents", "Healthcare", "Printing", "Data"] as const;
   const create = (doc: any) => {
     useStore.getState().loadDoc(doc);
@@ -396,20 +410,28 @@ function NewDialog() {
     <Modal wide onClose={() => set({ dialog: null })}>
       <h2>New report</h2>
       <div className="starter-actions">
-        <button className="starter blank" data-testid="starter-blank" onClick={() => create(blankReport())}>
-          <strong>Blank report</strong>
-          <span>Start from an empty A4 page</span>
-        </button>
+        <div className="starter blank">
+          <button className="starter-main" data-testid="starter-blank" onClick={() => create(DOC_SIZES[size]!.label === "A4" ? blankReport() : { ...blankReport(), page: { ...blankReport().page, ...DOC_SIZES[size]!.page } })}>
+            <strong>Blank report</strong>
+            <span>Start from an empty page</span>
+          </button>
+          <select aria-label="Blank page size" data-testid="blank-size" value={size} onChange={(e) => setSize(Number(e.target.value))}>
+            {DOC_SIZES.map((d, i) => (
+              <option key={d.label} value={i}>{d.label}</option>
+            ))}
+          </select>
+        </div>
         <button className="starter blank" data-testid="starter-json" onClick={() => set({ dialog: "generate" })}>
           <strong>From sample JSON</strong>
           <span>Paste data - fields, tables and layout are generated</span>
         </button>
       </div>
-      {groups.map((g) => (
+      <input className="search" data-testid="starter-search" placeholder="Search templates (invoice, label, wristband…)" aria-label="Search templates" value={q} onChange={(e) => setQ(e.target.value)} />
+      {groups.filter((g) => STARTERS.some((t) => t.group === g && `${t.name} ${t.description}`.toLowerCase().includes(q.toLowerCase()))).map((g) => (
         <div key={g}>
           <div className="group-title">{g}</div>
           <div className="starter-grid">
-            {STARTERS.filter((t) => t.group === g).map((t) => (
+            {STARTERS.filter((t) => t.group === g && `${t.name} ${t.description}`.toLowerCase().includes(q.toLowerCase())).map((t) => (
               <button
                 key={t.key}
                 className="starter"

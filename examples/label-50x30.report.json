@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1.0",
+  "id": "label-50x30",
+  "name": "Label 50x30mm",
+  "description": "Generic product / sample label: title, two lines of detail and a barcode.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "item",
+      "source": "inline",
+      "query": {
+        "data": {
+          "title": "SAMPLE ITEM",
+          "line1": "Lot 2291  ·  Exp 2026-08",
+          "line2": "Store below 25 °C",
+          "code": "8901234567890"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 50,
+    "height": 30,
+    "unit": "mm",
+    "orientation": "landscape",
+    "margin": {
+      "top": 1.5,
+      "right": 2,
+      "bottom": 1.5,
+      "left": 2
+    }
+  },
+  "print": {
+    "name": "203 dpi label printer",
+    "printerType": "label",
+    "language": "zpl",
+    "dpi": 203,
+    "safeMargin": 1.5
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "binding": "data.item.title",
+          "style": {
+            "fontSize": 9,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.item.line1",
+          "style": {
+            "fontSize": 6.5
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.item.line2",
+          "style": {
+            "fontSize": 6,
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "barcode",
+          "id": "item-barcode",
+          "value": "",
+          "expression": "data.item.code",
+          "symbology": "code128",
+          "width": 125,
+          "height": 30
+        }
+      ]
+    }
+  ]
+}

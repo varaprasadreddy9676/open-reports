@@ -1,0 +1,205 @@
+{
+  "schemaVersion": "1.0",
+  "id": "radiology-report",
+  "name": "Radiology Report",
+  "description": "Imaging report with findings kept with their headings and an impression at the end.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "study",
+      "source": "inline",
+      "query": {
+        "data": {
+          "patient": {
+            "name": "Sai Varaprasad",
+            "age": "31 Y",
+            "sex": "Male",
+            "uhid": "UH12345"
+          },
+          "exam": "X-ray chest PA view",
+          "date": "2025-10-01",
+          "radiologist": "Dr. R. Rao, MD Radiology",
+          "sections": [
+            {
+              "heading": "Technique",
+              "text": "Single frontal chest radiograph obtained in erect position at full inspiration."
+            },
+            {
+              "heading": "Findings",
+              "text": "Both lung fields are clear. No consolidation, effusion or pneumothorax. Cardiac silhouette is normal in size. Both costophrenic angles are sharp. Bony thorax and soft tissues are unremarkable."
+            }
+          ],
+          "impression": "No acute cardiopulmonary abnormality."
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "ACME RADIOLOGY",
+              "width": "*",
+              "style": {
+                "fontSize": 16,
+                "fontWeight": "bold",
+                "color": "#1d4ed8"
+              }
+            },
+            {
+              "type": "text",
+              "value": "Radiology Report",
+              "style": {
+                "align": "right",
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "expression": "\"Patient: \" + data.study.patient.name + \" · \" + data.study.patient.age + \" / \" + data.study.patient.sex",
+              "width": "*",
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"UHID: \" + data.study.patient.uhid"
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "binding": "data.study.exam",
+              "width": "*"
+            },
+            {
+              "type": "text",
+              "expression": "\"Date: \" + data.study.date",
+              "style": {
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "repeater",
+          "id": "findings",
+          "dataset": "study.sections",
+          "children": [
+            {
+              "type": "keepTogether",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "row.heading",
+                  "style": {
+                    "fontWeight": "bold",
+                    "fontSize": 11
+                  },
+                  "keepWithNext": true
+                },
+                {
+                  "type": "text",
+                  "binding": "row.text",
+                  "minLinesAtTop": 2,
+                  "minLinesAtBottom": 2
+                },
+                {
+                  "type": "spacer",
+                  "height": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "text",
+              "value": "Impression",
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 11
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.study.impression",
+              "style": {
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "binding": "data.study.radiologist",
+              "width": "*",
+              "style": {
+                "fontSize": 8
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 8
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

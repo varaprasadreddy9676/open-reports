@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "1.0",
+  "id": "wristband",
+  "name": "Patient Wristband 25x250mm",
+  "description": "Long thin patient wristband: name, UHID, DOB and a scannable barcode.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "patient",
+      "source": "inline",
+      "query": {
+        "data": {
+          "name": "Sai Varaprasad",
+          "uhid": "UH12345",
+          "age": "31",
+          "sex": "M",
+          "dob": "1994-05-12",
+          "ward": "Ward 4B",
+          "bed": "12",
+          "doctor": "Dr. Smith",
+          "allergy": "Penicillin",
+          "admitted": "2025-10-01 09:40"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 250,
+    "height": 25,
+    "unit": "mm",
+    "orientation": "landscape",
+    "margin": {
+      "top": 2,
+      "right": 4,
+      "bottom": 2,
+      "left": 4
+    }
+  },
+  "print": {
+    "name": "Zebra wristband",
+    "printerType": "wristband",
+    "language": "zpl",
+    "dpi": 300,
+    "safeMargin": 1
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.patient.name",
+                  "style": {
+                    "fontSize": 12,
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"UHID \" + data.patient.uhid + \"   DOB \" + data.patient.dob + \"   \" + data.patient.sex",
+                  "style": {
+                    "fontSize": 8
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Allergy: \" + data.patient.allergy",
+                  "style": {
+                    "fontSize": 8,
+                    "fontWeight": "bold",
+                    "color": "#b91c1c"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "barcode",
+              "id": "uhid-barcode",
+              "value": "",
+              "expression": "data.patient.uhid",
+              "symbology": "code128",
+              "width": 90,
+              "height": 18
+            }
+          ],
+          "alignItems": "center",
+          "gap": 6
+        }
+      ]
+    }
+  ]
+}

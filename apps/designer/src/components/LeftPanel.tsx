@@ -4,6 +4,7 @@ import * as ops from "../model/ops";
 import { datasetValue, inferFields, type FieldNode } from "../lib/fields";
 import { titleCase } from "../lib/lowcode";
 import { Icon } from "./Icon";
+import { api } from "../lib/api";
 
 interface PaletteItem {
   type: string;
@@ -41,6 +42,40 @@ export function insertFromPalette(item: PaletteItem) {
   s.addComponent(item.type, last, container ? "inside" : "after", item.overrides);
 }
 
+function BlocksSection({ q }: { q: string }) {
+  const blocks = useStore((s) => s.blocks);
+  const filtered = blocks.filter((b) => b.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="palette-group" data-testid="my-components">
+      <div className="group-title row-title">
+        My Components
+        <button className="mini" data-testid="save-block" title="Save the current selection as a reusable component" disabled={false} onClick={() => (useStore.getState().selection.length ? useStore.getState().set({ dialog: "block" }) : useStore.getState().toast("Select something on the canvas first"))}>
+          + Save selection
+        </button>
+      </div>
+      {filtered.length === 0 && <p className="muted small">Save headers, letterheads, signature blocks and totals once - reuse them in every report.</p>}
+      {filtered.map((b) => (
+        <div key={b.id} className="block-row">
+          <button className="block-item" data-testid={`block-${b.id}`} onClick={() => useStore.getState().insertBlock(b.id)}>
+            <Icon name="group" small />
+            <span>{b.name}</span>
+          </button>
+          <button
+            className="mini danger"
+            aria-label={`Delete ${b.name}`}
+            onClick={async () => {
+              await api.deleteBlock(b.id);
+              useStore.getState().loadBlocks();
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function InsertTab() {
   const [q, setQ] = useState("");
   const groups = useMemo(() => {
@@ -76,6 +111,7 @@ function InsertTab() {
           </div>
         </div>
       ))}
+      <BlocksSection q={q} />
       {groups.length === 0 && <p className="muted">No components match "{q}".</p>}
     </div>
   );
@@ -225,25 +261,28 @@ function DataTab() {
   }
 }
 
-function describe(c: any): string {
-  if (c.type === "text") return c.binding ?? c.expression ?? String(c.value ?? "").slice(0, 24);
-  if (c.type === "table") return c.dataset || "(no dataset)";
-  return c.id;
-}
-
 function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
   const selection = useStore((s) => s.selection);
+  const editingText = useStore((s) => s.editingText);
   const [open, setOpen] = useState(true);
   const kids = ops.CHILD_LISTS.flatMap((k) => (Array.isArray(comp[k]) ? (comp[k] as ops.Comp[]) : []));
   const selected = selection.includes(comp.id);
+  const renaming = editingText === comp.id;
+  const st = useStore.getState;
   return (
     <div>
       <div
-        className={`layer ${selected ? "selected" : ""}`}
+        className={`layer ${selected ? "selected" : ""} ${comp.hidden ? "is-hidden" : ""}`}
         style={{ paddingLeft: 8 + depth * 14 }}
-        draggable
+        draggable={!comp.locked}
         data-testid={`layer-${comp.id}`}
-        onClick={(e) => useStore.getState().select([comp.id], e.shiftKey)}
+        onClick={(e) => st().select([comp.id], e.shiftKey)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (!st().selection.includes(comp.id)) st().select([comp.id]);
+          st().set({ contextMenu: { x: e.clientX, y: e.clientY, id: comp.id } });
+        }}
+        onDoubleClick={() => st().set({ editingText: comp.id })}
         onDragStart={(e) => e.dataTransfer.setData("application/x-layer", comp.id)}
         onDragOver={(e) => e.dataTransfer.types.includes("application/x-layer") && e.preventDefault()}
         onDrop={(e) => {
@@ -254,15 +293,54 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           const rel = (e.clientY - rect.top) / rect.height;
           const isContainer = (ops.CONTAINER_TYPES as readonly string[]).includes(comp.type);
-          const s = useStore.getState();
+          const s = st();
           s.setDoc(ops.move(s.doc, id, comp.id, isContainer && rel > 0.3 && rel < 0.7 ? "inside" : rel < 0.5 ? "before" : "after"));
         }}
       >
-        <span className="twisty" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{kids.length ? (open ? "▾" : "▸") : ""}</span>
+        <span className="twisty" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{kids.length || comp.type === "table" ? (open ? "▾" : "▸") : ""}</span>
         <Icon name={comp.type} small />
-        <span className="layer-type">{comp.type}</span>
-        <span className="layer-name">{describe(comp)}</span>
+        {renaming ? (
+          <input
+            className="layer-rename"
+            data-testid="layer-rename"
+            autoFocus
+            defaultValue={comp.name ?? ops.layerName(comp)}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={(e) => (st().rename(comp.id, e.target.value.trim() === ops.layerName({ ...comp, name: undefined }) ? "" : e.target.value.trim()), st().set({ editingText: null }))}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") st().set({ editingText: null });
+            }}
+          />
+        ) : (
+          <span className="layer-name">{ops.layerName(comp)}</span>
+        )}
+        <span className="layer-actions">
+          <button className={`layer-btn ${comp.locked ? "on" : ""}`} aria-label={comp.locked ? "Unlock" : "Lock"} title={comp.locked ? "Unlock" : "Lock"} data-testid={`lock-${comp.id}`} onClick={(e) => (e.stopPropagation(), st().toggleLock(comp.id))}>
+            {comp.locked ? "🔒" : "🔓"}
+          </button>
+          <button className={`layer-btn ${comp.hidden ? "on" : ""}`} aria-label={comp.hidden ? "Show" : "Hide"} title={comp.hidden ? "Show" : "Hide"} data-testid={`hide-${comp.id}`} onClick={(e) => (e.stopPropagation(), st().toggleHide(comp.id))}>
+            {comp.hidden ? "🙈" : "👁"}
+          </button>
+        </span>
       </div>
+      {open && comp.type === "table" && (
+        <>
+          {[
+            comp.showHeader !== false ? "Header row" : null,
+            `Detail rows${comp.dataset ? ` · ${comp.dataset}` : ""}`,
+            comp.showFooter ? "Footer row" : null,
+          ]
+            .filter(Boolean)
+            .map((label) => (
+              <div key={label as string} className="layer pseudo" style={{ paddingLeft: 8 + (depth + 1) * 14 }} onClick={() => st().select([comp.id])}>
+                <span className="layer-type">▤</span>
+                <span className="layer-name muted">{label}</span>
+              </div>
+            ))}
+        </>
+      )}
       {open && kids.map((k) => <LayerRow key={k.id} comp={k} depth={depth + 1} />)}
     </div>
   );
@@ -274,7 +352,7 @@ function LayersTab() {
   const { doc } = useStore();
   const sections: any[] = doc.sections ?? [];
   return (
-    <div className="tab-body">
+    <div className="tab-body" data-testid="layers-tab">
       <div className="layer root">{doc.name}</div>
       {sections.map((s, i) => (
         <div key={i}>
@@ -295,12 +373,12 @@ function LayersTab() {
               st.setDoc(next);
             }}
           >
-            <span className="layer-type">{s.type}</span>
+            <span className="layer-type">{ops.sectionLabel(s)}</span>
             <span className="spacer" />
             <button
               className="mini danger"
               aria-label={`Remove ${s.type} section`}
-              onClick={() => useStore.getState().setDoc({ ...doc, sections: sections.filter((_, j) => j !== i) })}
+              onClick={() => useStore.getState().setDoc(ops.removeSection(doc, i))}
             >
               ×
             </button>
@@ -323,7 +401,7 @@ function LayersTab() {
         >
           <option value="">Choose...</option>
           {SECTION_TYPES.filter((t) => t === "detail" || !sections.some((s) => s.type === t)).map((t) => (
-            <option key={t}>{t}</option>
+            <option key={t} value={t}>{ops.sectionLabel({ type: t })}</option>
           ))}
         </select>
       </label>
@@ -360,7 +438,7 @@ export function LeftPanel() {
       <div className="tabs" role="tablist">
         {(["insert", "layers", "data", "pages"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`left-tab-${t}`} onClick={() => set({ leftTab: t })}>
-            {titleCase(t)}
+            {t === "insert" ? "Components" : titleCase(t)}
           </button>
         ))}
       </div>

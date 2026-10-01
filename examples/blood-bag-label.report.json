@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "1.0",
+  "id": "blood-bag-label",
+  "name": "Blood Bag Label 100x50mm",
+  "description": "Blood bag label with group, unit number barcode and expiry. Verify every field before use.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "unit",
+      "source": "inline",
+      "query": {
+        "data": {
+          "group": "O POSITIVE",
+          "unit": "W0123 25 456789",
+          "component": "Packed Red Cells",
+          "collected": "2025-10-01",
+          "expiry": "2025-11-05",
+          "volume": "350 mL"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 100,
+    "height": 50,
+    "unit": "mm",
+    "orientation": "landscape",
+    "margin": {
+      "top": 3,
+      "right": 4,
+      "bottom": 3,
+      "left": 4
+    }
+  },
+  "print": {
+    "name": "Zebra ZT411 300dpi",
+    "printerType": "label",
+    "language": "zpl",
+    "dpi": 300,
+    "safeMargin": 2
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "binding": "data.unit.group",
+              "width": "*",
+              "style": {
+                "fontSize": 22,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.unit.component",
+              "style": {
+                "fontSize": 9,
+                "align": "right"
+              }
+            }
+          ],
+          "alignItems": "center"
+        },
+        {
+          "type": "barcode",
+          "id": "unit-barcode",
+          "value": "",
+          "expression": "replace(data.unit.unit, \" \", \"\")",
+          "symbology": "code128",
+          "width": 250,
+          "height": 40
+        },
+        {
+          "type": "text",
+          "binding": "data.unit.unit",
+          "style": {
+            "fontSize": 9,
+            "align": "center"
+          }
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "expression": "\"Collected \" + data.unit.collected",
+              "width": "*",
+              "style": {
+                "fontSize": 8
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Expiry \" + data.unit.expiry",
+              "style": {
+                "fontSize": 8,
+                "fontWeight": "bold",
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "binding": "data.unit.volume",
+          "style": {
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

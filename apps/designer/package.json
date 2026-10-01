@@ -18,11 +18,12 @@
     "@reporting/layout": "workspace:*",
     "@reporting/renderer-csv": "workspace:*",
     "@reporting/renderer-html": "workspace:*",
+    "@reporting/renderer-zpl": "workspace:*",
     "@reporting/schema": "workspace:*",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zustand": "^5.0.1",
-    "qrcode": "^1.5.4"
+    "zustand": "^5.0.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

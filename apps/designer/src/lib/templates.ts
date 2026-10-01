@@ -23,6 +23,16 @@ const GROUPS: Record<string, StarterTemplate["group"]> = {
   "lab-report": "Healthcare",
   "specimen-label": "Printing",
   receipt: "Printing",
+  "receipt-58mm": "Printing",
+  "label-50x30": "Printing",
+  "label-100x50": "Printing",
+  "patient-id-card": "Printing",
+  wristband: "Healthcare",
+  "pharmacy-label": "Healthcare",
+  "blood-bag-label": "Healthcare",
+  prescription: "Healthcare",
+  "radiology-report": "Healthcare",
+  "discharge-summary": "Healthcare",
 };
 
 export const STARTERS: StarterTemplate[] = Object.entries(files)

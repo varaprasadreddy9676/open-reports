@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "1.0",
+  "id": "pharmacy-label",
+  "name": "Pharmacy Label 50x30mm",
+  "description": "Medication label: drug, dose, patient, expiry and QR for dispensing records.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "rx",
+      "source": "inline",
+      "query": {
+        "data": {
+          "drug": "Amoxicillin 500 mg",
+          "dose": "1 capsule every 8 hours after food",
+          "patient": "Sai Varaprasad",
+          "qty": "21 capsules",
+          "expiry": "2026-08",
+          "batch": "B2291",
+          "code": "RX-884201"
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 50,
+    "height": 30,
+    "unit": "mm",
+    "orientation": "landscape",
+    "margin": {
+      "top": 1.5,
+      "right": 2,
+      "bottom": 1.5,
+      "left": 2
+    }
+  },
+  "print": {
+    "name": "Zebra ZD421 203dpi",
+    "printerType": "label",
+    "language": "zpl",
+    "dpi": 203,
+    "safeMargin": 1.5
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "binding": "data.rx.drug",
+          "style": {
+            "fontSize": 9,
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.rx.dose",
+          "style": {
+            "fontSize": 6.5
+          }
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.rx.patient",
+                  "style": {
+                    "fontSize": 7,
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "data.rx.qty + \" · Exp \" + data.rx.expiry",
+                  "style": {
+                    "fontSize": 6
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Batch \" + data.rx.batch",
+                  "style": {
+                    "fontSize": 6,
+                    "color": "#6b7280"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "qrcode",
+              "id": "rx-qr",
+              "value": "",
+              "expression": "data.rx.code",
+              "width": 34,
+              "height": 34
+            }
+          ],
+          "gap": 4
+        }
+      ]
+    }
+  ]
+}

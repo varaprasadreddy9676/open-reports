@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "1.0",
+  "id": "receipt-58mm",
+  "name": "Receipt 58mm",
+  "description": "Narrow thermal receipt with line items and total.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "sale",
+      "source": "inline",
+      "query": {
+        "data": {
+          "store": "ACME PHARMACY",
+          "number": "R-5521",
+          "date": "2025-10-01 16:40",
+          "items": [
+            {
+              "name": "Paracetamol 500",
+              "qty": 2,
+              "price": 24
+            },
+            {
+              "name": "ORS sachet",
+              "qty": 3,
+              "price": 18
+            },
+            {
+              "name": "Vitamin C",
+              "qty": 1,
+              "price": 95
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "total",
+      "scope": "report",
+      "expression": "sumProduct(data.sale.items, \"qty\", \"price\")"
+    }
+  ],
+  "page": {
+    "size": "custom",
+    "width": 58,
+    "height": 160,
+    "unit": "mm",
+    "orientation": "portrait",
+    "margin": {
+      "top": 3,
+      "right": 3,
+      "bottom": 3,
+      "left": 3
+    }
+  },
+  "print": {
+    "name": "58mm thermal",
+    "printerType": "receipt",
+    "language": "pdf",
+    "dpi": 203,
+    "safeMargin": 2
+  },
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "text",
+          "binding": "data.sale.store",
+          "style": {
+            "fontSize": 10,
+            "fontWeight": "bold",
+            "align": "center"
+          }
+        },
+        {
+          "type": "text",
+          "expression": "data.sale.number + \"  \" + data.sale.date",
+          "style": {
+            "fontSize": 6,
+            "align": "center",
+            "color": "#6b7280"
+          }
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "table",
+          "id": "lines",
+          "dataset": "sale.items",
+          "showHeader": false,
+          "style": {
+            "fontSize": 7
+          },
+          "columns": [
+            {
+              "id": "name",
+              "header": "Item",
+              "binding": "row.name",
+              "width": "*"
+            },
+            {
+              "id": "qty",
+              "header": "Qty",
+              "binding": "row.qty",
+              "width": 14,
+              "align": "right"
+            },
+            {
+              "id": "amt",
+              "header": "Amt",
+              "expression": "row.qty * row.price",
+              "format": "currency",
+              "width": 34,
+              "align": "right"
+            }
+          ]
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "TOTAL",
+              "width": "*",
+              "style": {
+                "fontSize": 9,
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "vars.total",
+              "format": "currency",
+              "style": {
+                "fontSize": 9,
+                "fontWeight": "bold",
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "value": "Thank you",
+          "style": {
+            "fontSize": 6,
+            "align": "center",
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}
