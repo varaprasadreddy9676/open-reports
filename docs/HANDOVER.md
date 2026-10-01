@@ -82,6 +82,7 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - Pagination decision page numbers were corrected in `packages/layout/src/paginate.ts` for post-break and repeated group-header decisions. Previously they pointed one page ahead, which would misplace structure-canvas explanations. All 53 layout tests pass with added page-number assertions.
 - `lib/pagination-map.ts` maps page starts back to source bands, including dissolved table slices and repeated group headers. `StructurePagination.tsx` adds page thumbnails and source-band break explanations; `Canvas.tsx` can show the paginated sample beside the structure. The line marks which band a page starts within; for repeated data it is a symbolic source location rather than literal paper geometry. Designer unit and browser checks cover a 120-row table. PDF parity remains blocked by the shared-font-measurer gap.
 - Verification for this increment: package builds and designer typecheck passed; `pnpm -r test` passed with local PostgreSQL 16 and MySQL 8 test databases and Noto fonts supplied through `FONTS_DIR`; designer browser suite passed 56 tests with 5 skipped. The PDF watermark test requires Noto Sans Devanagari on this Mac, matching the CI font setup.
+- A 500-item continuous ESC/POS receipt is now checked on both 58 mm and 80 mm widths: every item remains in order, one cut command follows the receipt, and no renderer warnings are emitted. This verifies generated printer bytes, not a physical printer or spooler.
 
 ## 5. Next steps (do in this order)
 

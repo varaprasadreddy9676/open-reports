@@ -54,6 +54,22 @@ describe("EscPosRenderer", () => {
     expect(total.length).toBeGreaterThan(40);
   });
 
+  it.each([58, 80])("keeps all 500 items in order on a continuous %i mm receipt", async (width) => {
+    const doc = receipt(width, [{
+      type: "table", dataset: "s.items", columns: [
+        { id: "n", header: "Item", binding: "row.n", width: "*" },
+        { id: "q", header: "Qty", binding: "row.q", width: 30, align: "right" },
+      ],
+    }]);
+    doc.datasets[0]!.query.data.items = Array.from({ length: 500 }, (_, i) => ({ n: `Item${String(i).padStart(4, "0")}`, q: i + 1, p: 1 }));
+    const result = await render(doc);
+    const bytes = result.content as Buffer;
+    const printed = [...ascii(bytes).matchAll(/Item\d{4}/g)].map((match) => match[0]);
+    expect(printed).toEqual(Array.from({ length: 500 }, (_, i) => `Item${String(i).padStart(4, "0")}`));
+    expect(bytes.subarray(bytes.length - 4).equals(Buffer.from([0x1d, 0x56, 0x42, 0x00]))).toBe(true);
+    expect(result.warnings).toEqual([]);
+  });
+
   it("emits QR and Code 128 commands", async () => {
     const r = await render(receipt(80, [{ type: "qrcode", value: "https://x.test/1" }, { type: "barcode", value: "UH12345", symbology: "code128" }]));
     const b = r.content as Buffer;
