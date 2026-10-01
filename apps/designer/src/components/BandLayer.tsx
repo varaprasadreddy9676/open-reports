@@ -90,7 +90,7 @@ function InsertMenu({ band, onClose }: { band: StructureBand; onClose(): void })
     if (type === "groupHeader" || type === "groupFooter") {
       const g = (doc.groups ?? [])[0];
       if (!g) {
-        st.toast("Create a group first: Report Explorer → Groups → Add group", "info");
+        st.set({ dialog: "group", leftTab: "layers", leftOpen: true });
         return;
       }
       props.groupId = g.id;

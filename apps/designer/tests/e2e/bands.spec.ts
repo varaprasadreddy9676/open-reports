@@ -154,3 +154,49 @@ test("report explorer shows nested groups and reorders only valid bands", async 
   await page.getByTestId("explorer-add-band").selectOption("reportFooter");
   expect((await doc(page)).sections.at(-1).type).toBe("reportFooter");
 });
+
+test("group wizard creates nested levels with print rules and can remove one level", async ({ page }) => {
+  await page.evaluate(() => {
+    const st = (window as any).__designer.getState();
+    st.setDoc({ ...st.doc,
+      datasets: [{ id: "visits", source: "inline", query: { data: [{ dept: "A", doctor: "Rao" }, { dept: "A", doctor: "Das" }] } }],
+      groups: [],
+      sections: [{ type: "detail", dataset: "visits", children: [{ type: "text", id: "doctor", binding: "row.doctor" }] }],
+    });
+  });
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId("explorer-add-group").click();
+  await expect(page.getByTestId("group-wizard")).toBeVisible();
+  await expect(page.getByTestId("wizard-dataset")).toHaveValue("visits");
+  await page.getByTestId("wizard-field").selectOption("row.dept");
+  await page.getByTestId("wizard-name").fill("Department");
+  await page.getByTestId("wizard-repeat").check();
+  await page.getByTestId("wizard-new-page").selectOption("before");
+  await page.getByTestId("wizard-min-rows").fill("2");
+  await page.getByTestId("wizard-create").click();
+  expect((await doc(page)).groups[0]).toMatchObject({ name: "Department", dataset: "visits", by: "row.dept", repeatHeader: true, newPage: "before", minDetailRows: 2 });
+
+  await page.getByTestId("explorer-add-group").click();
+  await page.getByTestId("wizard-field").selectOption("row.doctor");
+  await page.getByTestId("wizard-name").fill("Doctor");
+  await page.getByTestId("wizard-sort").selectOption("desc");
+  await page.getByTestId("wizard-create").click();
+  const report = await doc(page);
+  expect(report.groups.map((g: any) => g.name)).toEqual(["Department", "Doctor"]);
+  expect(report.groups[1].sort).toBe("desc");
+  expect(report.sections.map((s: any) => s.type)).toEqual(["groupHeader", "groupHeader", "detail", "groupFooter", "groupFooter"]);
+  await expect(page.getByTestId(`explorer-group-${report.groups[1].id}`)).toBeVisible();
+
+  await page.getByTestId(`explorer-remove-group-${report.groups[1].id}`).click();
+  const after = await doc(page);
+  expect(after.groups).toHaveLength(1);
+  expect(after.sections.map((s: any) => s.type)).toEqual(["groupHeader", "detail", "groupFooter"]);
+});
+
+test("adding a group band with no group opens the wizard", async ({ page }) => {
+  await page.getByTestId("band-plus-0").click({ force: true });
+  await page.getByTestId("add-groupHeader").click();
+  await expect(page.getByTestId("group-wizard")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  expect((await doc(page)).groups ?? []).toHaveLength(0);
+});

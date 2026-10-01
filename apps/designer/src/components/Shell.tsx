@@ -6,6 +6,7 @@ import { generateReportFromJson } from "../lib/generate";
 import { insertFromPalette, PALETTE_ITEMS } from "./LeftPanel";
 import { exportReport } from "./Preview";
 import { DatasetEditor } from "./DatasetEditor";
+import { GroupWizard } from "./GroupWizard";
 import { SaveBlockDialogBody } from "./CanvasTools";
 import { CompareDialogBody } from "./CompareDialog";
 import { AiSettingsBody } from "./AiBar";
@@ -696,6 +697,12 @@ export function Dialogs() {
     return (
       <Modal wide onClose={() => set({ dialog: null })}>
         <DatasetEditor key={useStore.getState().editingDataset ?? "new"} />
+      </Modal>
+    );
+  if (dialog === "group")
+    return (
+      <Modal onClose={() => set({ dialog: null })}>
+        <GroupWizard />
       </Modal>
     );
   return null;

@@ -22,9 +22,9 @@ Thesis: Open Reports had a page/component designer; it must become a true **repo
 4. Draggable margins + guides — **DONE** (margins on rulers, click-ruler-to-add-guide, drag/delete guides, persistent in `report.guides`; named guides UI missing)
 5. Grid / snap / smart guides / dimension lines — **PARTIAL** (grid lines/dots/hidden, snap to guides + sibling edges + equal-distance labels existed; major/minor grid sizes, per-snap toggles, equal-spacing guides missing)
 6. Section resize / collapse / reorder — **DONE** (ruler edge drag, double-click fit, caret collapse, tab drag-reorder with order validation, "+" insertion)
-7. Report explorer — **PARTIAL (2026-10-01)** (`LeftPanel.tsx` now shows nested group order, all active band types, component layers and actions, band selection/collapse/add/reorder through `ops`; group wizard and richer group-to-band nesting remain)
+7. Report explorer — **PARTIAL (2026-10-01)** (`LeftPanel.tsx` now shows nested group order, group add/remove, all active band types, component layers and actions, band selection/collapse/add/reorder through `ops`; richer group-to-band nesting remains)
 8. Report/page/group/data headers+footers — **engine DONE**, designer UI only via "+" menu
-9. Group designer (wizard, nested groups) — **ops DONE (`addGroup/updateGroup/removeGroup`), UI NOT DONE**
+9. Group designer (wizard, nested groups) — **DONE (2026-10-01)** (`GroupWizard.tsx` selects an array dataset and field/expression, print rules, header/footer; uses `ops.addGroup`; the explorer adds/removes levels)
 10. Section-Expert style properties panel — **DONE (2026-10-01)** (`BandProps.tsx` opens when a band is selected; all principal schema fields, group settings, and band actions are editable)
 11. Table designer (merge/spans/multi-level headers) — NOT DONE (also GAP P2-3, task #17)
 12. Real pagination visualization on the canvas — NOT DONE on structure canvas (a decisions log + Pagination bottom panel exist for pages view)
@@ -78,15 +78,16 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - ESC/POS long-receipt review: the renderer emits all resolved rows and cuts once at the end, but table cells truncate to their allotted width; no automated long-bill or physical-printer test exists. PDF uses fixed-height pages.
 - A 500-row synthetic 80 mm ESC/POS receipt produced 24,116 bytes, contained all 500 SKU identifiers, and ended with a cut command. The rendered first row showed its long product name truncated; physical printer/spooler behavior remains unverified.
 - Replaced the old 5-type "Add section" list with a report explorer in `LeftPanel.tsx`: nested group names, band rows that open Section Expert, collapse, add and drag-reorder guarded by `ops.moveBand`, plus existing component rename/hide/lock/drag actions. Browser checks cover valid and invalid reorder, group hierarchy, selection, and adding a band.
+- Added `GroupWizard.tsx` and connected it to the explorer and group-band insertion. It discovers array datasets and sample fields, accepts a formula, and sets name, sort, optional header/footer, repeat header, page break, keep together, and minimum detail rows. Creating a second group makes an inner level; group removal keeps the detail band. Unit and browser checks cover this flow.
 
 ## 5. Next steps (do in this order)
 
-### D2-C (was in progress; nothing uncommitted)
-1. **Section-Expert panel** — new `components/BandProps.tsx`, wired in `Properties.tsx` `Properties()`: when `selection.length===0 && selectedBand!==null` render it (before `PageProps`). Fields: name, dataset (detail), group (group header/footer), `appliesTo` (page bands), height/minHeight, checkboxes for `newPageBefore/After, keepTogether, keepWithNext, keepWithPrevious, allowSplit, printAtBottom, suppressWhenBlank, repeatEveryPage (group header)`, `visibleWhen` (reuse `FormulaInput`/`ConditionBuilder` from Properties.tsx), layout/gap/align/columns, actions: duplicate/delete/move up/down (`ops.duplicateBand/removeSection/moveBand`). Write via `ops.updateBand` (it deletes falsy booleans). Also show the owning group's settings (`ops.updateGroup`). Use existing `Section/Field/Num` helpers (they are file-local — export or move to a shared file).
-2. **Report Explorer** — replace `LayersTab` in `components/LeftPanel.tsx`: tree = Report → Groups (nested, add/remove) → Bands (code chip + `ops.bandDisplayName`, drag to reorder using `ops.canMoveBand`, click selects via `set({selectedBand})`, eye/lock/collapse) → components under each band (existing `LayerRow`). Keep the `data-testid="section-<type>"` hooks that existing e2e specs use, or update those specs. Remove the old `SECTION_TYPES` "Add section" select in favour of `ops.addBand`.
-3. **Group wizard** — dialog/inline form: dataset select, field chosen from `inferFields(datasetValue(doc,sample,dataset))` (see `lib/fields.ts`) or free expression, name, sort, header/footer toggles, repeat header, new page, keep together, min detail rows → `ops.addGroup`. The band "+" menu currently toasts "Create a group first" when no groups exist; link it to this wizard.
-4. **Pagination visualization on the structure canvas** — page-boundary lines computed from a real paginate of the same report overlaid on the structure (map via `band.instance`/`BandMeta`), plus a "why" popover from `engine.paginated.decisions` (decision kinds in `packages/layout/src/types.ts`). Add page thumbnails strip and a design/preview split using the real pipeline.
-5. e2e: Section-Expert edits write to doc; group wizard creates nested groups; explorer drag-reorder honours order rules; run full suites.
+### D2-C
+1. **Section Expert** — implemented and verified in `BandProps.tsx` (2026-10-01). Remaining refinement: reuse the shared formula editor rather than the local expression input.
+2. **Report Explorer** — implemented for group order, add/remove, band and component layers, and band reorder (2026-10-01). Remaining refinement: show bands inside their owning group node and add band-level visibility/lock semantics.
+3. **Group wizard** — implemented in `GroupWizard.tsx` with nested levels and print settings (2026-10-01).
+4. **Pagination visualization on the structure canvas** — next: page-boundary lines computed from a real paginate of the same report overlaid on the structure (map via `band.instance`/`BandMeta`), plus a "why" popover from `engine.paginated.decisions` (decision kinds in `packages/layout/src/types.ts`). Add page thumbnails strip and a design/preview split using the real pipeline.
+5. e2e: Section-Expert edits, nested group wizard, and explorer reorder are covered; add full designer-only report construction with repeated headers, page variants, noData and totals, then run full suites.
 
 ### D2-D
 6. **Table designer**: colSpan/rowSpan (schema + layout + renderers + XLSX merge; task #17, GAP P2-3), multi-level headers, merge/split UI.

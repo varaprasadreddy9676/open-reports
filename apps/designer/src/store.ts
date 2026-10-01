@@ -99,7 +99,7 @@ interface State {
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "palette" | "generate" | "compare" | "block";
+  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;

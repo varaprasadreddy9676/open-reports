@@ -385,6 +385,11 @@ function GroupTree({ groups, index = 0 }: { groups: any[]; index?: number }) {
       <span className="layer-name">{group.name ?? group.id}</span>
       <span className="spacer" />
       <span className="muted small">{group.by}</span>
+      <button className="mini danger" aria-label={`Remove group ${group.name ?? group.id}`} data-testid={`explorer-remove-group-${group.id}`} onClick={() => {
+        const st = useStore.getState();
+        st.setDoc(ops.removeGroup(st.doc, group.id));
+        st.set({ selectedBand: null, selection: [] });
+      }}>×</button>
     </div>
     <GroupTree groups={groups} index={index + 1} />
   </div>;
@@ -397,7 +402,7 @@ function ReportExplorer() {
     const st = useStore.getState();
     const props: Record<string, any> = {};
     if (type === "groupHeader" || type === "groupFooter") {
-      if (!(st.doc.groups ?? []).length) return st.toast("Add a group before adding its header or footer", "info");
+      if (!(st.doc.groups ?? []).length) return st.set({ dialog: "group" });
       props.groupId = st.doc.groups[0].id;
     }
     if (type === "child") {
@@ -412,8 +417,10 @@ function ReportExplorer() {
   return (
     <div className="tab-body" data-testid="layers-tab">
       <div className="layer root">{doc.name}</div>
+      <div className="group-title row-title">Groups (outer to inner)
+        <button className="mini" data-testid="explorer-add-group" onClick={() => useStore.getState().set({ dialog: "group" })}>+ Add</button>
+      </div>
       {(doc.groups ?? []).length > 0 && <>
-        <div className="group-title">Groups (outer to inner)</div>
         <GroupTree groups={doc.groups} />
       </>}
       <div className="group-title">Bands</div>

@@ -23,6 +23,13 @@ describe("band insertion keeps the report in reading order", () => {
     expect(types(d)).toEqual(["groupHeader:department", "groupHeader:doctor", "detail", "groupFooter:doctor", "groupFooter:department"]);
     expect(d.groups.map((g: any) => g.id)).toEqual(["department", "doctor"]);
   });
+  it("addGroup keeps wizard print settings on the correct nested level", () => {
+    const outer = ops.addGroup(base(), { dataset: "d", by: "row.dept", name: "Department", repeatHeader: true, newPage: "before", minDetailRows: 2 });
+    const inner = ops.addGroup(outer.doc, { dataset: "d", by: "row.doctor", name: "Doctor", sort: "desc", keepTogether: true });
+    expect(inner.doc.groups[0]).toMatchObject({ id: outer.groupId, repeatHeader: true, newPage: "before", minDetailRows: 2 });
+    expect(inner.doc.groups[1]).toMatchObject({ id: inner.groupId, sort: "desc", keepTogether: true });
+    expect(types(inner.doc)).toEqual([`groupHeader:${outer.groupId}`, `groupHeader:${inner.groupId}`, "detail", `groupFooter:${inner.groupId}`, `groupFooter:${outer.groupId}`]);
+  });
 
   it("addGroup on a report without a detail band also creates the detail band; ids stay unique", () => {
     let d = base();
