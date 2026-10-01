@@ -101,6 +101,13 @@ export function createFormatFunctions(locale: string, currency: string): Record<
   };
 }
 
+function pluck(arr: unknown, field: unknown): number[] {
+  const key = toStr(field);
+  return toArray(arr).map((item) =>
+    toNumber(item && typeof item === "object" ? (item as Record<string, unknown>)[key] : item)
+  );
+}
+
 export const aggregationFunctions: Record<string, ExpressionFunction> = {
   sum: (arr) => toArray(arr).reduce<number>((acc, v) => acc + toNumber(v), 0),
   avg: (arr) => {
@@ -112,6 +119,16 @@ export const aggregationFunctions: Record<string, ExpressionFunction> = {
   count: (arr) => toArray(arr).length,
   first: (arr) => toArray(arr)[0],
   last: (arr) => toArray(arr)[toArray(arr).length - 1],
+  // *By variants aggregate one field across an array of row objects, since the
+  // expression language has no map/lambda syntax to project a field itself
+  // (e.g. sumBy(data.items, "amount") instead of sum(data.items.amount)).
+  sumBy: (arr, field) => pluck(arr, field).reduce((a, b) => a + b, 0),
+  avgBy: (arr, field) => {
+    const values = pluck(arr, field);
+    return values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length;
+  },
+  minBy: (arr, field) => Math.min(...pluck(arr, field)),
+  maxBy: (arr, field) => Math.max(...pluck(arr, field)),
 };
 
 export function buildDefaultFunctions(options?: { locale?: string; currency?: string }): Record<string, ExpressionFunction> {

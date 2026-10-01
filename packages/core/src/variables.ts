@@ -1,0 +1,56 @@
+import type { VariableDefinition } from "@reporting/schema";
+import type { ExpressionEngine } from "@reporting/expressions";
+import type { ResolveContext } from "./context.js";
+
+/** Evaluates every report-scoped variable once, over the full dataset context.
+ * Report-scope variables typically aggregate an already-flat numeric dataset
+ * (e.g. `sum(data.amounts)`); row/group-level totals should instead be
+ * expressed as row/group variables or table column footer aggregates. */
+export function computeReportVariables(
+  definitions: VariableDefinition[],
+  engine: ExpressionEngine,
+  ctx: ResolveContext
+): Record<string, unknown> {
+  return evaluateAll(definitions.filter((v) => v.scope === "report"), engine, ctx);
+}
+
+/** Row-scope variables are evaluated once per row, in document order, with
+ * `vars` pre-seeded from the running accumulator so an expression can
+ * reference its own previous value (`vars.runningBalance + row.amount`),
+ * enabling running-total/running-balance patterns. The accumulator is
+ * mutated in place and returned for convenience. */
+export function evaluateRowVariables(
+  definitions: VariableDefinition[],
+  engine: ExpressionEngine,
+  ctx: ResolveContext,
+  accumulator: Record<string, unknown>
+): Record<string, unknown> {
+  const rowVars = definitions.filter((v) => v.scope === "row");
+  for (const def of rowVars) {
+    accumulator[def.id] = engine.evaluate(def.expression, { ...ctx, vars: accumulator });
+  }
+  return accumulator;
+}
+
+/** Group-scope variables are evaluated once per group instance, with the
+ * group's own rows substituted in place of the full dataset under the given
+ * dataset id, so `sum(data.items)` aggregates only that group's rows. */
+export function computeGroupVariables(
+  definitions: VariableDefinition[],
+  engine: ExpressionEngine,
+  ctx: ResolveContext,
+  datasetId: string | undefined,
+  groupRows: unknown[]
+): Record<string, unknown> {
+  const groupVars = definitions.filter((v) => v.scope === "group");
+  const data = datasetId ? { ...ctx.data, [datasetId]: groupRows } : ctx.data;
+  return evaluateAll(groupVars, engine, { ...ctx, data });
+}
+
+function evaluateAll(definitions: VariableDefinition[], engine: ExpressionEngine, ctx: ResolveContext): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const def of definitions) {
+    result[def.id] = engine.evaluate(def.expression, { ...ctx, vars: { ...ctx.vars, ...result } });
+  }
+  return result;
+}
