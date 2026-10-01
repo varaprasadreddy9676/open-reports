@@ -1,12 +1,36 @@
 import { create } from "zustand";
 import * as ops from "./model/ops";
 import type { Comp, Doc } from "./model/ops";
-import { runEngine, type EngineResult } from "./engine";
+import { runEngine, type EngineResult, type Capabilities } from "./engine";
+import { diffDocs, summarize } from "./lib/diff";
 import { blankReport } from "./lib/templates";
 import { api, ApiError } from "./lib/api";
 
-export type Mode = "design" | "code" | "preview";
-export type LeftTab = "insert" | "data" | "layers";
+export type Mode = "design" | "data" | "code" | "preview";
+export type LeftTab = "insert" | "layers" | "data" | "pages";
+export type BottomPanel = null | "problems" | "pagination" | "history";
+export type SaveState = "saved" | "saving" | "dirty" | "error";
+
+export interface HistoryEntry {
+  doc: Doc;
+  label: string;
+  at: number;
+}
+
+export interface ViewOptions {
+  grid: boolean;
+  rulers: boolean;
+  guides: boolean;
+  margins: boolean;
+  boundaries: boolean;
+  diagnostics: boolean;
+}
+
+export interface Block {
+  id: string;
+  name: string;
+  children: Comp[];
+}
 
 export interface TemplateMeta {
   id?: string;
@@ -35,8 +59,8 @@ interface State {
   parameters: Record<string, unknown>;
   selection: string[];
   clipboard: Comp[];
-  past: Doc[];
-  future: Doc[];
+  past: HistoryEntry[];
+  future: HistoryEntry[];
   lastCoalesce: { key: string; at: number } | null;
   mode: Mode;
   leftTab: LeftTab;
@@ -44,14 +68,24 @@ interface State {
   showGrid: boolean;
   snap: boolean;
   showRulers: boolean;
+  view: ViewOptions;
+  split: boolean;
+  bottom: BottomPanel;
+  target: string;
+  sampleRows: number;
+  saveState: SaveState;
+  capabilities?: Capabilities;
+  blocks: Block[];
+  editingText: string | null;
+  contextMenu: { x: number; y: number; id?: string } | null;
+  compareVersion: number | null;
   leftOpen: boolean;
   rightOpen: boolean;
-  problemsOpen: boolean;
   engine: EngineResult;
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "open" | "new" | "settings" | "dataset" | "palette" | "generate";
+  dialog: null | "open" | "new" | "settings" | "dataset" | "palette" | "generate" | "compare" | "block";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;
@@ -80,6 +114,16 @@ interface State {
   publish(): Promise<void>;
   openTemplate(id: string): Promise<void>;
   openCode(id: string): void;
+  groupSelected(): void;
+  ungroupSelected(): void;
+  toggleLock(id?: string): void;
+  toggleHide(id?: string): void;
+  rename(id: string, name: string): void;
+  restore(index: number): void;
+  loadCapabilities(): Promise<void>;
+  loadBlocks(): Promise<void>;
+  saveBlock(name: string): Promise<void>;
+  insertBlock(id: string): void;
 }
 
 let toastId = 1;
@@ -87,6 +131,33 @@ let engineRun = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 const DRAFT_KEY = "designer.draft";
+const CLIP_KEY = "designer.clipboard";
+
+function saveClipboard(comps: Comp[]) {
+  try {
+    localStorage.setItem(CLIP_KEY, JSON.stringify(comps));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function loadClipboard(): Comp[] {
+  try {
+    return JSON.parse(localStorage.getItem(CLIP_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+let autosave: ReturnType<typeof setTimeout> | undefined;
+/** Drafts are always kept locally; saved templates are autosaved to the server a few seconds after the last edit. */
+function scheduleAutosave() {
+  clearTimeout(autosave);
+  autosave = setTimeout(() => {
+    const s = useStore.getState();
+    if (s.meta.id && s.meta.dirty && s.meta.status !== "published") s.save();
+  }, 4000);
+}
 
 function persistDraft(doc: Doc, sample: Record<string, unknown>) {
   try {
@@ -110,7 +181,7 @@ export const useStore = create<State>((set, get) => ({
   sample: {},
   parameters: {},
   selection: [],
-  clipboard: [],
+  clipboard: loadClipboard(),
   past: [],
   future: [],
   lastCoalesce: null,
@@ -120,9 +191,19 @@ export const useStore = create<State>((set, get) => ({
   showGrid: false,
   snap: true,
   showRulers: false,
+  view: { grid: false, rulers: false, guides: true, margins: true, boundaries: false, diagnostics: true },
+  split: false,
+  bottom: null,
+  target: "pdf",
+  sampleRows: 0,
+  saveState: "saved",
+  capabilities: undefined,
+  blocks: [],
+  editingText: null,
+  contextMenu: null,
+  compareVersion: null,
   leftOpen: true,
   rightOpen: true,
-  problemsOpen: true,
   engine: { problems: [] },
   engineBusy: false,
   meta: { dirty: false },
@@ -137,21 +218,23 @@ export const useStore = create<State>((set, get) => ({
     if (doc === s.doc) return;
     const now = Date.now();
     const coalesce = opts.coalesce && s.lastCoalesce && s.lastCoalesce.key === opts.coalesce && now - s.lastCoalesce.at < 900;
-    const past = coalesce ? s.past : [...s.past, s.doc].slice(-100);
+    const past = coalesce ? s.past : [...s.past, { doc: s.doc, label: summarize(diffDocs(s.doc, doc)), at: now }].slice(-100);
     set({
       doc,
       past,
       future: [],
       lastCoalesce: opts.coalesce ? { key: opts.coalesce, at: now } : null,
       meta: { ...s.meta, dirty: true },
+      saveState: "dirty",
     });
     persistDraft(doc, s.sample);
     get().refresh();
+    scheduleAutosave();
   },
 
   loadDoc(doc, meta = {}, sample = {}) {
     const d = ops.ensureIds(doc);
-    set({ doc: d, sample, selection: [], past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null });
+    set({ doc: d, sample, selection: [], past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved" });
     persistDraft(d, sample);
     get().refresh();
   },
@@ -160,7 +243,8 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     const prev = s.past[s.past.length - 1];
     if (!prev) return;
-    set({ doc: prev, past: s.past.slice(0, -1), future: [s.doc, ...s.future], lastCoalesce: null, meta: { ...s.meta, dirty: true } });
+    set({ doc: prev.doc, past: s.past.slice(0, -1), future: [{ doc: s.doc, label: prev.label, at: Date.now() }, ...s.future], lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: "dirty" });
+    persistDraft(prev.doc, s.sample);
     get().refresh();
   },
 
@@ -168,7 +252,8 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     const next = s.future[0];
     if (!next) return;
-    set({ doc: next, past: [...s.past, s.doc], future: s.future.slice(1), lastCoalesce: null, meta: { ...s.meta, dirty: true } });
+    set({ doc: next.doc, past: [...s.past, { doc: s.doc, label: next.label, at: Date.now() }], future: s.future.slice(1), lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: "dirty" });
+    persistDraft(next.doc, s.sample);
     get().refresh();
   },
 
@@ -220,6 +305,7 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     const comps = s.selection.map((id) => ops.find(s.doc, id)?.comp).filter(Boolean) as Comp[];
     set({ clipboard: structuredClone(comps) });
+    saveClipboard(comps);
     if (comps.length) get().toast(`Copied ${comps.length} element${comps.length > 1 ? "s" : ""}`);
   },
 
@@ -298,8 +384,8 @@ export const useStore = create<State>((set, get) => ({
     timer = setTimeout(async () => {
       const run = ++engineRun;
       set({ engineBusy: true });
-      const { doc, sample, parameters } = get();
-      const result = await runEngine(doc, sample, parameters);
+      const { doc, sample, parameters, sampleRows, target, capabilities } = get();
+      const result = await runEngine(doc, sample, parameters, { sampleRows, target, capabilities });
       if (run === engineRun) {
         // On a schema/engine error keep showing the last good render, with fresh problems alongside it.
         const prev = get().engine;
@@ -310,6 +396,7 @@ export const useStore = create<State>((set, get) => ({
 
   async save() {
     const s = get();
+    set({ saveState: "saving" });
     try {
       const id = s.meta.id ?? s.doc.id;
       let rec;
@@ -322,9 +409,10 @@ export const useStore = create<State>((set, get) => ({
           else throw e;
         }
       }
-      set({ meta: { id: rec.id, version: rec.currentVersion, status: rec.status, dirty: false } });
+      set({ meta: { id: rec.id, version: rec.currentVersion, status: rec.status, dirty: false }, saveState: "saved" });
       get().toast(`Saved as version ${rec.currentVersion}`, "success");
     } catch (e) {
+      set({ saveState: "error" });
       get().toast((e as Error).message, "error");
     }
   },
@@ -356,5 +444,100 @@ export const useStore = create<State>((set, get) => ({
 
   openCode(id) {
     set({ mode: "code", codeFocus: { id, nonce: Date.now() } });
+  },
+
+  groupSelected() {
+    const s = get();
+    if (s.selection.length < 2) return;
+    const r = ops.group(s.doc, s.selection);
+    if (!r.id) return get().toast("Select elements that share the same parent to group them");
+    get().setDoc(r.doc);
+    set({ selection: [r.id] });
+  },
+
+  ungroupSelected() {
+    const s = get();
+    const id = s.selection[0];
+    if (!id) return;
+    const r = ops.ungroup(s.doc, id);
+    if (r.ids.length) {
+      get().setDoc(r.doc);
+      set({ selection: r.ids });
+    }
+  },
+
+  toggleLock(id) {
+    const s = get();
+    for (const t of id ? [id] : s.selection) {
+      const c = ops.find(get().doc, t)?.comp;
+      if (c) get().setDoc(ops.setLocked(get().doc, [t], !c.locked));
+    }
+  },
+
+  toggleHide(id) {
+    const s = get();
+    for (const t of id ? [id] : s.selection) {
+      const c = ops.find(get().doc, t)?.comp;
+      if (c) get().setDoc(ops.setHidden(get().doc, [t], !c.hidden));
+    }
+  },
+
+  rename(id, name) {
+    get().setDoc(ops.update(get().doc, id, { name: name || undefined }));
+  },
+
+  restore(index) {
+    const s = get();
+    const entry = s.past[index];
+    if (!entry) return;
+    get().setDoc(entry.doc);
+    get().toast("Restored an earlier state - Undo brings back your latest edits");
+  },
+
+  async loadCapabilities() {
+    try {
+      set({ capabilities: await api.capabilities() });
+      get().refresh();
+    } catch {
+      /* server unavailable: capability checks are skipped */
+    }
+  },
+
+  async loadBlocks() {
+    try {
+      set({ blocks: (await api.listBlocks()) as Block[] });
+    } catch {
+      /* ignore */
+    }
+  },
+
+  async saveBlock(name) {
+    const s = get();
+    const comps = s.selection.map((id) => ops.find(s.doc, id)?.comp).filter(Boolean) as Comp[];
+    if (!comps.length) return;
+    try {
+      await api.putBlock(name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "block", name, structuredClone(comps));
+      await get().loadBlocks();
+      get().toast(`Saved "${name}" to My Components`, "success");
+    } catch (e) {
+      get().toast((e as Error).message, "error");
+    }
+  },
+
+  insertBlock(id) {
+    const s = get();
+    const b = s.blocks.find((x) => x.id === id);
+    if (!b) return;
+    let doc = s.doc;
+    let target = s.selection[s.selection.length - 1];
+    const ids: string[] = [];
+    for (const c of b.children) {
+      const copy = ops.reId(doc, structuredClone(c));
+      doc = ops.insert(doc, copy, target, "after");
+      target = copy.id;
+      ids.push(copy.id);
+    }
+    get().setDoc(doc);
+    set({ selection: ids });
   },
 }));

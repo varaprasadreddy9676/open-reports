@@ -188,7 +188,7 @@ test.describe("editing", () => {
     await page.getByTestId("value-mode-formula").click();
     const input = page.getByTestId("formula-input");
     await input.fill('upper(data.invoice.customer.na');
-    await expect(page.getByRole("option").first()).toContainText("data.invoice.customer.name");
+    await expect(page.getByRole("listbox").getByRole("option").first()).toContainText("data.invoice.customer.name");
     await page.keyboard.press("Enter");
     await input.type(")");
     await expect(page.getByTestId("canvas")).toContainText("SAI VARAPRASAD");
@@ -278,6 +278,7 @@ test.describe("data, code and problems", () => {
       const s = (window as any).__designer.getState();
       s.patch(s.selection[0], { dataset: "orderss" });
     });
+    await page.getByTestId("toggle-problems").click();
     await expect(page.getByTestId("problem-error").first()).toContainText(/orderss/);
     await page.evaluate(() => (window as any).__designer.getState().select([]));
     await page.getByTestId("problem-error").first().click();

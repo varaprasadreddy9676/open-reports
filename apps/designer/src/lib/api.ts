@@ -108,7 +108,19 @@ export const api = {
   async deleteTemplate(id: string): Promise<void> {
     await request(`/api/v1/templates/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
-  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv"): Promise<{ blob: Blob; renderId: string | null }> {
+  async capabilities(): Promise<{ formats: { id: string; supports: string[] }[]; fonts: string[]; scriptFonts: Record<string, string>; secrets: string[] }> {
+    return (await request("/api/v1/capabilities")).json();
+  },
+  async listBlocks(): Promise<{ id: string; name: string; children: any[] }[]> {
+    return (await request("/api/v1/blocks")).json();
+  },
+  async putBlock(id: string, name: string, children: unknown[]): Promise<void> {
+    await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ name, children }) });
+  },
+  async deleteBlock(id: string): Promise<void> {
+    await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "zpl"): Promise<{ blob: Blob; renderId: string | null }> {
     const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format }) });
     return { blob: await res.blob(), renderId: res.headers.get("x-render-id") };
   },

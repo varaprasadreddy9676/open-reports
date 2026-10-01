@@ -291,3 +291,98 @@ export function rowDatasetAt(doc: Doc, id: string | undefined): string | undefin
   }
   return undefined;
 }
+
+/** Wraps sibling components (same list) in a container; the container takes the first one's slot. */
+export function group(doc: Doc, ids: string[]): { doc: Doc; id?: string } {
+  const locs = ids.map((id) => find(doc, id)).filter(Boolean) as Located[];
+  if (locs.length < 1) return { doc };
+  const first = locs[0]!;
+  if (!locs.every((l) => l.list === first.list || l.parent === first.parent)) return { doc };
+  const next = clone(doc);
+  const f = find(next, first.comp.id)!;
+  const members = ids.map((id) => find(next, id)!).filter(Boolean);
+  const sorted = [...members].sort((a, b) => a.index - b.index);
+  const container: Comp = { id: genId(next, "container"), type: "container", children: sorted.map((m) => m.comp) };
+  for (const m of [...sorted].reverse()) m.list.splice(m.index, 1);
+  const slot = Math.min(f.index, f.list.length);
+  f.list.splice(slot, 0, container);
+  return { doc: next, id: container.id };
+}
+
+export function ungroup(doc: Doc, id: string): { doc: Doc; ids: string[] } {
+  const loc = find(doc, id);
+  if (!loc || !Array.isArray(loc.comp.children)) return { doc, ids: [] };
+  const next = clone(doc);
+  const l = find(next, id)!;
+  const kids: Comp[] = l.comp.children ?? [];
+  l.list.splice(l.index, 1, ...kids);
+  return { doc: next, ids: kids.map((k) => k.id) };
+}
+
+export type MasterKind = "first" | "last" | "odd" | "even" | "standard";
+
+export function masterSections(doc: Doc, type: "pageHeader" | "pageFooter") {
+  return (doc.sections ?? []).map((s: any, index: number) => ({ s, index })).filter((x: any) => x.s.type === type);
+}
+
+/** Adds a page master (a header or footer that applies to first/last/odd/even/standard pages). */
+export function addMaster(doc: Doc, type: "pageHeader" | "pageFooter", appliesTo: MasterKind, empty = false): Doc {
+  const next = clone(doc);
+  next.sections ??= [];
+  if (next.sections.some((s: any) => s.type === type && s.appliesTo === appliesTo)) return doc;
+  const standard = next.sections.find((s: any) => s.type === type && (!s.appliesTo || s.appliesTo === "all" || s.appliesTo === "standard"));
+  const children = empty || !standard ? [] : clone(standard.children).map((c: Comp) => reId(next, c));
+  // headers go before the detail section, footers after it, so the layer tree reads like the page
+  const section = { type, appliesTo, children };
+  const detail = next.sections.findIndex((s: any) => s.type === "detail");
+  if (type === "pageHeader") next.sections.splice(detail < 0 ? 0 : detail, 0, section);
+  else next.sections.push(section);
+  return next;
+}
+
+export function removeSection(doc: Doc, index: number): Doc {
+  const next = clone(doc);
+  next.sections.splice(index, 1);
+  return next;
+}
+
+export function sectionLabel(s: { type: string; appliesTo?: string }): string {
+  const base: Record<string, string> = {
+    reportHeader: "Report header",
+    pageHeader: "Page header",
+    detail: "Body",
+    pageFooter: "Page footer",
+    reportFooter: "Report footer",
+    groupHeader: "Group header",
+    groupFooter: "Group footer",
+  };
+  const name = base[s.type] ?? s.type;
+  return s.appliesTo && s.appliesTo !== "all" ? `${name} · ${s.appliesTo} page${s.appliesTo === "standard" ? "s" : ""}`.replace("first pages", "first page") : name;
+}
+
+/** Friendly layer name: explicit name, else something meaningful from the content. */
+export function layerName(c: Comp): string {
+  if (c.name) return c.name;
+  if (c.type === "text") {
+    const t = c.binding ?? c.expression ?? String(c.value ?? "");
+    return t.length > 28 ? `${t.slice(0, 26)}…` : t || "Text";
+  }
+  if (c.type === "table") return c.dataset ? `Table · ${c.dataset}` : "Table";
+  if (c.type === "image") return "Image";
+  if (c.type === "qrcode") return "QR code";
+  if (c.type === "barcode") return "Barcode";
+  if (c.type === "chart") return `${c.chartType ?? ""} chart`.trim();
+  return c.type.charAt(0).toUpperCase() + c.type.slice(1);
+}
+
+export function setHidden(doc: Doc, ids: string[], hidden: boolean): Doc {
+  let d = doc;
+  for (const id of ids) d = update(d, id, { hidden: hidden ? true : undefined });
+  return d;
+}
+
+export function setLocked(doc: Doc, ids: string[], locked: boolean): Doc {
+  let d = doc;
+  for (const id of ids) d = update(d, id, { locked: locked ? true : undefined });
+  return d;
+}

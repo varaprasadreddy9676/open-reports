@@ -5,7 +5,7 @@ import { useStore } from "../store";
 import { withSampleData } from "../engine";
 import { api } from "../lib/api";
 
-export type PreviewTab = "pdf" | "html" | "xlsx" | "csv";
+export type PreviewTab = "pdf" | "html" | "xlsx" | "csv" | "zpl";
 
 export function downloadBlob(blob: Blob, filename: string) {
   const a = document.createElement("a");

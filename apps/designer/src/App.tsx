@@ -5,7 +5,8 @@ import { LeftPanel } from "./components/LeftPanel";
 import { Properties } from "./components/Properties";
 import { CodeEditor } from "./components/CodeEditor";
 import { Preview } from "./components/Preview";
-import { BottomBar, Dialogs, ProblemsPanel, Toasts, Toolbar } from "./components/Shell";
+import { BottomBar, BottomPanel, Dialogs, Toasts, Toolbar } from "./components/Shell";
+import { DataMode } from "./components/DataMode";
 import * as ops from "./model/ops";
 
 function isTyping(t: EventTarget | null): boolean {
@@ -15,7 +16,7 @@ function isTyping(t: EventTarget | null): boolean {
 }
 
 export default function App() {
-  const { mode, leftOpen, rightOpen } = useStore();
+  const { mode, leftOpen, rightOpen, split } = useStore();
   const set = useStore((s) => s.set);
 
   useEffect(() => {
@@ -28,6 +29,8 @@ export default function App() {
       s.refresh();
       s.set({ dialog: "new" });
     }
+    s.loadCapabilities();
+    s.loadBlocks();
   }, []);
 
   useEffect(() => {
@@ -67,7 +70,19 @@ export default function App() {
       } else if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         s.removeSelected();
+      } else if (mod && key === "g") {
+        e.preventDefault();
+        e.shiftKey ? s.ungroupSelected() : s.groupSelected();
+      } else if (mod && key === "l") {
+        e.preventDefault();
+        s.toggleLock();
+      } else if (mod && e.shiftKey && key === "h") {
+        e.preventDefault();
+        s.toggleHide();
+      } else if (e.key === "F2" && s.selection[0]) {
+        s.set({ editingText: s.selection[0], leftTab: "layers" });
       } else if (e.key === "Escape") {
+        s.set({ contextMenu: null, editingText: null });
         s.select([]);
       } else if (e.key.startsWith("Arrow") && s.selection.length) {
         e.preventDefault();
@@ -91,13 +106,20 @@ export default function App() {
           <button className="edge right" aria-label={rightOpen ? "Hide properties" : "Show properties"} title="Toggle properties" onClick={() => set({ rightOpen: !rightOpen })}>
             {rightOpen ? "›" : "‹"}
           </button>
-          {mode === "design" && <Canvas />}
+          {mode === "design" && !split && <Canvas />}
+          {mode === "design" && split && (
+            <div className="split">
+              <Canvas />
+              <CodeEditor />
+            </div>
+          )}
+          {mode === "data" && <DataMode />}
           {mode === "code" && <CodeEditor />}
           {mode === "preview" && <Preview />}
         </section>
-        {rightOpen && mode !== "preview" && <Properties />}
+        {rightOpen && (mode === "design" || mode === "code") && <Properties />}
       </div>
-      <ProblemsPanel />
+      <BottomPanel />
       <BottomBar />
       <Dialogs />
       <Toasts />

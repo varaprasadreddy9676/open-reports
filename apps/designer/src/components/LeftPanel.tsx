@@ -331,13 +331,34 @@ function LayersTab() {
   );
 }
 
+function PagesTab() {
+  const { engine } = useStore();
+  const pag = engine.paginated;
+  if (!pag) return <div className="tab-body muted">No pages yet.</div>;
+  const scale = 96 / pag.pageSize.width;
+  return (
+    <div className="tab-body" data-testid="pages-tab">
+      {pag.pages.map((p, i) => (
+        <button key={i} className="thumb" data-testid="page-thumb" onClick={() => document.querySelector(`[data-page="${i}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })} aria-label={`Go to page ${i + 1}`}>
+          <span className="thumb-page" style={{ width: pag.pageSize.width * scale, height: pag.pageSize.height * scale }}>
+            {[...p.header, ...p.content, ...p.footer].map((n, j) => (
+              <span key={j} className={`thumb-box ${(n.component as any).type}`} style={{ left: n.box.x * scale, top: n.box.y * scale, width: Math.max(1, n.box.width * scale), height: Math.max(1, n.box.height * scale) }} />
+            ))}
+          </span>
+          <span className="muted small">Page {i + 1}{(() => { const sec = (useStore.getState().doc.sections ?? [])[p.master.header ?? -1] as any; return sec?.appliesTo && sec.appliesTo !== "all" && sec.appliesTo !== "standard" ? ` · ${sec.appliesTo}` : ""; })()}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function LeftPanel() {
   const tab = useStore((s) => s.leftTab);
   const set = useStore((s) => s.set);
   return (
     <aside className="panel left" aria-label="Insert, data and layers">
       <div className="tabs" role="tablist">
-        {(["insert", "data", "layers"] as const).map((t) => (
+        {(["insert", "layers", "data", "pages"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`left-tab-${t}`} onClick={() => set({ leftTab: t })}>
             {titleCase(t)}
           </button>
@@ -346,6 +367,7 @@ export function LeftPanel() {
       {tab === "insert" && <InsertTab />}
       {tab === "data" && <DataTab />}
       {tab === "layers" && <LayersTab />}
+      {tab === "pages" && <PagesTab />}
     </aside>
   );
 }

@@ -122,3 +122,34 @@ export const FUNCTIONS = [
   "round", "ceil", "floor", "abs", "min", "max", "formatDate", "addDays", "difference", "now",
   "formatCurrency", "formatNumber", "formatPercent", "sum", "avg", "count", "first", "last", "sumBy", "sumProduct", "avgBy", "minBy", "maxBy",
 ];
+
+/** ---- Calculated value builder: "[Quantity] × [Rate]" <-> row.quantity * row.rate ---- */
+export interface CalcTerm {
+  op?: "+" | "-" | "*" | "/";
+  operand: string; // a field path or a number literal
+}
+
+const OPERAND = String.raw`[A-Za-z_][\w.]*|\d+(?:\.\d+)?`;
+
+/** Parses expressions made only of fields/numbers joined by + - * /, else undefined (the formula stays advanced). */
+export function parseCalc(expr: string): CalcTerm[] | undefined {
+  const e = expr.trim();
+  if (!e) return undefined;
+  const re = new RegExp(String.raw`^(${OPERAND})(?:\s*([+\-*/])\s*(${OPERAND}))*$`);
+  if (!re.test(e)) return undefined;
+  const parts = e.split(/\s*([+\-*/])\s*/);
+  const terms: CalcTerm[] = [{ operand: parts[0]! }];
+  for (let i = 1; i < parts.length; i += 2) terms.push({ op: parts[i] as CalcTerm["op"], operand: parts[i + 1]! });
+  return terms;
+}
+
+export function buildCalc(terms: CalcTerm[]): string {
+  return terms.map((t, i) => (i === 0 ? t.operand : `${t.op ?? "+"} ${t.operand}`)).join(" ");
+}
+
+export const CALC_OPS: { op: NonNullable<CalcTerm["op"]>; label: string }[] = [
+  { op: "+", label: "+" },
+  { op: "-", label: "−" },
+  { op: "*", label: "×" },
+  { op: "/", label: "÷" },
+];
