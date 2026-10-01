@@ -10,3 +10,4 @@ export * from "./resolved-report.js";
 export * from "./resolve-component.js";
 export * from "./pipeline.js";
 export * from "./validator.js";
+export * from "./renderer.js";

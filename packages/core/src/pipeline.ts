@@ -5,8 +5,16 @@ import { resolveParameters, type ParameterIssue } from "./parameters.js";
 import { executeDatasets, type DatasetExecutionIssue } from "./datasets.js";
 import { computeReportVariables } from "./variables.js";
 import { resolveComponents, type ResolveEnv } from "./resolve-component.js";
-import type { ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
+import type { ResolvedComponent, ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
 import type { ResolveContext } from "./context.js";
+
+/** Re-resolves one section (by type) with a page-number-aware context. Used
+ * for pageHeader/pageFooter (and reportFooter) content that references
+ * `page.number`/`page.total` -- those can't be known until @reporting/layout
+ * has paginated the report once, so the main pipeline pass above resolves
+ * them with `page.number`/`total` as `undefined` and the layout engine calls
+ * this afterwards, once per page, with the real values. */
+export type PageSectionResolver = (section: ResolvedSection, page: { number: number; total: number }) => ResolvedComponent[];
 
 export interface RenderPipelineOptions {
   registry: DataSourceRegistry;
@@ -18,6 +26,7 @@ export interface RenderPipelineOptions {
 export interface RenderPipelineResult {
   resolved: ResolvedReport;
   issues: (ParameterIssue | DatasetExecutionIssue)[];
+  resolvePageSection: PageSectionResolver;
 }
 
 /**
@@ -106,5 +115,20 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     warnings,
   };
 
-  return { resolved, issues: [...parameterIssues, ...datasetIssues] };
+  const resolvePageSection: PageSectionResolver = (section, page) => {
+    const raw = report.sections.find((s) => s.type === section.type);
+    if (!raw) return section.children;
+    const env: ResolveEnv = {
+      engine,
+      locale,
+      currency,
+      variables: report.variables,
+      rowVarAccumulator: { ...rowVarAccumulator },
+      warnings,
+      path: `sections.${section.type}`,
+    };
+    return resolveComponents(raw.children as any, { ...baseCtx, page }, env);
+  };
+
+  return { resolved, issues: [...parameterIssues, ...datasetIssues], resolvePageSection };
 }

@@ -1,0 +1,32 @@
+{
+  "name": "@reporting/renderer-html",
+  "version": "0.1.0",
+  "description": "HTML renderer: draws a paginated Resolved Report Tree as a print-ready, paginated HTML document",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@reporting/schema": "workspace:*",
+    "@reporting/core": "workspace:*",
+    "@reporting/layout": "workspace:*",
+    "qrcode": "^1.5.4",
+    "bwip-js": "^4.5.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "@types/qrcode": "^1.5.5"
+  }
+}
