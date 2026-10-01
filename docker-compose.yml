@@ -1,0 +1,29 @@
+# docker compose up --build
+#   Designer:  http://localhost:3000     API + bundled designer:  http://localhost:4000
+services:
+  api:
+    build: { context: ., target: api }
+    ports: ["4000:4000"]
+    environment:
+      # Comma-separated keys. Leave empty ONLY for local experiments; the server warns loudly.
+      API_KEYS: ${API_KEYS:-}
+      # Plugins to load at start (module names resolvable inside the image).
+      REPORT_PLUGINS: ${REPORT_PLUGINS:-}
+      # Secrets usable from datasets as {{secrets.NAME}} are REPORT_SECRET_<NAME>.
+      REPORT_SECRET_EXAMPLE: ${REPORT_SECRET_EXAMPLE:-}
+    volumes: ["reporting-data:/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+  designer:
+    build: { context: ., target: designer }
+    ports: ["3000:3000"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+volumes:
+  reporting-data:

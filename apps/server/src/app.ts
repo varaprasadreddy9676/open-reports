@@ -25,7 +25,7 @@ export interface BuildAppOptions {
 }
 
 export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: StorageProvider; jobs: JobStore } {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: false, bodyLimit: 10 * 1024 * 1024 });
   const storage: StorageProvider = options.plugins?.storage !== undefined ? assertStorageProvider(options.plugins.storage) : new SqliteStorage(options.dbPath);
   const runtime = createRuntime(options.plugins);
   const jobs = new JobStore(runtime);
@@ -284,8 +284,16 @@ function sendRenderError(reply: import("fastify").FastifyReply, err: unknown): v
 function buildOpenApiDocument(): Record<string, unknown> {
   return {
     openapi: "3.0.3",
-    info: { title: "Reporting Platform API", version: "0.1.0" },
+    info: { title: "Reporting Platform API", version: "0.1.0", description: "Render deterministic PDF/HTML/XLSX/CSV/ZPL documents from a renderer-neutral JSON report definition. Send the API key in the `x-api-key` header." },
+    security: [{ apiKey: [] }],
     paths: {
+      "/health": { get: { summary: "Liveness probe (no auth)", security: [] } },
+      "/api/v1/schema": { get: { summary: "The JSON Schema of a report definition (no auth)", security: [] } },
+      "/api/v1/capabilities": { get: { summary: "Output formats and what they support, installed fonts, server secret names, plugin-provided components/functions" } },
+      "/api/v1/plugins": { get: { summary: "Loaded plugins and their status" } },
+      "/api/v1/datasets/test": { post: { summary: "Run one dataset (with parameters) and return a preview" } },
+      "/api/v1/blocks": { get: { summary: "List reusable blocks" } },
+      "/api/v1/blocks/{id}": { put: { summary: "Create or replace a reusable block" }, delete: { summary: "Delete a reusable block" } },
       "/api/v1/validate": { post: { summary: "Validate a report definition" } },
       "/api/v1/render": { post: { summary: "Render a report inline" } },
       "/api/v1/templates": { get: { summary: "List templates" }, post: { summary: "Create a template" } },
@@ -298,6 +306,6 @@ function buildOpenApiDocument(): Record<string, unknown> {
       "/api/v1/render/jobs/{jobId}": { get: { summary: "Get job status" }, delete: { summary: "Cancel a job" } },
       "/api/v1/render/jobs/{jobId}/output": { get: { summary: "Download a completed job's output" } },
     },
-    components: { schemas: { ReportDefinition: getReportJsonSchema() } },
+    components: { securitySchemes: { apiKey: { type: "apiKey", in: "header", name: "x-api-key" } }, schemas: { ReportDefinition: getReportJsonSchema() } },
   };
 }

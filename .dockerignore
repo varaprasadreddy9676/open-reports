@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+test-output
+benchmarks
+apps/designer/test-results
+apps/designer/playwright-report
+*.sqlite*
+.env*

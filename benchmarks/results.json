@@ -1,0 +1,64 @@
+{
+  "node": "v22.22.0",
+  "platform": "linux",
+  "quick": false,
+  "at": "2026-10-01T13:23:51.149Z",
+  "results": [
+    {
+      "name": "resolve + XLSX",
+      "rows": 10000,
+      "ms": 817,
+      "rowsPerSec": 12235,
+      "outputKb": 342,
+      "rssDeltaMb": 43
+    },
+    {
+      "name": "resolve + XLSX",
+      "rows": 100000,
+      "ms": 7768,
+      "rowsPerSec": 12873,
+      "outputKb": 3424,
+      "rssDeltaMb": 106
+    },
+    {
+      "name": "resolve + CSV",
+      "rows": 100000,
+      "ms": 4791,
+      "rowsPerSec": 20873,
+      "outputKb": 2633,
+      "rssDeltaMb": 10
+    },
+    {
+      "name": "resolve + HTML",
+      "rows": 10000,
+      "ms": 586,
+      "rowsPerSec": 17068,
+      "outputKb": 3292,
+      "rssDeltaMb": 8
+    },
+    {
+      "name": "resolve + PDF",
+      "rows": 2000,
+      "ms": 760,
+      "rowsPerSec": 2633,
+      "outputKb": 119,
+      "rssDeltaMb": 3
+    },
+    {
+      "name": "concurrent PDFs x4 (500 rows)",
+      "rows": 2000,
+      "ms": 925,
+      "rowsPerSec": 2163,
+      "outputKb": 164,
+      "rssDeltaMb": 0
+    },
+    {
+      "name": "concurrent PDFs x16 (500 rows)",
+      "rows": 8000,
+      "ms": 3233,
+      "rowsPerSec": 2475,
+      "outputKb": 657,
+      "rssDeltaMb": 53
+    }
+  ]
+}
