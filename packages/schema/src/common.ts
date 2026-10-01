@@ -89,6 +89,19 @@ export const componentBaseSchema = z.object({
   pageBreakBefore: z.boolean().optional(),
   pageBreakAfter: z.boolean().optional(),
   keepTogether: z.boolean().optional(),
+  /** Never place a page break between this component and the one immediately
+   * after it (e.g. a heading and the paragraph/table that follows it). */
+  keepWithNext: z.boolean().optional(),
+  /** Whether this component is allowed to be split across a page boundary at
+   * all. Only tables currently support splitting (row by row); every other
+   * component type behaves as if this were false regardless of the value set
+   * here, and the layout engine pushes it whole to a fresh page instead. */
+  allowSplit: z.boolean().optional(),
+  /** Orphan/widow control for anything the layout engine *can* split
+   * (currently: table rows). Mirrors `minRowsBeforeBreak`/`minRowsAfterBreak`
+   * on the table component itself, expressed as lines for text-shaped content. */
+  minLinesAtBottom: z.number().int().nonnegative().optional(),
+  minLinesAtTop: z.number().int().nonnegative().optional(),
   exports: z.record(z.string(), z.unknown()).optional(),
 });
 export type ComponentBase = z.infer<typeof componentBaseSchema>;

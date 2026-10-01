@@ -113,6 +113,7 @@ export interface ResolvedChartComponent extends ResolvedComponentBase {
 export interface ResolvedTableColumn {
   id: string;
   header: string;
+  width?: number | string;
   align?: string;
   format?: string;
   footer?: { label?: string; value: string };
@@ -138,12 +139,15 @@ export interface ResolvedTableComponent extends ResolvedComponentBase {
 
 export interface ResolvedContainerComponent extends ResolvedComponentBase {
   type: "container" | "row" | "column" | "grid" | "repeater" | "keepTogether";
+  columns?: number;
   children: ResolvedComponent[];
 }
 
 export interface ResolvedGroupComponent extends ResolvedComponentBase {
   type: "group";
   groupBy: string;
+  pageBreakBeforeGroup?: boolean;
+  keepGroupTogether?: boolean;
   groups: ResolvedGroupInstance[];
 }
 

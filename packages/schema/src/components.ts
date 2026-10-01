@@ -109,6 +109,24 @@ export const tableComponentSchema = componentBaseSchema.extend({
   showFooter: z.boolean().optional().default(false),
   repeatHeaderOnPageBreak: z.boolean().optional().default(true),
   keepRowTogether: z.boolean().optional().default(true),
+  /** Whether rows may be split across a page break at all; false (the
+   * default behavior today) always moves a whole row to the next page. True
+   * is accepted by the schema for forward compatibility but is not yet
+   * implemented by the layout engine (a row is still kept atomic). */
+  allowRowSplit: z.boolean().optional().default(false),
+  /** Never leave the footer row alone on a page with none of the table's own
+   * rows above it -- if the footer doesn't fit after the last data row, pull
+   * the minimum number of trailing rows needed (up to minRowsAfterBreak) onto
+   * the footer's page instead of stranding it. */
+  keepFooterTogether: z.boolean().optional().default(true),
+  /** Orphan control: don't start a new page with fewer than this many table
+   * rows before the next break (pulls earlier rows forward onto the new page
+   * instead of leaving a single stray row at the top). */
+  minRowsBeforeBreak: z.number().int().nonnegative().optional().default(0),
+  /** Widow control: don't end a page with fewer than this many rows left over
+   * after a break (pushes a too-small trailing group of rows to the next
+   * page instead of leaving e.g. a single row dangling at the bottom). */
+  minRowsAfterBreak: z.number().int().nonnegative().optional().default(0),
   alternateRowStyle: z.boolean().optional(),
 });
 

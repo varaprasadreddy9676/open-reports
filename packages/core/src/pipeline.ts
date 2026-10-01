@@ -45,7 +45,11 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     data: datasets,
     vars: {},
     report: { id: report.id, name: report.name },
-    page: {},
+    // `number`/`total` are not known until layout/pagination runs; keeping the
+    // keys present (rather than an empty object) means `page.number` reads as
+    // `undefined` instead of throwing "Unknown field page". The layout engine
+    // re-resolves pageHeader/pageFooter/reportFooter per page with real values.
+    page: { number: undefined, total: undefined },
     // `row`/`parent` are always present (even if empty) so a binding like
     // `row.balance` used outside of any row-iteration context evaluates to
     // `undefined` rather than throwing "Unknown field row".

@@ -144,7 +144,7 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
     case "grid":
     case "keepTogether": {
       const children = resolveComponents(component.children ?? [], ctx, env);
-      return { ...base(component), type: component.type, children };
+      return { ...base(component), type: component.type, columns: component.columns, children };
     }
     case "repeater": {
       const rows = toArray(ctx.data[component.dataset]);
@@ -205,6 +205,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
   const columns: ResolvedTableColumn[] = (component.columns ?? []).map((col: any) => ({
     id: col.id ?? col.binding ?? col.header ?? Math.random().toString(36).slice(2),
     header: col.header ?? "",
+    width: col.width,
     align: col.align,
     format: col.format,
   }));
@@ -281,7 +282,14 @@ function resolveGroup(component: Component, ctx: ResolveContext, env: ResolveEnv
   }
   if (current) groups.push(buildGroupInstance(component, ctx, env, datasetId, current.key, current.rows));
 
-  return { ...base(component), type: "group", groupBy: component.groupBy, groups };
+  return {
+    ...base(component),
+    type: "group",
+    groupBy: component.groupBy,
+    pageBreakBeforeGroup: component.pageBreakBeforeGroup,
+    keepGroupTogether: component.keepGroupTogether,
+    groups,
+  };
 }
 
 function buildGroupInstance(
