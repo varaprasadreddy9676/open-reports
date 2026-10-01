@@ -10,6 +10,8 @@ import { api, ApiError } from "./lib/api";
 export type Mode = "design" | "data" | "code" | "preview";
 export type LeftTab = "insert" | "layers" | "data" | "pages";
 export type BottomPanel = null | "problems" | "pagination" | "history";
+export type CanvasView = "structure" | "pages";
+export type RulerUnit = "mm" | "cm" | "in" | "pt" | "px";
 export type SaveState = "saved" | "saving" | "dirty" | "error";
 
 export interface HistoryEntry {
@@ -69,6 +71,13 @@ interface State {
   showGrid: boolean;
   snap: boolean;
   showRulers: boolean;
+  canvasView: CanvasView;
+  /** Example records shown per detail band in the structure view. */
+  ghosts: number;
+  rulerUnit: RulerUnit;
+  gridMode: "lines" | "dots";
+  /** Index (in doc.sections) of the band selected on the structure canvas. */
+  selectedBand: number | null;
   view: ViewOptions;
   split: boolean;
   bottom: BottomPanel;
@@ -137,6 +146,22 @@ let toastId = 1;
 let engineRun = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
+function pref(key: string, fallback: string): string {
+  try {
+    return localStorage.getItem(`designer.${key}`) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function savePref(key: string, value: string): void {
+  try {
+    localStorage.setItem(`designer.${key}`, value);
+  } catch {
+    /* private mode */
+  }
+}
+
 const DRAFT_KEY = "designer.draft";
 const CLIP_KEY = "designer.clipboard";
 
@@ -197,8 +222,13 @@ export const useStore = create<State>((set, get) => ({
   zoom: 1,
   showGrid: false,
   snap: true,
-  showRulers: false,
-  view: { grid: false, rulers: false, guides: true, margins: true, boundaries: false, diagnostics: true },
+  showRulers: true,
+  canvasView: pref("canvasView", "structure") as CanvasView,
+  ghosts: 0,
+  rulerUnit: pref("rulerUnit", "mm") as RulerUnit,
+  gridMode: "lines",
+  selectedBand: null,
+  view: { grid: false, rulers: true, guides: true, margins: true, boundaries: false, diagnostics: true },
   split: false,
   bottom: null,
   target: "pdf",
@@ -274,8 +304,8 @@ export const useStore = create<State>((set, get) => ({
     if (additive) {
       const set2 = new Set(s.selection);
       for (const id of ids) (set2.has(id) ? set2.delete(id) : set2.add(id));
-      set({ selection: [...set2] });
-    } else set({ selection: ids });
+      set({ selection: [...set2], selectedBand: null });
+    } else set({ selection: ids, ...(ids.length ? { selectedBand: null } : {}) });
   },
 
   addComponent(type, targetId, position = "after", overrides = {}) {
@@ -396,10 +426,10 @@ export const useStore = create<State>((set, get) => ({
     timer = setTimeout(async () => {
       const run = ++engineRun;
       set({ engineBusy: true });
-      const { doc: realDoc, aiProposal, sample, parameters, sampleRows, target, capabilities } = get();
+      const { doc: realDoc, aiProposal, sample, parameters, sampleRows, target, capabilities, ghosts } = get();
       // While an AI proposal awaits approval the canvas shows the proposed result; nothing is committed until Accept.
       const doc = aiProposal?.doc ?? realDoc;
-      const result = await runEngine(doc, sample, parameters, { sampleRows, target, capabilities });
+      const result = await runEngine(doc, sample, parameters, { sampleRows, target, capabilities, ghosts });
       if (run === engineRun) {
         // On a schema/engine error keep showing the last good render, with fresh problems alongside it.
         const prev = get().engine;

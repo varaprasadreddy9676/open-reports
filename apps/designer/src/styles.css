@@ -1759,3 +1759,43 @@ kbd {
 @media (max-width: 1400px) {
   .toolbar [aria-label="Fit to width"], .toolbar [aria-label="Zoom out"], .toolbar [aria-label="Zoom in"], .toolbar [data-testid="btn-palette"] { display: none; }
 }
+
+/* ---------- rulers 2.0 */
+.ruler { cursor: copy; z-index: 6; }
+.ruler .tick:not(.major):not(.mid) { opacity: 0.7; }
+.margin-marker { position: absolute; background: var(--accent); z-index: 3; cursor: grab; }
+.margin-marker.h { top: 0; width: 7px; height: 8px; margin-left: -3px; clip-path: polygon(0 0, 100% 0, 50% 100%); cursor: ew-resize; }
+.margin-marker.v { left: 0; height: 7px; width: 8px; margin-top: -3px; clip-path: polygon(0 0, 100% 50%, 0 100%); cursor: ns-resize; }
+.band-edge { position: absolute; left: 0; right: 0; height: 6px; cursor: row-resize; z-index: 2; border-bottom: 1px solid var(--accent); opacity: 0.6; }
+.band-edge:hover { background: rgba(37, 99, 235, 0.3); opacity: 1; }
+.guide-line { position: absolute; background: #e11d8f; pointer-events: none; z-index: 5; opacity: 0.8; }
+.guide-line.x { width: 1px; top: 0; bottom: 0; }
+.guide-line.y { height: 1px; left: 0; right: 0; }
+.guide-hit { position: absolute; z-index: 6; }
+.guide-hit.x { width: 9px; margin-left: -4px; top: 0; bottom: 0; cursor: ew-resize; }
+.guide-hit.y { height: 9px; margin-top: -4px; left: 0; right: 0; cursor: ns-resize; }
+.page.dots { background-image: radial-gradient(rgba(37, 99, 235, 0.35) 1px, transparent 1.2px); background-size: var(--gridsize) var(--gridsize); }
+
+/* ---------- band chrome */
+.band-chrome { position: absolute; left: 0; right: 0; pointer-events: none; border-top: 1px dashed rgba(100, 116, 139, 0.55); z-index: 4; }
+.band-chrome.selected { background: rgba(37, 99, 235, 0.05); border-top: 1px solid var(--accent); box-shadow: inset 0 -1px 0 var(--accent); }
+.band-chrome.ghost { opacity: 0.55; }
+.band-chrome.hidden-rule::after { content: "hidden by rule"; position: absolute; right: 6px; top: 2px; font-size: 10px; color: var(--muted); }
+.band-tab { position: absolute; left: -150px; top: 0; width: 108px; height: 22px; display: flex; align-items: center; gap: 4px; padding: 0 6px; font-size: 11px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px 0 0 4px; color: var(--text); pointer-events: auto; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.band-chrome.selected .band-tab { background: var(--accent); color: #fff; border-color: var(--accent); }
+.band-tab .code { font-weight: 700; opacity: 0.7; }
+.band-tab .caret { cursor: pointer; width: 12px; text-align: center; }
+.band-tab.drop { outline: 2px solid var(--accent); }
+.band-plus { position: absolute; right: -14px; bottom: -9px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: var(--panel); color: var(--accent); font-size: 14px; line-height: 14px; cursor: pointer; pointer-events: auto; opacity: 0; z-index: 7; padding: 0; }
+.page:hover .band-plus, .band-plus:focus { opacity: 1; }
+.band-menu { position: absolute; z-index: 60; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.2); padding: 4px; min-width: 190px; font-size: 12px; }
+.band-menu button { display: flex; width: 100%; text-align: left; gap: 8px; background: none; border: 0; padding: 5px 8px; border-radius: 4px; cursor: pointer; color: var(--text); }
+.band-menu button:hover:not(:disabled) { background: var(--hover, rgba(37,99,235,.1)); }
+.band-menu button:disabled { opacity: 0.4; cursor: default; }
+.band-bar { position: sticky; top: -28px; z-index: 20; display: flex; gap: 10px; align-items: center; justify-content: center; margin: -28px auto 16px; padding: 6px 10px; width: fit-content; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; }
+.band-bar .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.band-bar .seg button { border: 0; background: none; padding: 3px 10px; cursor: pointer; color: var(--text); }
+.band-bar .seg button.on { background: var(--accent); color: #fff; }
+.band-bar select { font-size: 12px; }
+
+.canvas-scroll.structure { padding-left: 160px; padding-right: 60px; }

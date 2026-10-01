@@ -19,7 +19,7 @@ const MM = 25.4 / 72;
 const THRESHOLD = 4;
 
 /** Snap a moving box to the edges/centres of other boxes and the page margins. Returns the adjusted position plus guide lines to draw. */
-export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolean): { x: number; y: number; guides: Guide[]; distances: Distance[] } {
+export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[] } = { x: [], y: [] }): { x: number; y: number; guides: Guide[]; distances: Distance[] } {
   let { x, y } = moving;
   const guides: Guide[] = [];
   const distances: Distance[] = [];
@@ -27,8 +27,8 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
 
   const xs = (b: Box) => [b.x, b.x + b.width / 2, b.x + b.width];
   const ys = (b: Box) => [b.y, b.y + b.height / 2, b.y + b.height];
-  const targetsX = [bounds.x, bounds.x + bounds.width / 2, bounds.x + bounds.width, ...others.flatMap(xs)];
-  const targetsY = [bounds.y, bounds.y + bounds.height / 2, bounds.y + bounds.height, ...others.flatMap(ys)];
+  const targetsX = [bounds.x, bounds.x + bounds.width / 2, bounds.x + bounds.width, ...others.flatMap(xs), ...extra.x];
+  const targetsY = [bounds.y, bounds.y + bounds.height / 2, bounds.y + bounds.height, ...others.flatMap(ys), ...extra.y];
 
   let bestX = { d: THRESHOLD + 1, delta: 0, at: 0 };
   for (const mine of xs({ ...moving, x })) for (const t of targetsX) if (Math.abs(t - mine) < bestX.d) bestX = { d: Math.abs(t - mine), delta: t - mine, at: t };

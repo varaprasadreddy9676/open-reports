@@ -16,6 +16,8 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:3100",
     viewport: { width: 1440, height: 900 },
     acceptDownloads: true,
+    // the older specs drive the paginated page canvas; the structure view has its own spec
+    storageState: { cookies: [], origins: [{ origin: "http://127.0.0.1:3100", localStorage: [{ name: "designer.canvasView", value: "pages" }] }] },
     launchOptions: {
       executablePath: process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
       args: ["--no-sandbox"],

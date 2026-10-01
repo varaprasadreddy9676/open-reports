@@ -10,6 +10,8 @@ import { tableFor } from "../lib/generate";
 import { titleCase } from "../lib/lowcode";
 import { snapBox, rectsIntersect, type Guide, type Distance } from "../lib/snap";
 import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
+import { Rulers } from "./Rulers";
+import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
@@ -206,9 +208,10 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText } = useStore();
+  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, gridMode } = useStore();
   const k = PT * zoom;
-  const paginated = engine.paginated;
+  const structure = canvasView === "structure" ? engine.structure : undefined;
+  const paginated = structure ?? engine.paginated;
   const [indicator, setIndicator] = useState<DropTarget | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number; page: number } | null>(null);
   const [guides, setGuides] = useState<{ page: number; guides: Guide[]; distances: Distance[] } | null>(null);
@@ -284,6 +287,10 @@ export function Canvas() {
     if (!el) {
       if (!e.shiftKey) store.select([]);
       const pt = pagePoint(e.clientX, e.clientY, page);
+      if (structure) {
+        const hit = structure.bands.find((b) => pt.y >= b.y && pt.y < b.y + b.height);
+        store.set({ selectedBand: hit ? hit.sectionIndex : null });
+      }
       const m = { page, x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y };
       marqueeRef.current = m;
       setMarquee(m);
@@ -354,7 +361,7 @@ export function Canvas() {
         const bounds = parentBox ?? { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom };
         const offX = me.box.x - d.orig.x;
         const offY = me.box.y - d.orig.y;
-        const r = snapBox({ x: x + offX, y: y + offY, width: me.box.width, height: me.box.height }, others, bounds, store.view.guides);
+        const r = snapBox({ x: x + offX, y: y + offY, width: me.box.width, height: me.box.height }, others, bounds, store.view.guides, { x: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "x").map((g) => g.pos), y: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "y").map((g) => g.pos) });
         if (store.view.guides) {
           x = r.x - offX;
           y = r.y - offY;
@@ -451,7 +458,8 @@ export function Canvas() {
   const ph = paginated.pageSize.height * k;
 
   return (
-    <div className="canvas-scroll" ref={scroller} data-testid="canvas">
+    <div className={`canvas-scroll ${structure ? "structure" : ""}`} ref={scroller} data-testid="canvas">
+      <BandBar />
       <div className="pages">
         {paginated.pages.map((page, pi) => {
           const allNodes = [...flat([...page.header, ...page.content, ...page.footer])];
@@ -462,15 +470,14 @@ export function Canvas() {
             <div key={pi} className="page-wrap" data-page={pi}>
               {showRulers && pi === 0 && (
                 <>
-                  <Ruler width={pw} height={ph} k={k} />
-                  <Ruler width={pw} height={ph} k={k} vertical />
+                  <Rulers width={pw} height={ph} k={k} margin={paginated.margin} bands={structure?.bands} />
                 </>
               )}
               <div
                 ref={(r) => {
                   pageEls.current[pi] = r;
                 }}
-                className={`page ${showGrid ? "grid" : ""} ${view.boundaries ? "boundaries" : ""}`}
+                className={`page ${showGrid ? (gridMode === "dots" ? "dots" : "grid") : ""} ${view.boundaries ? "boundaries" : ""}`}
                 data-testid={`page-${pi + 1}`}
                 style={{ width: pw, height: ph, ["--gridsize" as any]: `${SNAP * k}px` }}
                 onPointerDown={(e) => onPointerDown(e, pi)}
@@ -505,10 +512,12 @@ export function Canvas() {
                 {view.margins && doc.print?.safeMargin ? (
                   <div className="safe-area" title="Printer safe area" style={{ left: (doc.print.safeMargin / MM) * k, top: (doc.print.safeMargin / MM) * k, right: (doc.print.safeMargin / MM) * k, bottom: (doc.print.safeMargin / MM) * k }} />
                 ) : null}
-                {view.margins && <PageZones page={page} paginated={paginated} k={k} />}
+                {view.margins && !structure && <PageZones page={page} paginated={paginated} k={k} />}
                 {[...page.header, ...page.content, ...page.footer].map((n, i) => (
                   <NodeView key={i} node={n} k={k} />
                 ))}
+                {structure && <BandChrome bands={structure.bands} k={k} />}
+                {(doc.guides?.length ?? 0) > 0 && <GuideLayer k={k} width={pw} height={ph} />}
                 {selected.map((n, i) => (
                   <div key={`sel${i}`} className="selbox" style={boxStyle(n, k)}>
                     {showHandles && n === single && !ops.find(doc, (single.component as any).id)?.comp.locked && (
@@ -544,7 +553,7 @@ export function Canvas() {
                 )}
                 {ghost && ghost.page === pi && <div className="ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h }} />}
                 <div className="page-label">
-                  Page {pi + 1} / {paginated.pages.length}
+                  {structure ? "Structure view" : `Page ${pi + 1} / ${paginated.pages.length}`}
                 </div>
               </div>
             </div>
