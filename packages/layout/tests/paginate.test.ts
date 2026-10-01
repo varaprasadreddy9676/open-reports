@@ -103,6 +103,30 @@ describe("paginate: widow control (minRowsAfterBreak)", () => {
   });
 });
 
+describe("paginate: stacking order", () => {
+  it("places a table below whatever content precedes it on the same page, instead of overlapping it", () => {
+    const heading = { type: "text", text: "Acme Health", style: { fontSize: 18 } } as unknown as ResolvedTextComponent;
+    const table = makeTable(2);
+    const report = reportWith([{ type: "detail", children: [heading, table] }]);
+    const result = paginate(report);
+
+    expect(result.pages).toHaveLength(1);
+    const [headingNode, tableNode] = result.pages[0]!.content;
+    expect(tableNode!.box.y).toBeGreaterThanOrEqual(headingNode!.box.y + headingNode!.box.height);
+  });
+
+  it("keeps a table's slice correctly offset below preceding content on a continuation page too", () => {
+    const heading = { type: "text", text: "H", style: { fontSize: 10 } } as unknown as ResolvedTextComponent;
+    const bigTable = makeTable(31);
+    const report = reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [heading, bigTable] }]);
+    const result = paginate(report);
+    expect(result.pages).toHaveLength(2);
+    const page2TableNode = result.pages[1]!.content.find((n) => n.component.type === "table")!;
+    // Nothing precedes the table's continuation slice on page 2, so it should start at the page's top margin.
+    expect(page2TableNode.box.y).toBe(result.pages[1]!.content[0]!.box.y);
+  });
+});
+
 describe("paginate: forced breaks and keepTogether", () => {
   it("honors pageBreakBefore", () => {
     const text1 = { type: "text", text: "A" } as unknown as ResolvedTextComponent;

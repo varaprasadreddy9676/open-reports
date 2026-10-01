@@ -128,6 +128,10 @@ function layoutContentIntoPages(
     if (component.type === "table" && !(component as any).keepTogether) {
       placeTable(component as ResolvedTableComponent, width, pageHeight, measurer, {
         place: (node, height) => {
+          // placeTable builds each slice's box at y:0 (its own local frame);
+          // stamp in the real accumulated y on *this* page before placing it,
+          // the same way every other component type does below.
+          node.box.y = y;
           currentPage().push(node);
           y += height;
         },
