@@ -274,3 +274,26 @@ describe("API key authentication", () => {
     await authedApp.close();
   });
 });
+
+describe("POST /api/v1/datasets/test", () => {
+  it("executes an inline dataset and returns a preview", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/datasets/test",
+      payload: { dataset: { id: "d", source: "inline", query: { data: [{ a: 1 }, { a: 2 }] } } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+    expect(res.json().rowCount).toBe(2);
+  });
+
+  it("reports a failing dataset (SQL with no connection) without crashing", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/datasets/test",
+      payload: { dataset: { id: "d", source: "sql", query: { connectionId: "x", sql: "select 1" } } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(false);
+  });
+});

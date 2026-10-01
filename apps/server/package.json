@@ -24,7 +24,9 @@
     "@reporting/datasource-rest": "workspace:*",
     "fastify": "^5.1.0",
     "@fastify/swagger": "^9.4.0",
-    "better-sqlite3": "^11.5.0"
+    "better-sqlite3": "^11.5.0",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/static": "^8.0.3"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

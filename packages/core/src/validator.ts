@@ -47,7 +47,7 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
 
   report.sections.forEach((section, sIndex) => {
     const sectionPath = `sections[${sIndex}]`;
-    if (section.dataset && !datasetIds.has(section.dataset)) {
+    if (section.dataset && !datasetIds.has(section.dataset.split(".")[0]!)) {
       issues.push(missingDataset(section.dataset, sectionPath, Array.from(datasetIds)));
     }
     walkComponents(section.children as Component[], sectionPath, {
@@ -124,7 +124,7 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
   }
 
   const datasetRef: string | undefined = component.dataset;
-  if (datasetRef && !ctx.datasetIds.has(datasetRef)) {
+  if (datasetRef && !ctx.datasetIds.has(datasetRef.split(".")[0]!)) {
     ctx.issues.push(missingDataset(datasetRef, path, Array.from(ctx.datasetIds)));
   }
 

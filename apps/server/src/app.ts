@@ -1,4 +1,9 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
+import fastifyStatic from "@fastify/static";
+import fs from "node:fs";
+import { executeDatasets } from "@reporting/core";
+import { createDefaultDataSourceRegistry } from "./datasources.js";
 import { randomUUID } from "node:crypto";
 import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
 import { validateReport } from "@reporting/core";
@@ -11,6 +16,8 @@ import { JobStore } from "./jobs.js";
 export interface BuildAppOptions {
   dbPath: string;
   apiKeys?: string[];
+  /** Directory of the built designer app; when set it is served at / (same origin as the API). */
+  designerDist?: string;
 }
 
 export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: SqliteStorage; jobs: JobStore } {
@@ -19,8 +26,14 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   const jobs = new JobStore();
   const authHook = createAuthHook(options.apiKeys ?? []);
 
+  void app.register(cors, { origin: true, exposedHeaders: ["x-render-id", "x-render-warnings"] });
+  if (options.designerDist && fs.existsSync(options.designerDist)) {
+    void app.register(fastifyStatic, { root: options.designerDist, wildcard: false });
+  }
+  const dataSources = createDefaultDataSourceRegistry();
+
   app.addHook("onRequest", async (request, reply) => {
-    if (request.url === "/health" || request.url === "/openapi.json") return;
+    if (request.url === "/health" || request.url === "/openapi.json" || !request.url.startsWith("/api/")) return;
     await authHook(request, reply);
   });
 
@@ -37,6 +50,24 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     }
     const result = validateReport(parsed.report);
     return reply.send(result);
+  });
+
+  // --- Dataset test (designer "test request" / result preview) ---
+  app.post("/api/v1/datasets/test", async (request, reply) => {
+    const body = request.body as { dataset: any; parameters?: Record<string, unknown>; maxRows?: number };
+    if (!body?.dataset?.id || !body.dataset.source) {
+      return reply.code(400).send({ error: { code: "INVALID_DATASET", message: "dataset.id and dataset.source are required." } });
+    }
+    const limit = Math.min(body.maxRows ?? 50, 500);
+    const { datasets, issues, durations } = await executeDatasets([body.dataset], dataSources, body.parameters ?? {}, { maxRows: limit, timeoutMs: 15000 });
+    const value = datasets[body.dataset.id];
+    reply.send({
+      ok: issues.length === 0,
+      issues,
+      durationMs: durations[body.dataset.id],
+      rowCount: Array.isArray(value) ? value.length : value == null ? 0 : 1,
+      value,
+    });
   });
 
   // --- Inline render ---

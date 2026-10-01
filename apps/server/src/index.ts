@@ -9,7 +9,8 @@ if (apiKeys.length === 0) {
   console.warn("[reporting-server] WARNING: API_KEYS is not set -- the server is running with NO authentication. Set API_KEYS for anything beyond local development.");
 }
 
-const { app } = buildApp({ dbPath, apiKeys });
+const designerDist = process.env.DESIGNER_DIST;
+const { app } = buildApp({ dbPath, apiKeys, designerDist });
 
 app
   .listen({ port, host: "0.0.0.0" })

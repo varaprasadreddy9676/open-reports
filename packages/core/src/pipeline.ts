@@ -4,7 +4,7 @@ import { DataSourceRegistry } from "./datasource.js";
 import { resolveParameters, type ParameterIssue } from "./parameters.js";
 import { executeDatasets, type DatasetExecutionIssue } from "./datasets.js";
 import { computeReportVariables } from "./variables.js";
-import { resolveComponents, type ResolveEnv } from "./resolve-component.js";
+import { lookupDataset, resolveComponents, type ResolveEnv } from "./resolve-component.js";
 import type { ResolvedComponent, ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
 import type { ResolveContext } from "./context.js";
 
@@ -85,7 +85,8 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
 
     let children;
     if (section.dataset) {
-      const rows = Array.isArray(datasets[section.dataset]) ? (datasets[section.dataset] as unknown[]) : [];
+      const found = lookupDataset(datasets, section.dataset);
+      const rows = Array.isArray(found) ? (found as unknown[]) : [];
       children = rows.flatMap((row) =>
         resolveComponents(section.children as any, { ...baseCtx, row: row as Record<string, unknown>, vars: { ...baseCtx.vars, ...rowVarAccumulator } }, env)
       );

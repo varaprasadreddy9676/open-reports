@@ -171,3 +171,19 @@ describe("resolveReport grouping and variables", () => {
     expect((north.footer[0] as ResolvedTextComponent).text).toBe("25000");
   });
 });
+
+describe("nested dataset paths", () => {
+  it("lets a table bind to an array nested inside an object dataset", async () => {
+    const parsed = parseReportDefinition({
+      schemaVersion: "1.0",
+      id: "n",
+      name: "N",
+      datasets: [{ id: "invoice", source: "inline", query: { data: { number: "A1", items: [{ d: "x" }, { d: "y" }] } } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "invoice.items", columns: [{ id: "d", header: "D", binding: "row.d" }] }] }],
+    });
+    if (!parsed.valid) throw new Error("invalid");
+    const { resolved } = await resolveReport(parsed.report, { registry: registry(), parameters: {} });
+    const table = resolved.sections[0]!.children[0] as ResolvedTableComponent;
+    expect(table.rows).toHaveLength(2);
+  });
+});

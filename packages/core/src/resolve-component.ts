@@ -51,6 +51,17 @@ function isVisible(component: Component, ctx: ResolveContext, env: ResolveEnv): 
   }
 }
 
+/** Resolves a dataset reference: an exact dataset id, or a dotted path into a
+ * dataset's value (e.g. "invoice.items" for an array nested in an object
+ * dataset), so master/detail JSON needs no flattening. */
+export function lookupDataset(data: Record<string, unknown>, ref: string): unknown {
+  if (ref in data) return data[ref];
+  return ref.split(".").reduce<unknown>((acc, key) => {
+    if (acc === null || acc === undefined || typeof acc !== "object") return undefined;
+    return (acc as Record<string, unknown>)[key];
+  }, data);
+}
+
 function toArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (value === null || value === undefined) return [];
@@ -119,7 +130,7 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
       return { ...base(component), type: "barcode", value, symbology: component.symbology ?? "code128" };
     }
     case "chart": {
-      const dataset = component.dataset ? ctx.data[component.dataset] : undefined;
+      const dataset = component.dataset ? lookupDataset(ctx.data, component.dataset) : undefined;
       const rows = toArray(dataset);
       const categories = component.categoryBinding
         ? rows.map((row) => String(env.engine.evaluate(component.categoryBinding, toRowContext(ctx, row))))
@@ -147,7 +158,7 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
       return { ...base(component), type: component.type, columns: component.columns, children };
     }
     case "repeater": {
-      const rows = toArray(ctx.data[component.dataset]);
+      const rows = toArray(lookupDataset(ctx.data, component.dataset));
       const children = rows.flatMap((row) => resolveComponents(component.children ?? [], toRowContext(ctx, row), env));
       return { ...base(component), type: "repeater", children };
     }
@@ -175,7 +186,7 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
 }
 
 function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent {
-  const rawRows = toArray(ctx.data[component.dataset]);
+  const rawRows = toArray(lookupDataset(ctx.data, component.dataset));
   let rows = rawRows.map((row) => row as Record<string, unknown>);
 
   if (component.filterWhen) {
@@ -258,7 +269,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
 
 function resolveGroup(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent {
   const datasetId: string | undefined = component.dataset;
-  const rawRows = toArray(datasetId ? ctx.data[datasetId] : undefined).map((r) => r as Record<string, unknown>);
+  const rawRows = toArray(datasetId ? lookupDataset(ctx.data, datasetId) : undefined).map((r) => r as Record<string, unknown>);
 
   const keyed = rawRows.map((row) => ({
     row,
