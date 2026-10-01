@@ -1636,3 +1636,53 @@ kbd {
 .thumb-box.column {
   background: transparent;
 }
+
+/* ---------- redesign: canvas */
+.cn-block { outline: none; }
+.page.boundaries .cn-block { outline: 1px dashed rgba(100, 116, 139, 0.45); }
+.cn-block:hover { outline: 1px solid rgba(37, 99, 235, 0.45); }
+.margin-guide { border-color: rgba(37, 99, 235, 0.18); }
+.handle.n { top: -6px; left: calc(50% - 5px); cursor: ns-resize; }
+.handle.w { left: -6px; top: calc(50% - 5px); cursor: ew-resize; }
+.handle.ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.handle.nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.handle.sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.lock-badge { position: absolute; right: 2px; top: 2px; font-size: 10px; }
+.marquee { position: absolute; border: 1px solid var(--accent); background: rgba(37, 99, 235, 0.1); pointer-events: none; z-index: 12; }
+.guide { position: absolute; pointer-events: none; background: #f43f5e; z-index: 11; }
+.guide.x { width: 1px; }
+.guide.y { height: 1px; }
+.dist { position: absolute; pointer-events: none; z-index: 11; border: 0 solid #f43f5e; display: flex; align-items: center; justify-content: center; }
+.dist.x { border-top-width: 1px; height: 0; }
+.dist.y { border-left-width: 1px; width: 0; }
+.dist span { background: #f43f5e; color: #fff; font-size: 9px; padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+.zone { position: absolute; pointer-events: none; }
+.zone span { position: absolute; left: 4px; top: 2px; font-size: 9px; color: rgba(37, 99, 235, 0.7); letter-spacing: 0.04em; text-transform: uppercase; opacity: 0; transition: opacity 0.15s; }
+.zone.header, .zone.footer { background: rgba(37, 99, 235, 0.035); border-bottom: 1px dotted rgba(37, 99, 235, 0.25); }
+.zone.footer { border-bottom: 0; border-top: 1px dotted rgba(37, 99, 235, 0.25); }
+.page:hover .zone span { opacity: 1; }
+.remaining { position: absolute; pointer-events: none; border: 1px dashed rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.04); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+.remaining span { font-size: 10px; color: #059669; }
+.page:hover .remaining { opacity: 1; }
+.diag-badge { position: absolute; z-index: 13; width: 16px; height: 16px; border-radius: 50%; border: 0; color: #fff; font-size: 11px; font-weight: 700; line-height: 16px; padding: 0; cursor: pointer; }
+.diag-badge.error { background: var(--danger); }
+.diag-badge.warning { background: #d97706; }
+.pg-marker { position: absolute; left: 0; right: 0; border-top: 2px dashed #f59e0b; z-index: 9; pointer-events: none; }
+.pg-marker span { position: absolute; right: 6px; top: -9px; background: #f59e0b; color: #fff; font-size: 9px; padding: 1px 6px; border-radius: 8px; }
+.pg-marker.overflow { border-color: var(--danger); }
+.pg-marker.overflow span { background: var(--danger); }
+.float-toolbar { position: absolute; z-index: 20; display: flex; align-items: center; gap: 2px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 3px; font-family: system-ui, sans-serif; }
+.ft-btn { border: 0; background: none; border-radius: 5px; min-width: 26px; height: 26px; color: var(--text); font-size: 12px; }
+.ft-btn:hover { background: var(--panel-2); }
+.ft-btn.on { background: var(--accent-soft); color: var(--accent); }
+.ft-sep { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
+.ft-size { font-size: 11px; min-width: 18px; text-align: center; }
+.ft-color { width: 24px; height: 24px; padding: 0; border: 0; background: none; }
+.inline-editor { position: absolute; z-index: 25; resize: none; border: 2px solid var(--accent); background: #fff; color: #000; font-family: inherit; padding: 0; outline: none; user-select: text; }
+.ctx-menu { position: fixed; z-index: 60; min-width: 220px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column; }
+.ctx-menu button { display: flex; justify-content: space-between; gap: 24px; background: none; border: 0; text-align: left; padding: 5px 10px; border-radius: 5px; color: var(--text); }
+.ctx-menu button:hover:not(:disabled) { background: var(--accent-soft); }
+.ctx-menu button:disabled { opacity: 0.4; }
+.ctx-menu .danger { color: var(--danger); }
+.ctx-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+.ctx-menu kbd { color: var(--muted); font-size: 11px; }

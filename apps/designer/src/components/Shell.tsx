@@ -6,6 +6,7 @@ import { generateReportFromJson } from "../lib/generate";
 import { insertFromPalette, PALETTE_ITEMS } from "./LeftPanel";
 import { exportReport } from "./Preview";
 import { DatasetEditor } from "./DatasetEditor";
+import { SaveBlockDialogBody } from "./CanvasTools";
 
 // ------------------------------------------------------------------ toolbar
 function useOutsideClose(open: boolean, close: () => void) {
@@ -207,13 +208,13 @@ export function fitZoom(): number {
 export function zoomToSelection() {
   const s = useStore.getState();
   const id = s.selection[0];
-  const el = id ? (document.querySelector(`[data-comp-id="${id}"]`) as HTMLElement | null) : null;
+  const el = id ? (document.querySelector(`[data-cid="${id}"]`) as HTMLElement | null) : null;
   const scroller = document.querySelector(".canvas-scroll") as HTMLElement | null;
   if (!el || !scroller) return s.set({ zoom: fitZoom() });
   const r = el.getBoundingClientRect();
   const factor = Math.min((scroller.clientWidth - 120) / r.width, (scroller.clientHeight - 120) / r.height, 4);
   s.set({ zoom: Math.max(0.25, Math.min(3, +(s.zoom * factor).toFixed(2))) });
-  requestAnimationFrame(() => document.querySelector(`[data-comp-id="${id}"]`)?.scrollIntoView({ block: "center", inline: "center" }));
+  requestAnimationFrame(() => document.querySelector(`[data-cid="${id}"]`)?.scrollIntoView({ block: "center", inline: "center" }));
 }
 
 // ------------------------------------------------------------------ bottom bar + panels
@@ -275,7 +276,7 @@ export function ProblemsPanel() {
               if (p.componentId) {
                 useStore.getState().select([p.componentId]);
                 if (useStore.getState().mode !== "design") useStore.getState().set({ mode: "design" });
-                requestAnimationFrame(() => document.querySelector(`[data-comp-id="${p.componentId}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
+                requestAnimationFrame(() => document.querySelector(`[data-cid="${p.componentId}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
               }
             }}
           >
@@ -635,6 +636,12 @@ export function Dialogs() {
   if (dialog === "settings") return <SettingsDialog />;
   if (dialog === "generate") return <GenerateDialog />;
   if (dialog === "palette") return <CommandPalette />;
+  if (dialog === "block")
+    return (
+      <Modal onClose={() => set({ dialog: null })}>
+        <SaveBlockDialogBody />
+      </Modal>
+    );
   if (dialog === "dataset")
     return (
       <Modal wide onClose={() => set({ dialog: null })}>

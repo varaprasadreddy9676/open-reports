@@ -8,6 +8,8 @@ import { cssFrom } from "../lib/css";
 import { datasetValue, inferFields } from "../lib/fields";
 import { tableFor } from "../lib/generate";
 import { titleCase } from "../lib/lowcode";
+import { snapBox, rectsIntersect, type Guide, type Distance } from "../lib/snap";
+import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
@@ -204,12 +206,15 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap } = useStore();
+  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText } = useStore();
   const k = PT * zoom;
   const paginated = engine.paginated;
   const [indicator, setIndicator] = useState<DropTarget | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number; page: number } | null>(null);
-  const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number }>(null);
+  const [guides, setGuides] = useState<{ page: number; guides: Guide[]; distances: Distance[] } | null>(null);
+  const [marquee, setMarquee] = useState<null | { page: number; x0: number; y0: number; x1: number; y1: number }>(null);
+  const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number; duplicated?: boolean }>(null);
+  const marqueeRef = useRef<typeof marquee>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const selSet = useMemo(() => new Set(selection), [selection]);
 
@@ -270,24 +275,37 @@ export function Canvas() {
       const id = store.selection[0]!;
       const loc = ops.find(store.doc, id);
       const node = [...flat([...paginated!.pages[page]!.header, ...paginated!.pages[page]!.content, ...paginated!.pages[page]!.footer])].find((n) => (n.component as any).id === id);
-      drag.current = { id, mode: "resize", handle: handle.dataset.handle, sx: e.clientX, sy: e.clientY, moved: false, orig: { w: node?.box.width ?? 0, h: node?.box.height ?? 0, x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0 }, page };
+      drag.current = { id, mode: "resize", handle: handle.dataset.handle, sx: e.clientX, sy: e.clientY, moved: false, orig: { w: node?.box.width ?? 0, h: node?.box.height ?? 0, x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: typeof loc?.comp.x === "number" }, page };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
     }
+    if (e.button === 0 && store.contextMenu) store.set({ contextMenu: null });
     if (!el) {
-      store.select([]);
+      if (!e.shiftKey) store.select([]);
+      const pt = pagePoint(e.clientX, e.clientY, page);
+      const m = { page, x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y };
+      marqueeRef.current = m;
+      setMarquee(m);
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
     }
     const id = el.dataset.cid!;
     if (e.shiftKey) store.select([id], true);
     else if (!store.selection.includes(id)) store.select([id]);
     const loc = ops.find(store.doc, id);
+    if (loc?.comp.locked) return;
     drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || typeof loc?.comp.x === "number" }, page };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e: React.PointerEvent, page: number) {
+    if (marqueeRef.current) {
+      const pt = pagePoint(e.clientX, e.clientY, marqueeRef.current.page);
+      marqueeRef.current = { ...marqueeRef.current, x1: pt.x, y1: pt.y };
+      setMarquee(marqueeRef.current);
+      return;
+    }
     const d = drag.current;
     if (!d) return;
     const dx = (e.clientX - d.sx) / k;
@@ -300,11 +318,50 @@ export function Canvas() {
       const h = d.handle!;
       if (h.includes("e")) patch.width = Math.max(8, snapTo(d.orig.w + dx));
       if (h.includes("s")) patch.height = Math.max(4, snapTo(d.orig.h + dy));
+      if (h.includes("w")) {
+        const w = Math.max(8, snapTo(d.orig.w - dx));
+        patch.width = w;
+        if (d.orig.absolute) patch.x = d.orig.x + (d.orig.w - w);
+      }
+      if (h.includes("n")) {
+        const hh = Math.max(4, snapTo(d.orig.h - dy));
+        patch.height = hh;
+        if (d.orig.absolute) patch.y = d.orig.y + (d.orig.h - hh);
+      }
       store.patch(d.id, patch, `resize:${d.id}`);
       return;
     }
     if (d.orig.absolute) {
-      store.patch(d.id, { x: snapTo(d.orig.x + dx), y: snapTo(d.orig.y + dy) }, `move:${d.id}`);
+      if (e.altKey && !d.duplicated) {
+        // Alt-drag leaves the original in place and drags a copy.
+        d.duplicated = true;
+        const r = ops.duplicate(store.doc, d.id);
+        if (r.newId) {
+          store.setDoc(r.doc);
+          store.set({ selection: [r.newId] });
+          d.id = r.newId;
+        }
+      }
+      let x = d.orig.x + dx;
+      let y = d.orig.y + dy;
+      const p = paginated?.pages[page];
+      const me = p ? [...flat([...p.header, ...p.content, ...p.footer])].find((n) => (n.component as any).id === d.id) : undefined;
+      if (me && p && paginated) {
+        const parent = ops.find(store.doc, d.id)?.parent as any;
+        const siblingIds = new Set<string>(((parent?.children as any[]) ?? []).map((c) => c.id).filter((id: string) => id !== d.id));
+        const others = [...flat([...p.header, ...p.content, ...p.footer])].filter((n) => siblingIds.has((n.component as any).id)).map((n) => n.box);
+        const parentBox = parent ? [...flat([...p.header, ...p.content, ...p.footer])].find((n) => (n.component as any).id === parent.id)?.box : undefined;
+        const bounds = parentBox ?? { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom };
+        const offX = me.box.x - d.orig.x;
+        const offY = me.box.y - d.orig.y;
+        const r = snapBox({ x: x + offX, y: y + offY, width: me.box.width, height: me.box.height }, others, bounds, store.view.guides);
+        if (store.view.guides) {
+          x = r.x - offX;
+          y = r.y - offY;
+          setGuides({ page, guides: r.guides, distances: r.distances });
+        }
+      }
+      store.patch(d.id, { x: store.view.guides ? Math.round(x * 10) / 10 : snapTo(x), y: store.view.guides ? Math.round(y * 10) / 10 : snapTo(y) }, `move:${d.id}`);
       return;
     }
     const pt = pagePoint(e.clientX, e.clientY, page);
@@ -312,6 +369,24 @@ export function Canvas() {
   }
 
   function onPointerUp() {
+    if (marqueeRef.current) {
+      const m = marqueeRef.current;
+      marqueeRef.current = null;
+      setMarquee(null);
+      const rect = { x: Math.min(m.x0, m.x1), y: Math.min(m.y0, m.y1), width: Math.abs(m.x1 - m.x0), height: Math.abs(m.y1 - m.y0) };
+      if (rect.width > 3 || rect.height > 3) {
+        const p = paginated?.pages[m.page];
+        const hits = p
+          ? [...flat([...p.header, ...p.content, ...p.footer])].filter((n) => {
+              const c = n.component as any;
+              return c.id && !CONTAINERS.includes(c.type) && rectsIntersect(rect, n.box);
+            })
+          : [];
+        useStore.getState().select(hits.map((n) => (n.component as any).id));
+      }
+      return;
+    }
+    setGuides(null);
     const d = drag.current;
     drag.current = null;
     if (d?.mode === "move" && d.moved && !d.orig.absolute && indicator) {
@@ -384,7 +459,7 @@ export function Canvas() {
           const single = selection.length === 1 ? selected[0] : undefined;
           const showHandles = single && ["text", "image", "qrcode", "barcode", "chart", "rectangle", "container", "row", "column", "grid", "spacer", "line", "table"].includes(single.component.type);
           return (
-            <div key={pi} className="page-wrap">
+            <div key={pi} className="page-wrap" data-page={pi}>
               {showRulers && pi === 0 && (
                 <>
                   <Ruler width={pw} height={ph} k={k} />
@@ -395,31 +470,65 @@ export function Canvas() {
                 ref={(r) => {
                   pageEls.current[pi] = r;
                 }}
-                className={`page ${showGrid ? "grid" : ""}`}
+                className={`page ${showGrid ? "grid" : ""} ${view.boundaries ? "boundaries" : ""}`}
                 data-testid={`page-${pi + 1}`}
                 style={{ width: pw, height: ph, ["--gridsize" as any]: `${SNAP * k}px` }}
                 onPointerDown={(e) => onPointerDown(e, pi)}
                 onPointerMove={(e) => onPointerMove(e, pi)}
                 onPointerUp={onPointerUp}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  const target = (e.target as HTMLElement).closest("[data-cid]") as HTMLElement | null;
+                  const st = useStore.getState();
+                  if (target && !st.selection.includes(target.dataset.cid!)) st.select([target.dataset.cid!]);
+                  st.set({ contextMenu: { x: e.clientX, y: e.clientY, id: target?.dataset.cid } });
+                }}
+                onDoubleClick={(e) => {
+                  // pointer capture retargets events to the page, so hit-test explicitly
+                  const target = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest("[data-cid]") as HTMLElement | null;
+                  if (!target) return;
+                  const st = useStore.getState();
+                  const comp = ops.find(st.doc, target.dataset.cid!)?.comp;
+                  if (!comp || comp.locked) return;
+                  if (["text", "richText"].includes(comp.type)) {
+                    if (comp.binding || comp.expression) {
+                      st.toast("This text is bound to data - change it in the properties panel");
+                      st.set({ rightOpen: true });
+                    } else st.set({ editingText: comp.id });
+                  } else if (comp.type === "table") st.set({ rightOpen: true });
+                }}
                 onDragOver={(e) => onDragOver(e, pi)}
                 onDragLeave={() => setIndicator(null)}
                 onDrop={(e) => onDrop(e, pi)}
               >
-                <div className="margin-guide" style={{ left: paginated.margin.left * k, top: paginated.margin.top * k, right: paginated.margin.right * k, bottom: paginated.margin.bottom * k }} />
+                {view.margins && <div className="margin-guide" style={{ left: paginated.margin.left * k, top: paginated.margin.top * k, right: paginated.margin.right * k, bottom: paginated.margin.bottom * k }} />}
+                {view.margins && <PageZones page={page} paginated={paginated} k={k} />}
                 {[...page.header, ...page.content, ...page.footer].map((n, i) => (
                   <NodeView key={i} node={n} k={k} />
                 ))}
                 {selected.map((n, i) => (
                   <div key={`sel${i}`} className="selbox" style={boxStyle(n, k)}>
-                    {showHandles && n === single && (
+                    {showHandles && n === single && !ops.find(doc, (single.component as any).id)?.comp.locked && (
                       <>
-                        <span className="handle e" data-handle="e" />
-                        <span className="handle s" data-handle="s" />
-                        <span className="handle se" data-handle="se" />
+                        {(typeof ops.find(doc, (single.component as any).id)?.comp.x === "number" ? ["n", "s", "e", "w", "ne", "nw", "se", "sw"] : ["e", "s", "se"]).map((h) => (
+                          <span key={h} className={`handle ${h}`} data-handle={h} />
+                        ))}
                       </>
                     )}
+                    {ops.find(doc, (n.component as any).id)?.comp.locked && <span className="lock-badge" title="Locked">🔒</span>}
                   </div>
                 ))}
+                {single && !drag.current && !editingText && <FloatingToolbar id={(single.component as any).id} left={Math.max(0, single.box.x * k)} top={Math.max(0, single.box.y * k - 38)} />}
+                {editingText && (() => {
+                  const target = allNodes.find((n) => (n.component as any).id === editingText);
+                  return target ? <InlineEditor id={editingText} box={target.box} k={k} /> : null;
+                })()}
+                {view.diagnostics && <Diagnostics nodes={allNodes} k={k} />}
+                {bottom === "pagination" && <PaginationMarkers page={pi} nodes={allNodes} k={k} />}
+                {guides && guides.page === pi && <SmartGuides g={guides} k={k} />}
+                {marquee && marquee.page === pi && (
+                  <div className="marquee" style={{ left: Math.min(marquee.x0, marquee.x1) * k, top: Math.min(marquee.y0, marquee.y1) * k, width: Math.abs(marquee.x1 - marquee.x0) * k, height: Math.abs(marquee.y1 - marquee.y0) * k }} />
+                )}
                 {indicator && indicator.page === pi && (
                   <div
                     className={`drop-indicator ${indicator.position}`}
@@ -440,7 +549,104 @@ export function Canvas() {
         })}
       </div>
       <DropPromptMenu />
+      <ContextMenu />
     </div>
+  );
+}
+
+const MM = 25.4 / 72;
+
+function PageZones({ page, paginated, k }: { page: any; paginated: any; k: number }) {
+  const z = page.zones;
+  const bodyEnd = Math.max(0, ...page.content.map((n: PositionedNode) => n.box.y + n.box.height));
+  const remaining = z.body.y + z.body.height - bodyEnd;
+  const zoneStyle = (y: number, h: number): React.CSSProperties => ({ left: paginated.margin.left * k, right: paginated.margin.right * k, top: y * k, height: h * k });
+  return (
+    <>
+      {z.header.height > 0 && (
+        <div className="zone header" style={zoneStyle(z.header.y, z.header.height)}>
+          <span>Page header</span>
+        </div>
+      )}
+      <div className="zone body" style={zoneStyle(z.body.y, z.body.height)}>
+        <span>Body</span>
+      </div>
+      {z.footer.height > 0 && (
+        <div className="zone footer" style={zoneStyle(z.footer.y, z.footer.height)}>
+          <span>Page footer</span>
+        </div>
+      )}
+      {remaining > 8 && (
+        <div className="remaining" style={{ left: paginated.margin.left * k, right: paginated.margin.right * k, top: bodyEnd * k, height: remaining * k }} data-testid="remaining-area">
+          <span>{(remaining * MM).toFixed(0)} mm free</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SmartGuides({ g, k }: { g: { guides: Guide[]; distances: Distance[] }; k: number }) {
+  return (
+    <>
+      {g.guides.map((l, i) => (
+        <div key={i} className={`guide ${l.axis}`} style={l.axis === "x" ? { left: l.pos * k, top: l.from * k, height: (l.to - l.from) * k } : { top: l.pos * k, left: l.from * k, width: (l.to - l.from) * k }} />
+      ))}
+      {g.distances.map((d, i) => (
+        <div key={`d${i}`} className={`dist ${d.axis}`} style={d.axis === "x" ? { left: d.from * k, width: (d.to - d.from) * k, top: d.at * k } : { top: d.from * k, height: (d.to - d.from) * k, left: d.at * k }}>
+          <span>{d.mm.toFixed(1)} mm</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function Diagnostics({ nodes, k }: { nodes: PositionedNode[]; k: number }) {
+  const problems = useStore((s) => s.engine.problems);
+  const byId = new Map<string, "error" | "warning">();
+  for (const p of problems) {
+    if (!p.componentId || p.severity === "suggestion") continue;
+    if (byId.get(p.componentId) !== "error") byId.set(p.componentId, p.severity);
+  }
+  return (
+    <>
+      {nodes
+        .filter((n) => byId.has((n.component as any).id))
+        .map((n, i) => (
+          <button
+            key={i}
+            className={`diag-badge ${byId.get((n.component as any).id)}`}
+            data-testid="diag-badge"
+            style={{ left: (n.box.x + n.box.width) * k - 8, top: n.box.y * k - 8 }}
+            title="Show in Problems"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              useStore.getState().select([(n.component as any).id]);
+              useStore.getState().set({ bottom: "problems" });
+            }}
+          >
+            !
+          </button>
+        ))}
+    </>
+  );
+}
+
+function PaginationMarkers({ page, nodes, k }: { page: number; nodes: PositionedNode[]; k: number }) {
+  const decisions = useStore((s) => s.engine.paginated?.decisions ?? []);
+  return (
+    <>
+      {decisions
+        .filter((d) => d.page === page + 1)
+        .map((d, i) => {
+          const n = nodes.find((x) => (x.component as any).id === d.componentId);
+          const top = n ? n.box.y * k : 0;
+          return (
+            <div key={i} className={`pg-marker ${d.kind}`} style={{ top }} data-testid="pg-marker" onPointerDown={(e) => e.stopPropagation()}>
+              <span>{d.kind.replace(/-/g, " ")}</span>
+            </div>
+          );
+        })}
+    </>
   );
 }
 

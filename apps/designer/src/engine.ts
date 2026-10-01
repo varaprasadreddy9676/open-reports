@@ -192,7 +192,7 @@ function analyse(doc: Doc, resolved: ResolvedReport, paginated: PaginatedReport,
 
       if (n.box.width > contentWidth + 0.5 && c.type !== "pageBreak") {
         const over = ((n.box.width - contentWidth) * MM).toFixed(1);
-        problems.push({ severity: "error", code: "WIDER_THAN_PAGE", message: `"${id}" exceeds the printable width by ${over} mm.`, componentId: id, fix: { label: "Fit to printable width", id, patch: { width: Math.floor(contentWidth) } } });
+        problems.push({ severity: "error", code: "WIDER_THAN_PAGE", message: `"${id}" exceeds the printable width by ${over} mm.`, componentId: id, fix: { label: "Fit to printable width", id, patch: { width: Math.max(8, Math.floor(contentWidth - Math.max(0, n.box.x - paginated.margin.left))) } } });
       }
 
       if (c.type === "barcode" && c.value) {
