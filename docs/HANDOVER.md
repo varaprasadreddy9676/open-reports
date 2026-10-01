@@ -22,7 +22,7 @@ Thesis: Open Reports had a page/component designer; it must become a true **repo
 4. Draggable margins + guides — **DONE** (margins on rulers, click-ruler-to-add-guide, drag/delete guides, persistent in `report.guides`; named guides UI missing)
 5. Grid / snap / smart guides / dimension lines — **PARTIAL** (grid lines/dots/hidden, snap to guides + sibling edges + equal-distance labels existed; major/minor grid sizes, per-snap toggles, equal-spacing guides missing)
 6. Section resize / collapse / reorder — **DONE** (ruler edge drag, double-click fit, caret collapse, tab drag-reorder with order validation, "+" insertion)
-7. Report explorer — **NOT DONE** (old `LayersTab` in `LeftPanel.tsx` still lists sections with the old 5-type "Add section" select)
+7. Report explorer — **PARTIAL (2026-10-01)** (`LeftPanel.tsx` now shows nested group order, all active band types, component layers and actions, band selection/collapse/add/reorder through `ops`; group wizard and richer group-to-band nesting remain)
 8. Report/page/group/data headers+footers — **engine DONE**, designer UI only via "+" menu
 9. Group designer (wizard, nested groups) — **ops DONE (`addGroup/updateGroup/removeGroup`), UI NOT DONE**
 10. Section-Expert style properties panel — **DONE (2026-10-01)** (`BandProps.tsx` opens when a band is selected; all principal schema fields, group settings, and band actions are editable)
@@ -76,6 +76,8 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - `ops.updateBand` now preserves explicit `allowSplit: false` and `repeatEveryPage: false`; both override inherited defaults. Unit and browser tests cover these cases.
 - Verification after the change: designer build/typecheck passed, 31 unit tests passed, 52 browser tests passed and 5 skipped. The full recursive workspace test suite remains unverified until SQL services are available.
 - ESC/POS long-receipt review: the renderer emits all resolved rows and cuts once at the end, but table cells truncate to their allotted width; no long-bill stress or physical-printer test exists. PDF uses fixed-height pages.
+- A 500-row synthetic 80 mm ESC/POS receipt produced 24,116 bytes, contained all 500 SKU identifiers, and ended with a cut command. The rendered first row showed its long product name truncated; physical printer/spooler behavior remains unverified.
+- Replaced the old 5-type "Add section" list with a report explorer in `LeftPanel.tsx`: nested group names, band rows that open Section Expert, collapse, add and drag-reorder guarded by `ops.moveBand`, plus existing component rename/hide/lock/drag actions. Browser checks cover valid and invalid reorder, group hierarchy, selection, and adding a band.
 
 ## 5. Next steps (do in this order)
 

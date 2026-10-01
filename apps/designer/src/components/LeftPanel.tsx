@@ -376,21 +376,82 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
   );
 }
 
-const SECTION_TYPES = ["reportHeader", "pageHeader", "detail", "pageFooter", "reportFooter"];
+function GroupTree({ groups, index = 0 }: { groups: any[]; index?: number }) {
+  const group = groups[index];
+  if (!group) return null;
+  return <div className="explorer-group" style={{ marginLeft: index ? 14 : 0 }}>
+    <div className="layer" data-testid={`explorer-group-${group.id}`} title={group.by}>
+      <span className="layer-type">▣</span>
+      <span className="layer-name">{group.name ?? group.id}</span>
+      <span className="spacer" />
+      <span className="muted small">{group.by}</span>
+    </div>
+    <GroupTree groups={groups} index={index + 1} />
+  </div>;
+}
 
-function LayersTab() {
-  const { doc } = useStore();
+function ReportExplorer() {
+  const { doc, selectedBand } = useStore();
   const sections: any[] = doc.sections ?? [];
+  const addBand = (type: string) => {
+    const st = useStore.getState();
+    const props: Record<string, any> = {};
+    if (type === "groupHeader" || type === "groupFooter") {
+      if (!(st.doc.groups ?? []).length) return st.toast("Add a group before adding its header or footer", "info");
+      props.groupId = st.doc.groups[0].id;
+    }
+    if (type === "child") {
+      const parent = st.selectedBand === null ? undefined : st.doc.sections[st.selectedBand];
+      if (!parent?.id) return st.toast("Select a named parent band before adding a child band", "info");
+      props.parent = parent.id;
+    }
+    const result = ops.addBand(st.doc, type, props);
+    st.setDoc(result.doc);
+    st.set({ selectedBand: result.index, selection: [], rightOpen: true });
+  };
   return (
     <div className="tab-body" data-testid="layers-tab">
       <div className="layer root">{doc.name}</div>
+      {(doc.groups ?? []).length > 0 && <>
+        <div className="group-title">Groups (outer to inner)</div>
+        <GroupTree groups={doc.groups} />
+      </>}
+      <div className="group-title">Bands</div>
       {sections.map((s, i) => (
         <div key={i}>
           <div
-            className="layer section"
+            className={`layer section ${selectedBand === i ? "selected" : ""}`}
             data-testid={`section-${s.type}`}
-            onDragOver={(e) => e.dataTransfer.types.includes("application/x-layer") && e.preventDefault()}
+            data-band-index={i}
+            role="button"
+            tabIndex={0}
+            draggable
+            onClick={() => useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true })}
+            onKeyDown={(e) => {
+              if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+              e.preventDefault();
+              useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true });
+            }}
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/band", String(i));
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes("text/band")) e.preventDefault();
+              if (e.dataTransfer.types.includes("application/x-layer")) e.preventDefault();
+            }}
             onDrop={(e) => {
+              const bandFrom = e.dataTransfer.getData("text/band");
+              if (bandFrom !== "") {
+                e.preventDefault();
+                const st = useStore.getState();
+                const next = ops.moveBand(st.doc, Number(bandFrom), i);
+                if (next) {
+                  st.setDoc(next);
+                  st.set({ selectedBand: i });
+                }
+                return;
+              }
               const id = e.dataTransfer.getData("application/x-layer");
               if (!id) return;
               e.preventDefault();
@@ -403,35 +464,43 @@ function LayersTab() {
               st.setDoc(next);
             }}
           >
-            <span className="layer-type">{ops.sectionLabel(s)}</span>
+            <button className="mini" aria-label={s.collapsed ? "Expand band" : "Collapse band"} data-testid={`explorer-collapse-${i}`} onClick={(e) => {
+              e.stopPropagation();
+              const st = useStore.getState();
+              st.setDoc(ops.updateBand(st.doc, i, { collapsed: s.collapsed ? undefined : true }));
+            }}>{s.collapsed ? "▸" : "▾"}</button>
+            <span className="layer-type">{ops.BAND_CODES[s.type] ?? ""}</span>
+            <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{ops.bandDisplayName(doc, s)}</span>
             <span className="spacer" />
             <button
               className="mini danger"
-              aria-label={`Remove ${s.type} section`}
-              onClick={() => useStore.getState().setDoc(ops.removeSection(doc, i))}
+              aria-label={`Remove ${s.type} band`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const st = useStore.getState();
+                st.setDoc(ops.removeSection(st.doc, i));
+                st.set({ selectedBand: null });
+              }}
             >
               ×
             </button>
           </div>
-          {(s.children ?? []).map((c: ops.Comp) => (
+          {!s.collapsed && (s.children ?? []).map((c: ops.Comp) => (
             <LayerRow key={c.id} comp={c} depth={1} />
           ))}
         </div>
       ))}
       <label className="add-section">
-        <span>Add section</span>
+        <span>Add band</span>
         <select
           value=""
-          aria-label="Add section"
-          onChange={(e) => {
-            if (!e.target.value) return;
-            const s = useStore.getState();
-            s.setDoc({ ...s.doc, sections: [...(s.doc.sections ?? []), { type: e.target.value, children: [] }] });
-          }}
+          aria-label="Add band"
+          data-testid="explorer-add-band"
+          onChange={(e) => e.target.value && addBand(e.target.value)}
         >
           <option value="">Choose...</option>
-          {SECTION_TYPES.filter((t) => t === "detail" || !sections.some((s) => s.type === t)).map((t) => (
-            <option key={t} value={t}>{ops.sectionLabel({ type: t })}</option>
+          {ops.BAND_TYPES.map((t) => (
+            <option key={t} value={t}>{ops.BAND_TITLES[t]}</option>
           ))}
         </select>
       </label>
@@ -474,7 +543,7 @@ export function LeftPanel() {
       </div>
       {tab === "insert" && <InsertTab />}
       {tab === "data" && <DataTab />}
-      {tab === "layers" && <LayersTab />}
+      {tab === "layers" && <ReportExplorer />}
       {tab === "pages" && <PagesTab />}
     </aside>
   );

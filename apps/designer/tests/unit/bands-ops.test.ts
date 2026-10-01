@@ -59,6 +59,14 @@ describe("moving bands", () => {
     expect(ops.moveBand(d, 2, 0)).toBeUndefined();
     expect(JSON.stringify(d)).toBe(before);
   });
+  it("moves two same-type bands while preserving their children", () => {
+    let d = base();
+    d = ops.addBand(d, "reportHeader", { name: "A", children: [{ type: "text", id: "a", value: "A" }] }).doc;
+    d = ops.addBand(d, "reportHeader", { name: "B", children: [{ type: "text", id: "b", value: "B" }] }).doc;
+    const moved = ops.moveBand(d, 0, 1)!;
+    expect(moved.sections.slice(0, 2).map((s: any) => s.name)).toEqual(["B", "A"]);
+    expect(moved.sections[1].children[0].id).toBe("a");
+  });
 });
 
 describe("band and guide edits", () => {

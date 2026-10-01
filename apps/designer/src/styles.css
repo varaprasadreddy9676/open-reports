@@ -491,6 +491,10 @@ textarea {
   text-transform: uppercase;
   font-size: 11px;
 }
+.layer.section.selected {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
 .layer.root {
   font-weight: 700;
 }

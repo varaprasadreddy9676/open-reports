@@ -126,3 +126,31 @@ test("group band exposes the owning group's print rules", async ({ page }) => {
   expect((await doc(page)).groups[0]).toMatchObject({ sort: "desc", repeatHeader: true, newPage: "before", minDetailRows: 2 });
   expect((await doc(page)).sections[0].repeatEveryPage).toBe(false);
 });
+
+test("report explorer shows nested groups and reorders only valid bands", async ({ page }) => {
+  await page.evaluate(() => {
+    const st = (window as any).__designer.getState();
+    st.setDoc({ ...st.doc,
+      groups: [
+        { id: "outer", name: "Department", by: "row.department" },
+        { id: "inner", name: "Category", by: "row.category" },
+      ],
+      sections: [
+        { type: "reportHeader", name: "A", children: [] },
+        { type: "reportHeader", name: "B", children: [] },
+        { type: "detail", children: [] },
+      ],
+    });
+  });
+  await page.getByTestId("left-tab-layers").click();
+  await expect(page.getByTestId("explorer-group-outer")).toContainText("Department");
+  await expect(page.getByTestId("explorer-group-inner")).toContainText("Category");
+  await page.locator("[data-band-index='0']").dragTo(page.locator("[data-band-index='1']"));
+  expect((await doc(page)).sections.map((s: any) => s.name ?? s.type)).toEqual(["B", "A", "detail"]);
+  await page.locator("[data-band-index='2']").dragTo(page.locator("[data-band-index='0']"));
+  expect((await doc(page)).sections.map((s: any) => s.name ?? s.type)).toEqual(["B", "A", "detail"]);
+  await page.locator("[data-band-index='1']").click();
+  await expect(page.getByTestId("band-name")).toHaveValue("A");
+  await page.getByTestId("explorer-add-band").selectOption("reportFooter");
+  expect((await doc(page)).sections.at(-1).type).toBe("reportFooter");
+});
