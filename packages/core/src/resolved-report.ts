@@ -116,7 +116,7 @@ export interface ResolvedTableColumn {
   width?: number | string;
   align?: string;
   format?: string;
-  footer?: { label?: string; value: string };
+  footer?: { label?: string; value: string; raw?: unknown };
 }
 
 export interface ResolvedTableRow {

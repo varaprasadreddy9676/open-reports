@@ -1,0 +1,29 @@
+{
+  "name": "@reporting/renderer-xlsx",
+  "version": "0.1.0",
+  "description": "XLSX renderer: writes each table in a Resolved Report Tree as a worksheet (streaming writer, typed cells, header styling, totals, freeze panes, autofilter)",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@reporting/schema": "workspace:*",
+    "@reporting/core": "workspace:*",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

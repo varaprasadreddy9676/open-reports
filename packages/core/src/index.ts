@@ -11,3 +11,4 @@ export * from "./resolve-component.js";
 export * from "./pipeline.js";
 export * from "./validator.js";
 export * from "./renderer.js";
+export * from "./walk.js";

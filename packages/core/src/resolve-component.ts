@@ -239,7 +239,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
       } else if (col.footer.expression) {
         value = env.engine.evaluate(col.footer.expression, { ...ctx, data: { ...ctx.data, [component.dataset]: rows } });
       }
-      columns[i]!.footer = { label: col.footer.label, value: formatValue(value, col.format, env) };
+      columns[i]!.footer = { label: col.footer.label, value: formatValue(value, col.format, env), raw: value };
     });
   }
 
