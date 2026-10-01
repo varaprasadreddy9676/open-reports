@@ -38,6 +38,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.13
         version: 6.43.13
+      '@reporting/ai-tools':
+        specifier: workspace:*
+        version: link:../../packages/ai-tools
       '@reporting/core':
         specifier: workspace:*
         version: link:../../packages/core

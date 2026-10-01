@@ -7,6 +7,7 @@ import { CodeEditor } from "./components/CodeEditor";
 import { Preview } from "./components/Preview";
 import { BottomBar, BottomPanel, Dialogs, Toasts, Toolbar } from "./components/Shell";
 import { DataMode } from "./components/DataMode";
+import { AiBar } from "./components/AiBar";
 import * as ops from "./model/ops";
 
 function isTyping(t: EventTarget | null): boolean {
@@ -40,6 +41,11 @@ export default function App() {
       if (mod && e.key.toLowerCase() === "k") {
         e.preventDefault();
         s.set({ dialog: s.dialog === "palette" ? null : "palette" });
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        s.set({ aiOpen: !s.aiOpen });
         return;
       }
       if (mod && e.key.toLowerCase() === "s") {
@@ -121,6 +127,7 @@ export default function App() {
       </div>
       <BottomPanel />
       <BottomBar />
+      <AiBar />
       <Dialogs />
       <Toasts />
     </div>

@@ -18,6 +18,7 @@
     "@codemirror/lint": "^6.9.7",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.13",
+    "@reporting/ai-tools": "workspace:*",
     "@reporting/core": "workspace:*",
     "@reporting/expressions": "workspace:*",
     "@reporting/layout": "workspace:*",

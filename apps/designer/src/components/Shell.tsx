@@ -8,6 +8,7 @@ import { exportReport } from "./Preview";
 import { DatasetEditor } from "./DatasetEditor";
 import { SaveBlockDialogBody } from "./CanvasTools";
 import { CompareDialogBody } from "./CompareDialog";
+import { AiSettingsBody } from "./AiBar";
 
 // ------------------------------------------------------------------ toolbar
 function useOutsideClose(open: boolean, close: () => void) {
@@ -139,6 +140,9 @@ export function Toolbar() {
             ))}
           </select>
         </label>
+        <button className="btn ai-btn" data-testid="btn-ai" title="Ask AI to edit (Ctrl+J) - bring your own key" onClick={() => set({ aiOpen: !useStore.getState().aiOpen })}>
+          ✦ AI
+        </button>
         <button className="btn" data-testid="btn-palette" title="Command palette (Ctrl+K)" onClick={() => set({ dialog: "palette" })}>⌘K</button>
         <div className="menu-wrap">
           <button className="btn" data-testid="btn-export" aria-haspopup="menu" aria-expanded={menu === "export"} onClick={() => setMenu(menu === "export" ? null : "export")}>Export ▾</button>
@@ -591,6 +595,7 @@ function useCommands(): Command[] {
   return useMemo(() => {
     const s = () => useStore.getState();
     const cmds: Command[] = [
+      { id: "ai", label: "Ask AI to edit the selection", hint: "Ctrl+J", run: () => s().set({ aiOpen: true }) },
       { id: "save", label: "Save report", hint: "Ctrl+S", run: () => s().save() },
       { id: "publish", label: "Publish current version", run: () => s().publish() },
       { id: "new", label: "New report...", run: () => s().set({ dialog: "new" }) },
@@ -668,6 +673,12 @@ export function Dialogs() {
   if (dialog === "settings") return <SettingsDialog />;
   if (dialog === "generate") return <GenerateDialog />;
   if (dialog === "palette") return <CommandPalette />;
+  if (dialog === "ai-settings")
+    return (
+      <Modal onClose={() => set({ dialog: null })}>
+        <AiSettingsBody onClose={() => set({ dialog: null })} />
+      </Modal>
+    );
   if (dialog === "compare")
     return (
       <Modal wide onClose={() => set({ dialog: null })}>

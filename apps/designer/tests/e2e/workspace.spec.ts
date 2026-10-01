@@ -334,3 +334,82 @@ test.describe("label sheets", () => {
     expect(d.sections[0].children[0].startPosition).toBe(5);
   });
 });
+
+test.describe("AI assistant (BYOK, mocked provider)", () => {
+  async function mockProvider(page: Page, reply: unknown, status = 200) {
+    let calls = 0;
+    let lastBody = "";
+    await page.route("https://api.anthropic.com/**", async (route) => {
+      const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "POST, OPTIONS" };
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+      calls++;
+      lastBody = route.request().postData() ?? "";
+      await route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(status === 200 ? { content: [{ type: "text", text: JSON.stringify(reply) }] } : { error: { message: "invalid x-api-key" } }) });
+    });
+    return { calls: () => calls, body: () => lastBody };
+  }
+  const withKey = async (page: Page) =>
+    page.addInitScript(() => localStorage.setItem("designer.ai", JSON.stringify({ provider: "anthropic", model: "claude-test", apiKey: "sk-test", baseUrl: "" })));
+
+  test("selection-scoped edit: proposal previews on the canvas, Accept commits, Undo restores", async ({ page }) => {
+    await withKey(page);
+    const mock = await mockProvider(page, { explanation: "Made the title larger and bold.", ops: [{ op: "replace", path: "#company/style/fontSize", value: 28 }, { op: "add", path: "#company/style/fontWeight", value: "bold" }] });
+    await page.goto("/");
+    await page.getByTestId("starter-invoice").click();
+    await expect(page.getByTestId("page-1")).toBeVisible();
+    await page.evaluate(() => (window as any).__designer.getState().select(["company"]));
+    await page.keyboard.press("Control+j");
+    await expect(page.getByTestId("ai-scope")).toContainText("1 selected");
+    await page.getByTestId("ai-prompt").fill("make the company name bigger and bold");
+    await page.getByTestId("ai-send").click();
+    await expect(page.getByTestId("ai-proposal")).toBeVisible();
+    await expect(page.getByTestId("ai-changes")).toContainText('changed text "company"');
+    // nothing committed yet
+    expect((await doc(page)).sections[0].children[0].children[0].style.fontSize).not.toBe(28);
+    // the model never saw sample data values
+    expect(mock.body()).not.toContain("Sai Varaprasad");
+    expect(mock.body()).toContain("claude-test");
+    await page.getByTestId("ai-accept").click();
+    expect(JSON.stringify(await doc(page))).toContain('"fontSize":28');
+    await page.getByTestId("btn-undo").click();
+    expect(JSON.stringify(await doc(page))).not.toContain('"fontSize":28');
+  });
+
+  test("Reject leaves the report untouched", async ({ page }) => {
+    await withKey(page);
+    await mockProvider(page, { explanation: "Removed it.", ops: [{ op: "remove", path: "#company" }] });
+    await page.goto("/");
+    await page.getByTestId("starter-invoice").click();
+    await page.keyboard.press("Control+j");
+    await page.getByTestId("ai-prompt").fill("delete the company name");
+    await page.getByTestId("ai-send").click();
+    await expect(page.getByTestId("ai-proposal")).toBeVisible();
+    await page.getByTestId("ai-reject").click();
+    expect(JSON.stringify(await doc(page))).toContain('"id":"company"');
+    await expect(page.getByTestId("ai-proposal")).toHaveCount(0);
+  });
+
+  test("a bad model reply or provider error is shown, and nothing changes", async ({ page }) => {
+    await withKey(page);
+    await mockProvider(page, { explanation: "oops", ops: [{ op: "replace", path: "#ghost/value", value: 1 }] });
+    await page.goto("/");
+    await page.getByTestId("starter-invoice").click();
+    await page.keyboard.press("Control+j");
+    await page.getByTestId("ai-prompt").fill("do something");
+    await page.getByTestId("ai-send").click();
+    await expect(page.getByTestId("ai-error")).toContainText("Nothing was changed");
+  });
+
+  test("without a key the settings dialog opens; the key is stored locally only", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.getByTestId("btn-ai").click();
+    await page.getByTestId("ai-prompt").fill("add a title");
+    await page.getByTestId("ai-send").click();
+    await page.getByTestId("ai-key").fill("sk-local");
+    await page.getByTestId("ai-settings-save").click();
+    const stored = await page.evaluate(() => localStorage.getItem("designer.ai"));
+    expect(stored).toContain("sk-local");
+    await expect(page.getByTestId("ai-bar")).toBeVisible();
+  });
+});

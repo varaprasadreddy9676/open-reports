@@ -1733,3 +1733,16 @@ kbd {
 .cm-host .cm-editor { height: 100%; }
 .cm-doc-tip { padding: 6px 8px; max-width: 280px; font-size: 12px; }
 .print-facts.bad { color: var(--danger); }
+
+/* ---------- AI bar */
+.ai-btn { color: var(--accent); }
+.ai-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 54px; width: min(640px, calc(100vw - 32px)); z-index: 45; display: flex; flex-direction: column; gap: 8px; }
+.ai-input, .ai-proposal { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 8px 10px; }
+.ai-input { display: flex; align-items: center; gap: 8px; }
+.ai-input input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: 14px; outline: none; }
+.ai-scope { font-size: 11px; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.ai-proposal { padding: 12px 14px; }
+.ai-head { display: flex; gap: 8px; align-items: baseline; }
+.ai-explain { margin: 6px 0; font-size: 13px; }
+.ai-changes { margin: 4px 0 8px; padding-left: 18px; font-size: 12px; max-height: 140px; overflow: auto; }
+.ai-actions { display: flex; gap: 8px; margin-top: 8px; }

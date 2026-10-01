@@ -3,6 +3,7 @@ import * as ops from "./model/ops";
 import type { Comp, Doc } from "./model/ops";
 import { runEngine, type EngineResult, type Capabilities } from "./engine";
 import { diffDocs, summarize } from "./lib/diff";
+import type { Proposal } from "./lib/ai";
 import { blankReport } from "./lib/templates";
 import { api, ApiError } from "./lib/api";
 
@@ -80,13 +81,16 @@ interface State {
   renaming: string | null;
   contextMenu: { x: number; y: number; id?: string } | null;
   compareVersion: number | null;
+  aiOpen: boolean;
+  aiProposal: Proposal | null;
+  aiBusy: boolean;
   leftOpen: boolean;
   rightOpen: boolean;
   engine: EngineResult;
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "open" | "new" | "settings" | "dataset" | "palette" | "generate" | "compare" | "block";
+  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "palette" | "generate" | "compare" | "block";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;
@@ -125,6 +129,8 @@ interface State {
   loadBlocks(): Promise<void>;
   saveBlock(name: string): Promise<void>;
   insertBlock(id: string): void;
+  acceptAi(): void;
+  rejectAi(): void;
 }
 
 let toastId = 1;
@@ -204,6 +210,9 @@ export const useStore = create<State>((set, get) => ({
   renaming: null,
   contextMenu: null,
   compareVersion: null,
+  aiOpen: false,
+  aiProposal: null,
+  aiBusy: false,
   leftOpen: true,
   rightOpen: true,
   engine: { problems: [] },
@@ -218,6 +227,7 @@ export const useStore = create<State>((set, get) => ({
   setDoc(doc, opts = {}) {
     const s = get();
     if (doc === s.doc) return;
+    if (s.aiProposal) set({ aiProposal: null }); // editing by hand supersedes a pending AI proposal
     const now = Date.now();
     const coalesce = opts.coalesce && s.lastCoalesce && s.lastCoalesce.key === opts.coalesce && now - s.lastCoalesce.at < 900;
     const past = coalesce ? s.past : [...s.past, { doc: s.doc, label: summarize(diffDocs(s.doc, doc)), at: now }].slice(-100);
@@ -386,7 +396,9 @@ export const useStore = create<State>((set, get) => ({
     timer = setTimeout(async () => {
       const run = ++engineRun;
       set({ engineBusy: true });
-      const { doc, sample, parameters, sampleRows, target, capabilities } = get();
+      const { doc: realDoc, aiProposal, sample, parameters, sampleRows, target, capabilities } = get();
+      // While an AI proposal awaits approval the canvas shows the proposed result; nothing is committed until Accept.
+      const doc = aiProposal?.doc ?? realDoc;
       const result = await runEngine(doc, sample, parameters, { sampleRows, target, capabilities });
       if (run === engineRun) {
         // On a schema/engine error keep showing the last good render, with fresh problems alongside it.
@@ -541,5 +553,19 @@ export const useStore = create<State>((set, get) => ({
     }
     get().setDoc(doc);
     set({ selection: ids });
+  },
+
+  acceptAi() {
+    const p = get().aiProposal;
+    if (!p) return;
+    set({ aiProposal: null });
+    get().setDoc(ops.ensureIds(p.doc));
+    get().toast("Applied the AI change - Undo restores your previous version", "success");
+  },
+
+  rejectAi() {
+    if (!get().aiProposal) return;
+    set({ aiProposal: null });
+    get().refresh();
   },
 }));

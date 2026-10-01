@@ -16,6 +16,7 @@ Report definitions can come from less-trusted authors (designer users, API calle
 | Output injection | HTML renderer escapes all data and attributes; CSV prefixes cells starting with `= + - @` (formula injection); ZPL strips `^`/`~` from data | `security.test.ts` |
 | Resource exhaustion | Body size limit, row limits, dataset timeouts, expression depth, label-sheet size cap, async job store with expiry | `security.test.ts`, server tests |
 | Unauthenticated access | `API_KEYS` (comma-separated) required on `/api/*`; health and the public JSON Schema are open. **If `API_KEYS` is empty the server runs unauthenticated and logs a warning** — never do this on a network | `security.test.ts` |
+| AI misuse / prompt injection | AI can only emit JSON Patches that are applied to a copy, validated, and (in the designer) shown as a diff for approval; MCP `--read-only` hides write tools; no model keys on the server; designer AI keys stay in the browser; inline sample data is not sent to providers | `ai-tools`, `mcp.test.ts`, designer AI tests |
 | Malicious plugins | Plugins run in-process with full privileges. Only install plugins you trust. Plugin registrations are validated and rolled back on failure, and cannot replace built-in formats or functions | `plugin-sdk` tests |
 
 ## Deployment checklist

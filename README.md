@@ -18,7 +18,7 @@ Design, Low-code and Code are three views of **the same JSON**, so a first-time 
 - **Print-native.** Physical units (mm), print profiles (DPI, safe margin), barcodes/QR with scan-size validation, ZPL output, and N-up **label sheets** (e.g. 2×4 on A4, start at position 5).
 - **Multilingual.** Latin, Devanagari, Telugu, Kannada, Tamil and Arabic (RTL) with per-script fonts.
 - **Extensible.** Plugins add renderers, datasources, expression functions, components and storage.
-- **AI-ready, not AI-dependent.** The JSON is the contract an MCP tool or copilot edits; the engine never lets AI calculate or render. (MCP server / AI bar: roadmap, see below.)
+- **AI-ready, not AI-dependent.** The JSON is the contract: an **MCP server** (Claude, Codex, Cursor…) and the designer's **AI bar** edit it with validated JSON Patches you review as a diff. Bring your own key; the engine never lets AI calculate or render. ([details](docs/AI_AND_MCP.md))
 
 ## Quick start
 ### Docker
@@ -53,6 +53,7 @@ curl -X POST localhost:4000/api/v1/render -H 'content-type: application/json' -H
 | `@reporting/renderer-{pdf,html,xlsx,csv,zpl}` | Output formats |
 | `@reporting/datasource-{json,rest,sql}` | Data sources (REST is SSRF-guarded; SQL is parameterised; PostgreSQL + MySQL) |
 | `@reporting/plugin-sdk` | Extension API ([guide](docs/PLUGIN_DEVELOPMENT.md)) |
+| `@reporting/ai-tools`, `@reporting/mcp-server` | AI tool catalogue and the MCP server ([guide](docs/AI_AND_MCP.md)) |
 | `@reporting/plugin-clinic-pack` | Example plugin |
 | `apps/server` | REST API, template versioning (draft → immutable published), async jobs, OpenAPI at `/openapi.json` |
 | `apps/designer` | The visual designer |
@@ -60,7 +61,7 @@ curl -X POST localhost:4000/api/v1/render -H 'content-type: application/json' -H
 23 ready-made examples in [`examples/`](examples): invoice, receipt (80 and 58 mm), purchase order, account statement, grouped sales, charts, multilingual, lab / radiology / discharge reports, prescription, specimen / pharmacy / blood-bag / generic labels, wristband, patient ID card, A4 sticker sheet.
 
 ## Documentation
-[User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [Report definition reference](docs/REPORT_DEFINITION.md) · [Plugin development](docs/PLUGIN_DEVELOPMENT.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+[User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [Report definition reference](docs/REPORT_DEFINITION.md) · [Plugin development](docs/PLUGIN_DEVELOPMENT.md) · [AI & MCP](docs/AI_AND_MCP.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
 ## Quality gates
 Unit tests per package; a **pagination boundary suite** (N−1/N/N+1 rows, multi-page, other page sizes, wrapped and multi-script cells) on real PDFs; **visual regression** against committed baselines; **security tests** (expression sandbox, SSRF, injection, traversal); a **benchmark** script (`pnpm --filter @reporting/server bench`); and end-to-end browser tests of the designer. CI runs all of them against real PostgreSQL and MySQL.
@@ -68,8 +69,8 @@ Unit tests per package; a **pagination boundary suite** (N−1/N/N+1 rows, multi
 Indicative speed on a laptop-class CPU (see `benchmarks/results.json`): 100 000-row XLSX ≈ 8 s, 100 000-row CSV ≈ 5 s, 2 000-row PDF ≈ 0.8 s, 16 concurrent 500-row PDFs ≈ 3 s.
 
 ## Status and roadmap
-Done: engine, all five renderers, datasources, server, designer, plugin system, label sheets, docs, Docker, CI, test suites.
-Not built yet: **MCP server and the designer's AI command bar** (planned last; BYOK, edits JSON with a diff preview), a typed **SDK** and **CLI**, PDF/A and digital signatures, footnotes/TOC/bookmarks, EPL and ESC/POS output, and streaming for million-row exports. Known limitation: subreports are declared in the schema but not executed.
+Done: engine, all five renderers, datasources, server, designer, plugin system, label sheets, MCP server and designer AI bar (BYOK), docs, Docker, CI, test suites.
+Not built yet: a typed **SDK** and **CLI** (use the REST API or MCP meanwhile), PDF/A and digital signatures, footnotes/TOC/bookmarks, EPL and ESC/POS output, and streaming for million-row exports. Known limitation: subreports are declared in the schema but not executed.
 
 ## License
 MIT — see [LICENSE](LICENSE).
