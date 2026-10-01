@@ -24,6 +24,7 @@ const P: Record<string, string> = {
   "chart-bar": "M5 19V9M10 19V5M15 19v-8M20 19V12",
   "chart-line": "M4 17l5-6 4 3 7-9",
   "chart-pie": "M12 4a8 8 0 1 0 8 8h-8zM14 3a8 8 0 0 1 7 7h-7z",
+  labelSheet: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
   chart: "M5 19V9M10 19V5M15 19v-8M20 19V12",
 };
 

@@ -8,7 +8,7 @@ export type Doc = Record<string, any>;
 export type Comp = Record<string, any> & { type: string };
 
 export const CHILD_LISTS = ["children", "header", "footer", "otherwise"] as const;
-export const CONTAINER_TYPES = ["container", "row", "column", "grid", "repeater", "keepTogether", "group", "conditional"] as const;
+export const CONTAINER_TYPES = ["container", "row", "column", "grid", "repeater", "keepTogether", "group", "conditional", "labelSheet"] as const;
 
 export function clone<T>(v: T): T {
   return structuredClone(v);
@@ -278,6 +278,7 @@ export const PALETTE: Record<string, () => Comp> = {
   barcode: () => ({ type: "barcode", value: "123456789012", symbology: "code128", width: 140, height: 40 }),
   chart: () => ({ type: "chart", chartType: "bar", dataset: "", series: [], height: 180 }),
   pageBreak: () => ({ type: "pageBreak" }),
+  labelSheet: () => ({ type: "labelSheet", columns: 2, rows: 4, labelWidth: 99.1, labelHeight: 67.7, gapX: 2.5, gapY: 0, copies: 8, children: [] }),
 };
 
 /** The dataset a component's `row.` bindings refer to (nearest enclosing repeater/group/table), if any. */

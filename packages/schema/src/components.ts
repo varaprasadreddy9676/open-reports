@@ -181,6 +181,7 @@ export const componentSchema: z.ZodTypeAny = z.lazy(() =>
     keepTogetherComponentSchema,
     subreportComponentSchema,
     fragmentComponentSchema,
+    labelSheetComponentSchema,
   ])
 );
 
@@ -209,6 +210,25 @@ export const repeaterComponentSchema = componentBaseSchema.extend({
   type: z.literal("repeater"),
   dataset: z.string(),
   itemLayout: z.enum(["flow", "row", "grid"]).optional().default("flow"),
+  children: z.array(componentSchema).default([]),
+});
+
+/** N-up sticker/label sheets: the children are ONE label, repeated into a cols x rows grid on each sheet. Sizes are in mm. */
+export const labelSheetComponentSchema = componentBaseSchema.extend({
+  type: z.literal("labelSheet"),
+  /** Fill one label per record of this dataset. Without it the same label is repeated `copies` times. */
+  dataset: z.string().optional(),
+  copies: z.number().int().positive().optional(),
+  columns: z.number().int().positive(),
+  rows: z.number().int().positive(),
+  labelWidth: z.number().positive(),
+  labelHeight: z.number().positive(),
+  gapX: z.number().nonnegative().optional(),
+  gapY: z.number().nonnegative().optional(),
+  /** First label position to use (1-based, left-to-right then top-to-bottom) - lets you reuse a partly used sheet. */
+  startPosition: z.number().int().positive().optional(),
+  /** Draw a hairline around each label (for alignment tests on plain paper). */
+  outlines: z.boolean().optional(),
   children: z.array(componentSchema).default([]),
 });
 

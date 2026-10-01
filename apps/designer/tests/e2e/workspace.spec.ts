@@ -305,3 +305,32 @@ test.describe("data and code tooling", () => {
     await expect(page.getByTestId("compare-changes")).toBeVisible();
   });
 });
+
+test.describe("label sheets", () => {
+  test("sticker sheet starter lays 8 labels per A4 sheet and the panel validates fit", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-search").fill("sticker");
+    await page.getByTestId("starter-sticker-sheet").click();
+    await expect(page.getByTestId("page-2")).toBeVisible();
+    await page.evaluate(() => (window as any).__designer.getState().select(["sheet"]));
+    await expect(page.getByTestId("sheet-facts")).toContainText("8 labels per sheet");
+    await expect(page.getByTestId("sheet-facts")).not.toHaveClass(/bad/);
+    // oversize a label: the panel flags it
+    await page.getByLabel("Label height (mm)").fill("100");
+    await expect(page.getByTestId("sheet-facts")).toHaveClass(/bad/);
+  });
+
+  test("insert a Label sheet, pick a stock preset and a start position", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.getByTestId("palette-label-sheet").click();
+    await page.getByTestId("sheet-preset").selectOption({ label: "A4 · 3 × 7 (63.5 × 38.1 mm)" });
+    let d = await page.evaluate(() => (window as any).__designer.getState().doc);
+    const sheet = d.sections[0].children[0];
+    expect(sheet).toMatchObject({ type: "labelSheet", columns: 3, rows: 7, labelWidth: 63.5, labelHeight: 38.1 });
+    expect(d.page.margin.top).toBe(15.1);
+    await page.getByLabel("Start position").fill("5");
+    d = await page.evaluate(() => (window as any).__designer.getState().doc);
+    expect(d.sections[0].children[0].startPosition).toBe(5);
+  });
+});

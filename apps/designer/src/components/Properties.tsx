@@ -609,6 +609,101 @@ function TableProps({ comp }: { comp: ops.Comp }) {
   );
 }
 
+const SHEET_PRESETS: { label: string; cfg: Record<string, number>; margin: { top: number; left: number } }[] = [
+  { label: "A4 · 2 × 4 (99.1 × 67.7 mm)", cfg: { columns: 2, rows: 4, labelWidth: 99.1, labelHeight: 67.7, gapX: 2.5, gapY: 0 }, margin: { top: 13, left: 4.7 } },
+  { label: "A4 · 3 × 7 (63.5 × 38.1 mm)", cfg: { columns: 3, rows: 7, labelWidth: 63.5, labelHeight: 38.1, gapX: 2.5, gapY: 0 }, margin: { top: 15.1, left: 7.2 } },
+  { label: "A4 · 2 × 7 (99.1 × 38.1 mm)", cfg: { columns: 2, rows: 7, labelWidth: 99.1, labelHeight: 38.1, gapX: 2.5, gapY: 0 }, margin: { top: 15.1, left: 4.7 } },
+  { label: "A4 · 3 × 8 (70 × 36 mm)", cfg: { columns: 3, rows: 8, labelWidth: 70, labelHeight: 36, gapX: 0, gapY: 0 }, margin: { top: 4.5, left: 0 } },
+  { label: "A4 · 4 equal (105 × 148.5 mm)", cfg: { columns: 2, rows: 2, labelWidth: 105, labelHeight: 148.5, gapX: 0, gapY: 0 }, margin: { top: 0, left: 0 } },
+  { label: "A4 · 5 × 13 (38.1 × 21.2 mm)", cfg: { columns: 5, rows: 13, labelWidth: 38.1, labelHeight: 21.2, gapX: 2.5, gapY: 0 }, margin: { top: 10.7, left: 8.5 } },
+];
+
+/** Sticker/label sheet setup: grid, label size, gaps, start position, and a fit check against the page. */
+function LabelSheetProps({ comp }: { comp: ops.Comp }) {
+  const { doc } = useStore();
+  const patch = useStore((s) => s.patch);
+  const setDoc = useStore((s) => s.setDoc);
+  const engine = useStore((s) => s.engine);
+  const pag = engine.paginated;
+  const mmFromPt = (v: number) => (v * 25.4) / 72;
+  const gx = comp.gapX ?? 0;
+  const gy = comp.gapY ?? 0;
+  const sheetW = comp.columns * comp.labelWidth + (comp.columns - 1) * gx;
+  const sheetH = comp.rows * comp.labelHeight + (comp.rows - 1) * gy;
+  const pageW = pag ? mmFromPt(pag.pageSize.width - pag.margin.left - pag.margin.right) : undefined;
+  const pageH = pag ? mmFromPt(pag.pageSize.height - pag.margin.top - pag.margin.bottom) : undefined;
+  const fits = pageW === undefined || (sheetW <= pageW + 0.05 && sheetH <= (pageH ?? 0) + 0.05);
+  const num = (key: string, label: string, min = 0, step = 0.1) => (
+    <Field label={label}>
+      <Num label={label} min={min} step={step} value={comp[key]} onChange={(v) => patch(comp.id, { [key]: v })} />
+    </Field>
+  );
+  return (
+    <Section title="Label sheet">
+      <Field label="Sheet type" wide>
+        <select
+          aria-label="Sheet preset"
+          data-testid="sheet-preset"
+          value=""
+          onChange={(e) => {
+            const p = SHEET_PRESETS[Number(e.target.value)];
+            if (!p) return;
+            const next = ops.update(doc, comp.id, { ...p.cfg });
+            setDoc({ ...next, page: { ...(next.page ?? {}), size: "A4", orientation: "portrait", unit: "mm", margin: { top: p.margin.top, left: p.margin.left, right: 0, bottom: 0 } } });
+          }}
+        >
+          <option value="">Choose a label stock…</option>
+          {SHEET_PRESETS.map((p, i) => (
+            <option key={p.label} value={i}>{p.label}</option>
+          ))}
+        </select>
+      </Field>
+      <div className="grid2">
+        {num("columns", "Columns", 1, 1)}
+        {num("rows", "Rows", 1, 1)}
+        {num("labelWidth", "Label width (mm)", 1)}
+        {num("labelHeight", "Label height (mm)", 1)}
+        {num("gapX", "Gap across (mm)")}
+        {num("gapY", "Gap down (mm)")}
+      </div>
+      <Field label="Start at position">
+        <Num label="Start position" min={1} value={comp.startPosition ?? 1} onChange={(v) => patch(comp.id, { startPosition: v && v > 1 ? v : undefined })} />
+      </Field>
+      <Field label="Fill" wide>
+        <select
+          aria-label="Fill mode"
+          data-testid="sheet-fill"
+          value={comp.dataset ? "records" : "copies"}
+          onChange={(e) => patch(comp.id, e.target.value === "records" ? { dataset: (doc.datasets ?? [])[0]?.id ?? "", copies: undefined } : { dataset: undefined, copies: comp.copies ?? comp.columns * comp.rows })}
+        >
+          <option value="copies">Repeat the same label</option>
+          <option value="records">One label per record</option>
+        </select>
+      </Field>
+      {comp.dataset !== undefined && (
+        <Field label="Dataset" wide>
+          <select aria-label="Sheet dataset" value={comp.dataset} onChange={(e) => patch(comp.id, { dataset: e.target.value })}>
+            {(doc.datasets ?? []).map((d: any) => (
+              <option key={d.id}>{d.id}</option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {comp.dataset === undefined && num("copies", "Number of labels", 1, 1)}
+      <label className="check">
+        <input type="checkbox" data-testid="sheet-outlines" checked={!!comp.outlines} onChange={(e) => patch(comp.id, { outlines: e.target.checked ? true : undefined })} />
+        Draw label outlines (alignment test on plain paper)
+      </label>
+      <div className={`print-facts ${fits ? "" : "bad"}`} data-testid="sheet-facts">
+        <div>Sheet area <strong>{sheetW.toFixed(1)} × {sheetH.toFixed(1)} mm</strong>{pageW !== undefined && <> of {pageW.toFixed(1)} × {pageH!.toFixed(1)} mm printable</>}</div>
+        <div>{comp.columns * comp.rows} labels per sheet{comp.dataset === undefined && comp.copies ? ` · ${Math.ceil((comp.copies + Math.max(0, (comp.startPosition ?? 1) - 1)) / (comp.columns * comp.rows))} sheet(s)` : ""}</div>
+        {!fits && <div className="field-error">The labels do not fit on the page. Check the page margins and label size.</div>}
+      </div>
+      <p className="muted small">Design ONE label by dropping elements into this sheet. Printers need “Actual size” (no scaling) for the labels to line up.</p>
+    </Section>
+  );
+}
+
 function ChartProps({ comp }: { comp: ops.Comp }) {
   const { doc, sample } = useStore();
   const patch = useStore((s) => s.patch);
@@ -1134,6 +1229,7 @@ function ComponentProps({ id }: { id: string }) {
       {(t === "text" || t === "richText" || t === "field") && <TextProps comp={comp} />}
       {t === "table" && <TableProps comp={comp} />}
       {t === "chart" && <ChartProps comp={comp} />}
+      {t === "labelSheet" && <LabelSheetProps comp={comp} />}
       {(t === "qrcode" || t === "barcode") && <CodeProps comp={comp} />}
       {t === "image" && <ImageProps comp={comp} />}
       {(t === "rectangle" || t === "container" || t === "row" || t === "column" || t === "grid") && (
@@ -1141,7 +1237,7 @@ function ComponentProps({ id }: { id: string }) {
           <Appearance comp={comp} />
         </Section>
       )}
-      {t !== "pageBreak" && t !== "line" && <LayoutProps comp={comp} />}
+      {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <LayoutProps comp={comp} />}
       {t === "group" && (
         <Section title="Grouping">
           <Field label="Group by (expression)">

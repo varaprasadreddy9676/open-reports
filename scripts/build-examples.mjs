@@ -596,4 +596,30 @@ write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi
   ],
 }));
 
+write("sticker-sheet", base("sticker-sheet", "Sticker Sheet (A4, 2x4 labels)", "Eight 99.1x67.7 mm labels per A4 sheet (Avery L7165 style), one per patient record, with start position for partly used sheets.", {
+  datasets: [{ id: "patients", source: "inline", query: { data: [
+    { name: "Sai Varaprasad", uhid: "UH12345", dob: "1994-05-12" },
+    { name: "Anita Rao", uhid: "UH12346", dob: "1988-11-02" },
+    { name: "Ravi Kumar", uhid: "UH12347", dob: "1975-03-21" },
+    { name: "Meena Iyer", uhid: "UH12348", dob: "2001-07-30" },
+    { name: "John Mathew", uhid: "UH12349", dob: "1969-01-14" },
+    { name: "Fatima Khan", uhid: "UH12350", dob: "1992-09-09" },
+    { name: "Arjun Das", uhid: "UH12351", dob: "1983-12-25" },
+    { name: "Latha S", uhid: "UH12352", dob: "1997-04-18" },
+    { name: "Imran Ali", uhid: "UH12353", dob: "1990-06-06" },
+    { name: "Kavya N", uhid: "UH12354", dob: "2005-02-27" },
+  ] } }],
+  page: { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 13, right: 4.65, bottom: 0, left: 4.65 } },
+  print: { name: "A4 label sheet", printerType: "document", language: "pdf", dpi: 300, safeMargin: 4 },
+  sections: [{ type: "detail", children: [{
+    type: "labelSheet", id: "sheet", dataset: "patients", columns: 2, rows: 4, labelWidth: 99.1, labelHeight: 67.7, gapX: 2.5, gapY: 0, startPosition: 1,
+    children: [
+      B("row.name", { style: { fontSize: 14, fontWeight: "bold" } }),
+      X('"UHID " + row.uhid', { style: { fontSize: 10 } }),
+      X('"DOB " + row.dob', { style: { fontSize: 9, color: "#6b7280" } }),
+      { type: "barcode", id: "sheet-barcode", value: "", expression: "row.uhid", symbology: "code128", width: 150, height: 34 },
+    ],
+  }] }],
+}));
+
 console.log("examples written to", out);

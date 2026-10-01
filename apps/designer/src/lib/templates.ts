@@ -26,6 +26,7 @@ const GROUPS: Record<string, StarterTemplate["group"]> = {
   "receipt-58mm": "Printing",
   "label-50x30": "Printing",
   "label-100x50": "Printing",
+  "sticker-sheet": "Printing",
   "patient-id-card": "Printing",
   wristband: "Healthcare",
   "pharmacy-label": "Healthcare",

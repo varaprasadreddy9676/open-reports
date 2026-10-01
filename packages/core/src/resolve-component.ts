@@ -204,6 +204,8 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
       const children = rows.flatMap((row) => resolveComponents(component.children ?? [], toRowContext(ctx, row), env));
       return { ...base(component), type: "repeater", children };
     }
+    case "labelSheet":
+      return resolveLabelSheet(component, ctx, env);
     case "conditional": {
       const when = Boolean(env.engine.evaluate(component.when, ctx));
       return resolveComponents(when ? component.children ?? [] : component.otherwise ?? [], ctx, env);
@@ -239,6 +241,59 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
       env.warnings.push({ code: "UNKNOWN_COMPONENT_TYPE", path: env.path, message: `Unknown component type "${component.type}".` });
       return null;
   }
+}
+
+const MM_TO_PT = 72 / 25.4;
+const MAX_LABELS = 20000;
+
+/** Expands a label sheet into one fixed-size, absolutely positioned container per sheet (each starting a new page). */
+function resolveLabelSheet(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent[] {
+  const cols: number = component.columns;
+  const rowsPerSheet: number = component.rows;
+  const perSheet = cols * rowsPerSheet;
+  const lw = component.labelWidth * MM_TO_PT;
+  const lh = component.labelHeight * MM_TO_PT;
+  const gx = (component.gapX ?? 0) * MM_TO_PT;
+  const gy = (component.gapY ?? 0) * MM_TO_PT;
+  const skip = Math.max(0, (component.startPosition ?? 1) - 1) % perSheet;
+
+  const records: (Record<string, unknown> | null)[] = component.dataset
+    ? toArray(lookupDataset(ctx.data, component.dataset)).map((r) => r as Record<string, unknown>)
+    : Array.from({ length: component.copies ?? perSheet }, () => null);
+  if (records.length + skip > MAX_LABELS) {
+    env.warnings.push({ code: "LABEL_SHEET_TOO_LARGE", path: env.path, message: `Label sheet would produce more than ${MAX_LABELS} labels; the rest were dropped.`, componentId: component.id });
+    records.length = Math.max(0, MAX_LABELS - skip);
+  }
+  const cells: (Record<string, unknown> | null | undefined)[] = [...Array.from({ length: skip }, () => undefined), ...records];
+
+  const sheets: ResolvedComponent[] = [];
+  for (let start = 0; start < Math.max(cells.length, 1); start += perSheet) {
+    const children: ResolvedComponent[] = [];
+    for (let i = 0; i < perSheet; i++) {
+      const cell = cells[start + i];
+      if (cell === undefined) continue; // skipped position or past the last record
+      const rowCtx = cell === null ? ctx : toRowContext(ctx, cell);
+      children.push({
+        type: "container",
+        x: (i % cols) * (lw + gx),
+        y: Math.floor(i / cols) * (lh + gy),
+        width: lw,
+        height: lh,
+        style: component.outlines ? { border: { width: 0.25, color: "#9ca3af" } } : undefined,
+        children: resolveComponents(component.children ?? [], rowCtx, env),
+      } as ResolvedComponent);
+    }
+    sheets.push({
+      id: component.id,
+      type: "container",
+      layout: "absolute",
+      width: cols * lw + (cols - 1) * gx,
+      height: rowsPerSheet * lh + (rowsPerSheet - 1) * gy,
+      pageBreakBefore: start > 0,
+      children,
+    } as ResolvedComponent);
+  }
+  return sheets;
 }
 
 function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | null {

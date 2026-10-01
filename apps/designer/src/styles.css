@@ -1732,3 +1732,4 @@ kbd {
 .cm-host { flex: 1; min-height: 0; overflow: hidden; display: block; }
 .cm-host .cm-editor { height: 100%; }
 .cm-doc-tip { padding: 6px 8px; max-width: 280px; font-size: 12px; }
+.print-facts.bad { color: var(--danger); }

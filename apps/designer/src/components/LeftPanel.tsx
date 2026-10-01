@@ -29,6 +29,7 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   { type: "qrcode", label: "QR Code", group: "Print", keywords: "barcode 2d scan" },
   { type: "barcode", label: "Barcode", group: "Print", keywords: "code128 ean scan" },
   { type: "pageBreak", label: "Page break", group: "Print", keywords: "new page" },
+  { type: "labelSheet", label: "Label sheet", group: "Print", keywords: "stickers avery a4 sheet labels n-up grid" },
   { type: "chart", label: "Bar chart", group: "Charts", keywords: "graph", overrides: { chartType: "bar" } },
   { type: "chart", label: "Line chart", group: "Charts", keywords: "graph trend", overrides: { chartType: "line" } },
   { type: "chart", label: "Pie chart", group: "Charts", keywords: "graph share", overrides: { chartType: "pie" } },
