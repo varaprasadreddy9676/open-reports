@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "skipLibCheck": true
+  },
+  "references": [
+    { "path": "../../packages/schema" },
+    { "path": "../../packages/core" },
+    { "path": "../../packages/layout" },
+    { "path": "../../packages/renderer-html" },
+    { "path": "../../packages/renderer-pdf" },
+    { "path": "../../packages/renderer-xlsx" },
+    { "path": "../../packages/renderer-csv" },
+    { "path": "../../packages/datasource-rest" }
+  ],
+  "include": ["src"]
+}

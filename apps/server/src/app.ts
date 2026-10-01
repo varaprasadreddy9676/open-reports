@@ -1,0 +1,227 @@
+import Fastify, { type FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
+import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
+import { validateReport } from "@reporting/core";
+import { createAuthHook } from "./auth.js";
+import { SqliteStorage } from "./storage/sqlite-storage.js";
+import { TemplateNotFoundError, VersionImmutableError, VersionNotFoundError } from "./storage/types.js";
+import { RenderPipelineError, runRender } from "./render-pipeline.js";
+import { JobStore } from "./jobs.js";
+
+export interface BuildAppOptions {
+  dbPath: string;
+  apiKeys?: string[];
+}
+
+export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: SqliteStorage; jobs: JobStore } {
+  const app = Fastify({ logger: false });
+  const storage = new SqliteStorage(options.dbPath);
+  const jobs = new JobStore();
+  const authHook = createAuthHook(options.apiKeys ?? []);
+
+  app.addHook("onRequest", async (request, reply) => {
+    if (request.url === "/health" || request.url === "/openapi.json") return;
+    await authHook(request, reply);
+  });
+
+  app.get("/health", async () => ({ status: "ok" }));
+
+  app.get("/openapi.json", async () => buildOpenApiDocument());
+
+  // --- Validation ---
+  app.post("/api/v1/validate", async (request, reply) => {
+    const body = request.body as { report: unknown };
+    const parsed = parseReportDefinition(body.report);
+    if (!parsed.valid) {
+      return reply.send({ valid: false, issues: parsed.issues });
+    }
+    const result = validateReport(parsed.report);
+    return reply.send(result);
+  });
+
+  // --- Inline render ---
+  app.post("/api/v1/render", async (request, reply) => {
+    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown> };
+    try {
+      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data });
+      reply
+        .header("content-type", result.mimeType)
+        .header("x-render-id", renderId)
+        .header("x-render-warnings", String(result.warnings.length))
+        .send(result.content);
+    } catch (err) {
+      sendRenderError(reply, err);
+    }
+  });
+
+  // --- Templates CRUD ---
+  app.get("/api/v1/templates", async () => storage.listTemplates());
+
+  app.post("/api/v1/templates", async (request, reply) => {
+    const body = request.body as { id?: string; name: string; description?: string; definition: unknown };
+    const parsed = parseReportDefinition(body.definition);
+    if (!parsed.valid) {
+      return reply.code(400).send({ error: { code: "INVALID_REPORT", message: "Template definition failed schema validation.", issues: parsed.issues } });
+    }
+    const id = body.id ?? randomUUID();
+    const existing = await storage.getTemplate(id);
+    if (existing) {
+      return reply.code(409).send({ error: { code: "TEMPLATE_EXISTS", message: `Template "${id}" already exists.` } });
+    }
+    const record = await storage.createTemplate({ id, name: body.name, description: body.description, definition: body.definition });
+    reply.code(201).send(record);
+  });
+
+  app.get("/api/v1/templates/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const record = await storage.getTemplate(id);
+    if (!record) return reply.code(404).send({ error: { code: "TEMPLATE_NOT_FOUND", message: `Template "${id}" not found.` } });
+    reply.send(record);
+  });
+
+  app.put("/api/v1/templates/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { definition?: unknown; name?: string; description?: string; publish?: boolean };
+
+    try {
+      if (body.name !== undefined || body.description !== undefined) {
+        await storage.updateTemplateMeta(id, { name: body.name, description: body.description });
+      }
+      if (body.definition !== undefined) {
+        const parsed = parseReportDefinition(body.definition);
+        if (!parsed.valid) {
+          return reply.code(400).send({ error: { code: "INVALID_REPORT", message: "Template definition failed schema validation.", issues: parsed.issues } });
+        }
+        const version = await storage.createVersion(id, body.definition);
+        if (body.publish) {
+          await storage.publishVersion(id, version.version);
+        }
+      }
+      reply.send(await storage.getTemplate(id));
+    } catch (err) {
+      sendStorageError(reply, err);
+    }
+  });
+
+  app.delete("/api/v1/templates/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await storage.deleteTemplate(id);
+    reply.code(204).send();
+  });
+
+  // --- Versions ---
+  app.get("/api/v1/templates/:id/versions", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    reply.send(await storage.listVersions(id));
+  });
+
+  app.get("/api/v1/templates/:id/versions/:version", async (request, reply) => {
+    const { id, version } = request.params as { id: string; version: string };
+    const record = await storage.getVersion(id, Number(version));
+    if (!record) return reply.code(404).send({ error: { code: "VERSION_NOT_FOUND", message: `No version ${version} for template "${id}".` } });
+    reply.send(record);
+  });
+
+  app.post("/api/v1/templates/:id/versions/:version/publish", async (request, reply) => {
+    const { id, version } = request.params as { id: string; version: string };
+    try {
+      reply.send(await storage.publishVersion(id, Number(version)));
+    } catch (err) {
+      sendStorageError(reply, err);
+    }
+  });
+
+  // --- Template render ---
+  app.post("/api/v1/templates/:id/render", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { format: string; parameters?: Record<string, unknown>; version?: number };
+
+    const version = body.version !== undefined ? await storage.getVersion(id, body.version) : await storage.getLatestPublishedVersion(id);
+    if (!version) {
+      return reply.code(404).send({
+        error: { code: "NO_RENDERABLE_VERSION", message: body.version !== undefined ? `Template "${id}" has no version ${body.version}.` : `Template "${id}" has no published version.` },
+      });
+    }
+
+    try {
+      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters });
+      reply.header("content-type", result.mimeType).header("x-render-id", renderId).send(result.content);
+    } catch (err) {
+      sendRenderError(reply, err);
+    }
+  });
+
+  // --- Async render jobs ---
+  app.post("/api/v1/render/jobs", async (request, reply) => {
+    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown> };
+    const job = jobs.enqueue({ report: body.report, format: body.format, parameters: body.parameters, data: body.data });
+    reply.code(202).send({ jobId: job.id, status: job.status });
+  });
+
+  app.get("/api/v1/render/jobs/:jobId", async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const job = jobs.get(jobId);
+    if (!job) return reply.code(404).send({ error: { code: "JOB_NOT_FOUND", message: `Job "${jobId}" not found.` } });
+    reply.send(job);
+  });
+
+  app.get("/api/v1/render/jobs/:jobId/output", async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const job = jobs.get(jobId);
+    if (!job) return reply.code(404).send({ error: { code: "JOB_NOT_FOUND", message: `Job "${jobId}" not found.` } });
+    if (job.status !== "completed") {
+      return reply.code(409).send({ error: { code: "JOB_NOT_COMPLETED", message: `Job "${jobId}" is not completed (status: ${job.status}).` } });
+    }
+    const output = jobs.getOutput(jobId);
+    if (!output) return reply.code(410).send({ error: { code: "JOB_OUTPUT_EXPIRED", message: `Output for job "${jobId}" is no longer available.` } });
+    reply.header("content-type", output.mimeType).send(output.content);
+  });
+
+  app.delete("/api/v1/render/jobs/:jobId", async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const cancelled = jobs.cancel(jobId);
+    reply.code(cancelled ? 200 : 409).send({ cancelled });
+  });
+
+  app.addHook("onClose", async () => {
+    storage.close();
+    jobs.dispose();
+  });
+
+  return { app, storage, jobs };
+}
+
+function sendStorageError(reply: import("fastify").FastifyReply, err: unknown): void {
+  if (err instanceof TemplateNotFoundError) return void reply.code(404).send({ error: { code: "TEMPLATE_NOT_FOUND", message: err.message } });
+  if (err instanceof VersionNotFoundError) return void reply.code(404).send({ error: { code: "VERSION_NOT_FOUND", message: err.message } });
+  if (err instanceof VersionImmutableError) return void reply.code(409).send({ error: { code: "VERSION_IMMUTABLE", message: err.message } });
+  reply.code(500).send({ error: { code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : String(err) } });
+}
+
+function sendRenderError(reply: import("fastify").FastifyReply, err: unknown): void {
+  if (err instanceof RenderPipelineError) {
+    return void reply.code(err.statusCode).send({ error: { code: err.code, message: err.message, details: err.details } });
+  }
+  reply.code(500).send({ error: { code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : String(err) } });
+}
+
+function buildOpenApiDocument(): Record<string, unknown> {
+  return {
+    openapi: "3.0.3",
+    info: { title: "Reporting Platform API", version: "0.1.0" },
+    paths: {
+      "/api/v1/validate": { post: { summary: "Validate a report definition" } },
+      "/api/v1/render": { post: { summary: "Render a report inline" } },
+      "/api/v1/templates": { get: { summary: "List templates" }, post: { summary: "Create a template" } },
+      "/api/v1/templates/{id}": { get: { summary: "Get a template" }, put: { summary: "Update a template (creates a new version)" }, delete: { summary: "Delete a template" } },
+      "/api/v1/templates/{id}/versions": { get: { summary: "List template versions" } },
+      "/api/v1/templates/{id}/versions/{version}": { get: { summary: "Get a specific template version" } },
+      "/api/v1/templates/{id}/versions/{version}/publish": { post: { summary: "Publish a template version" } },
+      "/api/v1/templates/{id}/render": { post: { summary: "Render a published (or specific) template version" } },
+      "/api/v1/render/jobs": { post: { summary: "Enqueue an async render job" } },
+      "/api/v1/render/jobs/{jobId}": { get: { summary: "Get job status" }, delete: { summary: "Cancel a job" } },
+      "/api/v1/render/jobs/{jobId}/output": { get: { summary: "Download a completed job's output" } },
+    },
+    components: { schemas: { ReportDefinition: getReportJsonSchema() } },
+  };
+}

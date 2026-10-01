@@ -1,0 +1,35 @@
+{
+  "name": "@reporting/server",
+  "version": "0.1.0",
+  "description": "Reporting platform REST API: template storage/versioning, inline and template rendering, validation, async render jobs",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@reporting/schema": "workspace:*",
+    "@reporting/core": "workspace:*",
+    "@reporting/layout": "workspace:*",
+    "@reporting/renderer-html": "workspace:*",
+    "@reporting/renderer-pdf": "workspace:*",
+    "@reporting/renderer-xlsx": "workspace:*",
+    "@reporting/renderer-csv": "workspace:*",
+    "@reporting/datasource-rest": "workspace:*",
+    "fastify": "^5.1.0",
+    "@fastify/swagger": "^9.4.0",
+    "better-sqlite3": "^11.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
+    "tsx": "^4.19.2",
+    "@types/better-sqlite3": "^7.6.11"
+  }
+}
