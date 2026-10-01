@@ -43,6 +43,34 @@ export function insertFromPalette(item: PaletteItem) {
   s.addComponent(item.type, last, container ? "inside" : "after", item.overrides);
 }
 
+function PluginComponents({ q }: { q: string }) {
+  const list = (useStore((s) => s.capabilities?.customComponents) ?? []).filter((c) => `${c.kind} ${c.description ?? ""}`.toLowerCase().includes(q.toLowerCase()));
+  if (!list.length) return null;
+  return (
+    <div className="palette-group" data-testid="plugin-components">
+      <div className="group-title">Plugins</div>
+      {list.map((c) => (
+        <div key={c.kind} className="block-row">
+          <button
+            className="block-item"
+            title={c.description}
+            data-testid={`plugin-${c.kind}`}
+            onClick={() => {
+              const s = useStore.getState();
+              const last = s.selection[s.selection.length - 1];
+              s.insertComponent({ type: "custom", kind: c.kind, props: Object.fromEntries(Object.keys(c.props ?? {}).map((k) => [k, ""])) } as any, last, "after");
+            }}
+          >
+            <Icon name="group" small />
+            <span>{c.kind}</span>
+            <span className="muted small">previews in Preview</span>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BlocksSection({ q }: { q: string }) {
   const blocks = useStore((s) => s.blocks);
   const filtered = blocks.filter((b) => b.name.toLowerCase().includes(q.toLowerCase()));
@@ -112,6 +140,7 @@ function InsertTab() {
           </div>
         </div>
       ))}
+      <PluginComponents q={q} />
       <BlocksSection q={q} />
       {groups.length === 0 && <p className="muted">No components match "{q}".</p>}
     </div>

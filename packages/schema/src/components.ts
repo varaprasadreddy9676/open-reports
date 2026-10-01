@@ -182,6 +182,7 @@ export const componentSchema: z.ZodTypeAny = z.lazy(() =>
     subreportComponentSchema,
     fragmentComponentSchema,
     labelSheetComponentSchema,
+    customComponentSchema,
   ])
 );
 
@@ -211,6 +212,13 @@ export const repeaterComponentSchema = componentBaseSchema.extend({
   dataset: z.string(),
   itemLayout: z.enum(["flow", "row", "grid"]).optional().default("flow"),
   children: z.array(componentSchema).default([]),
+});
+
+/** A component provided by a plugin. The plugin's `expand` turns `props` into ordinary components, so every renderer supports it. */
+export const customComponentSchema = componentBaseSchema.extend({
+  type: z.literal("custom"),
+  kind: z.string().regex(/^[A-Za-z0-9._-]+$/),
+  props: z.record(z.unknown()).default({}),
 });
 
 /** N-up sticker/label sheets: the children are ONE label, repeated into a cols x rows grid on each sheet. Sizes are in mm. */

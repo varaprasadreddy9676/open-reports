@@ -30,6 +30,7 @@ export interface Problem {
 }
 
 export interface Capabilities {
+  customComponents?: { kind: string; description?: string; props?: Record<string, string> }[];
   formats: { id: string; supports: string[] }[];
   fonts: string[];
   scriptFonts: Record<string, string>;
@@ -140,7 +141,7 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     const pipeline = await resolveReport(reparsed.report, { registry, parameters, tolerant: true });
     for (const issue of pipeline.issues) problems.push({ severity: "error", code: issue.code, message: issue.message, path: issue.path });
     for (const w of pipeline.resolved.warnings) {
-      problems.push({ severity: w.code === "COMPONENT_ERROR" ? "error" : "warning", code: w.code, message: w.message, path: w.path, componentId: w.componentId });
+      problems.push({ severity: w.code === "COMPONENT_ERROR" ? "error" : w.code === "UNKNOWN_CUSTOM_COMPONENT" ? "suggestion" : "warning", code: w.code, message: w.message, path: w.path, componentId: w.componentId });
     }
     const paginated = paginate(pipeline.resolved, { resolvePageDependentSection: pipeline.resolvePageSection });
     for (const w of paginated.warnings) {

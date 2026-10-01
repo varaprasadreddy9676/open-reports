@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { runRender, type RunRenderInput } from "./render-pipeline.js";
+import { runRender, type RenderRuntime, type RunRenderInput } from "./render-pipeline.js";
 
 export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
@@ -35,7 +35,7 @@ export class JobStore {
   private cancelled = new Set<string>();
   private sweepTimer: NodeJS.Timeout;
 
-  constructor() {
+  constructor(private readonly runtime?: RenderRuntime) {
     this.sweepTimer = setInterval(() => this.sweep(), 5 * 60 * 1000);
     this.sweepTimer.unref();
   }
@@ -58,7 +58,7 @@ export class JobStore {
     job.updatedAt = new Date().toISOString();
 
     try {
-      const { result, renderId, durationMs } = await runRender(input);
+      const { result, renderId, durationMs } = await runRender(input, this.runtime);
       if (this.cancelled.has(id)) return;
       this.outputs.set(id, { content: result.content, mimeType: result.mimeType, extension: result.extension });
       job.status = "completed";

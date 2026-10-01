@@ -25,7 +25,7 @@ export const sqlDataSourceQuerySchema = z.object({
 
 export const datasetDefinitionSchema = z.object({
   id: z.string().min(1),
-  source: z.enum(["inline", "json", "rest", "sql"]),
+  source: z.union([z.enum(["inline", "json", "rest", "sql"]), z.string().regex(/^plugin:[A-Za-z0-9._-]+$/, 'Plugin datasources are written "plugin:<name>".')]),
   query: z.unknown().optional(),
   transform: z.string().optional(),
 });

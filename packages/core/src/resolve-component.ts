@@ -29,7 +29,11 @@ export interface ResolveEnv {
   tolerant?: boolean;
   fragments?: Map<string, Component[]>;
   fragmentStack?: string[];
+  customComponents?: Map<string, CustomComponentExpander>;
 }
+
+/** Plugin hook: turns a `custom` component's props into ordinary components. Must be pure and deterministic. */
+export type CustomComponentExpander = (props: Record<string, unknown>, ctx: { params: unknown; data: unknown; row: unknown; locale: string; currency: string }) => Component[];
 
 function resolveValueLike(component: Component, ctx: ResolveContext, env: ResolveEnv): unknown {
   if (component.expression !== undefined) {
@@ -206,6 +210,22 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
     }
     case "labelSheet":
       return resolveLabelSheet(component, ctx, env);
+    case "custom": {
+      const expand = env.customComponents?.get(component.kind);
+      if (!expand) {
+        env.warnings.push({ code: "UNKNOWN_CUSTOM_COMPONENT", path: env.path, message: `No plugin provides the custom component "${component.kind}". Install or enable the plugin.`, componentId: component.id });
+        return null;
+      }
+      let expanded: Component[];
+      try {
+        expanded = expand(component.props ?? {}, { params: ctx.params, data: ctx.data, row: ctx.row, locale: env.locale, currency: env.currency });
+      } catch (err) {
+        env.warnings.push({ code: "CUSTOM_COMPONENT_FAILED", path: env.path, message: `Plugin component "${component.kind}" failed: ${err instanceof Error ? err.message : String(err)}`, componentId: component.id });
+        return null;
+      }
+      const inner = resolveComponents(expanded, ctx, env);
+      return { ...base(component), type: "container", children: inner } as ResolvedComponent;
+    }
     case "conditional": {
       const when = Boolean(env.engine.evaluate(component.when, ctx));
       return resolveComponents(when ? component.children ?? [] : component.otherwise ?? [], ctx, env);

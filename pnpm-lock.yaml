@@ -123,6 +123,9 @@ importers:
       '@reporting/layout':
         specifier: workspace:*
         version: link:../../packages/layout
+      '@reporting/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
       '@reporting/renderer-csv':
         specifier: workspace:*
         version: link:../../packages/renderer-csv
@@ -148,6 +151,9 @@ importers:
         specifier: ^5.1.0
         version: 5.12.5
     devDependencies:
+      '@reporting/plugin-clinic-pack':
+        specifier: workspace:*
+        version: link:../../packages/plugin-clinic-pack
       '@types/better-sqlite3':
         specifier: ^7.6.11
         version: 7.6.13
@@ -244,6 +250,41 @@ importers:
         version: 2.1.9(@types/node@22.20.4)
 
   packages/layout:
+    dependencies:
+      '@reporting/core':
+        specifier: workspace:*
+        version: link:../core
+      '@reporting/expressions':
+        specifier: workspace:*
+        version: link:../expressions
+      '@reporting/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.4
+        version: 2.1.9(@types/node@22.20.4)
+
+  packages/plugin-clinic-pack:
+    dependencies:
+      '@reporting/core':
+        specifier: workspace:*
+        version: link:../core
+      '@reporting/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.4
+        version: 2.1.9(@types/node@22.20.4)
+
+  packages/plugin-sdk:
     dependencies:
       '@reporting/core':
         specifier: workspace:*

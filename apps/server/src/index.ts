@@ -1,3 +1,4 @@
+import { loadPlugins, PluginRegistry } from "@reporting/plugin-sdk";
 import { buildApp } from "./app.js";
 
 const port = Number(process.env.PORT ?? 4000);
@@ -10,7 +11,14 @@ if (apiKeys.length === 0) {
 }
 
 const designerDist = process.env.DESIGNER_DIST;
-const { app } = buildApp({ dbPath, apiKeys, designerDist });
+
+// REPORT_PLUGINS="@reporting/plugin-clinic-pack,./my-plugin.mjs" -- loaded before the server starts; a failing plugin is skipped and reported at /api/v1/plugins.
+const plugins = new PluginRegistry({ logger: (m) => console.log(m) });
+const specs = (process.env.REPORT_PLUGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+await loadPlugins(specs.map((s) => (s.startsWith(".") || s.startsWith("/") ? new URL(s, `file://${process.cwd()}/`).href : s)), plugins);
+for (const st of plugins.statuses) console.log(`[reporting-server] plugin ${st.name}: ${st.state}${st.error ? ` (${st.error})` : ""}`);
+
+const { app } = buildApp({ dbPath, apiKeys, designerDist, plugins });
 
 app
   .listen({ port, host: "0.0.0.0" })

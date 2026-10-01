@@ -4,7 +4,7 @@ import { DataSourceRegistry } from "./datasource.js";
 import { resolveParameters, type ParameterIssue } from "./parameters.js";
 import { executeDatasets, type DatasetExecutionIssue } from "./datasets.js";
 import { computeReportVariables } from "./variables.js";
-import { lookupDataset, resolveComponents, type ResolveEnv } from "./resolve-component.js";
+import { lookupDataset, resolveComponents, type CustomComponentExpander, type ResolveEnv } from "./resolve-component.js";
 import type { ResolvedComponent, ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
 import type { ResolveContext } from "./context.js";
 
@@ -23,6 +23,10 @@ export interface RenderPipelineOptions {
   datasetTimeoutMs?: number;
   /** See ResolveEnv.tolerant -- used by the designer so one bad binding doesn't blank the canvas. */
   tolerant?: boolean;
+  /** Extra expression functions (from plugins). They cannot shadow built-ins. */
+  functions?: Record<string, (...args: unknown[]) => unknown>;
+  /** Plugin component expanders keyed by `custom.kind`. */
+  customComponents?: Map<string, CustomComponentExpander>;
 }
 
 export interface RenderPipelineResult {
@@ -49,7 +53,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     timeoutMs: options.datasetTimeoutMs,
   });
 
-  const engine = new ExpressionEngine({ locale, currency });
+  const engine = new ExpressionEngine({ locale, currency, functions: options.functions });
 
   const baseCtx: ResolveContext = {
     params: parameters,
@@ -86,6 +90,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       path: `sections[${index}]`,
       tolerant: options.tolerant,
       fragments,
+      customComponents: options.customComponents,
     };
 
     let children;
@@ -135,6 +140,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       path: `sections[${section.sourceIndex}]`,
       tolerant: options.tolerant,
       fragments,
+      customComponents: options.customComponents,
     };
     return resolveComponents(raw.children as any, { ...baseCtx, page }, env);
   };

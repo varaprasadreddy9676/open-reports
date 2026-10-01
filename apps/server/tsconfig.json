@@ -32,6 +32,9 @@
     },
     {
       "path": "../../packages/renderer-zpl"
+    },
+    {
+      "path": "../../packages/plugin-sdk"
     }
   ],
   "include": [

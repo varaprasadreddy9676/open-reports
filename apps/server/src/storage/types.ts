@@ -46,6 +46,22 @@ export interface StorageProvider {
   listVersions(templateId: string): Promise<TemplateVersionRecord[]>;
   getVersion(templateId: string, version: number): Promise<TemplateVersionRecord | undefined>;
   getLatestPublishedVersion(templateId: string): Promise<TemplateVersionRecord | undefined>;
+
+  /** Reusable blocks ("My Components"). */
+  listBlocks(): Promise<{ id: string; name: string; children: unknown; updatedAt: string }[]>;
+  putBlock(id: string, name: string, children: unknown): Promise<void>;
+  deleteBlock(id: string): Promise<void>;
+  /** Release connections on shutdown. */
+  close?(): void | Promise<void>;
+}
+
+const STORAGE_METHODS = ["createTemplate", "listTemplates", "getTemplate", "updateTemplateMeta", "deleteTemplate", "createVersion", "publishVersion", "listVersions", "getVersion", "getLatestPublishedVersion", "listBlocks", "putBlock", "deleteBlock"] as const;
+
+/** Checks a plugin-supplied storage backend implements the full interface before the server uses it. */
+export function assertStorageProvider(candidate: unknown): StorageProvider {
+  const missing = STORAGE_METHODS.filter((m) => typeof (candidate as any)?.[m] !== "function");
+  if (missing.length) throw new Error(`Storage plugin is missing: ${missing.join(", ")}.`);
+  return candidate as StorageProvider;
 }
 
 export class TemplateNotFoundError extends Error {

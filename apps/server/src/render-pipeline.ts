@@ -3,7 +3,9 @@ import { parseReportDefinition, type ReportDefinition } from "@reporting/schema"
 import { DataSourceRegistry, resolveReport, validateReport } from "@reporting/core";
 import type { RenderResult } from "@reporting/core";
 import { createDefaultDataSourceRegistry } from "./datasources.js";
-import { createRendererRegistry, isRenderFormat, type RenderFormat } from "./renderers.js";
+import type { ReportRenderer } from "@reporting/core";
+import type { PluginRegistry } from "@reporting/plugin-sdk";
+import { createRendererRegistry } from "./renderers.js";
 
 export class RenderPipelineError extends Error {
   constructor(
@@ -34,8 +36,26 @@ export interface RunRenderOutput {
   durationMs: number;
 }
 
-const rendererRegistry = createRendererRegistry();
-const defaultDataSourceRegistry = createDefaultDataSourceRegistry();
+/** Everything a render needs that plugins can extend. One per server instance. */
+export interface RenderRuntime {
+  renderers: Record<string, ReportRenderer>;
+  dataSources: DataSourceRegistry;
+  functions?: Record<string, (...args: unknown[]) => unknown>;
+  customComponents?: ReturnType<PluginRegistry["componentExpanders"]>;
+}
+
+export function createRuntime(plugins?: PluginRegistry): RenderRuntime {
+  const renderers: Record<string, ReportRenderer> = { ...createRendererRegistry() };
+  const dataSources = createDefaultDataSourceRegistry();
+  if (plugins) {
+    for (const [format, reg] of plugins.renderers) renderers[format] = reg.renderer;
+    for (const [name, ds] of plugins.dataSources) dataSources.register({ id: `plugin:${name}`, execute: ds.execute.bind(ds) });
+    return { renderers, dataSources, functions: plugins.expressionFunctions(), customComponents: plugins.componentExpanders() };
+  }
+  return { renderers, dataSources };
+}
+
+const defaultRuntime = createRuntime();
 
 function withInlineData(report: ReportDefinition, data: Record<string, unknown> | undefined): ReportDefinition {
   if (!data) return report;
@@ -47,12 +67,12 @@ function withInlineData(report: ReportDefinition, data: Record<string, unknown> 
   return { ...report, datasets: [...report.datasets, ...extra] };
 }
 
-export async function runRender(input: RunRenderInput, registry: DataSourceRegistry = defaultDataSourceRegistry): Promise<RunRenderOutput> {
+export async function runRender(input: RunRenderInput, runtime: RenderRuntime = defaultRuntime): Promise<RunRenderOutput> {
   const renderId = randomUUID();
   const start = Date.now();
 
-  if (!isRenderFormat(input.format)) {
-    throw new RenderPipelineError(`Unsupported format "${input.format}". Supported formats: pdf, html, xlsx, csv.`, "UNSUPPORTED_FORMAT", 400);
+  if (!Object.prototype.hasOwnProperty.call(runtime.renderers, input.format)) {
+    throw new RenderPipelineError(`Unsupported format "${input.format}". Supported formats: ${Object.keys(runtime.renderers).join(", ")}.`, "UNSUPPORTED_FORMAT", 400);
   }
 
   const parsed = parseReportDefinition(input.report);
@@ -69,7 +89,7 @@ export async function runRender(input: RunRenderInput, registry: DataSourceRegis
 
   let pipeline;
   try {
-    pipeline = await resolveReport(report, { registry, parameters: input.parameters ?? {} });
+    pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: input.parameters ?? {}, functions: runtime.functions, customComponents: runtime.customComponents });
   } catch (err) {
     throw new RenderPipelineError(describeError(err), "REPORT_RESOLVE_FAILED", 422, { renderId });
   }
@@ -81,7 +101,7 @@ export async function runRender(input: RunRenderInput, registry: DataSourceRegis
     });
   }
 
-  const renderer = rendererRegistry[input.format as RenderFormat];
+  const renderer = runtime.renderers[input.format]!;
   let result: RenderResult;
   try {
     result = await renderer.render({ resolved: pipeline.resolved, resolvePageSection: pipeline.resolvePageSection });

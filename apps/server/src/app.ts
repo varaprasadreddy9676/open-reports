@@ -10,8 +10,9 @@ import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
 import { validateReport } from "@reporting/core";
 import { createAuthHook } from "./auth.js";
 import { SqliteStorage } from "./storage/sqlite-storage.js";
-import { TemplateNotFoundError, VersionImmutableError, VersionNotFoundError } from "./storage/types.js";
-import { RenderPipelineError, runRender } from "./render-pipeline.js";
+import { assertStorageProvider, TemplateNotFoundError, VersionImmutableError, VersionNotFoundError, type StorageProvider } from "./storage/types.js";
+import { createRuntime, RenderPipelineError, runRender } from "./render-pipeline.js";
+import type { PluginRegistry } from "@reporting/plugin-sdk";
 import { JobStore } from "./jobs.js";
 
 export interface BuildAppOptions {
@@ -19,19 +20,22 @@ export interface BuildAppOptions {
   apiKeys?: string[];
   /** Directory of the built designer app; when set it is served at / (same origin as the API). */
   designerDist?: string;
+  /** Already-registered plugins (see @reporting/plugin-sdk loadPlugins). */
+  plugins?: PluginRegistry;
 }
 
-export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: SqliteStorage; jobs: JobStore } {
+export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: StorageProvider; jobs: JobStore } {
   const app = Fastify({ logger: false });
-  const storage = new SqliteStorage(options.dbPath);
-  const jobs = new JobStore();
+  const storage: StorageProvider = options.plugins?.storage !== undefined ? assertStorageProvider(options.plugins.storage) : new SqliteStorage(options.dbPath);
+  const runtime = createRuntime(options.plugins);
+  const jobs = new JobStore(runtime);
   const authHook = createAuthHook(options.apiKeys ?? []);
 
   void app.register(cors, { origin: true, exposedHeaders: ["x-render-id", "x-render-warnings"] });
   if (options.designerDist && fs.existsSync(options.designerDist)) {
     void app.register(fastifyStatic, { root: options.designerDist, wildcard: false });
   }
-  const dataSources = createDefaultDataSourceRegistry();
+  const dataSources = runtime.dataSources;
 
   app.addHook("onRequest", async (request, reply) => {
     if (request.url === "/health" || request.url === "/openapi.json" || request.url === "/api/v1/schema" || !request.url.startsWith("/api/")) return;
@@ -53,13 +57,19 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
         { id: "html", mimeType: "text/html", supports: ["*"] },
         { id: "xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", supports: ["table", "text", "field"] },
         { id: "csv", mimeType: "text/csv", supports: ["table"] },
+        ...[...(options.plugins?.renderers.values() ?? [])].map((r) => ({ id: r.format, mimeType: r.mimeType, supports: r.supports, plugin: true })),
         { id: "zpl", mimeType: "text/plain", supports: ["text", "richText", "field", "line", "rectangle", "spacer", "barcode", "qrcode", "table", "container", "row", "column", "grid", "repeater", "group", "keepTogether", "pageBreak"] },
       ],
       fonts: Object.keys(fonts.families ?? {}),
       scriptFonts: fonts.scriptFamilies ?? {},
       secrets: Object.keys(secretsFromEnv()),
+      customComponents: [...(options.plugins?.components.entries() ?? [])].map(([kind, c]) => ({ kind, description: c.description, props: c.props })),
+      functions: [...(options.plugins?.functionDocs.entries() ?? [])].map(([name, doc]) => ({ name, doc })),
+      dataSources: [...(options.plugins?.dataSources.keys() ?? [])].map((n) => `plugin:${n}`),
     };
   });
+
+  app.get("/api/v1/plugins", async () => ({ plugins: options.plugins?.statuses ?? [] }));
 
   // --- Reusable blocks (shared "My Components") ---
   app.get("/api/v1/blocks", async () => storage.listBlocks());
@@ -108,7 +118,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   app.post("/api/v1/render", async (request, reply) => {
     const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown> };
     try {
-      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data });
+      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data }, runtime);
       reply
         .header("content-type", result.mimeType)
         .header("x-render-id", renderId)
@@ -209,7 +219,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     }
 
     try {
-      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters });
+      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters }, runtime);
       reply.header("content-type", result.mimeType).header("x-render-id", renderId).send(result.content);
     } catch (err) {
       sendRenderError(reply, err);
@@ -249,7 +259,8 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   });
 
   app.addHook("onClose", async () => {
-    storage.close();
+    await storage.close?.();
+    await options.plugins?.dispose();
     jobs.dispose();
   });
 

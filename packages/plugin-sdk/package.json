@@ -1,0 +1,17 @@
+{
+  "name": "@reporting/plugin-sdk",
+  "version": "0.1.0",
+  "description": "Extension API: write plugins that add renderers, datasources, expression functions, reusable components and storage backends",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -b", "test": "vitest run", "typecheck": "tsc -b --noEmit" },
+  "dependencies": {
+    "@reporting/core": "workspace:*",
+    "@reporting/expressions": "workspace:*",
+    "@reporting/schema": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.6.3", "vitest": "^2.1.4" }
+}
