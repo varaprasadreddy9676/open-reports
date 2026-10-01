@@ -2,69 +2,108 @@ import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, Resolve
 import type { TextMeasurer } from "./measure.js";
 import { defaultTextMeasurer } from "./measure.js";
 import { resolvePageGeometry } from "./units.js";
-import { layoutComponent, measureFooterHeight, measureHeaderHeight, measureRowHeight, resolveColumnWidths } from "./box-layout.js";
-import type { PageLayout, PaginatedReport, PositionedNode } from "./types.js";
+import { layoutComponent, marginOf, measureFooterHeight, measureHeaderHeight, measureRowHeight, resolveColumnWidths, shiftNode } from "./box-layout.js";
+import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
 
 export interface PaginateOptions {
   measurer?: TextMeasurer;
-  /** Re-resolves a pageHeader/pageFooter/reportFooter section's components for a
-   * specific page, with `page.number`/`page.total` bound to real values. If
-   * omitted, the section's already-resolved (page-number-less) content is
-   * repeated verbatim on every page. */
+  /** Re-resolves a pageHeader/pageFooter section's components for a specific
+   * page, with `page.number`/`page.total` bound to real values. If omitted, the
+   * section's already-resolved (page-number-less) content is repeated verbatim. */
   resolvePageDependentSection?: (section: ResolvedSection, page: { number: number; total: number }) => ResolvedComponent[];
 }
 
-const REPEATING_HEADER = "pageHeader";
-const REPEATING_FOOTER = "pageFooter";
+/**
+ * Page masters: a report may declare several pageHeader / pageFooter sections,
+ * each with `appliesTo` first | last | odd | even | standard | all. For page
+ * N of T the most specific match wins: first (N=1) > last (N=T) > odd/even >
+ * standard > all/unspecified. A page with no matching section simply has no
+ * header/footer, so "hide the header on the first page" is a `first` master
+ * that is empty.
+ */
+export function pickMaster(sections: ResolvedSection[], pageNumber: number, total: number): ResolvedSection | undefined {
+  const at = (v: string) => sections.find((s) => s.appliesTo === v);
+  if (pageNumber === 1 && at("first")) return at("first");
+  if (pageNumber === total && at("last")) return at("last");
+  const parity = pageNumber % 2 === 1 ? "odd" : "even";
+  if (at(parity)) return at(parity);
+  return at("standard") ?? sections.find((s) => !s.appliesTo || s.appliesTo === "all");
+}
 
 export function paginate(report: ResolvedReport, options: PaginateOptions = {}): PaginatedReport {
   const measurer = options.measurer ?? defaultTextMeasurer;
   const geometry = resolvePageGeometry(report.page);
   const warnings: PaginatedReport["warnings"] = [...report.warnings];
 
-  const pageHeaderSection = report.sections.find((s) => s.type === REPEATING_HEADER);
-  const pageFooterSection = report.sections.find((s) => s.type === REPEATING_FOOTER);
-  const contentSections = report.sections.filter((s) => s.type !== REPEATING_HEADER && s.type !== REPEATING_FOOTER);
-  const contentComponents = contentSections.flatMap((s) => s.children);
+  const headers = report.sections.filter((s) => s.type === "pageHeader");
+  const footers = report.sections.filter((s) => s.type === "pageFooter");
+  const contentComponents = report.sections.filter((s) => s.type !== "pageHeader" && s.type !== "pageFooter").flatMap((s) => s.children);
 
-  const placeholderHeader = pageHeaderSection?.children ?? [];
-  const placeholderFooter = pageFooterSection?.children ?? [];
-  const { height: headerHeight } = layoutBlock(placeholderHeader, geometry.contentWidth, measurer);
-  const { height: footerHeight } = layoutBlock(placeholderFooter, geometry.contentWidth, measurer);
-  const contentAreaHeight = geometry.contentHeight - headerHeight - footerHeight;
+  const heightCache = new Map<ResolvedSection, number>();
+  const heightOf = (s: ResolvedSection | undefined): number => {
+    if (!s) return 0;
+    let h = heightCache.get(s);
+    if (h === undefined) {
+      h = layoutBlock(s.children, geometry.contentWidth, measurer).height;
+      heightCache.set(s, h);
+    }
+    return h;
+  };
+  const bodyHeightFor = (pageNumber: number, total: number) =>
+    Math.max(1, geometry.contentHeight - heightOf(pickMaster(headers, pageNumber, total)) - heightOf(pickMaster(footers, pageNumber, total)));
 
-  if (contentAreaHeight <= 0) {
+  // The master of the last page depends on the total page count, which depends
+  // on the masters' heights: iterate until the count is stable.
+  let guess = Number.POSITIVE_INFINITY;
+  let run = layoutContentIntoPages(contentComponents, geometry.contentWidth, (i) => bodyHeightFor(i + 1, guess), measurer);
+  for (let i = 0; i < 4 && run.pages.length !== guess; i++) {
+    guess = run.pages.length;
+    run = layoutContentIntoPages(contentComponents, geometry.contentWidth, (idx) => bodyHeightFor(idx + 1, guess), measurer);
+  }
+  const total = run.pages.length;
+
+  if (geometry.contentHeight - Math.max(0, ...headers.map(heightOf)) - Math.max(0, ...footers.map(heightOf)) <= 0) {
     warnings.push({ code: "PAGE_HEADER_FOOTER_TOO_LARGE", path: "page", message: "Page header/footer leave no room for content." });
   }
 
-  const pagesContent = layoutContentIntoPages(contentComponents, geometry.contentWidth, Math.max(contentAreaHeight, 1), measurer, warnings);
+  const pages: PageLayout[] = run.pages.map((content, i) => {
+    const number = i + 1;
+    const headerSection = pickMaster(headers, number, total);
+    const footerSection = pickMaster(footers, number, total);
+    const hh = heightOf(headerSection);
+    const fh = heightOf(footerSection);
 
-  const pages: PageLayout[] = pagesContent.map((content, i) => {
-    const pageNumber = i + 1;
-    const total = pagesContent.length;
+    const resolveFor = (s: ResolvedSection | undefined) =>
+      !s ? [] : options.resolvePageDependentSection ? options.resolvePageDependentSection(s, { number, total }) : s.children;
 
-    const headerComponents = options.resolvePageDependentSection && pageHeaderSection
-      ? options.resolvePageDependentSection(pageHeaderSection, { number: pageNumber, total })
-      : placeholderHeader;
-    const footerComponents = options.resolvePageDependentSection && pageFooterSection
-      ? options.resolvePageDependentSection(pageFooterSection, { number: pageNumber, total })
-      : placeholderFooter;
-
-    const header = layoutBlock(headerComponents, geometry.contentWidth, measurer, { x: geometry.margin.left, y: geometry.margin.top }).nodes;
-    const footer = layoutBlock(footerComponents, geometry.contentWidth, measurer, {
+    const header = layoutBlock(resolveFor(headerSection), geometry.contentWidth, measurer, { x: geometry.margin.left, y: geometry.margin.top }).nodes;
+    const footer = layoutBlock(resolveFor(footerSection), geometry.contentWidth, measurer, {
       x: geometry.margin.left,
-      y: geometry.height - geometry.margin.bottom - footerHeight,
+      y: geometry.height - geometry.margin.bottom - fh,
     }).nodes;
 
-    const offsetContent = offsetNodes(content, geometry.margin.left, geometry.margin.top + headerHeight);
-
-    return { number: pageNumber, header, footer, content: offsetContent };
+    return {
+      number,
+      header,
+      footer,
+      content: offsetNodes(content, geometry.margin.left, geometry.margin.top + hh),
+      zones: {
+        header: { y: geometry.margin.top, height: hh },
+        body: { y: geometry.margin.top + hh, height: geometry.contentHeight - hh - fh },
+        footer: { y: geometry.height - geometry.margin.bottom - fh, height: fh },
+      },
+      master: { header: headerSection?.sourceIndex, footer: footerSection?.sourceIndex },
+    };
   });
 
+  warnings.push(...run.warnings);
   return {
     pageSize: { width: geometry.width, height: geometry.height },
     margin: geometry.margin,
-    pages: pages.length > 0 ? pages : [{ number: 1, header: [], footer: [], content: [] }],
+    pages: pages.length
+      ? pages
+      : [{ number: 1, header: [], footer: [], content: [], zones: { header: { y: 0, height: 0 }, body: { y: 0, height: geometry.height }, footer: { y: geometry.height, height: 0 } }, master: {} }],
+    decisions: run.decisions,
     warnings,
   };
 }
@@ -73,124 +112,176 @@ function layoutBlock(components: ResolvedComponent[], width: number, measurer: T
   let y = origin.y;
   const nodes: PositionedNode[] = [];
   for (const component of components) {
-    const node = layoutComponent(component, { x: origin.x, y, width, height: 0 }, measurer);
+    const m = marginOf(component);
+    const node = layoutComponent(component, { x: origin.x + m.left, y: y + m.top, width: Math.max(1, width - m.left - m.right), height: 0 }, measurer);
     nodes.push(node);
-    y += node.box.height;
+    y = node.box.y + node.box.height + m.bottom;
   }
   return { nodes, height: y - origin.y };
 }
 
 function offsetNodes(nodes: PositionedNode[], dx: number, dy: number): PositionedNode[] {
-  return nodes.map((node) => ({
-    ...node,
-    box: { ...node.box, x: node.box.x + dx, y: node.box.y + dy },
-    children: node.children ? offsetNodes(node.children, dx, dy) : undefined,
-  }));
+  return nodes.map((node) => {
+    const copy: PositionedNode = { ...node, box: { ...node.box }, children: node.children ? offsetNodes(node.children, 0, 0) : undefined };
+    shiftNode(copy, dx, dy);
+    return copy;
+  });
 }
 
+interface ContentRun {
+  pages: PositionedNode[][];
+  decisions: PaginationDecision[];
+  warnings: PaginatedReport["warnings"];
+}
+
+const pt = (n: number) => `${Math.round(n * 10) / 10}pt`;
+const label = (c: ResolvedComponent) => `"${(c as any).id ?? c.type}"`;
+
 /** The core pagination loop: walks components in order, placing each on the
- * current page if it fits, honoring pageBreakBefore/After and keepTogether,
- * and splitting tables row-by-row across pages (repeating the header on
- * continuation pages when `repeatHeaderOnPageBreak` is set). */
+ * current page if it fits, honoring pageBreakBefore/After, keepTogether and
+ * keepWithNext, margins, and splitting tables row-by-row across pages
+ * (repeating the header on continuation pages). Every move to a new page is
+ * recorded as a decision so the designer can explain it. */
 function layoutContentIntoPages(
   components: ResolvedComponent[],
   width: number,
-  pageHeight: number,
-  measurer: TextMeasurer,
-  warnings: PaginatedReport["warnings"]
-): PositionedNode[][] {
+  pageHeightAt: (pageIndex: number) => number,
+  measurer: TextMeasurer
+): ContentRun {
   const pages: PositionedNode[][] = [[]];
+  const decisions: PaginationDecision[] = [];
+  const warnings: PaginatedReport["warnings"] = [];
   let y = 0;
 
+  const decide = (d: Omit<PaginationDecision, "page">) => decisions.push({ ...d, page: pages.length + 1 });
   const newPage = () => {
     pages.push([]);
     y = 0;
   };
   const currentPage = () => pages[pages.length - 1]!;
-  const remaining = () => pageHeight - y;
+  const pageHeight = () => pageHeightAt(pages.length - 1);
+  const remaining = () => pageHeight() - y;
 
   for (let idx = 0; idx < components.length; idx++) {
     const component = components[idx]!;
-    if ((component as any).pageBreakBefore && y > 0) newPage();
+    const anyC = component as any;
+    const m = marginOf(component);
+    const innerWidth = Math.max(1, width - m.left - m.right);
+    const place = (node: PositionedNode) => {
+      shiftNode(node, 0, 0);
+      currentPage().push(node);
+    };
 
-    if ((component as any).keepWithNext && idx + 1 < components.length && y > 0) {
+    if (anyC.pageBreakBefore && y > 0) {
+      decide({ kind: "forced-break", componentId: anyC.id, message: `${label(component)} starts on a new page (page break before).`, actions: [{ label: "Remove page break", patch: { pageBreakBefore: false } }] });
+      newPage();
+    }
+
+    if (anyC.keepWithNext && idx + 1 < components.length && y > 0) {
       const next = components[idx + 1]!;
-      const thisNode = layoutComponent(component, { x: 0, y, width, height: 0 }, measurer);
-      const nextNode = layoutComponent(next, { x: 0, y: y + thisNode.box.height, width, height: 0 }, measurer);
-      const combinedHeight = thisNode.box.height + nextNode.box.height;
-      const combinedFitsCurrent = combinedHeight <= remaining();
-      const combinedFitsFreshPage = combinedHeight <= pageHeight;
-      if (!combinedFitsCurrent && combinedFitsFreshPage) {
+      const a = layoutComponent(component, { x: 0, y, width: innerWidth, height: 0 }, measurer);
+      const b = layoutComponent(next, { x: 0, y: y + a.box.height, width: innerWidth, height: 0 }, measurer);
+      const combined = a.box.height + b.box.height + m.top + m.bottom;
+      if (combined > remaining() && combined <= pageHeightAt(pages.length)) {
+        decide({
+          kind: "keep-with-next",
+          componentId: anyC.id,
+          message: `${label(component)} is kept with the next element; together they need ${pt(combined)} but only ${pt(remaining())} is left.`,
+          required: combined,
+          available: remaining(),
+          actions: [{ label: "Release keep-with-next", patch: { keepWithNext: false } }],
+        });
         newPage();
       }
     }
 
-    if (component.type === "table" && !(component as any).keepTogether) {
-      placeTable(component as ResolvedTableComponent, width, pageHeight, measurer, {
+    if (component.type === "table" && !anyC.keepTogether) {
+      placeTable(component as ResolvedTableComponent, innerWidth, pageHeightAt, () => pages.length, measurer, {
         place: (node, height) => {
-          // placeTable builds each slice's box at y:0 (its own local frame);
-          // stamp in the real accumulated y on *this* page before placing it,
-          // the same way every other component type does below.
           node.box.y = y;
+          node.box.x += m.left;
           currentPage().push(node);
           y += height;
         },
         remaining,
         newPage,
+        decide,
       });
-    } else if (component.type === "table") {
-      // keepTogether on a table means "never split this table" -- treat it as
-      // one atomic block like any other keepTogether component below, rather
-      // than handing it to the row-splitting placer.
-      const node = layoutComponent(component, { x: 0, y, width, height: 0 }, measurer);
-      if (node.box.height > remaining() && node.box.height <= pageHeight && y > 0) newPage();
-      const placed = layoutComponent(component, { x: 0, y, width, height: 0 }, measurer);
-      const table = component as ResolvedTableComponent;
-      currentPage().push({ ...placed, rowRange: { start: 0, end: table.rows.length } });
-      y += placed.box.height;
+      y += m.bottom;
     } else {
-      const node = layoutComponent(component, { x: 0, y, width, height: 0 }, measurer);
-      const fitsCurrent = node.box.height <= remaining();
-      const fitsFreshPage = node.box.height <= pageHeight;
+      const probe = layoutComponent(component, { x: 0, y: y + m.top, width: innerWidth, height: 0 }, measurer);
+      const needed = probe.box.height + m.top + m.bottom;
+      const fitsCurrent = needed <= remaining();
+      const fitsFresh = needed <= pageHeightAt(pages.length);
 
-      if (!fitsCurrent) {
-        if (component.keepTogether && fitsFreshPage) {
+      if (!fitsCurrent && y > 0) {
+        if (fitsFresh) {
+          const keep = Boolean(anyC.keepTogether);
+          decide({
+            kind: keep ? "keep-together" : "cannot-split",
+            componentId: anyC.id,
+            message: keep
+              ? `${label(component)} is set to keep together: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`
+              : `${label(component)} cannot be split across pages: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`,
+            required: needed,
+            available: remaining(),
+            actions: keep ? [{ label: "Allow split", patch: { keepTogether: false } }] : undefined,
+          });
           newPage();
-        } else if (!fitsFreshPage) {
+        } else {
+          decide({ kind: "overflow", componentId: anyC.id, message: `${label(component)} (${pt(needed)}) is taller than a whole page and will overflow.`, required: needed, available: pageHeight() });
           warnings.push({
             code: "CONTENT_OVERFLOWS_PAGE",
-            path: component.id ?? component.type,
-            message: `Component "${component.id ?? component.type}" is taller than a full page and will overflow; manual splitting of this component type is not yet supported.`,
+            path: anyC.id ?? component.type,
+            message: `Component ${label(component)} is taller than a full page and will overflow; manual splitting of this component type is not yet supported.`,
           });
-          if (y > 0) newPage();
-        } else if (y > 0) {
           newPage();
         }
+      } else if (!fitsFresh) {
+        warnings.push({
+          code: "CONTENT_OVERFLOWS_PAGE",
+          path: anyC.id ?? component.type,
+          message: `Component ${label(component)} is taller than a full page and will overflow; manual splitting of this component type is not yet supported.`,
+        });
       }
 
-      const placed = layoutComponent(component, { x: 0, y, width, height: 0 }, measurer);
-      currentPage().push(placed);
-      y += placed.box.height;
+      const placed = layoutComponent(component, { x: m.left, y: y + m.top, width: innerWidth, height: 0 }, measurer);
+      if (component.type === "table") (placed as PositionedNode).rowRange = { start: 0, end: (component as ResolvedTableComponent).rows.length };
+      place(placed);
+      y = placed.box.y + placed.box.height + m.bottom;
     }
 
-    if ((component as any).pageBreakAfter) newPage();
+    if (anyC.pageBreakAfter) {
+      newPage();
+      decide({ kind: "forced-break", componentId: anyC.id, message: `A page break follows ${label(component)}.`, actions: [{ label: "Remove page break", patch: { pageBreakAfter: false } }] });
+    }
   }
 
   // Drop a trailing empty page created by a forced break with nothing after it.
   if (pages.length > 1 && pages[pages.length - 1]!.length === 0) pages.pop();
-  return pages;
+  return { pages, decisions: decisions.filter((d) => d.page <= pages.length), warnings };
 }
 
 interface TablePlacer {
   place(node: PositionedNode, height: number): void;
   remaining(): number;
   newPage(): void;
+  decide(d: Omit<PaginationDecision, "page">): void;
 }
 
-function placeTable(table: ResolvedTableComponent, width: number, pageHeight: number, measurer: TextMeasurer, placer: TablePlacer): void {
+function placeTable(
+  table: ResolvedTableComponent,
+  width: number,
+  pageHeightAt: (pageIndex: number) => number,
+  pageCount: () => number,
+  measurer: TextMeasurer,
+  placer: TablePlacer
+): void {
   const columnWidths = resolveColumnWidths(table, width);
   const headerHeight = table.showHeader ? measureHeaderHeight(table, measurer) : 0;
   const footerHeight = table.showFooter ? measureFooterHeight(table, measurer) : 0;
+  const nextPageHeight = () => pageHeightAt(pageCount());
+  const tid = (table as any).id as string | undefined;
 
   const minBefore = (table as any).minRowsBeforeBreak ?? 0;
   const minAfter = (table as any).minRowsAfterBreak ?? 0;
@@ -220,8 +311,10 @@ function placeTable(table: ResolvedTableComponent, width: number, pageHeight: nu
   const remainingRowsFitOnFreshPage = (fromIndex: number): boolean => {
     let height = table.showHeader && table.repeatHeaderOnPageBreak ? headerHeight : 0;
     for (let i = fromIndex; i < table.rows.length; i++) height += measureRowHeight(table, i, columnWidths, measurer);
-    return height <= pageHeight;
+    return height <= nextPageHeight();
   };
+
+  const startHeight = () => (table.showHeader && table.repeatHeaderOnPageBreak ? headerHeight : 0);
 
   let sliceHeight = table.showHeader ? headerHeight : 0;
   while (rowIndex < table.rows.length) {
@@ -229,39 +322,47 @@ function placeTable(table: ResolvedTableComponent, width: number, pageHeight: nu
     const wouldOverflow = sliceHeight + rowHeight > placer.remaining();
 
     if (wouldOverflow && rowIndex > sliceStart) {
-      // Orphan control: if breaking here would leave fewer than
-      // minRowsBeforeBreak rows on this page, push the whole small group to
-      // the next page instead (skip once per slice start to avoid looping).
       const roomRows = rowIndex - sliceStart;
       if (roomRows < minBefore && sliceStart > 0 && !orphanPushAttempted) {
         orphanPushAttempted = true;
+        placer.decide({ kind: "orphan-control", componentId: tid, rowIndex: sliceStart, message: `Only ${roomRows} row(s) fit here but "Min rows before break" is ${minBefore}; rows ${sliceStart + 1}-${rowIndex} move to the next page.` });
         placer.newPage();
-        sliceHeight = table.showHeader && table.repeatHeaderOnPageBreak ? headerHeight : 0;
+        sliceHeight = startHeight();
         continue;
       }
 
-      // Widow control: if what's left after this break is both small and is
-      // the table's final page, pull a few rows back from this page so the
-      // last page doesn't open with a lone stray row.
       let breakPoint = rowIndex;
       const remainder = table.rows.length - breakPoint;
       if (remainder > 0 && remainder < minAfter && remainingRowsFitOnFreshPage(breakPoint)) {
         const maxPullback = breakPoint - sliceStart - minBefore;
         const pullback = Math.min(minAfter - remainder, Math.max(0, maxPullback));
-        breakPoint -= pullback;
+        if (pullback > 0) {
+          breakPoint -= pullback;
+          placer.decide({ kind: "widow-control", componentId: tid, rowIndex: breakPoint, message: `"Min rows after break" is ${minAfter}: ${pullback} extra row(s) move to the last page so it does not start with a lone row.` });
+        }
       }
 
       flushSlice(breakPoint, false);
+      placer.decide({
+        kind: "table-split",
+        componentId: tid,
+        rowIndex: breakPoint,
+        required: rowHeight,
+        available: placer.remaining(),
+        message: `Table ${tid ? `"${tid}" ` : ""}continues on the next page: row ${breakPoint + 1} needs ${pt(rowHeight)} but only ${pt(Math.max(0, placer.remaining()))} is left. Rows are never cut in half.`,
+      });
       placer.newPage();
-      sliceHeight = table.showHeader && table.repeatHeaderOnPageBreak ? headerHeight : 0;
+      sliceHeight = startHeight();
       rowIndex = breakPoint;
       continue;
     }
     if (wouldOverflow && rowIndex === sliceStart) {
-      // A single row taller than a full page: place it anyway (keepRowTogether
-      // cannot help here) rather than looping forever.
-      placer.newPage();
-      sliceHeight = table.showHeader && table.repeatHeaderOnPageBreak ? headerHeight : 0;
+      // Nothing of this table fits on the current page (the header plus one row is too tall): start on a new page.
+      if (placer.remaining() < nextPageHeight()) {
+        placer.decide({ kind: "cannot-split", componentId: tid, rowIndex, required: sliceHeight + rowHeight, available: placer.remaining(), message: `Table ${tid ? `"${tid}" ` : ""}starts on the next page: its header and first row need ${pt(sliceHeight + rowHeight)} but only ${pt(placer.remaining())} is left.` });
+        placer.newPage();
+        sliceHeight = isFirstSlice ? (table.showHeader ? headerHeight : 0) : startHeight();
+      }
     }
 
     sliceHeight += rowHeight;
@@ -271,8 +372,9 @@ function placeTable(table: ResolvedTableComponent, width: number, pageHeight: nu
   const footerFits = sliceHeight + footerHeight <= placer.remaining();
   if (!footerFits && table.showFooter) {
     flushSlice(rowIndex, false);
+    placer.decide({ kind: "keep-together", componentId: tid, required: footerHeight, available: placer.remaining(), message: `The totals row of ${tid ? `"${tid}" ` : "the table "}needs ${pt(footerHeight)} but only ${pt(Math.max(0, placer.remaining()))} is left; it moves to the next page.` });
     placer.newPage();
-    flushSlice(rowIndex, true); // empty row range, footer-only slice
+    flushSlice(rowIndex, true);
   } else {
     flushSlice(rowIndex, table.showFooter);
   }

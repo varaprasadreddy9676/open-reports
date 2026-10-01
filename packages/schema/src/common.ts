@@ -78,6 +78,22 @@ export const styleWhenSchema = z.array(
 /** Common properties every component may declare, regardless of type. */
 export const componentBaseSchema = z.object({
   id: z.string().optional(),
+  /** Friendly name shown in the designer's layer tree. */
+  name: z.string().optional(),
+  /** Designer lock: the element cannot be moved or edited on the canvas. */
+  locked: z.boolean().optional(),
+  /** Hidden elements are not rendered in any output format. */
+  hidden: z.boolean().optional(),
+  /** Auto-layout (container children): space between children, cross-axis alignment, main-axis distribution. */
+  gap: z.number().nonnegative().optional(),
+  alignItems: z.enum(["start", "center", "end", "stretch"]).optional(),
+  justifyContent: z.enum(["start", "center", "end", "space-between", "space-around"]).optional(),
+  /** Flex weight among siblings in a row (default 1 for flexible children). */
+  grow: z.number().nonnegative().optional(),
+  minWidth: dimensionSchema.optional(),
+  maxWidth: dimensionSchema.optional(),
+  minHeight: dimensionSchema.optional(),
+  maxHeight: dimensionSchema.optional(),
   layout: z.enum(["flow", "row", "column", "grid", "stack", "absolute"]).optional(),
   x: dimensionSchema.optional(),
   y: dimensionSchema.optional(),

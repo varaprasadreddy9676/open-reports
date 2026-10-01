@@ -26,6 +26,8 @@ export const sectionSchema = z.object({
   /** For reportFooter-like content that should only appear on the last page
    * (terms and conditions, signature blocks). */
   showOn: z.enum(["every-page", "last-page", "first-page"]).optional(),
+  /** Page master: which pages this pageHeader/pageFooter applies to (first, last, odd, even, standard = the rest). */
+  appliesTo: z.enum(["all", "first", "last", "odd", "even", "standard"]).optional(),
   height: z.number().optional(),
   visibleWhen: z.string().optional(),
   children: z.array(componentSchema).default([]),

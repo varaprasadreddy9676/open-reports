@@ -18,6 +18,7 @@ export interface ResolvedReport {
   theme?: Theme;
   sections: ResolvedSection[];
   exports?: ExportsConfig;
+  print?: import("@reporting/schema").PrintProfile;
   warnings: ResolvedWarning[];
 }
 
@@ -30,6 +31,9 @@ export interface ResolvedWarning {
 
 export interface ResolvedSection {
   type: string;
+  /** Index of the section in the report definition (stable key for page-master re-resolution). */
+  sourceIndex: number;
+  appliesTo?: string;
   repeat?: boolean;
   children: ResolvedComponent[];
 }
@@ -60,6 +64,15 @@ export interface ResolvedComponentBase {
   pageBreakBefore?: boolean;
   pageBreakAfter?: boolean;
   keepTogether?: boolean;
+  keepWithNext?: boolean;
+  gap?: number;
+  alignItems?: string;
+  justifyContent?: string;
+  grow?: number;
+  minWidth?: number | string;
+  maxWidth?: number | string;
+  minHeight?: number | string;
+  maxHeight?: number | string;
   exports?: Record<string, unknown>;
 }
 

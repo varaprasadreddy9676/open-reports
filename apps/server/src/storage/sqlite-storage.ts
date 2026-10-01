@@ -29,6 +29,12 @@ export class SqliteStorage implements StorageProvider {
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS blocks (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        children TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS template_versions (
         templateId TEXT NOT NULL,
         version INTEGER NOT NULL,
@@ -118,6 +124,22 @@ export class SqliteStorage implements StorageProvider {
       .get(templateId) as (Omit<TemplateVersionRecord, "definition"> & { definition: string }) | undefined;
     if (!row) return undefined;
     return { ...row, definition: JSON.parse(row.definition) };
+  }
+
+  /** Reusable blocks ("My Components"): shared fragments organizations insert into many reports. */
+  async listBlocks(): Promise<{ id: string; name: string; children: unknown; updatedAt: string }[]> {
+    const rows = this.db.prepare(`SELECT * FROM blocks ORDER BY name`).all() as { id: string; name: string; children: string; updatedAt: string }[];
+    return rows.map((r) => ({ ...r, children: JSON.parse(r.children) }));
+  }
+
+  async putBlock(id: string, name: string, children: unknown): Promise<void> {
+    this.db
+      .prepare(`INSERT INTO blocks (id, name, children, updatedAt) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, children = excluded.children, updatedAt = excluded.updatedAt`)
+      .run(id, name, JSON.stringify(children), new Date().toISOString());
+  }
+
+  async deleteBlock(id: string): Promise<void> {
+    this.db.prepare(`DELETE FROM blocks WHERE id = ?`).run(id);
   }
 
   close(): void {

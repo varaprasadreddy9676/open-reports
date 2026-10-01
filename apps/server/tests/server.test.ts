@@ -297,3 +297,41 @@ describe("POST /api/v1/datasets/test", () => {
     expect(res.json().ok).toBe(false);
   });
 });
+
+describe("capabilities, schema, blocks and ZPL", () => {
+  it("exposes renderer capabilities and available fonts", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/v1/capabilities" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().formats.map((f: any) => f.id)).toEqual(expect.arrayContaining(["pdf", "html", "xlsx", "csv", "zpl"]));
+    expect(Array.isArray(res.json().fonts)).toBe(true);
+  });
+
+  it("serves the JSON Schema without authentication", async () => {
+    const { app: locked } = buildApp({ dbPath: path.join(fs.mkdtempSync(path.join(os.tmpdir(), "schema-")), "db.sqlite"), apiKeys: ["k"] });
+    const res = await locked.inject({ method: "GET", url: "/api/v1/schema" });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.stringify(res.json())).toContain("schemaVersion");
+    await locked.close();
+  });
+
+  it("stores reusable blocks", async () => {
+    const put = await app.inject({ method: "PUT", url: "/api/v1/blocks/hospital-header", payload: { name: "Hospital header", children: [{ type: "text", value: "ACME" }] } });
+    expect(put.statusCode).toBe(204);
+    const list = await app.inject({ method: "GET", url: "/api/v1/blocks" });
+    expect(list.json().find((b: any) => b.id === "hospital-header").children[0].value).toBe("ACME");
+    await app.inject({ method: "DELETE", url: "/api/v1/blocks/hospital-header" });
+    expect((await app.inject({ method: "GET", url: "/api/v1/blocks" })).json().some((b: any) => b.id === "hospital-header")).toBe(false);
+  });
+
+  it("renders a label as ZPL", async () => {
+    const label = {
+      schemaVersion: "1.0", id: "l", name: "L", print: { dpi: 203 },
+      page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1, right: 1, bottom: 1, left: 1 } },
+      sections: [{ type: "detail", children: [{ type: "text", value: "Hello" }, { type: "barcode", value: "12345" }] }],
+    };
+    const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: label, format: "zpl" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toContain("^XA");
+    expect(res.payload).toContain("^PW320");
+  });
+});

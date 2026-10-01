@@ -25,6 +25,8 @@ export const imageComponentSchema = componentBaseSchema.extend({
   binding: z.string().optional(),
   fit: z.enum(["fit", "fill", "contain", "cover", "stretch"]).optional().default("contain"),
   alt: z.string().optional(),
+  /** What to do when the image source is empty/unavailable. */
+  whenMissing: z.enum(["hide", "placeholder", "fail"]).optional(),
 });
 
 export const lineComponentSchema = componentBaseSchema.extend({
@@ -130,6 +132,9 @@ export const tableComponentSchema = componentBaseSchema.extend({
   alternateRowStyle: z.boolean().optional(),
   /** Conditional row styling, e.g. { when: "row.balance < 0", style: { color: "#b91c1c" } }. */
   rowStyleWhen: styleWhenSchema.optional(),
+  /** What to render when the dataset has no rows. */
+  emptyState: z.enum(["hide", "headers", "message"]).optional(),
+  emptyMessage: z.string().optional(),
 });
 
 /**
@@ -175,6 +180,7 @@ export const componentSchema: z.ZodTypeAny = z.lazy(() =>
     conditionalComponentSchema,
     keepTogetherComponentSchema,
     subreportComponentSchema,
+    fragmentComponentSchema,
   ])
 );
 
@@ -228,6 +234,12 @@ export const conditionalComponentSchema = componentBaseSchema.extend({
 export const keepTogetherComponentSchema = componentBaseSchema.extend({
   type: z.literal("keepTogether"),
   children: z.array(componentSchema).default([]),
+});
+
+export const fragmentComponentSchema = componentBaseSchema.extend({
+  type: z.literal("fragment"),
+  /** id of a reusable block declared in the report's `fragments`. */
+  ref: z.string(),
 });
 
 export const subreportComponentSchema = componentBaseSchema.extend({

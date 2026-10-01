@@ -187,3 +187,55 @@ describe("nested dataset paths", () => {
     expect(table.rows).toHaveLength(2);
   });
 });
+
+describe("hidden, empty states and reusable fragments", () => {
+  const base = {
+    schemaVersion: "1.0",
+    id: "x",
+    name: "X",
+    datasets: [{ id: "none", source: "inline", query: { data: [] } }],
+  };
+
+  it("never renders a hidden component", async () => {
+    const parsed = parseReportDefinition({ ...base, sections: [{ type: "detail", children: [{ type: "text", value: "shown" }, { type: "text", value: "secret", hidden: true }] }] });
+    if (!parsed.valid) throw new Error("invalid");
+    const { resolved } = await resolveReport(parsed.report, { registry: registry() });
+    expect(resolved.sections[0]!.children.map((c: any) => c.text)).toEqual(["shown"]);
+  });
+
+  it("table empty state: hide, message, or headers only", async () => {
+    const mk = (emptyState?: string) =>
+      parseReportDefinition({ ...base, sections: [{ type: "detail", children: [{ type: "table", dataset: "none", emptyState, emptyMessage: "Nothing here", columns: [{ id: "a", header: "A", binding: "row.a" }] }] }] });
+    const run = async (es?: string) => {
+      const p = mk(es);
+      if (!p.valid) throw new Error("invalid");
+      return (await resolveReport(p.report, { registry: registry() })).resolved.sections[0]!.children as any[];
+    };
+    expect(await run("hide")).toHaveLength(0);
+    expect((await run("message"))[0].text).toBe("Nothing here");
+    expect((await run("headers"))[0].type).toBe("table");
+    expect((await run())[0].type).toBe("table");
+  });
+
+  it("inlines a reusable fragment and warns about an unknown one", async () => {
+    const parsed = parseReportDefinition({
+      ...base,
+      fragments: [{ id: "letterhead", children: [{ type: "text", value: "ACME" }] }],
+      sections: [{ type: "detail", children: [{ type: "fragment", ref: "letterhead" }, { type: "fragment", ref: "missing" }] }],
+    });
+    if (!parsed.valid) throw new Error("invalid");
+    const { resolved } = await resolveReport(parsed.report, { registry: registry() });
+    const first = resolved.sections[0]!.children[0] as any;
+    expect(first.children[0].text).toBe("ACME");
+    expect(resolved.warnings.some((w) => w.code === "UNKNOWN_FRAGMENT")).toBe(true);
+  });
+
+  it("tolerant mode turns a broken binding into a visible placeholder instead of failing the report", async () => {
+    const parsed = parseReportDefinition({ ...base, sections: [{ type: "detail", children: [{ type: "text", id: "bad", binding: "data.nope.field" }, { type: "text", value: "ok" }] }] });
+    if (!parsed.valid) throw new Error("invalid");
+    await expect(resolveReport(parsed.report, { registry: registry() })).rejects.toThrow();
+    const { resolved } = await resolveReport(parsed.report, { registry: registry(), tolerant: true });
+    expect((resolved.sections[0]!.children[0] as any).text).toContain("⚠");
+    expect(resolved.warnings.find((w) => w.code === "COMPONENT_ERROR")?.componentId).toBe("bad");
+  });
+});

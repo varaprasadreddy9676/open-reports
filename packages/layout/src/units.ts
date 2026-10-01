@@ -67,7 +67,9 @@ export function resolvePageGeometry(page: PageConfig): PageGeometry {
 
   let width = toPoints(widthMm, "mm");
   let height = toPoints(heightMm, "mm");
-  if (page.orientation === "landscape") {
+  // Orientation normalizes the shape: landscape is always wider than tall, portrait taller than wide,
+  // whichever way round the custom width/height were written.
+  if ((page.orientation === "landscape" && width < height) || (page.orientation === "portrait" && width > height)) {
     [width, height] = [height, width];
   }
 

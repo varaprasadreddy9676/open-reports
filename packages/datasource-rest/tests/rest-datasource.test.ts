@@ -132,3 +132,21 @@ describe("SSRF protection", () => {
     );
   });
 });
+
+describe("secrets", () => {
+  it("substitutes {{secrets.NAME}} from host configuration and never from the report", async () => {
+    const ds = new RestDataSource({ allowedHosts: ["127.0.0.1"], secrets: { BillingAPI: "s3cr3t" } });
+    const result = await ds.execute(
+      { id: "x", source: "rest", query: { url: `${baseUrl}/echo`, headers: { Authorization: "Bearer {{secrets.BillingAPI}}" } } },
+      { parameters: {}, limits }
+    );
+    expect((result.value as any).headers.authorization).toBe("Bearer s3cr3t");
+  });
+
+  it("fails clearly for an unknown secret", async () => {
+    const ds = new RestDataSource({ allowedHosts: ["127.0.0.1"] });
+    await expect(
+      ds.execute({ id: "x", source: "rest", query: { url: `${baseUrl}/echo`, headers: { A: "{{secrets.Nope}}" } } }, { parameters: {}, limits })
+    ).rejects.toThrow(/Unknown secret "Nope"/);
+  });
+});

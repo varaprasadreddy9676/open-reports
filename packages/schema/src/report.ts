@@ -2,6 +2,7 @@ import { z } from "zod";
 import { pageConfigSchema } from "./page.js";
 import { themeSchema } from "./theme.js";
 import { sectionSchema } from "./sections.js";
+import { componentSchema } from "./components.js";
 import { datasetDefinitionSchema } from "./datasets.js";
 import { parameterDefinitionSchema } from "./parameters.js";
 import { variableDefinitionSchema } from "./variables.js";
@@ -28,6 +29,22 @@ export const exportsConfigSchema = z.object({
 });
 export type ExportsConfig = z.infer<typeof exportsConfigSchema>;
 
+export const printProfileSchema = z.object({
+  name: z.string().optional(),
+  dpi: z.number().positive().optional(),
+  printerType: z.enum(["document", "label", "receipt", "card", "wristband"]).optional(),
+  language: z.enum(["pdf", "zpl", "escpos"]).optional(),
+  /** Printable margin the printer cannot reach, in mm. */
+  safeMargin: z.number().nonnegative().optional(),
+});
+export type PrintProfile = z.infer<typeof printProfileSchema>;
+
+export const fragmentDefinitionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().optional(),
+  children: z.array(componentSchema).default([]),
+});
+
 export const reportDefinitionSchema = z.object({
   schemaVersion: z.enum(SUPPORTED_SCHEMA_VERSIONS),
   id: z.string().min(1),
@@ -40,6 +57,8 @@ export const reportDefinitionSchema = z.object({
   page: pageConfigSchema.default({}),
   theme: themeSchema.optional(),
   sections: z.array(sectionSchema).default([]),
+  fragments: z.array(fragmentDefinitionSchema).default([]),
+  print: printProfileSchema.optional(),
   exports: exportsConfigSchema.optional(),
 });
 

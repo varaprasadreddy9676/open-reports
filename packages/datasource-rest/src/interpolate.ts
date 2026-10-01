@@ -3,8 +3,13 @@
  * configuration, not report-author-supplied business logic, so a plain
  * dotted-path substitution is enough and keeps this independent of
  * @reporting/expressions. */
-export function interpolate(input: string, parameters: Record<string, unknown>): string {
-  return input.replace(/\{\{\s*params\.([a-zA-Z0-9_.]+)\s*\}\}/g, (_match, pathExpr: string) => {
+export function interpolate(input: string, parameters: Record<string, unknown>, secrets: Record<string, string> = {}): string {
+  const withSecrets = input.replace(/\{\{\s*secrets\.([A-Za-z0-9_]+)\s*\}\}/g, (_m, name: string) => {
+    const v = secrets[name];
+    if (v === undefined) throw new Error(`Unknown secret "${name}". Secrets are configured on the server (REPORT_SECRET_${name}); they are never stored in report definitions.`);
+    return v;
+  });
+  return withSecrets.replace(/\{\{\s*params\.([a-zA-Z0-9_.]+)\s*\}\}/g, (_match, pathExpr: string) => {
     const value = pathExpr.split(".").reduce<unknown>((acc, key) => {
       if (acc === null || acc === undefined || typeof acc !== "object") return undefined;
       return (acc as Record<string, unknown>)[key];
@@ -13,11 +18,11 @@ export function interpolate(input: string, parameters: Record<string, unknown>):
   });
 }
 
-export function interpolateDeep(value: unknown, parameters: Record<string, unknown>): unknown {
-  if (typeof value === "string") return interpolate(value, parameters);
-  if (Array.isArray(value)) return value.map((v) => interpolateDeep(v, parameters));
+export function interpolateDeep(value: unknown, parameters: Record<string, unknown>, secrets: Record<string, string> = {}): unknown {
+  if (typeof value === "string") return interpolate(value, parameters, secrets);
+  if (Array.isArray(value)) return value.map((v) => interpolateDeep(v, parameters, secrets));
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, interpolateDeep(v, parameters)]));
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, interpolateDeep(v, parameters, secrets)]));
   }
   return value;
 }

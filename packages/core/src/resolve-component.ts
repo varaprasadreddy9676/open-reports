@@ -27,6 +27,8 @@ export interface ResolveEnv {
   path: string;
   /** Design-time mode: a component that throws becomes a visible error placeholder + warning instead of failing the whole report. */
   tolerant?: boolean;
+  fragments?: Map<string, Component[]>;
+  fragmentStack?: string[];
 }
 
 function resolveValueLike(component: Component, ctx: ResolveContext, env: ResolveEnv): unknown {
@@ -40,6 +42,7 @@ function resolveValueLike(component: Component, ctx: ResolveContext, env: Resolv
 }
 
 function isVisible(component: Component, ctx: ResolveContext, env: ResolveEnv): boolean {
+  if (component.hidden) return false;
   if (!component.visibleWhen) return true;
   try {
     return Boolean(env.engine.evaluate(component.visibleWhen, ctx));
@@ -121,6 +124,15 @@ function base(component: Component) {
     pageBreakBefore: component.pageBreakBefore,
     pageBreakAfter: component.pageBreakAfter,
     keepTogether: component.keepTogether,
+    keepWithNext: component.keepWithNext,
+    gap: component.gap,
+    alignItems: component.alignItems,
+    justifyContent: component.justifyContent,
+    grow: component.grow,
+    minWidth: component.minWidth,
+    maxWidth: component.maxWidth,
+    minHeight: component.minHeight,
+    maxHeight: component.maxHeight,
     exports: component.exports,
   };
 }
@@ -137,6 +149,8 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
     }
     case "image": {
       const src = component.binding ? env.engine.evaluate(component.binding, ctx) : component.src;
+      if (!src && component.whenMissing === "hide") return null;
+      if (!src && component.whenMissing === "fail") throw new Error(`Image "${component.id ?? "image"}" has no source and whenMissing is "fail".`);
       return { ...base(component), type: "image", src: src as string | undefined, fit: component.fit ?? "contain", alt: component.alt };
     }
     case "line":
@@ -194,6 +208,20 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
       const when = Boolean(env.engine.evaluate(component.when, ctx));
       return resolveComponents(when ? component.children ?? [] : component.otherwise ?? [], ctx, env);
     }
+    case "fragment": {
+      const children = env.fragments?.get(component.ref);
+      if (!children) {
+        env.warnings.push({ code: "UNKNOWN_FRAGMENT", path: env.path, message: `Reusable block "${component.ref}" is not defined in this report.`, componentId: component.id });
+        return null;
+      }
+      const stack = env.fragmentStack ?? [];
+      if (stack.includes(component.ref)) {
+        env.warnings.push({ code: "CIRCULAR_FRAGMENT", path: env.path, message: `Reusable block "${component.ref}" contains itself.`, componentId: component.id });
+        return null;
+      }
+      const inner = resolveComponents(children, ctx, { ...env, fragmentStack: [...stack, component.ref] });
+      return { ...base(component), type: "container", children: inner } as ResolvedComponent;
+    }
     case "subreport":
       // KNOWN LIMITATION (v1): embedding and rendering another report's own
       // datasets recursively is not yet wired up -- the schema supports
@@ -213,7 +241,7 @@ function resolveComponent(component: Component, ctx: ResolveContext, env: Resolv
   }
 }
 
-function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent {
+function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | null {
   const rawRows = toArray(lookupDataset(ctx.data, component.dataset));
   let rows = rawRows.map((row) => row as Record<string, unknown>);
 
@@ -281,6 +309,11 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
       }
       columns[i]!.footer = { label: col.footer.label, value: formatValue(value, col.format, env), raw: value };
     });
+  }
+
+  if (resolvedRows.length === 0 && component.emptyState === "hide") return null;
+  if (resolvedRows.length === 0 && component.emptyState === "message") {
+    return { ...base(component), type: "text", text: component.emptyMessage ?? "No records found", style: { color: "#6b7280", ...(component.style ?? {}) } } as ResolvedComponent;
   }
 
   return {

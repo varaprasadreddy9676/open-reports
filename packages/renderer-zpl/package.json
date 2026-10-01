@@ -1,0 +1,17 @@
+{
+  "name": "@reporting/renderer-zpl",
+  "version": "0.1.0",
+  "description": "ZPL renderer: draws a paginated Resolved Report Tree as Zebra ZPL II label commands in printer dots, using the physical size and DPI of the report's print profile",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": { "build": "tsc -b", "test": "vitest run", "typecheck": "tsc -b --noEmit" },
+  "dependencies": {
+    "@reporting/core": "workspace:*",
+    "@reporting/layout": "workspace:*",
+    "@reporting/schema": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.6.3", "vitest": "^2.1.4" }
+}

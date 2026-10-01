@@ -11,6 +11,8 @@ export interface RestDataSourceOptions extends SsrfGuardOptions {
    * memory by returning gigabytes of data. */
   maxResponseBytes?: number;
   defaultTimeoutMs?: number;
+  /** Named secrets available as {{secrets.NAME}} in url/headers/query/body. Configured by the host, never by report authors. */
+  secrets?: Record<string, string>;
 }
 
 interface RestQuery {
@@ -35,20 +37,20 @@ export class RestDataSource implements DataSource {
     const query = definition.query as RestQuery;
     const params = context.parameters;
 
-    const url = new URL(interpolate(query.url, params));
+    const url = new URL(interpolate(query.url, params, this.options.secrets));
     for (const [key, value] of Object.entries(query.query ?? {})) {
-      url.searchParams.set(key, interpolate(value, params));
+      url.searchParams.set(key, interpolate(value, params, this.options.secrets));
     }
 
     await assertUrlIsSafe(url.toString(), this.options);
 
     const headers: Record<string, string> = {};
     for (const [key, value] of Object.entries(query.headers ?? {})) {
-      headers[key] = interpolate(value, params);
+      headers[key] = interpolate(value, params, this.options.secrets);
     }
 
     const method = query.method ?? "GET";
-    const body = query.body !== undefined ? JSON.stringify(interpolateDeep(query.body, params)) : undefined;
+    const body = query.body !== undefined ? JSON.stringify(interpolateDeep(query.body, params, this.options.secrets)) : undefined;
     if (body !== undefined && !headers["Content-Type"] && !headers["content-type"]) {
       headers["Content-Type"] = "application/json";
     }

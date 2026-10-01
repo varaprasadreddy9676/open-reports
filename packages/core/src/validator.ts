@@ -37,6 +37,7 @@ const EXPRESSION_FIELDS = ["binding", "expression", "visibleWhen", "filterWhen",
 export function validateReport(report: ReportDefinition, options: ValidateOptions = {}): ValidationResult {
   const issues: ValidationIssue[] = [];
   const datasetIds = new Set(report.datasets.map((d) => d.id));
+  const fragmentIds = new Set(report.fragments.map((f) => f.id));
   const parameterIds = new Set<string>();
   const seenComponentIds = new Set<string>();
 
@@ -51,12 +52,17 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
       issues.push(missingDataset(section.dataset, sectionPath, Array.from(datasetIds)));
     }
     walkComponents(section.children as Component[], sectionPath, {
+      fragmentIds,
       datasetIds,
       issues,
       seenComponentIds,
       targetRenderers: options.targetRenderers,
     });
   });
+
+  for (const f of report.fragments) {
+    walkComponents(f.children as Component[], `fragments.${f.id}`, { fragmentIds, datasetIds, issues, seenComponentIds: new Set(), targetRenderers: options.targetRenderers });
+  }
 
   if (options.resolveReport) {
     checkCircularSubreports(report, options.resolveReport, issues);
@@ -102,6 +108,7 @@ function closest(target: string, candidates: string[]): string | undefined {
 }
 
 interface WalkCtx {
+  fragmentIds: Set<string>;
   datasetIds: Set<string>;
   issues: ValidationIssue[];
   seenComponentIds: Set<string>;
@@ -121,6 +128,10 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
       ctx.issues.push({ severity: "error", code: "DUPLICATE_ID", path, message: `Duplicate component id "${component.id}".`, componentId: component.id });
     }
     ctx.seenComponentIds.add(component.id);
+  }
+
+  if (component.type === "fragment" && !ctx.fragmentIds.has(component.ref)) {
+    ctx.issues.push({ severity: "error", code: "UNKNOWN_FRAGMENT", path, message: `Reusable block "${component.ref}" does not exist.`, componentId: component.id });
   }
 
   const datasetRef: string | undefined = component.dataset;

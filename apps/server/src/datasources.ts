@@ -9,6 +9,15 @@ import { RestDataSource } from "@reporting/datasource-rest";
 export function createDefaultDataSourceRegistry(): DataSourceRegistry {
   const registry = new DataSourceRegistry();
   registry.register(new InlineDataSource());
-  registry.register(new RestDataSource());
+  registry.register(new RestDataSource({ secrets: secretsFromEnv() }));
   return registry;
+}
+
+/** Secrets are named `REPORT_SECRET_<NAME>` in the server environment and referenced from datasets as {{secrets.NAME}}. */
+export function secretsFromEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (k.startsWith("REPORT_SECRET_") && v) out[k.slice("REPORT_SECRET_".length)] = v;
+  }
+  return out;
 }

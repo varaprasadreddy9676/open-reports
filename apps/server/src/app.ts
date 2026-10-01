@@ -3,7 +3,8 @@ import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import fs from "node:fs";
 import { executeDatasets } from "@reporting/core";
-import { createDefaultDataSourceRegistry } from "./datasources.js";
+import { createDefaultDataSourceRegistry, secretsFromEnv } from "./datasources.js";
+import { discoverFonts } from "@reporting/renderer-pdf";
 import { randomUUID } from "node:crypto";
 import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
 import { validateReport } from "@reporting/core";
@@ -33,13 +34,46 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   const dataSources = createDefaultDataSourceRegistry();
 
   app.addHook("onRequest", async (request, reply) => {
-    if (request.url === "/health" || request.url === "/openapi.json" || !request.url.startsWith("/api/")) return;
+    if (request.url === "/health" || request.url === "/openapi.json" || request.url === "/api/v1/schema" || !request.url.startsWith("/api/")) return;
     await authHook(request, reply);
   });
 
   app.get("/health", async () => ({ status: "ok" }));
 
   app.get("/openapi.json", async () => buildOpenApiDocument());
+
+  // --- Public schema + capabilities (the designer uses these to warn about fonts, renderers and secrets) ---
+  app.get("/api/v1/schema", async () => getReportJsonSchema());
+
+  app.get("/api/v1/capabilities", async () => {
+    const fonts = discoverFonts();
+    return {
+      formats: [
+        { id: "pdf", mimeType: "application/pdf", supports: ["*"] },
+        { id: "html", mimeType: "text/html", supports: ["*"] },
+        { id: "xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", supports: ["table", "text", "field"] },
+        { id: "csv", mimeType: "text/csv", supports: ["table"] },
+        { id: "zpl", mimeType: "text/plain", supports: ["text", "richText", "field", "line", "rectangle", "spacer", "barcode", "qrcode", "table", "container", "row", "column", "grid", "repeater", "group", "keepTogether", "pageBreak"] },
+      ],
+      fonts: Object.keys(fonts.families ?? {}),
+      scriptFonts: fonts.scriptFamilies ?? {},
+      secrets: Object.keys(secretsFromEnv()),
+    };
+  });
+
+  // --- Reusable blocks (shared "My Components") ---
+  app.get("/api/v1/blocks", async () => storage.listBlocks());
+  app.put("/api/v1/blocks/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { name: string; children: unknown };
+    if (!body?.name || !Array.isArray(body.children)) return reply.code(400).send({ error: { code: "INVALID_BLOCK", message: "name and children[] are required." } });
+    await storage.putBlock(id, body.name, body.children);
+    reply.code(204).send();
+  });
+  app.delete("/api/v1/blocks/:id", async (request, reply) => {
+    await storage.deleteBlock((request.params as { id: string }).id);
+    reply.code(204).send();
+  });
 
   // --- Validation ---
   app.post("/api/v1/validate", async (request, reply) => {

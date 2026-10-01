@@ -71,6 +71,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
   const reportVars = computeReportVariables(report.variables, engine, baseCtx);
   baseCtx.vars = reportVars;
 
+  const fragments = new Map<string, any[]>(report.fragments.map((f) => [f.id, f.children as any[]]));
   const warnings: ResolvedWarning[] = [];
   const rowVarAccumulator: Record<string, unknown> = {};
 
@@ -84,6 +85,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       warnings,
       path: `sections[${index}]`,
       tolerant: options.tolerant,
+      fragments,
     };
 
     let children;
@@ -97,7 +99,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       children = resolveComponents(section.children as any, baseCtx, env);
     }
 
-    return { type: section.type, repeat: section.repeat, children };
+    return { type: section.type, repeat: section.repeat, sourceIndex: index, appliesTo: section.appliesTo, children };
   });
 
   if (report.variables.some((v) => v.scope === "page")) {
@@ -116,11 +118,12 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     theme: report.theme,
     sections,
     exports: report.exports,
+    print: report.print,
     warnings,
   };
 
   const resolvePageSection: PageSectionResolver = (section, page) => {
-    const raw = report.sections.find((s) => s.type === section.type);
+    const raw = report.sections[section.sourceIndex];
     if (!raw) return section.children;
     const env: ResolveEnv = {
       engine,
@@ -129,8 +132,9 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       variables: report.variables,
       rowVarAccumulator: { ...rowVarAccumulator },
       warnings,
-      path: `sections.${section.type}`,
+      path: `sections[${section.sourceIndex}]`,
       tolerant: options.tolerant,
+      fragments,
     };
     return resolveComponents(raw.children as any, { ...baseCtx, page }, env);
   };

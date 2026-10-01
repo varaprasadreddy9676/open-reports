@@ -39,7 +39,7 @@ const EXACT_30_ROWS_HEIGHT = 529;
 
 function reportWithContentHeight(height: number, sections: ResolvedReport["sections"]): ResolvedReport {
   const r = reportWith(sections);
-  r.page = { ...r.page, height } as any;
+  r.page = { ...r.page, height, orientation: 300 > height ? "landscape" : "portrait" } as any;
   return r;
 }
 
