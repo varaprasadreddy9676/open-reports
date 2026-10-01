@@ -35,6 +35,9 @@
     },
     {
       "path": "../../packages/plugin-sdk"
+    },
+    {
+      "path": "../../packages/datasource-json"
     }
   ],
   "include": [

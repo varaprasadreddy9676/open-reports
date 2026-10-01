@@ -52,3 +52,14 @@ describe("JsonDataSource", () => {
     );
   });
 });
+
+describe("symlink escape", () => {
+  it("refuses a symlink inside the root that points outside it", async () => {
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "outside-"));
+    await fs.writeFile(path.join(outside, "leak.json"), JSON.stringify({ leaked: true }));
+    await fs.symlink(path.join(outside, "leak.json"), path.join(dir, "link.json"));
+    const ds = new JsonDataSource({ rootDir: dir });
+    await expect(ds.execute({ id: "x", source: "json", query: { filePath: "link.json" } } as any, { parameters: {}, limits: { maxRows: 10, timeoutMs: 1000 } })).rejects.toThrow(/outside the allowed/);
+    await fs.rm(outside, { recursive: true, force: true });
+  });
+});

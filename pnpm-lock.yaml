@@ -117,6 +117,9 @@ importers:
       '@reporting/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@reporting/datasource-json':
+        specifier: workspace:*
+        version: link:../../packages/datasource-json
       '@reporting/datasource-rest':
         specifier: workspace:*
         version: link:../../packages/datasource-rest

@@ -31,7 +31,13 @@ export class JsonDataSource implements DataSource {
 
     let value: unknown;
     if (query.filePath) {
-      value = JSON.parse(await fs.readFile(this.resolveSafePath(query.filePath), "utf-8"));
+      const safe = this.resolveSafePath(query.filePath);
+      // follow symlinks: a link inside the root that points outside must not leak files
+      const [realFile, realRoot] = await Promise.all([fs.realpath(safe), fs.realpath(path.resolve(this.options.rootDir))]);
+      if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) {
+        throw new Error(`Refusing to read "${query.filePath}": resolves outside the allowed JSON data directory.`);
+      }
+      value = JSON.parse(await fs.readFile(realFile, "utf-8"));
     } else if (query.json) {
       value = JSON.parse(query.json);
     } else {
