@@ -80,9 +80,9 @@ export default function App() {
         e.preventDefault();
         s.toggleHide();
       } else if (e.key === "F2" && s.selection[0]) {
-        s.set({ editingText: s.selection[0], leftTab: "layers" });
+        s.set({ renaming: s.selection[0], leftTab: "layers", leftOpen: true });
       } else if (e.key === "Escape") {
-        s.set({ contextMenu: null, editingText: null });
+        s.set({ contextMenu: null, editingText: null, renaming: null });
         s.select([]);
       } else if (e.key.startsWith("Arrow") && s.selection.length) {
         e.preventDefault();

@@ -263,7 +263,7 @@ function DataTab() {
 
 function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
   const selection = useStore((s) => s.selection);
-  const editingText = useStore((s) => s.editingText);
+  const editingText = useStore((s) => s.renaming);
   const [open, setOpen] = useState(true);
   const kids = ops.CHILD_LISTS.flatMap((k) => (Array.isArray(comp[k]) ? (comp[k] as ops.Comp[]) : []));
   const selected = selection.includes(comp.id);
@@ -282,7 +282,7 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
           if (!st().selection.includes(comp.id)) st().select([comp.id]);
           st().set({ contextMenu: { x: e.clientX, y: e.clientY, id: comp.id } });
         }}
-        onDoubleClick={() => st().set({ editingText: comp.id })}
+        onDoubleClick={() => st().set({ renaming: comp.id })}
         onDragStart={(e) => e.dataTransfer.setData("application/x-layer", comp.id)}
         onDragOver={(e) => e.dataTransfer.types.includes("application/x-layer") && e.preventDefault()}
         onDrop={(e) => {
@@ -306,11 +306,11 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
             autoFocus
             defaultValue={comp.name ?? ops.layerName(comp)}
             onClick={(e) => e.stopPropagation()}
-            onBlur={(e) => (st().rename(comp.id, e.target.value.trim() === ops.layerName({ ...comp, name: undefined }) ? "" : e.target.value.trim()), st().set({ editingText: null }))}
+            onBlur={(e) => (st().rename(comp.id, e.target.value.trim() === ops.layerName({ ...comp, name: undefined }) ? "" : e.target.value.trim()), st().set({ renaming: null }))}
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              if (e.key === "Escape") st().set({ editingText: null });
+              if (e.key === "Escape") st().set({ renaming: null });
             }}
           />
         ) : (

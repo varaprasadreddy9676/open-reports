@@ -44,7 +44,7 @@ export function ContextMenu() {
           {item("Ungroup", () => st().ungroupSelected(), { hint: "Ctrl+Shift+G", disabled: !isContainer })}
           {item(comp.locked ? "Unlock" : "Lock", () => st().toggleLock(id), { hint: "Ctrl+L", testid: "ctx-lock" })}
           {item(comp.hidden ? "Show" : "Hide", () => st().toggleHide(id), { hint: "Ctrl+Shift+H", testid: "ctx-hide" })}
-          {item("Rename", () => st().set({ leftTab: "layers", editingText: id ?? null, leftOpen: true }), { hint: "F2" })}
+          {item("Rename", () => st().set({ leftTab: "layers", renaming: id ?? null, leftOpen: true }), { hint: "F2" })}
           <hr />
           {item("Move up", () => st().setDoc(ops.shift(st().doc, id!, -1)))}
           {item("Move down", () => st().setDoc(ops.shift(st().doc, id!, 1)))}

@@ -163,8 +163,7 @@ test.describe("properties, masters, print, blocks", () => {
     await page.getByTestId("layer-company").hover();
     await page.getByTestId("hide-company").click();
     expect((await doc(page)).sections[0].children[0].children[0].hidden).toBe(true);
-    await page.getByTestId("layer-company").press("F2").catch(() => {});
-    await page.evaluate(() => (window as any).__designer.getState().set({ editingText: "company" }));
+    await page.getByTestId("layer-company").dblclick();
     await page.getByTestId("layer-rename").fill("Company name");
     await page.getByTestId("layer-rename").press("Enter");
     expect(JSON.stringify(await doc(page))).toContain('"name":"Company name"');

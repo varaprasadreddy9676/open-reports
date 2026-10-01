@@ -77,6 +77,7 @@ interface State {
   capabilities?: Capabilities;
   blocks: Block[];
   editingText: string | null;
+  renaming: string | null;
   contextMenu: { x: number; y: number; id?: string } | null;
   compareVersion: number | null;
   leftOpen: boolean;
@@ -200,6 +201,7 @@ export const useStore = create<State>((set, get) => ({
   capabilities: undefined,
   blocks: [],
   editingText: null,
+  renaming: null,
   contextMenu: null,
   compareVersion: null,
   leftOpen: true,
