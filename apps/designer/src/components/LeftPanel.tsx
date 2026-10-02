@@ -373,9 +373,9 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
       {open && comp.type === "table" && (
         <>
           {[
-            comp.showHeader !== false ? "Header row" : null,
-            `Detail rows${comp.dataset ? ` · ${comp.dataset}` : ""}`,
-            comp.showFooter ? "Footer row" : null,
+            comp.showHeader !== false ? "H  Header" : null,
+            "D  Detail rows",
+            comp.showFooter ? "F  Footer" : null,
           ]
             .filter(Boolean)
             .map((label) => (
@@ -402,6 +402,7 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
   const i = index;
   const s = sections[i];
   if (!s) return null;
+  const bandName = s.name ?? (s.type === "groupHeader" ? "Header" : s.type === "groupFooter" ? "Footer" : ops.BAND_TITLES[s.type] ?? s.type);
   return (
         <div>
           <div
@@ -459,8 +460,8 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
               const st = useStore.getState();
               st.setDoc(ops.updateBand(st.doc, i, { collapsed: s.collapsed ? undefined : true }));
             }}>{s.collapsed ? "▸" : "▾"}</button>
-            <span className="layer-type">{ops.BAND_CODES[s.type] ?? ""}</span>
-            <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{ops.bandDisplayName(doc, s)}</span>
+            <span className="layer-type" title={ops.BAND_TITLES[s.type] ?? s.type}>{ops.BAND_CODES[s.type] ?? ""}</span>
+            <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{bandName}</span>
             <span className="layer-actions">
               <button className={`layer-btn ${s.locked ? "on" : ""}`} aria-label={s.locked ? "Unlock band layout" : "Lock band layout"} title={s.locked ? "Unlock band layout" : "Lock band layout"} data-testid={`explorer-lock-band-${i}`} onClick={(e) => {
                 e.stopPropagation();
@@ -473,19 +474,17 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
                 st.setDoc(ops.updateBand(st.doc, i, { hidden: !s.hidden }));
               }}>{s.hidden ? "🙈" : "👁"}</button>
             </span>
-            <button
-              className="mini danger"
-              aria-label={`Remove ${s.type} band`}
-              disabled={!!s.locked}
-              onClick={(e) => {
-                e.stopPropagation();
-                const st = useStore.getState();
-                st.setDoc(ops.removeSection(st.doc, i));
-                st.set({ selectedBand: null });
-              }}
-            >
-              ×
-            </button>
+            <details className="explorer-menu" onClick={(e) => e.stopPropagation()}>
+              <summary role="button" aria-label={`Actions for ${bandName}`} title="Band actions">⋯</summary>
+              <div className="explorer-menu-popover">
+                <button onClick={() => { useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); requestAnimationFrame(() => (document.querySelector('[data-testid="band-name"]') as HTMLInputElement | null)?.focus()); }}>Rename</button>
+                <button disabled={!!s.locked} onClick={() => { const st = useStore.getState(); const result = ops.duplicateBand(st.doc, i); st.setDoc(result.doc); st.set({ selectedBand: result.index }); }}>Duplicate</button>
+                <button disabled={!ops.canMoveBand(doc, i, i - 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i - 1); if (next) st.setDoc(next); }}>Move up</button>
+                <button disabled={!ops.canMoveBand(doc, i, i + 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i + 1); if (next) st.setDoc(next); }}>Move down</button>
+                <button onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { collapsed: !s.collapsed })); }}>{s.collapsed ? "Expand" : "Collapse"}</button>
+                <button className="danger" aria-label={`Remove ${s.type} band`} disabled={!!s.locked} onClick={() => { const st = useStore.getState(); st.setDoc(ops.removeSection(st.doc, i)); st.set({ selectedBand: null }); }}>Delete section</button>
+              </div>
+            </details>
           </div>
           {!s.collapsed && (s.children ?? []).map((c: ops.Comp) => (
             <LayerRow key={c.id} comp={c} depth={depth + 1} />
@@ -511,11 +510,17 @@ function ExplorerNodeRow({ node, depth }: { node: ExplorerNode; depth: number })
       <span className="layer-type" aria-hidden="true">▦</span>
       <button className="explorer-group-name" onClick={selectGroup}>{group.name ?? group.id}</button>
       <span className="layer-actions" />
-      <button className="mini danger" aria-label={"Remove group " + (group.name ?? group.id)} data-testid={"explorer-remove-group-" + group.id} disabled={(doc.sections ?? []).some((section: any) => section.groupId === group.id && section.locked)} onClick={() => {
-        const st = useStore.getState();
-        st.setDoc(ops.removeGroup(st.doc, group.id));
-        st.set({ selectedBand: null, selection: [] });
-      }}>×</button>
+      <details className="explorer-menu" onClick={(event) => event.stopPropagation()}>
+        <summary role="button" aria-label={`Actions for ${group.name ?? group.id}`} title="Group actions">⋯</summary>
+        <div className="explorer-menu-popover">
+          <button onClick={selectGroup}>Edit group</button>
+          <button className="danger" aria-label={"Remove group " + (group.name ?? group.id)} data-testid={"explorer-remove-group-" + group.id} disabled={(doc.sections ?? []).some((section: any) => section.groupId === group.id && section.locked)} onClick={() => {
+            const st = useStore.getState();
+            st.setDoc(ops.removeGroup(st.doc, group.id));
+            st.set({ selectedBand: null, selection: [] });
+          }}>Delete group</button>
+        </div>
+      </details>
     </div>
     {open && node.children.map((child) => <ExplorerNodeRow key={child.kind === "group" ? "g:" + child.id : "b:" + child.index} node={child} depth={depth + 1} />)}
   </div>;
@@ -541,26 +546,19 @@ function ReportExplorer() {
     st.set({ selectedBand: result.index, selection: [], rightOpen: true });
   };
   return (
-    <div className="tab-body" data-testid="layers-tab">
-      <div className="layer root">{doc.name}</div>
-      <div className="group-title row-title">Report structure
-        <button className="mini" data-testid="explorer-add-group" onClick={() => useStore.getState().set({ dialog: "group" })}>+ Add</button>
+    <div className="tab-body structure-tab" data-testid="layers-tab">
+      <div className="structure-head">Structure
+        <button className="compact-close" type="button" aria-label="Close workspace panel" onClick={() => useStore.getState().set({ leftOpen: false })}>×</button>
+        <details className="structure-add">
+          <summary role="button" aria-label="Add section or group" title="Add section or group" data-testid="explorer-add-trigger">+</summary>
+          <div className="structure-add-popover">
+            <button data-testid="explorer-add-group" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); useStore.getState().set({ dialog: "group" }); }}>Group…</button>
+            {ops.BAND_TYPES.map((type) => <button key={type} data-testid={`explorer-add-band-${type}`} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); addBand(type); }}>{ops.BAND_TITLES[type]}</button>)}
+          </div>
+        </details>
       </div>
+      <div className="structure-root" title={doc.name}>{doc.name}</div>
       {tree.map((node) => <ExplorerNodeRow key={node.kind === "group" ? "g:" + node.id : "b:" + node.index} node={node} depth={0} />)}
-      <label className="add-section">
-        <span>Add band</span>
-        <select
-          value=""
-          aria-label="Add band"
-          data-testid="explorer-add-band"
-          onChange={(e) => e.target.value && addBand(e.target.value)}
-        >
-          <option value="">Choose...</option>
-          {ops.BAND_TYPES.map((t) => (
-            <option key={t} value={t}>{ops.BAND_TITLES[t]}</option>
-          ))}
-        </select>
-      </label>
     </div>
   );
 }
@@ -615,7 +613,7 @@ export function LeftPanel() {
         ))}
       </nav>
       <div id="workspace-panel" className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${tab}`}>
-        <div className="workspace-panel-head">{tabs.find((item) => item.id === tab)?.label}<button className="compact-close" type="button" aria-label="Close workspace panel" onClick={() => set({ leftOpen: false })}>×</button></div>
+        {tab !== "layers" && <div className="workspace-panel-head">{tabs.find((item) => item.id === tab)?.label}<button className="compact-close" type="button" aria-label="Close workspace panel" onClick={() => set({ leftOpen: false })}>×</button></div>}
         {tab === "insert" && <InsertTab />}
         {tab === "data" && <DataTab />}
         {tab === "layers" && <ReportExplorer />}

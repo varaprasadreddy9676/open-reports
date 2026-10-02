@@ -59,7 +59,7 @@ test.describe("workspace", () => {
     expect((await page.locator(".center").boundingBox())!.width).toBe(900);
   });
 
-  test("structure rail and tree keep a 24 px hierarchy with fixed action columns", async ({ page }) => {
+  test("structure rail and tree keep compact rows with fixed action columns", async ({ page }) => {
     await page.setViewportSize({ width: 1536, height: 1024 });
     await absoluteForm(page);
     await page.getByTestId("left-tab-layers").click();
@@ -71,21 +71,23 @@ test.describe("workspace", () => {
       const components = document.querySelector('[data-testid="left-tab-insert"] span:last-child') as HTMLElement;
       return {
         railWidth: rail.width,
-        componentsFits: components.scrollWidth <= components.clientWidth,
+        componentsLabelHidden: components.getBoundingClientRect().width <= 1,
         rowHeights: ["[data-testid=\"section-detail\"]", "[data-testid=\"layer-canvas\"]", "[data-testid=\"layer-title\"]"].map((selector) => rect(selector).height),
         labels: [labelX('[data-testid="section-detail"]'), labelX('[data-testid="layer-canvas"]'), labelX('[data-testid="layer-title"]')],
         actions: [actionX('[data-testid="layer-title"]'), actionX('[data-testid="layer-name"]')],
-        addSelectX: rect(".add-section select").x,
+        sidebarWidth: rect(".panel.left").width,
+        addButtonVisible: !!document.querySelector('.structure-add > summary'),
       };
     });
-    expect(geometry.railWidth).toBeGreaterThanOrEqual(88);
-    expect(geometry.railWidth).toBeLessThanOrEqual(96);
-    expect(geometry.componentsFits).toBe(true);
-    expect(geometry.rowHeights.every((height) => height >= 36 && height <= 40)).toBe(true);
-    expect(geometry.labels[1] - geometry.labels[0]).toBe(24);
-    expect(geometry.labels[2] - geometry.labels[1]).toBe(24);
+    expect(geometry.railWidth).toBeGreaterThanOrEqual(48);
+    expect(geometry.railWidth).toBeLessThanOrEqual(52);
+    expect(geometry.sidebarWidth).toBeLessThanOrEqual(312);
+    expect(geometry.componentsLabelHidden).toBe(true);
+    expect(geometry.rowHeights.every((height) => height >= 28 && height <= 32)).toBe(true);
+    expect(geometry.labels[1] - geometry.labels[0]).toBe(16);
+    expect(geometry.labels[2] - geometry.labels[1]).toBe(16);
     expect(geometry.actions[0]).toBe(geometry.actions[1]);
-    expect(geometry.addSelectX).toBe(geometry.labels[0]);
+    expect(geometry.addButtonVisible).toBe(true);
 
     await page.getByTestId("layer-title").click();
     await page.getByTestId("layer-course").click({ modifiers: ["Shift"] });
@@ -103,7 +105,7 @@ test.describe("workspace", () => {
     const rail = page.getByRole("tablist", { name: "Workspace panels" });
     await expect(rail.getByRole("tab")).toHaveCount(4);
     await page.getByTestId("left-tab-layers").click();
-    await expect(page.getByRole("tabpanel", { name: "Structure" })).toContainText("Report structure");
+    await expect(page.getByRole("tabpanel", { name: "Structure" })).toContainText("Untitled report");
     await page.getByTestId("left-tab-layers").press("ArrowDown");
     await expect(page.getByTestId("left-tab-data")).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tabpanel", { name: "Data" })).toContainText("Datasets");
@@ -171,6 +173,24 @@ test.describe("workspace", () => {
     await page.getByTestId("toggle-problems").click();
     await page.getByTestId("target-select").selectOption("xlsx");
     await expect(page.getByTestId("problems")).toContainText(/Excel|XLSX|Absolute/i, { timeout: 8000 });
+  });
+
+  test("Focus Canvas hides both side panels and restores their previous state", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-absolute-form").click();
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId("btn-view").click();
+    await page.getByTestId("toggle-focus-canvas").click();
+    await expect(page.getByTestId("canvas")).toBeVisible();
+    await expect(page.getByTestId("properties")).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "Workspace panels" })).toHaveCount(0);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "24-focus-canvas.png") });
+    await page.getByTestId("btn-view").click();
+    await page.getByTestId("toggle-focus-canvas").click();
+    await expect(page.getByTestId("properties")).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Workspace panels" })).toBeVisible();
   });
 });
 
@@ -284,7 +304,7 @@ test.describe("properties, masters, print, blocks", () => {
     await page.getByTestId("layer-rename").fill("Company name");
     await page.getByTestId("layer-rename").press("Enter");
     expect(JSON.stringify(await doc(page))).toContain('"name":"Company name"');
-    await expect(page.getByTestId("layers-tab")).toContainText("Header row");
+    await expect(page.getByTestId("layers-tab")).toContainText("H  Header");
   });
 
   test("layout inspector edits margin, padding and size limits; calculated-value builder writes the expression", async ({ page }) => {
@@ -538,7 +558,7 @@ test("watermark and bookmark settings write to the report", async ({ page }) => 
   await page.getByTestId("starter-blank").click();
   await page.getByRole("button", { name: "Watermark" }).click();
   await page.getByTestId("watermark-text").fill("CONFIDENTIAL");
-  expect((await page.evaluate(() => (window as any).__designer.getState().doc)).watermark.text).toBe("CONFIDENTIAL");
+  await expect.poll(async () => (await doc(page)).watermark?.text).toBe("CONFIDENTIAL");
   await page.getByTestId("palette-text").click();
   await page.getByRole("button", { name: /Advanced/ }).click();
   await page.getByTestId("flag-bookmark").check();

@@ -90,6 +90,7 @@ interface State {
   capabilities?: Capabilities;
   blocks: Block[];
   editingText: string | null;
+  tableEditId: string | null;
   renaming: string | null;
   contextMenu: { x: number; y: number; id?: string } | null;
   compareVersion: number | null;
@@ -98,6 +99,8 @@ interface State {
   aiBusy: boolean;
   leftOpen: boolean;
   rightOpen: boolean;
+  focusCanvas: boolean;
+  focusRestore: { leftOpen: boolean; rightOpen: boolean; bottom: BottomPanel } | null;
   engine: EngineResult;
   engineBusy: boolean;
   meta: TemplateMeta;
@@ -243,6 +246,7 @@ export const useStore = create<State>((set, get) => ({
   capabilities: undefined,
   blocks: [],
   editingText: null,
+  tableEditId: null,
   renaming: null,
   contextMenu: null,
   compareVersion: null,
@@ -251,6 +255,8 @@ export const useStore = create<State>((set, get) => ({
   aiBusy: false,
   leftOpen: true,
   rightOpen: true,
+  focusCanvas: false,
+  focusRestore: null,
   engine: { problems: [] },
   engineBusy: false,
   meta: { dirty: false },
@@ -282,7 +288,7 @@ export const useStore = create<State>((set, get) => ({
 
   loadDoc(doc, meta = {}, sample = {}) {
     const d = ops.ensureIds(doc);
-    set({ doc: d, sample, selection: [], past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved", showPagination: false });
+    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved", showPagination: false });
     persistDraft(d, sample);
     get().refresh();
   },
@@ -423,11 +429,11 @@ export const useStore = create<State>((set, get) => ({
   },
 
   setMode(mode) {
-    set({ mode });
+    set({ mode, ...(mode !== "design" ? { tableEditId: null } : {}) });
   },
 
   set(partial) {
-    set(partial as any);
+    set({ ...partial, ...(partial.mode && partial.mode !== "design" ? { tableEditId: null } : {}) } as any);
   },
 
   toast(text, kind = "info") {

@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const doc = (page: Page) => page.evaluate(() => (window as any).__designer.getState().doc);
+const addBand = async (page: Page, type: string) => { await page.getByTestId("explorer-add-trigger").click(); await page.getByTestId(`explorer-add-band-${type}`).click(); };
+const addGroup = async (page: Page) => { await page.getByTestId("explorer-add-trigger").click(); await page.getByTestId("explorer-add-group").click(); };
 
 async function dropInBand(page: Page, source: string, index: number) {
   const target = page.getByTestId(`band-${index}`).first();
@@ -40,7 +42,7 @@ test("structure view shows band tabs; the + menu inserts bands in reading order"
 
 test("palette click adds a component to the selected empty Page Header", async ({ page }) => {
   await page.getByTestId("left-tab-layers").click();
-  await page.getByTestId("explorer-add-band").selectOption("pageHeader");
+  await addBand(page, "pageHeader");
   const headerIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "pageHeader");
   await page.getByTestId("left-tab-insert").click();
   await page.getByTestId("palette-text").click();
@@ -52,7 +54,7 @@ test("palette click adds a component to the selected empty Page Header", async (
 
 test("data drops fill the empty Page Header and Detail bands", async ({ page }) => {
   await page.getByTestId("left-tab-layers").click();
-  await page.getByTestId("explorer-add-band").selectOption("pageHeader");
+  await addBand(page, "pageHeader");
   await page.getByTestId("left-tab-data").click();
   await page.getByTestId("add-dataset").click();
   await page.getByTestId("dataset-id").fill("patient");
@@ -89,14 +91,14 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await page.getByTestId("dataset-save").click();
 
   await page.getByTestId("left-tab-layers").click();
-  await page.getByTestId("explorer-add-band").selectOption("pageHeader");
+  await addBand(page, "pageHeader");
   const headerIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "pageHeader");
   await page.getByTestId("left-tab-data").click();
   await dropInBand(page, "field-clinical-patient.name", headerIndex);
   expect((await doc(page)).sections[headerIndex].children[0].binding).toBe("data.clinical.patient.name");
 
   await page.getByTestId("left-tab-layers").click();
-  await page.getByTestId("explorer-add-group").click();
+  await addGroup(page);
   await page.getByTestId("wizard-dataset").selectOption("clinical.investigations");
   await page.getByTestId("wizard-field").selectOption("row.department");
   await page.getByTestId("wizard-name").fill("Department");
@@ -133,12 +135,54 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
     { when: 'row.flag == "H"', style: { color: "#b91c1c", fontWeight: "bold" } },
     { when: 'row.flag == "L"', style: { color: "#1d4ed8", fontWeight: "bold" } },
   ]);
-  await expect(page.locator(".cn-table tbody tr").first()).toHaveCSS("color", "rgb(185, 28, 28)");
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
   fs.mkdirSync(screenshots, { recursive: true });
+  await expect(page.locator(".cn-table tbody tr").first()).toHaveCSS("color", "rgb(185, 28, 28)");
   await page.screenshot({ path: path.join(screenshots, "21-conditional-row-rules.png") });
-  if (await page.getByTestId("flag-repeatHeaderOnPageBreak").count() === 0) await page.getByRole("button", { name: /Pagination & rows/ }).click();
-  await expect(page.getByTestId("flag-repeatHeaderOnPageBreak")).toBeChecked();
+  await page.locator(".cn-table").first().dblclick();
+  await expect(page.getByTestId("table-designer")).toBeVisible();
+  await expect(page.getByTestId("table-live-preview")).toContainText("Glucose");
+  const grip = page.getByRole("separator", { name: "Resize Investigation" });
+  const gripBox = (await grip.boundingBox())!;
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(gripBox.x + gripBox.width / 2 + 40, gripBox.y + gripBox.height / 2, { steps: 5 });
+  await page.mouse.up();
+  expect((await doc(page)).sections[detailIndex].children[0].columns[0].width).toBeGreaterThan(24);
+  await page.getByTestId("table-tab-header").click();
+  await expect(page.getByTestId("table-direct-header")).toBeVisible();
+  await page.getByTestId("header-add-level").click();
+  await page.getByTestId("header-cell-0-0").click();
+  await page.getByTestId("header-split").click();
+  await page.getByTestId("header-cell-0-0").click();
+  await page.getByTestId("header-cell-0-1").click();
+  await page.getByTestId("header-merge").click();
+  await page.getByTestId("header-cell-0-0").click();
+  await page.getByLabel("Selected header text").fill("Department investigations");
+  expect((await doc(page)).sections[detailIndex].children[0].headerRows).toMatchObject([
+    [{ column: 0, text: "Department investigations", colSpan: 2 }],
+    [{ column: 0, text: "Investigation" }, { column: 1, text: "Result" }],
+  ]);
+  await page.screenshot({ path: path.join(screenshots, "23-table-designer-header.png") });
+  await page.getByTestId("table-tab-rows").click();
+  await expect(page.getByTestId("table-direct-rows")).toBeVisible();
+  for (const tab of ["groups", "totals", "pagination", "conditions"]) {
+    await page.getByTestId(`table-tab-${tab}`).click();
+    await expect(page.getByTestId(`table-tab-${tab}`)).toHaveAttribute("aria-selected", "true");
+  }
+  await page.getByTestId("table-designer-done").click();
+  await expect(page.getByTestId("table-designer")).toHaveCount(0);
+  await expect(page.locator(".cn-table thead")).toContainText("Department investigations");
+  await page.screenshot({ path: path.join(screenshots, "22-merged-multilevel-header.png") });
+  await page.getByTestId("section-groupFooter").first().click();
+  const groupFooterIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "groupFooter");
+  await page.getByTestId("left-tab-insert").click();
+  await page.getByTestId("palette-text").click();
+  await page.getByTestId("value-mode-formula").click();
+  await page.getByTestId("formula-input").fill('concat("Department total: ", sumBy(group.rows, "result"))');
+  expect((await doc(page)).sections[groupFooterIndex].children).toMatchObject([{ type: "text", expression: 'concat("Department total: ", sumBy(group.rows, "result"))' }]);
+  await page.getByTestId("left-tab-layers").click();
+  expect((await doc(page)).sections[detailIndex].children[0].repeatHeaderOnPageBreak ?? true).toBe(true);
   await page.getByTestId("mode-preview").click();
   await expect(page.getByTestId("pdf-frame")).toBeVisible();
   await expect(page.getByTestId("pdf-info")).toContainText("page");
@@ -148,6 +192,8 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await expect(body).toContainText("Asha Rao");
   await expect(body).toContainText("Glucose");
   await expect(body).toContainText("Haemoglobin");
+  await expect(body).toContainText("Department total: 92");
+  await expect(body).toContainText("Department total: 12.8");
   expect((await body.innerText()).match(/Glucose/g)).toHaveLength(1);
   expect((await body.innerText()).match(/Haemoglobin/g)).toHaveLength(1);
   await expect(body.getByRole("row").filter({ hasText: "Glucose" })).toHaveCSS("color", "rgb(185, 28, 28)");
@@ -178,6 +224,7 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   expect(new Set(pdfRecords).size).toBe(100);
   expect((pdfText.match(/Investigation/g) ?? []).length).toBe(pageCount);
   expect((pdfText.match(/Biochemistry/g) ?? []).length).toBe(pageCount);
+  expect((pdfText.match(/Department total: 4950/g) ?? []).length).toBe(1);
   await page.getByTestId("preview-tab-html").click();
   const longBody = page.getByTestId("html-frame").contentFrame().locator("body");
   await expect(longBody).toContainText("LAB-099");
@@ -185,8 +232,10 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   const renderedRecords = text.match(/LAB-\d{3}/g) ?? [];
   expect(renderedRecords).toHaveLength(100);
   expect(new Set(renderedRecords).size).toBe(100);
-  expect(await longBody.getByRole("columnheader", { name: "Investigation" }).count()).toBe(pageCount);
+  expect(await longBody.getByRole("columnheader", { name: "Investigation", exact: true }).count()).toBe(pageCount);
+  expect(await longBody.getByRole("columnheader", { name: "Department investigations", exact: true }).count()).toBe(pageCount);
   expect((text.match(/Biochemistry/g) ?? []).length).toBe(pageCount);
+  expect((text.match(/Department total: 4950/g) ?? []).length).toBe(1);
   await page.screenshot({ path: path.join(screenshots, "18-grouped-a4-multipage.png") });
 
   for (const rowCount of [1, 31, 32]) {
@@ -209,7 +258,7 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
 
   await page.getByTestId("mode-design").click();
   await page.getByTestId("left-tab-layers").click();
-  await page.getByTestId("explorer-add-band").selectOption("noData");
+  await addBand(page, "noData");
   const noDataIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "noData");
   await page.getByTestId("left-tab-insert").click();
   await page.getByTestId("palette-text").click();
@@ -516,7 +565,7 @@ test("report explorer shows nested groups and reorders only valid bands", async 
   expect((await doc(page)).sections.map((s: any) => s.name ?? s.type)).toEqual(["B", "A", "detail"]);
   await page.locator("[data-band-index='1']").click();
   await expect(page.getByTestId("band-name")).toHaveValue("A");
-  await page.getByTestId("explorer-add-band").selectOption("reportFooter");
+  await addBand(page, "reportFooter");
   expect((await doc(page)).sections.at(-1).type).toBe("reportFooter");
 });
 
@@ -534,6 +583,7 @@ test("band visibility changes output while layout lock protects structure", asyn
   await expect(row).toHaveAttribute("draggable", "false");
   await expect(page.getByTestId("band-tab-0").first()).toHaveAttribute("draggable", "false");
   await expect(page.getByTestId("band-edge-0")).toHaveCount(0);
+  await row.getByRole("button", { name: /Actions for/ }).click();
   await expect(row.getByRole("button", { name: /Remove .* band/ })).toBeDisabled();
 
   await row.click();
@@ -561,7 +611,7 @@ test("group wizard creates nested levels with print rules and can remove one lev
     });
   });
   await page.getByTestId("left-tab-layers").click();
-  await page.getByTestId("explorer-add-group").click();
+  await addGroup(page);
   await expect(page.getByTestId("group-wizard")).toBeVisible();
   await expect(page.getByTestId("wizard-dataset")).toHaveValue("visits");
   await page.getByTestId("wizard-field").selectOption("row.dept");
@@ -572,7 +622,7 @@ test("group wizard creates nested levels with print rules and can remove one lev
   await page.getByTestId("wizard-create").click();
   expect((await doc(page)).groups[0]).toMatchObject({ name: "Department", dataset: "visits", by: "row.dept", repeatHeader: true, newPage: "before", minDetailRows: 2 });
 
-  await page.getByTestId("explorer-add-group").click();
+  await addGroup(page);
   await page.getByTestId("wizard-field").selectOption("row.doctor");
   await page.getByTestId("wizard-name").fill("Doctor");
   await page.getByTestId("wizard-sort").selectOption("desc");
@@ -592,6 +642,7 @@ test("group wizard creates nested levels with print rules and can remove one lev
   await outer.getByRole("button", { name: "Department", exact: true }).click();
   await expect(page.getByTestId("group-name")).toHaveValue("Department");
 
+  await outer.getByTestId(`explorer-group-${report.groups[1].id}`).getByRole("button", { name: /Actions for Doctor/ }).click();
   await page.getByTestId(`explorer-remove-group-${report.groups[1].id}`).click();
   const after = await doc(page);
   expect(after.groups).toHaveLength(1);

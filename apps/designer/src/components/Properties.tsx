@@ -330,7 +330,7 @@ function StyleRuleCard({ rule, index, count, candidates, onChange, onMove, onRem
   );
 }
 
-function StyleRulesEditor({ comp, property, dataset, testId }: { comp: ops.Comp; property: "styleWhen" | "rowStyleWhen"; dataset?: string; testId: string }) {
+export function StyleRulesEditor({ comp, property, dataset, testId }: { comp: ops.Comp; property: "styleWhen" | "rowStyleWhen"; dataset?: string; testId: string }) {
   const { doc, sample } = useStore();
   const patch = useStore((state) => state.patch);
   const rules = (comp[property] ?? []) as StyleRule[];
@@ -485,7 +485,7 @@ function TextProps({ comp }: { comp: ops.Comp }) {
   );
 }
 
-function ColumnEditor({ table, col, index }: { table: ops.Comp; col: any; index: number }) {
+export function ColumnEditor({ table, col, index }: { table: ops.Comp; col: any; index: number }) {
   const { doc, sample } = useStore();
   const patch = useStore((s) => s.patch);
   const candidates = useMemo(() => candidatesFor(doc, sample, table.id, table.dataset), [doc, sample, table.id, table.dataset]);
@@ -599,6 +599,7 @@ function TableProps({ comp }: { comp: ops.Comp }) {
   };
   return (
     <>
+      <div className="table-edit-entry"><button className="btn primary" data-testid="open-table-designer" onClick={() => useStore.getState().set({ tableEditId: comp.id })}>Edit table</button><span className="muted small">Double-click the table on the canvas</span></div>
       <Section title="Data">
         <Field label="Dataset">
           <select aria-label="Table dataset" data-testid="table-dataset" value={comp.dataset ?? ""} onChange={(e) => patch(comp.id, { dataset: e.target.value })}>
@@ -621,13 +622,13 @@ function TableProps({ comp }: { comp: ops.Comp }) {
           + Add column
         </button>
       </Section>
-      <Section title="Header grid" open={!!comp.headerRows}>
+      <Section title="Header grid" open={false} summary={comp.headerRows ? `${comp.headerRows.length} levels` : "1 level"}>
         <TableHeaderEditor columns={comp.columns ?? []} headerRows={comp.headerRows} onChange={(headerRows) => patch(comp.id, { headerRows })} />
       </Section>
-      <Section title="Body cell merges" open={!!comp.cellSpans?.length}>
+      <Section title="Body cell merges" open={false} summary={comp.cellSpans?.length ? `${comp.cellSpans.length} merges` : "None"}>
         <TableBodyEditor columns={resolvedTable?.columns ?? []} rows={resolvedTable?.rows ?? []} spans={comp.cellSpans ?? []} onChange={(cellSpans) => patch(comp.id, { cellSpans })} />
       </Section>
-      <Section title="Pagination & rows">
+      <Section title="Pagination & rows" open={false}>
         {flag("showHeader", "Show header", true)}
         {flag("repeatHeaderOnPageBreak", "Repeat header on every page", true)}
         {flag("showFooter", "Show totals row")}
@@ -642,7 +643,7 @@ function TableProps({ comp }: { comp: ops.Comp }) {
           </Field>
         </div>
       </Section>
-      <Section title="Highlight rows" open={!!comp.rowStyleWhen?.length}>
+      <Section title="Highlight rows" open={false} summary={comp.rowStyleWhen?.length ? `${comp.rowStyleWhen.length} rules` : "None"}>
         <StyleRulesEditor comp={comp} property="rowStyleWhen" dataset={comp.dataset} testId="row-style-rules" />
       </Section>
       <Section title="When there is no data" open={false}>

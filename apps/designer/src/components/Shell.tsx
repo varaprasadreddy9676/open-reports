@@ -118,6 +118,12 @@ export function Toolbar() {
               <button role="menuitemcheckbox" aria-checked={snap} data-testid="toggle-snap" onClick={() => set({ snap: !snap })}>
                 <span className="check">{snap ? "✓" : ""}</span>Snap to grid & components
               </button>
+              <button role="menuitemcheckbox" aria-checked={useStore.getState().focusCanvas} data-testid="toggle-focus-canvas" onClick={() => {
+                const state = s();
+                if (state.focusCanvas) set({ ...state.focusRestore, focusCanvas: false, focusRestore: null });
+                else set({ focusCanvas: true, focusRestore: { leftOpen: state.leftOpen, rightOpen: state.rightOpen, bottom: state.bottom }, leftOpen: false, rightOpen: false, bottom: null });
+                setMenu(null);
+              }}><span className="check">{useStore.getState().focusCanvas ? "✓" : ""}</span>Focus Canvas</button>
             </div>
           )}
         </div>

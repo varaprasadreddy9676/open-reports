@@ -510,7 +510,7 @@ export function Canvas() {
                       st.toast("This text is bound to data - change it in the properties panel");
                       st.set({ rightOpen: true });
                     } else st.set({ editingText: comp.id });
-                  } else if (comp.type === "table") st.set({ rightOpen: true });
+                  } else if (comp.type === "table") st.set({ tableEditId: comp.id, selection: [comp.id], contextMenu: null });
                 }}
                 onDragOver={(e) => onDragOver(e, pi)}
                 onDragLeave={() => setIndicator(null)}
