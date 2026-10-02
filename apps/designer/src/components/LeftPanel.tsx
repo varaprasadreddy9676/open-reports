@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { useStore } from "../store";
+import { savePref, useStore } from "../store";
 import * as ops from "../model/ops";
 import { datasetFields, datasetIsArray, fieldSample, filterFields, type FieldNode } from "../lib/fields";
 import { titleCase } from "../lib/lowcode";
@@ -570,6 +570,7 @@ function PagesTab() {
   const scale = 96 / pag.pageSize.width;
   return (
     <div className="tab-body" data-testid="pages-tab">
+      <button className="btn pages-master-entry" data-testid="edit-page-masters" onClick={() => { savePref("canvasView", "pages"); useStore.getState().set({ selection: [], selectedBand: null, rightOpen: true, canvasView: "pages" }); }}>Edit page masters</button>
       {pag.pages.map((p, i) => (
         <button key={i} className="thumb" data-testid="page-thumb" onClick={() => document.querySelector(`[data-page="${i}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })} aria-label={`Go to page ${i + 1}`}>
           <span className="thumb-page" style={{ width: pag.pageSize.width * scale, height: pag.pageSize.height * scale }}>

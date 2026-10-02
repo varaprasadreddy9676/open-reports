@@ -34,11 +34,9 @@ export function BandBar() {
         </button>
       </div>
       <button className="compact-fit" type="button" aria-label="Fit page to canvas" data-testid="canvas-fit" onClick={() => set({ zoom: fitZoom() })}>Fit</button>
-      {canvasView === "structure" && (
-        <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title="Show page starts and explain pagination decisions">
+      <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title="Show page starts and explain pagination decisions">
           Pagination
-        </button>
-      )}
+      </button>
       {canvasView === "structure" && (
         <button className={previewSplit ? "on" : ""} data-testid="toggle-preview-split" aria-pressed={previewSplit} onClick={() => set({ previewSplit: !previewSplit })} title="Show the paginated sample beside the structure">
           Split preview

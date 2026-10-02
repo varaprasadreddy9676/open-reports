@@ -181,6 +181,17 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await page.getByTestId("value-mode-formula").click();
   await page.getByTestId("formula-input").fill('concat("Department total: ", sumBy(group.rows, "result"))');
   expect((await doc(page)).sections[groupFooterIndex].children).toMatchObject([{ type: "text", expression: 'concat("Department total: ", sumBy(group.rows, "result"))' }]);
+  await page.getByTestId("left-tab-pages").click();
+  await page.getByTestId("edit-page-masters").click();
+  await page.getByTestId("master-add-pageHeader-first").click();
+  await page.getByTestId("master-open-pageHeader-first").click();
+  await page.getByTestId("value-mode-formula").click();
+  await page.getByTestId("formula-input").fill('concat("Clinical report: ", data.clinical.patient.name)');
+  await page.getByTestId("left-tab-pages").click();
+  await page.getByTestId("edit-page-masters").click();
+  await page.screenshot({ path: path.join(screenshots, "26-page-master-controls.png") });
+  await page.getByTestId("master-add-page-count").click();
+  expect((await doc(page)).sections.find((section: any) => section.type === "pageFooter" && section.appliesTo === "standard")?.children).toMatchObject([{ type: "text", expression: '"Page " + page.number + " of " + page.total' }]);
   await page.getByTestId("left-tab-layers").click();
   expect((await doc(page)).sections[detailIndex].children[0].repeatHeaderOnPageBreak ?? true).toBe(true);
   await page.getByTestId("mode-preview").click();
@@ -209,6 +220,20 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
     investigations: Array.from({ length: 100 }, (_, index) => ({ department: "Biochemistry", testName: `LAB-${String(index).padStart(3, "0")}`, result: index, flag: index % 2 ? "L" : "H" })),
   }));
   await page.getByTestId("dataset-save").click();
+  await page.getByTestId("mode-design").click();
+  await page.getByTestId("view-pages").click();
+  await page.getByTestId("toggle-structure-pagination").click();
+  await expect(page.getByTestId("page-break-2")).toBeVisible();
+  await page.getByTestId("page-break-2").getByRole("button", { name: /Why/ }).click();
+  await expect(page.getByTestId("page-break-details")).toContainText("Table");
+  await expect(page.getByTestId("page-break-details")).toContainText("Required");
+  await expect(page.getByTestId("page-break-details")).toContainText("Available");
+  await page.screenshot({ path: path.join(screenshots, "25-page-break-explained.png") });
+  const oldSize = (await doc(page)).sections.find((section: any) => section.type === "detail").children[0].style?.fontSize ?? 10;
+  const firstBreakRow = await page.evaluate(() => (window as any).__designer.getState().engine.paginated.decisions.find((decision: any) => decision.page === 2 && decision.kind === "table-split")?.rowIndex);
+  await page.getByTestId("page-break-fix").click();
+  expect((await doc(page)).sections.find((section: any) => section.type === "detail").children[0].style.fontSize).toBe(oldSize - 1);
+  await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated.decisions.find((decision: any) => decision.page === 2 && decision.kind === "table-split")?.rowIndex)).toBeGreaterThan(firstBreakRow);
   await page.getByTestId("mode-preview").click();
   await expect(page.getByTestId("pdf-info")).toContainText(/\d+ pages/);
   const pageCount = Number((await page.getByTestId("pdf-info").innerText()).match(/(\d+) pages/)?.[1]);
@@ -225,6 +250,13 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   expect((pdfText.match(/Investigation/g) ?? []).length).toBe(pageCount);
   expect((pdfText.match(/Biochemistry/g) ?? []).length).toBe(pageCount);
   expect((pdfText.match(/Department total: 4950/g) ?? []).length).toBe(1);
+  const pdfPages = pdfText.split("\f").filter((text) => text.trim());
+  expect(pdfPages).toHaveLength(pageCount);
+  expect(pdfPages[0]).toContain("Clinical report: Asha Rao");
+  for (let index = 0; index < pdfPages.length; index++) {
+    expect(pdfPages[index]).toContain(`Page ${index + 1} of ${pageCount}`);
+    if (index > 0) expect(pdfPages[index]).not.toContain("Clinical report:");
+  }
   await page.getByTestId("preview-tab-html").click();
   const longBody = page.getByTestId("html-frame").contentFrame().locator("body");
   await expect(longBody).toContainText("LAB-099");
@@ -673,7 +705,7 @@ test("structure view locates real page starts and opens their pagination reasons
   await expect(page.getByTestId("structure-page-reason")).toContainText("Table");
   await expect(page.getByTestId("structure-break-marker").first()).toBeVisible();
   await page.getByTestId("structure-break-marker").first().locator("button").click();
-  await expect(page.getByTestId("structure-break-popover")).toContainText("Page 2");
+  await expect(page.getByTestId("structure-break-popover")).toContainText("page 2");
   await expect(page.getByTestId("structure-break-popover")).toContainText("Table");
   await page.getByTestId("toggle-structure-pagination").click();
   await expect(page.getByTestId("structure-page-thumb")).toHaveCount(0);

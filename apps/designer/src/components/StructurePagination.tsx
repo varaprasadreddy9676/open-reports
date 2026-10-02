@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { PaginatedReport, StructureLayout } from "@reporting/layout";
 import { structurePageStarts } from "../lib/pagination-map";
 import { savePref, useStore } from "../store";
+import { PageBreakDetails } from "./PageBreakDetails";
 
 /** Miniatures of the real paginated output, kept alongside the structure drawing. */
 export function StructurePageStrip({ paginated }: { paginated: PaginatedReport }) {
@@ -23,9 +24,7 @@ export function StructurePageStrip({ paginated }: { paginated: PaginatedReport }
       {index > 0 && <button className="structure-page-why" data-testid={`structure-page-why-${index + 1}`} aria-expanded={explainedPage === index + 1} onClick={() => setExplainedPage(explainedPage === index + 1 ? null : index + 1)}>Why?</button>}
     </div>)}
     {explainedPage !== null && <div className="structure-page-reason" data-testid="structure-page-reason">
-      <strong>Why page {explainedPage} starts here</strong>
-      {paginated.decisions.filter((decision) => decision.page === explainedPage).map((decision, index) => <p key={index}>{decision.message}</p>)}
-      {!paginated.decisions.some((decision) => decision.page === explainedPage) && <p>No break reason was recorded by the paginator.</p>}
+      <PageBreakDetails paginated={paginated} pageNumber={explainedPage} />
     </div>}
   </nav>;
 }
@@ -50,10 +49,7 @@ export function StructureBreakLayer({ structure, paginated, k }: { structure: St
         </button>
         {open && <div className="structure-break-popover" data-testid="structure-break-popover" onPointerDown={(e) => e.stopPropagation()}>
           <strong>Why pages start here</strong>
-          {pages.map((start) => <div key={start.page} className="structure-break-detail" data-testid="structure-break-detail">
-            <b>Page {start.page}{start.rowIndex !== undefined ? ` · row ${start.rowIndex + 1}` : ""}</b>
-            {start.decisions.length ? start.decisions.map((decision, i) => <p key={i}>{decision.message}</p>) : <p>No break reason was recorded by the paginator.</p>}
-          </div>)}
+          {pages.map((start) => <div key={start.page} className="structure-break-detail" data-testid="structure-break-detail"><PageBreakDetails paginated={paginated} pageNumber={start.page} /></div>)}
         </div>}
       </div>;
     })}

@@ -14,6 +14,7 @@ import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
 import { Rulers } from "./Rulers";
 import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
 import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
+import { PageBreakDetails } from "./PageBreakDetails";
 import { PdfPreview } from "./Preview";
 
 const PT = 4 / 3;
@@ -222,6 +223,7 @@ export function Canvas() {
   const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number; page: number } | null>(null);
   const [guides, setGuides] = useState<{ page: number; guides: Guide[]; distances: Distance[] } | null>(null);
   const [marquee, setMarquee] = useState<null | { page: number; x0: number; y0: number; x1: number; y1: number }>(null);
+  const [explainedPage, setExplainedPage] = useState<number | null>(null);
   const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number; duplicated?: boolean }>(null);
   const marqueeRef = useRef<typeof marquee>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -476,6 +478,10 @@ export function Canvas() {
           const showHandles = single && ["text", "image", "qrcode", "barcode", "chart", "rectangle", "container", "row", "column", "grid", "spacer", "line", "table"].includes(single.component.type);
           return (
             <div key={pi} className="page-wrap" data-page={pi}>
+              {!structure && showPagination && pi > 0 && <div className="page-break-anchor" data-testid={`page-break-${pi + 1}`}>
+                <button className="page-break-button" aria-expanded={explainedPage === pi + 1} onClick={() => setExplainedPage(explainedPage === pi + 1 ? null : pi + 1)}>Page {pi + 1} starts · Why?</button>
+                {explainedPage === pi + 1 && <div className="page-break-popover"><PageBreakDetails paginated={paginated} pageNumber={pi + 1} /></div>}
+              </div>}
               {showRulers && pi === 0 && (
                 <>
                   <Rulers width={pw} height={ph} k={k} margin={paginated.margin} bands={structure?.bands} />

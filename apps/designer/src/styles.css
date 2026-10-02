@@ -1939,6 +1939,18 @@ kbd {
 .pg-marker span { position: absolute; right: 6px; top: -9px; background: #f59e0b; color: #fff; font-size: 9px; padding: 1px 6px; border-radius: 8px; }
 .pg-marker.overflow { border-color: var(--danger); }
 .pg-marker.overflow span { background: var(--danger); }
+.page-break-anchor { position: absolute; top: -19px; right: 0; z-index: 16; }
+.page-break-button { padding: 3px 10px; border: 1px solid #d97706; border-radius: 4px 4px 0 0; background: #fffbeb; color: #92400e; font-size: 11px; font-weight: 650; }
+.page-break-button:hover { background: #fef3c7; }
+.page-break-popover { position: absolute; top: 100%; right: 0; width: min(340px, 80vw); max-height: 360px; overflow: auto; padding: 14px; border: 1px solid var(--border); border-radius: 0 0 6px 6px; background: var(--panel); box-shadow: var(--shadow); }
+.page-break-details > strong { display: block; margin-bottom: 10px; }
+.page-break-reason { padding: 8px 0; border-top: 1px solid var(--border); font-size: 12px; }
+.page-break-reason > b { display: block; color: var(--text); text-transform: capitalize; }
+.page-break-reason p { margin: 3px 0 7px; color: var(--muted); }
+.page-break-measure { display: grid; gap: 3px; margin: 7px 0; }
+.page-break-measure div { display: flex; justify-content: space-between; gap: 20px; }
+.page-break-measure dt { color: var(--muted); }
+.page-break-measure dd { margin: 0; font-weight: 650; }
 .float-toolbar { position: absolute; z-index: 20; display: flex; align-items: center; gap: 2px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 3px; font-family: system-ui, sans-serif; }
 .ft-btn { border: 0; background: none; border-radius: 5px; min-width: 26px; height: 26px; color: var(--text); font-size: 12px; }
 .ft-btn:hover { background: var(--panel-2); }
@@ -2155,4 +2167,5 @@ kbd {
 .table-designer-missing { display: grid; place-content: center; gap: 16px; }
 .table-edit-entry { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border); }
 .table-edit-entry .btn { flex: none; }
+.pages-master-entry { width: 100%; margin-bottom: 12px; }
 @media (max-width: 800px) { .table-designer-body { grid-template-columns: minmax(0, 1fr); } .table-designer-inspector { border-left: 0; border-top: 1px solid var(--border); max-height: 40vh; } .table-designer-canvas { padding: 20px; } }

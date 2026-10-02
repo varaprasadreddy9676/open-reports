@@ -1019,7 +1019,7 @@ const MASTER_ROWS: { kind: ops.MasterKind; label: string; hint: string }[] = [
 ];
 
 function PageMasters() {
-  const { doc } = useStore();
+  const { doc, leftTab } = useStore();
   const setDoc = useStore((s) => s.setDoc);
   const select = useStore((s) => s.select);
   const set = useStore((s) => s.set);
@@ -1027,11 +1027,27 @@ function PageMasters() {
     (doc.sections ?? []).findIndex((x: any) => x.type === type && (kind === "standard" ? !x.appliesTo || x.appliesTo === "all" || x.appliesTo === "standard" : x.appliesTo === kind));
   const open = (index: number) => {
     const first = (doc.sections?.[index]?.children ?? [])[0];
-    set({ leftTab: "layers", leftOpen: true });
+    set({ leftTab: "layers", leftOpen: true, rightOpen: true, canvasView: "pages", selectedBand: index, selection: [] });
     if (first) select([first.id]);
   };
+  const addPageCount = () => {
+    const st = useStore.getState();
+    let index = (st.doc.sections ?? []).findIndex((section: any) => section.type === "pageFooter" && (!section.appliesTo || section.appliesTo === "all" || section.appliesTo === "standard"));
+    if (index < 0) {
+      st.setDoc(ops.addMaster(st.doc, "pageFooter", "standard"));
+      index = (useStore.getState().doc.sections ?? []).findIndex((section: any) => section.type === "pageFooter" && section.appliesTo === "standard");
+    }
+    const footer = useStore.getState().doc.sections[index];
+    const existing = footer?.children?.find((comp: ops.Comp) => comp.type === "text" && /page\.number/.test(comp.expression ?? "") && /page\.total/.test(comp.expression ?? ""));
+    if (existing) {
+      st.select([existing.id]);
+    } else {
+      st.insertComponent({ type: "text", expression: '"Page " + page.number + " of " + page.total', style: { align: "right", fontSize: 8, color: "#6b7280" } }, undefined, "after", index);
+    }
+    st.set({ leftTab: "layers", leftOpen: true, rightOpen: true });
+  };
   return (
-    <Section title="Headers & footers" open={false}>
+    <Section key={leftTab} title="Headers & footers" open={leftTab === "pages"}>
       <p className="muted small">Different headers and footers per page type, like a word processor — without duplicating the report.</p>
       {(["pageHeader", "pageFooter"] as const).map((type) => (
         <div key={type} className="masters" data-testid={`masters-${type}`}>
@@ -1060,6 +1076,7 @@ function PageMasters() {
           })}
         </div>
       ))}
+      <button className="btn" data-testid="master-add-page-count" onClick={addPageCount}>+ Page X of Y</button>
     </Section>
   );
 }
