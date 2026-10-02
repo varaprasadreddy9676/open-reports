@@ -150,13 +150,33 @@ describe("Templates: CRUD, versioning, publish, render", () => {
   });
 
   it("publishes version 1 and can then render the template by id", async () => {
-    const publish = await app.inject({ method: "POST", url: "/api/v1/templates/invoice-tpl/versions/1/publish" });
+    const publish = await app.inject({ method: "POST", url: "/api/v1/templates/invoice-tpl/versions/1/publish", payload: { notes: "Reviewed the invoice layout and values" } });
     expect(publish.statusCode).toBe(200);
     expect(publish.json().status).toBe("published");
+    expect(publish.json().notes).toBe("Reviewed the invoice layout and values");
 
     const render = await app.inject({ method: "POST", url: "/api/v1/templates/invoice-tpl/render", payload: { format: "pdf" } });
     expect(render.statusCode).toBe(200);
     expect(render.rawPayload.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("blocks critical validation errors even when the publish API is called directly", async () => {
+    const bad = { ...invoiceReport, id: "invalid-publish", sections: [{ type: "detail", children: [{ id: "bad-table", type: "table", dataset: "missing", columns: [{ id: "name", header: "Name", binding: "row.name" }] }] }] };
+    const create = await app.inject({ method: "POST", url: "/api/v1/templates", payload: { id: "invalid-publish", name: "Invalid", definition: bad } });
+    expect(create.statusCode).toBe(201);
+    const publish = await app.inject({ method: "POST", url: "/api/v1/templates/invalid-publish/versions/1/publish", payload: { notes: "Should not publish" } });
+    expect(publish.statusCode).toBe(422);
+    expect(publish.json().error.code).toBe("PUBLISH_VALIDATION_FAILED");
+    const version = await app.inject({ method: "GET", url: "/api/v1/templates/invalid-publish/versions/1" });
+    expect(version.json().status).toBe("draft");
+    const put = await app.inject({ method: "PUT", url: "/api/v1/templates/invalid-publish", payload: { definition: bad, publish: true } });
+    expect(put.statusCode).toBe(422);
+  });
+
+  it("keeps a published version and its notes immutable", async () => {
+    const again = await app.inject({ method: "POST", url: "/api/v1/templates/invoice-tpl/versions/1/publish", payload: { notes: "Changed after publication" } });
+    expect(again.statusCode).toBe(200);
+    expect(again.json().notes).toBe("Reviewed the invoice layout and values");
   });
 
   it("creates version 2 via PUT without affecting the published version 1", async () => {

@@ -7,7 +7,7 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 2. Click any text on the page. The right panel shows its content as **Text · Field · Formula** — pick **Field** to bind to data.
 3. In **Data**, search by field name, path, or type. Check the sample value, then drag a field onto the intended report band. Drag a *list* (e.g. `items`) and choose **Table**, **Repeater**, or **Cards**. Leave **Create fields automatically** on to bind columns or card fields from the sample; turn it off to start with a blank editable field.
 4. Changing a total? Choose **fx Formula → Builder**: pick *Quantity × Rate* from dropdowns. Switch to **Formula** for the raw expression; autocomplete and errors appear as you type.
-5. **Preview** shows the real PDF. **Export ▾** gives PDF, HTML, Excel, CSV or a ZPL label. **Save** keeps a version; **Publish** freezes it (published versions never change).
+5. **Preview** shows the real PDF. **Export ▾** gives PDF, HTML, Excel, CSV or a ZPL label. **Save** keeps a version. **Publish** opens a review: run validation and boundary-data checks, inspect the generated PDF, review warnings, and enter version notes. Critical errors block publishing; published versions never change.
 
 ## 2. The workspace
 | Area | What it does |
@@ -58,6 +58,9 @@ For a custom hospital header, add Image components to the Page Header and use **
 
 ## 6. Reuse
 Select elements → right-click → **Save as reusable component**. They appear under *My Components* for every report on that server.
+
+## 6b. Publishing
+**Publish** checks the current draft and every available array with 0, 1, 31, 32, and 100 records, plus a long/null/multilingual stress scenario. It renders a PDF from the current sample for review. A report change after the checks makes the results stale, so run them again. Acknowledge the PDF and any warnings, add version notes, then publish. The notes appear in **Compare versions**. The server independently refuses to publish a saved version with critical validation errors, including direct API requests. For REST/SQL reports, load sample data before running publish checks; this review does not prove that future live data will have the same shape.
 
 ## 7. API
 `POST /api/v1/render` `{ report | templateId, format, parameters, data }` returns the file. Long jobs: `POST /api/v1/render/jobs`. Full list at `/openapi.json`. Authenticate with `x-api-key` or `Authorization: Bearer`.

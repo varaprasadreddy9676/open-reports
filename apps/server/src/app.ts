@@ -203,7 +203,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   app.put("/api/v1/templates/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { definition?: unknown; name?: string; description?: string; publish?: boolean };
+    const body = request.body as { definition?: unknown; name?: string; description?: string; publish?: boolean; notes?: unknown };
 
     try {
       if (body.name !== undefined || body.description !== undefined) {
@@ -214,9 +214,14 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
         if (!parsed.valid) {
           return reply.code(400).send({ error: { code: "INVALID_REPORT", message: "Template definition failed schema validation.", issues: parsed.issues } });
         }
+        if (body.publish) {
+          if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.trim().length > 2000)) return reply.code(400).send({ error: { code: "INVALID_VERSION_NOTES", message: "Version notes must be text up to 2,000 characters." } });
+          const validation = validateReport(parsed.report);
+          if (!validation.valid) return reply.code(422).send({ error: { code: "PUBLISH_VALIDATION_FAILED", message: "Fix critical report errors before publishing.", issues: validation.issues } });
+        }
         const version = await storage.createVersion(id, body.definition);
         if (body.publish) {
-          await storage.publishVersion(id, version.version);
+          await storage.publishVersion(id, version.version, typeof body.notes === "string" ? body.notes.trim() : undefined);
         }
       }
       reply.send(await storage.getTemplate(id));
@@ -246,8 +251,18 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   app.post("/api/v1/templates/:id/versions/:version/publish", async (request, reply) => {
     const { id, version } = request.params as { id: string; version: string };
+    const body = (request.body ?? {}) as { notes?: unknown };
+    if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.trim().length > 2000)) {
+      return reply.code(400).send({ error: { code: "INVALID_VERSION_NOTES", message: "Version notes must be text up to 2,000 characters." } });
+    }
     try {
-      reply.send(await storage.publishVersion(id, Number(version)));
+      const saved = await storage.getVersion(id, Number(version));
+      if (!saved) throw new VersionNotFoundError(id, Number(version));
+      const parsed = parseReportDefinition(saved.definition);
+      if (!parsed.valid) return reply.code(422).send({ error: { code: "PUBLISH_VALIDATION_FAILED", message: "Fix critical report errors before publishing.", issues: parsed.issues } });
+      const validation = validateReport(parsed.report);
+      if (!validation.valid) return reply.code(422).send({ error: { code: "PUBLISH_VALIDATION_FAILED", message: "Fix critical report errors before publishing.", issues: validation.issues } });
+      reply.send(await storage.publishVersion(id, Number(version), typeof body.notes === "string" ? body.notes.trim() : undefined));
     } catch (err) {
       sendStorageError(reply, err);
     }

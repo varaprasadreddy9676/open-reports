@@ -23,6 +23,8 @@ export function CompareDialogBody() {
   }, [meta.id]);
   const a = versions.find((v) => v.version === from)?.definition as any;
   const b = to === "current" ? doc : (versions.find((v) => v.version === to)?.definition as any);
+  const fromVersion = versions.find((v) => v.version === from);
+  const toVersion = to === "current" ? undefined : versions.find((v) => v.version === to);
   const changes = a && b ? diffDocs(a, b) : [];
   const [side, setSide] = useState(false);
   return (
@@ -49,6 +51,10 @@ export function CompareDialogBody() {
         </label>
         <button className="btn small" onClick={() => setSide(!side)}>{side ? "Change list" : "Side-by-side JSON"}</button>
       </div>
+      {(fromVersion?.notes || toVersion?.notes) && <div className="version-notes" data-testid="version-notes">
+        {fromVersion?.notes && <p><strong>v{fromVersion.version} notes:</strong> {fromVersion.notes}</p>}
+        {toVersion?.notes && toVersion.version !== fromVersion?.version && <p><strong>v{toVersion.version} notes:</strong> {toVersion.notes}</p>}
+      </div>}
       {!side && (
         <ul className="change-list" data-testid="compare-changes">
           {changes.length === 0 && <li className="muted">No differences.</li>}

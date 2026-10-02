@@ -17,6 +17,7 @@ export interface TemplateVersionRecord {
   status: "draft" | "published";
   createdAt: string;
   createdBy?: string;
+  notes?: string;
 }
 
 export interface CreateTemplateInput {
@@ -42,7 +43,7 @@ export interface StorageProvider {
   /** Creates the next version (draft) for a template. */
   createVersion(templateId: string, definition: unknown, createdBy?: string): Promise<TemplateVersionRecord>;
   /** Publishes a version; once published it is immutable (spec section 41). */
-  publishVersion(templateId: string, version: number): Promise<TemplateVersionRecord>;
+  publishVersion(templateId: string, version: number, notes?: string): Promise<TemplateVersionRecord>;
   listVersions(templateId: string): Promise<TemplateVersionRecord[]>;
   getVersion(templateId: string, version: number): Promise<TemplateVersionRecord | undefined>;
   getLatestPublishedVersion(templateId: string): Promise<TemplateVersionRecord | undefined>;

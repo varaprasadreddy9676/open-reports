@@ -385,5 +385,71 @@ test.describe("preview and export formats", () => {
 test("publish creates an immutable published version", async ({ page }) => {
   await startBlank(page);
   await page.getByTestId("btn-publish").click();
+  await expect(page.getByTestId("publish-review")).toBeVisible();
+  await expect(page.getByTestId("publish-confirm")).toBeDisabled();
+  await page.getByTestId("publish-run-checks").click();
+  await expect(page.getByTestId("publish-preview-reviewed")).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("publish-preview-reviewed").check();
+  await page.getByTestId("publish-notes").fill("Reviewed the initial layout");
+  await expect(page.getByTestId("publish-confirm")).toBeEnabled();
+  await page.getByTestId("publish-confirm").click();
   await expect(page.getByTestId("status-pill")).toContainText("published");
+  const id = (await doc(page)).id;
+  const template = await page.request.get(`/api/v1/templates/${id}`);
+  const { currentVersion } = await template.json();
+  const version = await page.request.get(`/api/v1/templates/${id}/versions/${currentVersion}`);
+  expect((await version.json()).notes).toBe("Reviewed the initial layout");
+  await page.getByTestId("btn-more").click();
+  await page.getByRole("menuitem", { name: "Compare versions…" }).click();
+  await page.getByTestId("compare-from").selectOption(String(currentVersion));
+  await expect(page.getByTestId("version-notes")).toContainText("Reviewed the initial layout");
+});
+
+test("publish review blocks a report with critical validation errors", async ({ page }) => {
+  await startBlank(page);
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.setDoc({ ...store.doc, sections: [{ type: "detail", children: [{ id: "bad-table", type: "table", dataset: "missing", columns: [{ id: "name", header: "Name", binding: "row.name" }] }] }] });
+  });
+  await page.getByTestId("btn-publish").click();
+  await page.getByTestId("publish-run-checks").click();
+  await expect(page.getByTestId("publish-review")).toContainText("Fix errors and run checks again");
+  await expect(page.getByTestId("publish-confirm")).toBeDisabled();
+  await expect(page.getByTestId("status-pill")).toContainText("unsaved");
+});
+
+test("publish review runs row boundaries and requires warning review after the PDF preview", async ({ page }) => {
+  await startBlank(page);
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.setDoc({ ...store.doc,
+      datasets: [{ id: "items", source: "inline", query: { data: [{ name: "Widget", amount: 10 }] } }],
+      sections: [{ type: "detail", children: [
+        { id: "items-table", type: "table", dataset: "items", columns: [{ id: "name", header: "Name", binding: "row.name" }, { id: "amount", header: "Amount", binding: "row.amount" }] },
+        { id: "small-barcode", type: "barcode", value: "123456789012", width: 10, height: 20 },
+      ] }],
+    });
+  });
+  await page.getByTestId("btn-publish").click();
+  await page.getByTestId("publish-run-checks").click();
+  await expect(page.getByTestId("publish-preview-reviewed")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("publish-check")).toHaveCount(8);
+  await expect(page.getByTestId("publish-review")).toContainText("items · 0 records");
+  await expect(page.getByTestId("publish-review")).toContainText("items · 100 records");
+  await expect(page.getByTestId("publish-review")).toContainText("items · stress values");
+  if (process.env.UI_AUDIT_DIR) {
+    fs.mkdirSync(process.env.UI_AUDIT_DIR, { recursive: true });
+    await page.screenshot({ path: path.join(process.env.UI_AUDIT_DIR, "28-publish-review.png") });
+  }
+  await page.getByTestId("publish-notes").fill("Checked data boundaries and barcode warning");
+  await page.getByTestId("publish-preview-reviewed").check();
+  await expect(page.getByTestId("publish-confirm")).toBeDisabled();
+  await page.getByTestId("publish-warnings-reviewed").check();
+  await expect(page.getByTestId("publish-confirm")).toBeEnabled();
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.setDoc({ ...store.doc, name: "Changed after review" });
+  });
+  await expect(page.getByTestId("publish-confirm")).toBeDisabled();
+  await expect(page.getByTestId("publish-review")).toContainText("Report changed — run checks again");
 });

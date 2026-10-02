@@ -105,7 +105,7 @@ interface State {
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block";
+  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;
@@ -132,7 +132,7 @@ interface State {
   toast(text: string, kind?: Toast["kind"]): void;
   refresh(): Promise<void>;
   save(): Promise<void>;
-  publish(): Promise<void>;
+  publish(notes: string): Promise<boolean>;
   openTemplate(id: string): Promise<void>;
   openCode(id: string): void;
   groupSelected(): void;
@@ -482,17 +482,19 @@ export const useStore = create<State>((set, get) => ({
     }
   },
 
-  async publish() {
+  async publish(notes) {
     const s = get();
     if (s.meta.dirty || !s.meta.id) await get().save();
     const m = get().meta;
-    if (!m.id || !m.version) return;
+    if (!m.id || !m.version || m.dirty || get().saveState === "error") return false;
     try {
-      await api.publish(m.id, m.version);
+      await api.publish(m.id, m.version, notes);
       set({ meta: { ...m, status: "published" } });
       get().toast(`Published version ${m.version}`, "success");
+      return true;
     } catch (e) {
       get().toast((e as Error).message, "error");
+      return false;
     }
   },
 

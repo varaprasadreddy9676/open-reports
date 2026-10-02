@@ -82,6 +82,7 @@ export interface VersionRecord {
   definition: any;
   status: "draft" | "published";
   createdAt: string;
+  notes?: string;
 }
 
 export const api = {
@@ -103,8 +104,11 @@ export const api = {
   async saveTemplate(id: string, name: string, definition: unknown): Promise<TemplateRecord> {
     return (await request(`/api/v1/templates/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ name, definition }) })).json();
   },
-  async publish(id: string, version: number): Promise<VersionRecord> {
-    return (await request(`/api/v1/templates/${encodeURIComponent(id)}/versions/${version}/publish`, { method: "POST" })).json();
+  async publish(id: string, version: number, notes: string): Promise<VersionRecord> {
+    return (await request(`/api/v1/templates/${encodeURIComponent(id)}/versions/${version}/publish`, { method: "POST", body: JSON.stringify({ notes }) })).json();
+  },
+  async validate(report: unknown): Promise<{ valid: boolean; issues: { severity?: string; code: string; message: string; path?: string }[] }> {
+    return (await request("/api/v1/validate", { method: "POST", body: JSON.stringify({ report }) })).json();
   },
   async deleteTemplate(id: string): Promise<void> {
     await request(`/api/v1/templates/${encodeURIComponent(id)}`, { method: "DELETE" });

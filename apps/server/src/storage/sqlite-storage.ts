@@ -42,9 +42,12 @@ export class SqliteStorage implements StorageProvider {
         status TEXT NOT NULL DEFAULT 'draft',
         createdAt TEXT NOT NULL,
         createdBy TEXT,
+        notes TEXT,
         PRIMARY KEY (templateId, version)
       );
     `);
+    const columns = this.db.pragma("table_info(template_versions)") as { name: string }[];
+    if (!columns.some((column) => column.name === "notes")) this.db.exec("ALTER TABLE template_versions ADD COLUMN notes TEXT");
   }
 
   async createTemplate(input: CreateTemplateInput): Promise<TemplateRecord> {
@@ -95,10 +98,11 @@ export class SqliteStorage implements StorageProvider {
     return (await this.getVersion(templateId, nextVersion))!;
   }
 
-  async publishVersion(templateId: string, version: number): Promise<TemplateVersionRecord> {
+  async publishVersion(templateId: string, version: number, notes?: string): Promise<TemplateVersionRecord> {
     const existing = await this.getVersion(templateId, version);
     if (!existing) throw new VersionNotFoundError(templateId, version);
-    this.db.prepare(`UPDATE template_versions SET status = 'published' WHERE templateId = ? AND version = ?`).run(templateId, version);
+    if (existing.status === "published") return existing;
+    this.db.prepare(`UPDATE template_versions SET status = 'published', notes = ? WHERE templateId = ? AND version = ?`).run(notes ?? null, templateId, version);
     this.db.prepare(`UPDATE templates SET status = 'published', updatedAt = ? WHERE id = ?`).run(new Date().toISOString(), templateId);
     return (await this.getVersion(templateId, version))!;
   }

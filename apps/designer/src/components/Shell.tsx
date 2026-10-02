@@ -9,6 +9,7 @@ import { DatasetEditor } from "./DatasetEditor";
 import { GroupWizard } from "./GroupWizard";
 import { SaveBlockDialogBody } from "./CanvasTools";
 import { CompareDialogBody } from "./CompareDialog";
+import { PublishDialogBody } from "./PublishDialog";
 import { AiSettingsBody } from "./AiBar";
 import { fitZoom } from "../lib/zoom";
 
@@ -169,7 +170,7 @@ export function Toolbar() {
         </div>
         <button className="btn primary" data-testid="btn-preview" onClick={() => set({ mode: "preview" })}>▶ Preview</button>
         <button className="btn" data-testid="btn-save" onClick={() => s().save()}>Save</button>
-        <button className="btn publish" data-testid="btn-publish" onClick={() => s().publish()}>Publish</button>
+        <button className="btn publish" data-testid="btn-publish" onClick={() => set({ dialog: "publish" })}>Publish</button>
         <div className="menu-wrap">
           <button className="icon-btn" data-testid="btn-more" aria-label="More" aria-haspopup="menu" aria-expanded={menu === "more"} onClick={() => setMenu(menu === "more" ? null : "more")}>⋯</button>
           {menu === "more" && (
@@ -603,7 +604,7 @@ function useCommands(): Command[] {
     const cmds: Command[] = [
       { id: "ai", label: "Ask AI to edit the selection", hint: "Ctrl+J", run: () => s().set({ aiOpen: true }) },
       { id: "save", label: "Save report", hint: "Ctrl+S", run: () => s().save() },
-      { id: "publish", label: "Publish current version", run: () => s().publish() },
+      { id: "publish", label: "Review and publish version", run: () => s().set({ dialog: "publish" }) },
       { id: "new", label: "New report...", run: () => s().set({ dialog: "new" }) },
       { id: "open", label: "Open report...", run: () => s().set({ dialog: "open" }) },
       { id: "dataset", label: "Create dataset", run: () => s().set({ dialog: "dataset", editingDataset: null }) },
@@ -689,6 +690,12 @@ export function Dialogs() {
     return (
       <Modal wide onClose={() => set({ dialog: null })}>
         <CompareDialogBody />
+      </Modal>
+    );
+  if (dialog === "publish")
+    return (
+      <Modal wide onClose={() => set({ dialog: null })}>
+        <PublishDialogBody />
       </Modal>
     );
   if (dialog === "block")
