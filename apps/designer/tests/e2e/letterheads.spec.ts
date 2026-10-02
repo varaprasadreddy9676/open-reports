@@ -5,14 +5,61 @@ import os from "node:os";
 import path from "node:path";
 
 const directory = path.resolve("tests/fixtures/letterheads");
-type Crop = { file: string; height: number };
-type Fixture = { key: string; header: Crop; footer: Crop };
+type Crop = { file: string; width: number; height: number };
+type Logo = Crop & { role: "left-brand" | "left-symbol" | "right-accreditation" };
+type Fixture = { key: string; header: Crop; footer: Crop; logos: Logo[] };
 const { sources: fixtures, renderDpi } = JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf8")) as {
   sources: Fixture[];
   renderDpi: number;
 };
 
 for (const fixture of fixtures) {
+  test(`real ${fixture.key} logos can form a new editable header`, async ({ page }) => {
+    test.setTimeout(90_000);
+    expect(fixture.logos.map((logo) => logo.role)).toEqual(["left-brand", "left-symbol", "right-accreditation"]);
+    for (const logo of fixture.logos) {
+      const bytes = fs.readFileSync(path.join(directory, logo.file));
+      expect(bytes.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+      expect(bytes.readUInt32BE(16)).toBe(logo.width);
+      expect(bytes.readUInt32BE(20)).toBe(logo.height);
+    }
+    const image = (role: Logo["role"]) => `data:image/png;base64,${fs.readFileSync(path.join(directory, fixture.logos.find((logo) => logo.role === role)!.file)).toString("base64")}`;
+    const left = image("left-brand");
+    const right = image("right-accreditation");
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.evaluate(({ key, left, right }) => {
+      const store = (window as any).__designer.getState();
+      store.setDoc({
+        ...store.doc,
+        name: `${key} custom header`,
+        page: { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 10, right: 10, bottom: 10, left: 10 } },
+        sections: [
+          { type: "pageHeader", children: [{ id: `${key}-header-layout`, type: "container", layout: "absolute", width: "190mm", height: "36mm", children: [
+            { id: `${key}-left-logo`, type: "image", src: left, x: "0mm", y: "0mm", width: "72mm", height: "30mm" },
+            { id: `${key}-right-logo`, type: "image", src: right, x: "168mm", y: "0mm", width: "22mm", height: "30mm" },
+            { id: `${key}-header-title`, type: "text", value: "Custom report header", x: "75mm", y: "12mm", width: "90mm", height: "15mm" },
+          ] }] },
+          { type: "detail", children: [{ id: `${key}-body`, type: "text", value: "Reusable logo fixture body" }] },
+        ],
+      });
+    }, { key: fixture.key, left, right });
+    await page.getByTestId("mode-preview").click();
+    await expect(page.getByTestId("pdf-info")).toContainText("1 page");
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-pdf").click()]);
+    const outputDir = process.env.LETTERHEAD_OUTPUT_DIR;
+    if (outputDir) fs.mkdirSync(outputDir, { recursive: true });
+    const pdfFile = outputDir ? path.join(outputDir, `${fixture.key}-custom-logo-header.pdf`) : path.join(os.tmpdir(), `open-reports-logos-${fixture.key}-${Date.now()}.pdf`);
+    await download.saveAs(pdfFile);
+    try {
+      expect(execFileSync("pdftotext", [pdfFile, "-"], { encoding: "utf8" })).toContain("Custom report header");
+      const imageList = execFileSync("pdfimages", ["-list", pdfFile], { encoding: "utf8" }).trim().split("\n").slice(2);
+      expect(imageList.filter((line) => /^\s*1\s+/.test(line))).toHaveLength(2);
+    } finally {
+      if (!outputDir) fs.unlinkSync(pdfFile);
+    }
+  });
+
   test(`real ${fixture.key} letterhead repeats on both A4 pages`, async ({ page }) => {
     test.setTimeout(90_000);
     const header = `data:image/png;base64,${fs.readFileSync(path.join(directory, fixture.header.file)).toString("base64")}`;

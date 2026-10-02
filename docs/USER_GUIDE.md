@@ -37,6 +37,8 @@ Open **Data → Test data** to run disposable 0, 1, 10, 31, 32, 100, or 1,000 re
 
 For a grouped list such as `clinical.investigations`, create the group from that list, then drag the list into an otherwise empty Detail band and choose **Table**. The table prints once for each group using only that group's records. Add a field such as `row.department` to the Group Header, and remove a redundant Department table column in the inspector if you want a cleaner layout.
 
+For a custom hospital header, add Image components to the Page Header and use **Upload image** in each Image inspector. The repository's `apps/designer/tests/fixtures/letterheads/` folder includes separately cropped left brand artwork, left symbols, and right accreditation marks from the four supplied samples. Place editable Text components between the images, then preview the PDF to check spacing and legibility.
+
 ## 4. Pagination for long documents
 - Tables: **Repeat header on every page**; set *Min rows after break* to avoid a lone row on a page.
 - Headings: **Keep with next**. Blocks that must not split: **Keep together** (Page breaks section).
