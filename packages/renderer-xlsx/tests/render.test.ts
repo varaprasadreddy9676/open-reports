@@ -94,6 +94,18 @@ describe("XlsxRenderer", () => {
     expect(sheet.views?.[0]?.ySplit).toBe(2);
   });
 
+  it("merges body cells while keeping uncovered typed values in their row positions", async () => {
+    const t = table({ cellSpans: [{ row: 0, column: 0, rowSpan: 2 }, { row: 0, column: 1, colSpan: 2 }] });
+    const result = await new XlsxRenderer().render({ resolved: report([t]), resolvePageSection: (s) => s.children });
+    const sheet = (await loadWorkbook(result.content as Buffer)).worksheets[0]!;
+    expect(sheet.getCell("A2").value).toBe("Widget");
+    expect(sheet.getCell("A3").isMerged).toBe(true);
+    expect(sheet.getCell("B2").value).toBe(1000);
+    expect(sheet.getCell("C2").isMerged).toBe(true);
+    expect(sheet.getCell("B3").value).toBe(2000);
+    expect(sheet.getCell("C3").value).toBeInstanceOf(Date);
+  });
+
   it("writes footer totals as real numbers (not formatted strings)", async () => {
     const t = table({
       showFooter: true,

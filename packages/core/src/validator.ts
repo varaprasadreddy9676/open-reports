@@ -2,6 +2,7 @@ import type { ReportDefinition } from "@reporting/schema";
 import { Parser } from "@reporting/expressions";
 import type { Component } from "./resolve-component.js";
 import { tableHeaderGridErrors } from "./table-header.js";
+import { tableCellSpanErrors } from "./table-cell-spans.js";
 
 export interface ValidationIssue {
   severity: "error" | "warning";
@@ -159,6 +160,9 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
   }
 
   if (component.type === "table") {
+    for (const message of tableCellSpanErrors(component.columns?.length ?? 0, component.cellSpans ?? [])) {
+      ctx.issues.push({ severity: "error", code: "INVALID_TABLE_SPAN", path: `${path}.cellSpans`, message, componentId: component.id });
+    }
     if (component.headerRows) {
       for (const message of tableHeaderGridErrors(component.columns?.length ?? 0, component.headerRows)) {
         ctx.issues.push({ severity: "error", code: "INVALID_TABLE_HEADER", path: `${path}.headerRows`, message, componentId: component.id });

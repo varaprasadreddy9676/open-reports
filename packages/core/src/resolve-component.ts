@@ -9,6 +9,7 @@ import type {
   ResolvedWarning,
 } from "./resolved-report.js";
 import { aggregate } from "./aggregate.js";
+import { tableCellSpanErrors, tableCellSpanGrid } from "./table-cell-spans.js";
 import { evaluateRowVariables, computeGroupVariables } from "./variables.js";
 import type { VariableDefinition } from "@reporting/schema";
 
@@ -373,6 +374,28 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     return { raw, formatted, style: style && Object.keys(style).length ? style : undefined };
   });
 
+  const configuredSpans = component.cellSpans ?? [];
+  const spanErrors = tableCellSpanErrors(columns.length, configuredSpans);
+  if (spanErrors.length) throw new Error(spanErrors.join(" "));
+  const cellSpans = configuredSpans.filter((span: any) => {
+    if (span.row + (span.rowSpan ?? 1) <= resolvedRows.length) return true;
+    env.warnings.push({ code: "TABLE_SPAN_OUT_OF_RANGE", path: env.path, componentId: component.id, message: `Body merge at row ${span.row + 1} extends beyond ${resolvedRows.length} resolved table rows and was skipped.` });
+    return false;
+  });
+  const spanGrid = tableCellSpanGrid(cellSpans);
+  for (const span of cellSpans) {
+    const anchorId = columns[span.column]!.id;
+    const anchor = resolvedRows[span.row]!.formatted[anchorId] ?? "";
+    let hidesDifferentValue = false;
+    for (let row = span.row; row < span.row + (span.rowSpan ?? 1); row++) for (let column = span.column; column < span.column + (span.colSpan ?? 1); column++) {
+      if (row === span.row && column === span.column) continue;
+      if (!spanGrid.get(row)?.get(column)) continue;
+      const value = resolvedRows[row]!.formatted[columns[column]!.id] ?? "";
+      if (value !== "" && value !== anchor) hidesDifferentValue = true;
+    }
+    if (hidesDifferentValue) env.warnings.push({ code: "TABLE_MERGE_HIDES_DATA", path: env.path, componentId: component.id, message: `Body merge at row ${span.row + 1}, column ${span.column + 1} hides different values in covered cells.` });
+  }
+
   if (component.showFooter) {
     (component.columns ?? []).forEach((col: any, i: number) => {
       if (!col.footer) return;
@@ -398,6 +421,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     type: "table",
     columns,
     headerRows: component.headerRows,
+    cellSpans,
     rows: resolvedRows,
     showHeader: component.showHeader ?? true,
     showFooter: component.showFooter ?? false,

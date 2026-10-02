@@ -51,7 +51,7 @@ export class PdfRenderer implements ReportRenderer {
       resolvePageDependentSection: input.resolvePageSection,
       measurer,
     });
-    const warnings = [...paginated.warnings];
+    const warnings = [...input.resolved.warnings, ...paginated.warnings];
 
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));

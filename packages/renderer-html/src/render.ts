@@ -66,7 +66,7 @@ ${pagesHtml.join("\n")}
       content: html,
       mimeType: this.capabilities.mimeType,
       extension: this.capabilities.extension,
-      warnings: paginated.warnings,
+      warnings: [...input.resolved.warnings, ...paginated.warnings],
     };
   }
 }

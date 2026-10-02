@@ -1,6 +1,6 @@
-import { tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
+import { tableCellSpanGrid, tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { defaultTextMeasurer, measureFooterHeight, measureHeaderRowHeights, measureRowHeight, resolveColumnWidths } from "@reporting/layout";
+import { defaultTextMeasurer, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths } from "@reporting/layout";
 import { escapeHtml } from "./escape.js";
 import { barcodeDataUrl, qrCodeDataUrl } from "./codes.js";
 import { chartTitle, renderChartSvg } from "./chart.js";
@@ -70,6 +70,8 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
 
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? table.rows.length;
+  const rowHeights = measureTableRowHeights(table, widths, defaultTextMeasurer);
+  const spanGrid = tableCellSpanGrid(table.cellSpans ?? []);
 
   const headerHeights = measureHeaderRowHeights(table, widths, defaultTextMeasurer);
   const headerRow = table.showHeader
@@ -80,8 +82,12 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
     .slice(start, end)
     .map(
       (row, i) =>
-        `<tr style="height:${ptToPx(measureRowHeight(table, start + i, widths, defaultTextMeasurer)).toFixed(2)}px;${table.alternateRowStyle && (start + i) % 2 === 1 ? "background:#f5f5f5;" : ""}${styleToCss(row.style)}">${table.columns
-          .map((c) => `<td style="text-align:${c.align ?? "left"};padding:2px 4px;">${escapeHtml(row.formatted[c.id] ?? "")}</td>`)
+        `<tr style="height:${ptToPx(rowHeights[start + i]!).toFixed(2)}px;${table.alternateRowStyle && (start + i) % 2 === 1 ? "background:#f5f5f5;" : ""}${styleToCss(row.style)}">${table.columns
+          .map((c, column) => {
+            const slot = spanGrid.get(start + i)?.get(column);
+            if (slot && !slot.anchor) return "";
+            return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;${slot ? "border:1px solid #000;" : ""}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
+          })
           .join("")}</tr>`
     )
     .join("");

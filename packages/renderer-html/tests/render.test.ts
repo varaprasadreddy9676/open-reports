@@ -123,6 +123,24 @@ describe("HtmlRenderer", () => {
     expect((html.match(/<th(?:\s|>)/g) ?? []).length).toBe(pageCount * 3);
   });
 
+  it("renders merged body cells with HTML colSpan and rowSpan", async () => {
+    const doc = {
+      ...invoiceReport,
+      datasets: [{ id: "items", source: "inline", query: { data: [{ description: "Group A", quantity: 1, price: 2 }, { description: "Group A", quantity: 3, price: 4 }, { description: "Subtotal", quantity: 0, price: 6 }] } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "items", columns: [
+        { id: "description", header: "Description", binding: "row.description" },
+        { id: "amount", header: "Amount", binding: "row.price" },
+      ], cellSpans: [{ row: 0, column: 0, rowSpan: 2 }, { row: 2, column: 0, colSpan: 2 }] }] }],
+    };
+    const result = await renderReport(doc);
+    const html = String(result.content);
+    expect(html).toContain('rowspan="2"');
+    expect(html).toContain('colspan="2"');
+    expect((html.match(/Group A/g) ?? [])).toHaveLength(1);
+    expect(html).toContain("Subtotal");
+    expect(result.warnings.some((warning) => warning.code === "TABLE_MERGE_HIDES_DATA")).toBe(true);
+  });
+
   it("renders a chart as inline SVG", async () => {
     const withChart = {
       ...invoiceReport,

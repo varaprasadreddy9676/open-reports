@@ -1,5 +1,5 @@
 import type { RenderInput, RenderResult, RendererCapabilities, ReportRenderer, ResolvedComponent } from "@reporting/core";
-import { tableHeaderRows } from "@reporting/core";
+import { tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
 import { paginate } from "@reporting/layout";
 
 export const escposCapabilities: RendererCapabilities = {
@@ -74,7 +74,7 @@ export class EscPosRenderer implements ReportRenderer {
     const printableIn = (paginated.pageSize.width - paginated.margin.left - paginated.margin.right) / 72;
     // Font A is 12 dots wide: 80 mm paper ≈ 48 columns, 58 mm ≈ 32.
     const cols = Math.max(16, Math.floor((printableIn * dpi) / 12));
-    const warnings: RenderResult["warnings"] = [];
+    const warnings: RenderResult["warnings"] = [...input.resolved.warnings];
     const bad = new Set<string>();
     const warn = (c: string) => {
       if (!bad.has(c)) {
@@ -139,6 +139,7 @@ export class EscPosRenderer implements ReportRenderer {
             const flex = fixed.filter((f: number | undefined) => f === undefined).length || 1;
             const widths: number[] = fixed.map((f: number | undefined) => f ?? Math.max(4, Math.floor((cols - used - (c.columns.length - 1 - 0)) / flex)));
             const fmt = (cells: string[]) => cells.map((cell, i) => pad(cell, widths[i]!, c.columns[i].align ?? "left")).join(" ").slice(0, cols);
+            const spanGrid = tableCellSpanGrid(c.cellSpans ?? []);
             if (c.showHeader) {
               out.raw(ESC, 0x45, 1);
               if (c.headerRows) {
@@ -155,7 +156,19 @@ export class EscPosRenderer implements ReportRenderer {
               } else out.line(fmt(c.columns.map((k: any) => k.header)), warn);
               out.raw(ESC, 0x45, 0).line("-".repeat(cols), warn);
             }
-            for (const row of c.rows) out.line(fmt(c.columns.map((k: any) => String(row.formatted[k.id] ?? ""))), warn);
+            for (const [rowIndex, row] of c.rows.entries()) {
+              if (!c.cellSpans?.length) { out.line(fmt(c.columns.map((k: any) => String(row.formatted[k.id] ?? ""))), warn); continue; }
+              const line = Array<string>(cols).fill(" ");
+              c.columns.forEach((column: any, columnIndex: number) => {
+                const slot = spanGrid.get(rowIndex)?.get(columnIndex);
+                if (slot && !slot.anchor) return;
+                const start = widths.slice(0, columnIndex).reduce((sum, width) => sum + width + 1, 0);
+                const spanWidth = widths.slice(columnIndex, columnIndex + (slot?.span.colSpan ?? 1)).reduce((sum, width) => sum + width, 0) + (slot?.span.colSpan ?? 1) - 1;
+                const value = pad(String(row.formatted[column.id] ?? ""), spanWidth, column.align ?? "left");
+                for (let i = 0; i < value.length && start + i < cols; i++) line[start + i] = value[i]!;
+              });
+              out.line(line.join("").trimEnd(), warn);
+            }
             if (c.showFooter) (out.line("-".repeat(cols), warn), out.line(fmt(c.columns.map((k: any) => String(k.footer?.value ?? ""))), warn));
             break;
           }

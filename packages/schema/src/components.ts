@@ -111,6 +111,16 @@ export const tableHeaderCellSchema = z.object({
 });
 export type TableHeaderCell = z.infer<typeof tableHeaderCellSchema>;
 
+/** Positional merges in the resolved body, after table filtering and sorting.
+ * Values in covered cells are suppressed; the top-left cell supplies content. */
+export const tableCellSpanSchema = z.object({
+  row: z.number().int().nonnegative(),
+  column: z.number().int().nonnegative(),
+  colSpan: z.number().int().positive().optional().default(1),
+  rowSpan: z.number().int().positive().optional().default(1),
+});
+export type TableCellSpan = z.infer<typeof tableCellSpanSchema>;
+
 export const tableComponentSchema = componentBaseSchema.extend({
   type: z.literal("table"),
   dataset: z.string(),
@@ -118,6 +128,8 @@ export const tableComponentSchema = componentBaseSchema.extend({
   /** Explicit multi-level header grid. Omit for the legacy single row built
    * from columns[].header. Cells may cover adjacent columns or header rows. */
   headerRows: z.array(z.array(tableHeaderCellSchema)).min(1).optional(),
+  /** Explicit body merges, indexed by resolved row position (zero-based). */
+  cellSpans: z.array(tableCellSpanSchema).optional(),
   sortBy: z.array(z.object({ binding: z.string(), direction: z.enum(["asc", "desc"]).default("asc") })).optional(),
   filterWhen: z.string().optional(),
   groupBy: z.string().optional(),

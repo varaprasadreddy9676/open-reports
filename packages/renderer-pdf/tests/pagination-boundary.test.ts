@@ -12,6 +12,7 @@ interface Opts {
   cell?: (i: number) => string;
   extraColumns?: boolean;
   headerRows?: unknown[][];
+  cellSpans?: unknown[];
 }
 
 function reportWith(n: number, o: Opts = {}) {
@@ -32,6 +33,7 @@ function reportWith(n: number, o: Opts = {}) {
             dataset: "d",
             repeatHeaderOnPageBreak: true,
             headerRows: o.headerRows,
+            cellSpans: o.cellSpans,
             columns: [
               { id: "code", header: "COLHEAD", binding: "row.code", width: "*" },
               { id: "qty", header: "Qty", binding: "row.qty", width: 60, align: "right" },
@@ -135,4 +137,15 @@ describe("pagination boundaries (real PDF output)", () => {
       expect(page).toContain("COLHEAD");
     }
   });
+
+  it("keeps a vertical body merge on one PDF page", async () => {
+    const cap = await capacity();
+    const pages = await render(reportWith(cap + 5, { cellSpans: [{ row: cap - 1, column: 0, rowSpan: 3 }] }));
+    expect(pages.length).toBeGreaterThan(1);
+    const anchor = `ROW${String(cap).padStart(5, "0")}`;
+    const covered = `ROW${String(cap + 1).padStart(5, "0")}`;
+    expect(pages[0]).not.toContain(anchor);
+    expect(pages[1]).toContain(anchor);
+    expect(pages.join("\n")).not.toContain(covered);
+  }, 120_000);
 });

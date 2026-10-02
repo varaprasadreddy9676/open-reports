@@ -2,7 +2,7 @@ import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, Resolve
 import type { TextMeasurer } from "./measure.js";
 import { defaultTextMeasurer } from "./measure.js";
 import { resolvePageGeometry } from "./units.js";
-import { layoutComponent, marginOf, measureFooterHeight, measureHeaderHeight, measureRowHeight, resolveColumnWidths, shiftNode } from "./box-layout.js";
+import { layoutComponent, marginOf, measureFooterHeight, measureHeaderHeight, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
 import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
 
 export interface PaginateOptions {
@@ -294,7 +294,7 @@ function layoutContentIntoPages(
     }
 
     if (component.type === "table" && !anyC.keepTogether) {
-      placeTable(component as ResolvedTableComponent, innerWidth, pageHeightAt, () => pages.length, measurer, {
+      placeTable(component as ResolvedTableComponent, innerWidth, measurer, {
         place: (node, height) => {
           node.box.y = y;
           node.box.x += m.left;
@@ -302,6 +302,8 @@ function layoutContentIntoPages(
           y += height;
         },
         remaining,
+        freshRoom: () => pageHeightAt(pages.length) - repeatHeight(),
+        isFresh: () => currentPage().every((node) => Boolean((node.component as any).band?.repeated)),
         newPage,
         decide,
       });
@@ -370,6 +372,8 @@ function layoutContentIntoPages(
 interface TablePlacer {
   place(node: PositionedNode, height: number): void;
   remaining(): number;
+  freshRoom(): number;
+  isFresh(): boolean;
   newPage(): void;
   decide(d: Omit<PaginationDecision, "page">): void;
 }
@@ -377,19 +381,31 @@ interface TablePlacer {
 function placeTable(
   table: ResolvedTableComponent,
   width: number,
-  pageHeightAt: (pageIndex: number) => number,
-  pageCount: () => number,
   measurer: TextMeasurer,
   placer: TablePlacer
 ): void {
   const columnWidths = resolveColumnWidths(table, width);
+  const rowHeights = measureTableRowHeights(table, columnWidths, measurer);
   const headerHeight = table.showHeader ? measureHeaderHeight(table, measurer, columnWidths) : 0;
   const footerHeight = table.showFooter ? measureFooterHeight(table, measurer) : 0;
-  const nextPageHeight = () => pageHeightAt(pageCount());
   const tid = (table as any).id as string | undefined;
 
   const minBefore = (table as any).minRowsBeforeBreak ?? 0;
   const minAfter = (table as any).minRowsAfterBreak ?? 0;
+  const safeBreakBefore = (proposed: number): number => {
+    let point = proposed;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const span of table.cellSpans ?? []) {
+        if (span.row < point && span.row + (span.rowSpan ?? 1) > point) {
+          point = span.row;
+          changed = true;
+        }
+      }
+    }
+    return point;
+  };
 
   let rowIndex = 0;
   let sliceStart = 0;
@@ -399,7 +415,7 @@ function placeTable(
   const flushSlice = (end: number, includeFooter: boolean) => {
     const showHeaderOnThisSlice = isFirstSlice ? table.showHeader : table.showHeader && table.repeatHeaderOnPageBreak;
     let height = showHeaderOnThisSlice ? headerHeight : 0;
-    for (let i = sliceStart; i < end; i++) height += measureRowHeight(table, i, columnWidths, measurer);
+    for (let i = sliceStart; i < end; i++) height += rowHeights[i]!;
     if (includeFooter) height += footerHeight;
 
     const node: PositionedNode = {
@@ -415,15 +431,15 @@ function placeTable(
 
   const remainingRowsFitOnFreshPage = (fromIndex: number): boolean => {
     let height = table.showHeader && table.repeatHeaderOnPageBreak ? headerHeight : 0;
-    for (let i = fromIndex; i < table.rows.length; i++) height += measureRowHeight(table, i, columnWidths, measurer);
-    return height <= nextPageHeight();
+    for (let i = fromIndex; i < table.rows.length; i++) height += rowHeights[i]!;
+    return height <= placer.freshRoom();
   };
 
   const startHeight = () => (table.showHeader && table.repeatHeaderOnPageBreak ? headerHeight : 0);
 
   let sliceHeight = table.showHeader ? headerHeight : 0;
   while (rowIndex < table.rows.length) {
-    const rowHeight = measureRowHeight(table, rowIndex, columnWidths, measurer);
+    const rowHeight = rowHeights[rowIndex]!;
     const wouldOverflow = sliceHeight + rowHeight > placer.remaining();
 
     if (wouldOverflow && rowIndex > sliceStart) {
@@ -433,6 +449,7 @@ function placeTable(
         placer.decide({ kind: "orphan-control", componentId: tid, rowIndex: sliceStart, message: `Only ${roomRows} row(s) fit here but "Min rows before break" is ${minBefore}; rows ${sliceStart + 1}-${rowIndex} move to the next page.` });
         placer.newPage();
         sliceHeight = startHeight();
+        rowIndex = sliceStart;
         continue;
       }
 
@@ -445,6 +462,18 @@ function placeTable(
           breakPoint -= pullback;
           placer.decide({ kind: "widow-control", componentId: tid, rowIndex: breakPoint, message: `"Min rows after break" is ${minAfter}: ${pullback} extra row(s) move to the last page so it does not start with a lone row.` });
         }
+      }
+
+      breakPoint = safeBreakBefore(breakPoint);
+      if (breakPoint === sliceStart) {
+        if (!placer.isFresh()) {
+          placer.decide({ kind: "keep-together", componentId: tid, rowIndex: sliceStart, message: `Merged table rows starting at row ${sliceStart + 1} move together to the next page.` });
+          placer.newPage();
+          rowIndex = sliceStart;
+          sliceHeight = startHeight();
+          continue;
+        }
+        throw new Error(`Merged table rows starting at row ${sliceStart + 1} are taller than a whole page.`);
       }
 
       flushSlice(breakPoint, false);
@@ -463,10 +492,12 @@ function placeTable(
     }
     if (wouldOverflow && rowIndex === sliceStart) {
       // Nothing of this table fits on the current page (the header plus one row is too tall): start on a new page.
-      if (placer.remaining() < nextPageHeight()) {
+      if (!placer.isFresh()) {
         placer.decide({ kind: "cannot-split", componentId: tid, rowIndex, required: sliceHeight + rowHeight, available: placer.remaining(), message: `Table ${tid ? `"${tid}" ` : ""}starts on the next page: its header and first row need ${pt(sliceHeight + rowHeight)} but only ${pt(placer.remaining())} is left.` });
         placer.newPage();
         sliceHeight = isFirstSlice ? (table.showHeader ? headerHeight : 0) : startHeight();
+      } else {
+        throw new Error(`Table row ${rowIndex + 1} is taller than a whole page.`);
       }
     }
 

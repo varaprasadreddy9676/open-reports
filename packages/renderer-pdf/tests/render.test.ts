@@ -131,4 +131,21 @@ describe("PdfRenderer", () => {
     const result = await renderPdf(withImage);
     expect(result.warnings.some((w) => w.code === "IMAGE_NOT_EMBEDDED")).toBe(true);
   });
+
+  it("surfaces a warning when a merged body cell covers different data", async () => {
+    const withMerge = {
+      ...invoiceReport,
+      sections: [{
+        type: "detail",
+        children: [{
+          type: "table",
+          dataset: "items",
+          columns: invoiceReport.sections[1]!.children![0]!.columns,
+          cellSpans: [{ row: 0, column: 0, colSpan: 2 }],
+        }],
+      }],
+    };
+    const result = await renderPdf(withMerge);
+    expect(result.warnings.some((warning) => warning.code === "TABLE_MERGE_HIDES_DATA")).toBe(true);
+  });
 });

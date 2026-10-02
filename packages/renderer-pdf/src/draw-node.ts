@@ -1,6 +1,6 @@
-import { tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
+import { tableCellSpanGrid, tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { measureFooterHeight, measureHeaderRowHeights, measureRowHeight, resolveColumnWidths, type TextMeasurer } from "@reporting/layout";
+import { measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type TextMeasurer } from "@reporting/layout";
 import { renderChartSvg } from "@reporting/renderer-html";
 // @ts-expect-error -- svg-to-pdfkit ships no types
 import SVGtoPDF from "svg-to-pdfkit";
@@ -192,30 +192,46 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
 
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? table.rows.length;
+  const rowHeights = measureTableRowHeights(table, widths, ctx.measurer);
+  const spanGrid = tableCellSpanGrid(table.cellSpans ?? []);
+  const rowYs = new Map<number, number>();
+  let bodyEnd = y;
 
   for (let i = start; i < end; i++) {
     const row = table.rows[i]!;
-    const rowHeight = measureRowHeight(table, i, widths, ctx.measurer);
+    const rowHeight = rowHeights[i]!;
+    const rowStyle = (row.style ?? {}) as any;
+    rowYs.set(i, bodyEnd);
+    if (rowStyle.background) {
+      doc.rect(node.box.x, bodyEnd, node.box.width, rowHeight).fill(rowStyle.background);
+    } else if (table.alternateRowStyle && (i - start) % 2 === 1) {
+      doc.rect(node.box.x, bodyEnd, node.box.width, rowHeight).fill("#f5f5f5");
+    }
+    bodyEnd += rowHeight;
+  }
+
+  for (let i = start; i < end; i++) {
+    const row = table.rows[i]!;
     const rowStyle = (row.style ?? {}) as any;
     let x = node.box.x;
-    if (rowStyle.background) {
-      doc.rect(node.box.x, y, node.box.width, rowHeight).fill(rowStyle.background);
-    } else if (table.alternateRowStyle && (i - start) % 2 === 1) {
-      doc.rect(node.box.x, y, node.box.width, rowHeight).fill("#f5f5f5");
-    }
     const bold = rowStyle.fontWeight === "bold" || (typeof rowStyle.fontWeight === "number" && rowStyle.fontWeight >= 700);
     doc.fontSize(fontSize);
     table.columns.forEach((col, ci) => {
+      const slot = spanGrid.get(i)?.get(ci);
+      const cellWidth = slot ? widths.slice(ci, ci + (slot.span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0) : widths[ci]!.width;
+      const cellHeight = slot ? rowHeights.slice(i, i + (slot.span.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0) : rowHeights[i]!;
+      if (slot && !slot.anchor) { x += widths[ci]!.width; return; }
+      if (slot) doc.lineWidth(0.5).strokeColor("#000000").rect(x, rowYs.get(i)!, cellWidth, cellHeight).stroke();
       doc.fillColor(rowStyle.color ?? "#000000");
-      drawRuns(ctx, row.formatted[col.id] ?? "", x + 2, y + 2, {
-        width: widths[ci]!.width - 4,
-        height: rowHeight - 2,
+      drawRuns(ctx, row.formatted[col.id] ?? "", x + 2, rowYs.get(i)! + 2, {
+        width: Math.max(1, cellWidth - 4),
+        height: Math.max(1, cellHeight - 2),
         align: (col.align as any) ?? "left",
       }, ctx.defaultFamily, bold, Boolean(rowStyle.italic));
       x += widths[ci]!.width;
     });
-    y += rowHeight;
   }
+  y = bodyEnd;
 
   if (table.showFooter) {
     doc.moveTo(node.box.x, y).lineTo(node.box.x + node.box.width, y).stroke();

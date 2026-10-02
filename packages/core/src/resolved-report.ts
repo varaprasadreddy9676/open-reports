@@ -172,6 +172,13 @@ export interface ResolvedTableHeaderCell {
   align?: "left" | "center" | "right";
 }
 
+export interface ResolvedTableCellSpan {
+  row: number;
+  column: number;
+  colSpan?: number;
+  rowSpan?: number;
+}
+
 export interface ResolvedTableRow {
   /** Raw per-column values, keyed by column id -- used by XLSX/CSV for correct cell types. */
   raw: Record<string, unknown>;
@@ -186,6 +193,7 @@ export interface ResolvedTableComponent extends ResolvedComponentBase {
   columns: ResolvedTableColumn[];
   /** Omitted for the legacy single header row from columns[].header. */
   headerRows?: ResolvedTableHeaderCell[][];
+  cellSpans?: ResolvedTableCellSpan[];
   rows: ResolvedTableRow[];
   showHeader: boolean;
   showFooter: boolean;

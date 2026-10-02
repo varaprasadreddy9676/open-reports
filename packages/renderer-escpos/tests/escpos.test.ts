@@ -66,6 +66,17 @@ describe("EscPosRenderer", () => {
     expect(r.warnings).toEqual([]);
   });
 
+  it("prints a merged body anchor once and reports suppressed values", async () => {
+    const r = await render(receipt(80, [{
+      type: "table", dataset: "s.items", columns: [{ id: "n", header: "Item", binding: "row.n", width: "*" }, { id: "q", header: "Qty", binding: "row.q", width: 30 }],
+      cellSpans: [{ row: 0, column: 0, rowSpan: 2 }],
+    }]));
+    const printed = ascii(r.content as Buffer);
+    expect((printed.match(/Paracetamol 500/g) ?? [])).toHaveLength(1);
+    expect(printed).not.toContain("ORS");
+    expect(r.warnings.some((warning) => warning.code === "TABLE_MERGE_HIDES_DATA")).toBe(true);
+  });
+
   it.each([58, 80])("keeps all 500 items in order on a continuous %i mm receipt", async (width) => {
     const doc = receipt(width, [{
       type: "table", dataset: "s.items", columns: [

@@ -44,6 +44,18 @@ function reportWithContentHeight(height: number, sections: ResolvedReport["secti
 }
 
 describe("paginate: table row-splitting boundaries", () => {
+  it("moves a vertically merged body cell and all its rows to the next page", () => {
+    const table = makeTable(33, { cellSpans: [{ row: 29, column: 0, rowSpan: 3 }] });
+    const result = paginate(reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [table] }]));
+    expect(result.pages).toHaveLength(2);
+    expect(result.pages[0]!.content[0]!.rowRange).toEqual({ start: 0, end: 29 });
+    expect(result.pages[1]!.content[0]!.rowRange).toEqual({ start: 29, end: 33 });
+  });
+
+  it("fails explicitly when a vertical merge is taller than a whole page", () => {
+    const table = makeTable(40, { cellSpans: [{ row: 0, column: 0, rowSpan: 40 }] });
+    expect(() => paginate(reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [table] }]))).toThrow(/Merged table rows.*taller than a whole page/);
+  });
   it("fits 29 rows on a single page", () => {
     const report = reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [makeTable(29)] }]);
     const result = paginate(report);

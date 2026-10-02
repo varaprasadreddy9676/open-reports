@@ -1,8 +1,7 @@
 import { PassThrough } from "node:stream";
 import ExcelJS from "exceljs";
 import type { RenderInput, RenderResult, RendererCapabilities, ReportRenderer, ResolvedTableComponent } from "@reporting/core";
-import { findComponentsByType } from "@reporting/core";
-import { tableHeaderRows } from "@reporting/core";
+import { findComponentsByType, tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
 import { excelNumberFormat } from "./formats.js";
 import { sanitizeSheetName } from "./sheet-name.js";
 
@@ -105,13 +104,21 @@ function writeTable(sheet: ExcelJS.Worksheet, table: ResolvedTableComponent, war
     }
   }
 
+  const headerCount = table.showHeader ? (table.headerRows?.length ?? 1) : 0;
+  const spanGrid = tableCellSpanGrid(table.cellSpans ?? []);
+  for (const span of table.cellSpans ?? []) {
+    if ((span.colSpan ?? 1) > 1 || (span.rowSpan ?? 1) > 1) sheet.mergeCells(headerCount + span.row + 1, span.column + 1, headerCount + span.row + (span.rowSpan ?? 1), span.column + (span.colSpan ?? 1));
+  }
+
   table.rows.forEach((row, i) => {
-    const values: Record<string, unknown> = {};
-    table.columns.forEach((col) => {
-      values[col.id] = row.raw[col.id];
+    const sheetRow = sheet.getRow(headerCount + i + 1);
+    table.columns.forEach((col, column) => {
+      const slot = spanGrid.get(i)?.get(column);
+      if (!slot || slot.anchor) sheetRow.getCell(column + 1).value = row.raw[col.id] as ExcelJS.CellValue;
     });
-    const sheetRow = sheet.addRow(values);
     table.columns.forEach((col, ci) => {
+      const slot = spanGrid.get(i)?.get(ci);
+      if (slot && !slot.anchor) return;
       const numFmt = excelNumberFormat(col.format);
       if (numFmt) sheetRow.getCell(ci + 1).numFmt = numFmt;
     });

@@ -4,7 +4,7 @@ import type {
   ResolvedContainerComponent,
   ResolvedGroupComponent,
 } from "@reporting/core";
-import { tableHeaderRows } from "@reporting/core";
+import { tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
 import { wrapLineCount, type TextStyleHint } from "./measure.js";
 import { resolveDimension } from "./units.js";
@@ -300,11 +300,34 @@ const ROW_PADDING = 4;
 const HEADER_FOOTER_PADDING = 6;
 
 export function measureRowHeight(table: ResolvedTableComponent, rowIndex: number, columnWidths: ColumnWidth[], measurer: TextMeasurer): number {
+  return measureTableRowHeights(table, columnWidths, measurer)[rowIndex]!;
+}
+
+/** Measure merged body cells over their full width/height before pagination. */
+export function measureTableRowHeights(table: ResolvedTableComponent, columnWidths: ColumnWidth[], measurer: TextMeasurer): number[] {
   const fontSize = styleFontSize(table);
-  const row = table.rows[rowIndex]!;
-  const lineCounts = table.columns.map((col, i) => wrapLineCount(row.formatted[col.id] ?? "", Math.max(1, columnWidths[i]!.width - 4), fontSize, measurer));
-  const maxLines = Math.max(1, ...lineCounts);
-  return maxLines * measurer.lineHeight(fontSize) + ROW_PADDING;
+  const lineHeight = measurer.lineHeight(fontSize);
+  const spans = table.cellSpans ?? [];
+  const grid = tableCellSpanGrid(spans);
+  const heights = table.rows.map((row, rowIndex) => {
+    let maxLines = 1;
+    table.columns.forEach((column, columnIndex) => {
+      const slot = grid.get(rowIndex)?.get(columnIndex);
+      if (slot && (!slot.anchor || (slot.span.rowSpan ?? 1) > 1)) return;
+      const width = slot ? columnWidths.slice(columnIndex, columnIndex + (slot.span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0) : columnWidths[columnIndex]!.width;
+      maxLines = Math.max(maxLines, wrapLineCount(row.formatted[column.id] ?? "", Math.max(1, width - 4), fontSize, measurer));
+    });
+    return maxLines * lineHeight + ROW_PADDING;
+  });
+  for (const span of spans) {
+    if ((span.rowSpan ?? 1) <= 1) continue;
+    const width = columnWidths.slice(span.column, span.column + (span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0);
+    const text = table.rows[span.row]!.formatted[table.columns[span.column]!.id] ?? "";
+    const required = wrapLineCount(text, Math.max(1, width - 4), fontSize, measurer) * lineHeight + ROW_PADDING;
+    const current = heights.slice(span.row, span.row + (span.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0);
+    if (required > current) heights[span.row + (span.rowSpan ?? 1) - 1]! += required - current;
+  }
+  return heights;
 }
 
 export function measureHeaderRowHeights(table: ResolvedTableComponent, columnWidths: ColumnWidth[], measurer: TextMeasurer): number[] {
@@ -334,9 +357,7 @@ function layoutTable(table: ResolvedTableComponent, box: Box, measurer: TextMeas
   const columnWidths = resolveColumnWidths(table, width);
   let y = box.y;
   if (table.showHeader) y += measureHeaderHeight(table, measurer, columnWidths);
-  for (let i = 0; i < table.rows.length; i++) {
-    y += measureRowHeight(table, i, columnWidths, measurer);
-  }
+  for (const rowHeight of measureTableRowHeights(table, columnWidths, measurer)) y += rowHeight;
   if (table.showFooter) y += measureFooterHeight(table, measurer);
 
   return {
