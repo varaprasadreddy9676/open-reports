@@ -1812,11 +1812,21 @@ kbd {
 .band-menu button { display: flex; width: 100%; text-align: left; gap: 8px; background: none; border: 0; padding: 5px 8px; border-radius: 4px; cursor: pointer; color: var(--text); }
 .band-menu button:hover:not(:disabled) { background: var(--hover, rgba(37,99,235,.1)); }
 .band-menu button:disabled { opacity: 0.4; cursor: default; }
-.band-bar { position: sticky; top: -28px; z-index: 20; display: flex; gap: 10px; align-items: center; justify-content: center; margin: -28px auto 16px; padding: 6px 10px; width: fit-content; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; }
+.band-bar { position: sticky; top: -28px; z-index: 20; display: flex; gap: 4px; align-items: center; justify-content: center; margin: -28px auto 16px; padding: 4px; width: fit-content; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 12px; }
 .band-bar .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-.band-bar .seg button { border: 0; background: none; padding: 3px 10px; cursor: pointer; color: var(--text); }
+.band-bar .seg button { border: 0; background: none; padding: 4px 10px; cursor: pointer; color: var(--text); }
 .band-bar .seg button.on { background: var(--accent); color: #fff; }
+.band-bar > button { border: 0; border-radius: var(--radius-sm); padding: 5px 10px; background: none; color: var(--muted); }
+.band-bar > button:hover, .band-bar > button.on { background: var(--accent-soft); color: var(--accent); }
 .band-bar select { font-size: 12px; }
+.canvas-options { position: relative; }
+.canvas-options summary { list-style: none; padding: 5px 10px; border-radius: var(--radius-sm); color: var(--muted); cursor: pointer; white-space: nowrap; }
+.canvas-options summary::-webkit-details-marker { display: none; }
+.canvas-options summary::after { content: "⌄"; margin-left: 6px; }
+.canvas-options[open] summary, .canvas-options summary:hover { background: var(--accent-soft); color: var(--accent); }
+.canvas-options-panel { position: absolute; right: 0; top: calc(100% + 7px); display: flex; flex-direction: column; gap: 10px; width: 184px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+.canvas-options-panel label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 11px; }
+.canvas-options-panel select { color: var(--text); }
 
 .canvas-scroll.structure { padding-left: 160px; padding-right: 60px; }
 .structure-page-strip { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; overflow-x: auto; padding: 0 4px 10px; margin: 0 auto 18px; max-width: 100%; width: fit-content; }

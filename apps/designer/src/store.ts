@@ -73,6 +73,7 @@ interface State {
   showRulers: boolean;
   canvasView: CanvasView;
   previewSplit: boolean;
+  showPagination: boolean;
   /** Example records shown per detail band in the structure view. */
   ghosts: number;
   rulerUnit: RulerUnit;
@@ -226,6 +227,7 @@ export const useStore = create<State>((set, get) => ({
   showRulers: true,
   canvasView: pref("canvasView", "structure") as CanvasView,
   previewSplit: false,
+  showPagination: false,
   ghosts: 0,
   rulerUnit: pref("rulerUnit", "mm") as RulerUnit,
   gridMode: "lines",
@@ -278,7 +280,7 @@ export const useStore = create<State>((set, get) => ({
 
   loadDoc(doc, meta = {}, sample = {}) {
     const d = ops.ensureIds(doc);
-    set({ doc: d, sample, selection: [], past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved" });
+    set({ doc: d, sample, selection: [], past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved", showPagination: false });
     persistDraft(d, sample);
     get().refresh();
   },

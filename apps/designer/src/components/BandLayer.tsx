@@ -18,9 +18,9 @@ const ADDABLE: { type: string; hint: string }[] = [
   { type: "background", hint: "Behind every page" },
 ];
 
-/** Toolbar floating above the page: structure/pages switch, example records, ruler unit, grid style. */
+/** Compact canvas controls; detailed setup and pagination appear when requested. */
 export function BandBar() {
-  const { canvasView, previewSplit, ghosts, rulerUnit, gridMode, showGrid } = useStore();
+  const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, gridMode, showGrid } = useStore();
   const set = useStore((s) => s.set);
   return (
     <div className="band-bar" data-testid="band-bar">
@@ -33,12 +33,19 @@ export function BandBar() {
         </button>
       </div>
       {canvasView === "structure" && (
+        <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title="Show page starts and explain pagination decisions">
+          Pagination
+        </button>
+      )}
+      {canvasView === "structure" && (
         <button className={previewSplit ? "on" : ""} data-testid="toggle-preview-split" aria-pressed={previewSplit} onClick={() => set({ previewSplit: !previewSplit })} title="Show the paginated sample beside the structure">
           Split preview
         </button>
       )}
-      {canvasView === "structure" && (
-        <label title="Show extra example records in each detail band">
+      <details className="canvas-options" data-testid="canvas-options">
+        <summary>Canvas settings</summary>
+        <div className="canvas-options-panel">
+        {canvasView === "structure" && <label title="Show extra example records in each detail band">
           Examples{" "}
           <select
             data-testid="ghosts"
@@ -54,24 +61,25 @@ export function BandBar() {
               </option>
             ))}
           </select>
-        </label>
-      )}
-      <label>
+        </label>}
+        <label>
         Units{" "}
         <select data-testid="ruler-unit" value={rulerUnit} onChange={(e) => (savePref("rulerUnit", e.target.value), set({ rulerUnit: e.target.value as RulerUnit }))}>
           {["mm", "cm", "in", "pt", "px"].map((u) => (
             <option key={u}>{u}</option>
           ))}
         </select>
-      </label>
-      <label>
+        </label>
+        <label>
         Grid{" "}
         <select data-testid="grid-mode" value={showGrid ? gridMode : "off"} onChange={(e) => (e.target.value === "off" ? set({ showGrid: false }) : set({ showGrid: true, gridMode: e.target.value as "lines" | "dots" }))}>
           <option value="off">Hidden</option>
           <option value="lines">Lines</option>
           <option value="dots">Dots</option>
         </select>
-      </label>
+        </label>
+        </div>
+      </details>
     </div>
   );
 }

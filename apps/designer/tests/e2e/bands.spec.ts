@@ -64,6 +64,7 @@ test("dragging a margin marker on the ruler changes the page margin", async ({ p
 });
 
 test("ruler unit switch relabels the rulers and persists", async ({ page }) => {
+  await page.getByTestId("canvas-options").locator("summary").click();
   await page.getByTestId("ruler-unit").selectOption("in");
   await expect(page.getByTestId("ruler-h")).toContainText("1");
   expect(await page.evaluate(() => localStorage.getItem("designer.rulerUnit"))).toBe("in");
@@ -254,6 +255,8 @@ test("structure view locates real page starts and opens their pagination reasons
       sections: [{ type: "detail", children: [{ type: "table", id: "items-table", dataset: "items", columns: [{ id: "n", header: "Item", binding: "row.n" }] }] }],
     });
   });
+  await expect(page.getByTestId("structure-page-thumb")).toHaveCount(0);
+  await page.getByTestId("toggle-structure-pagination").click();
   await expect.poll(() => page.getByTestId("structure-page-thumb").count()).toBeGreaterThan(1);
   await page.getByTestId("structure-page-why-2").click();
   await expect(page.getByTestId("structure-page-reason")).toContainText("Why page 2 starts here");
@@ -262,6 +265,10 @@ test("structure view locates real page starts and opens their pagination reasons
   await page.getByTestId("structure-break-marker").first().locator("button").click();
   await expect(page.getByTestId("structure-break-popover")).toContainText("Page 2");
   await expect(page.getByTestId("structure-break-popover")).toContainText("Table");
+  await page.getByTestId("toggle-structure-pagination").click();
+  await expect(page.getByTestId("structure-page-thumb")).toHaveCount(0);
+  await expect(page.getByTestId("structure-break-marker")).toHaveCount(0);
+  await page.getByTestId("toggle-structure-pagination").click();
   await page.getByTestId("toggle-preview-split").click();
   await expect(page.getByTestId("structure-preview-pane")).toBeVisible();
   await expect(page.getByTestId("structure-pdf-frame")).toHaveAttribute("src", /^blob:/);

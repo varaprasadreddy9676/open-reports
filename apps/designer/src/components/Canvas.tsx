@@ -214,7 +214,7 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, gridMode } = useStore();
+  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode } = useStore();
   const k = PT * zoom;
   const structure = canvasView === "structure" ? engine.structure : undefined;
   const paginated = structure ?? engine.paginated;
@@ -466,7 +466,7 @@ export function Canvas() {
   return (
     <div className={`canvas-scroll ${structure ? "structure" : ""}`} ref={scroller} data-testid="canvas">
       <BandBar />
-      {structure && engine.paginated && <StructurePageStrip paginated={engine.paginated} />}
+      {structure && showPagination && engine.paginated && <StructurePageStrip paginated={engine.paginated} />}
       <div className={structure && previewSplit ? "canvas-layout with-preview" : "canvas-layout"}>
       <div className="pages">
         {paginated.pages.map((page, pi) => {
@@ -544,7 +544,7 @@ export function Canvas() {
                   return target ? <InlineEditor id={editingText} box={target.box} k={k} /> : null;
                 })()}
                 {view.diagnostics && <Diagnostics nodes={allNodes} k={k} />}
-                {structure && engine.paginated && <StructureBreakLayer structure={structure} paginated={engine.paginated} k={k} />}
+                {structure && showPagination && engine.paginated && <StructureBreakLayer structure={structure} paginated={engine.paginated} k={k} />}
                 {bottom === "pagination" && !structure && <PaginationMarkers page={pi} nodes={allNodes} k={k} />}
                 {guides && guides.page === pi && <SmartGuides g={guides} k={k} />}
                 {marquee && marquee.page === pi && (
