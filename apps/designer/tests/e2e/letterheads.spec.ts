@@ -13,6 +13,25 @@ const { sources: fixtures, renderDpi } = JSON.parse(fs.readFileSync(path.join(di
   renderDpi: number;
 };
 
+test("a linked logo path previews and exports while the report keeps the path", async ({ page, request }) => {
+  const fixture = fixtures.find((source) => source.key === "radiology")!;
+  const source = path.join(directory, fixture.logos.find((logo) => logo.role === "left-brand")!.file);
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("left-tab-insert").click();
+  await page.getByTestId("palette-image").click();
+  await page.getByTestId("properties").getByLabel("Image path or URL").fill(source);
+  await expect(page.locator(".page img[data-cid]").first()).toHaveAttribute("src", /^data:image\/png;base64,/);
+  const report = await page.evaluate(() => (window as any).__designer.getState().doc);
+  expect(report.sections.some((section: any) => section.children.some((child: any) => child.src === source))).toBe(true);
+  const result = await request.post("http://127.0.0.1:4100/api/v1/render", { data: { report, format: "pdf" } });
+  expect(result.status()).toBe(200);
+  expect((await result.body()).subarray(0, 5).toString()).toBe("%PDF-");
+  const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  await page.screenshot({ path: path.join(screenshotDir, "32-linked-image-path.png") });
+});
+
 test("a real two-logo letterhead is composed and exported entirely through designer controls", async ({ page }) => {
   test.setTimeout(90_000);
   const fixture = fixtures.find((source) => source.key === "radiology")!;

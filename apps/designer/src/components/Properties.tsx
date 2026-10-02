@@ -841,13 +841,15 @@ function CodeProps({ comp }: { comp: ops.Comp }) {
 
 function ImageProps({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
+  const embedded = comp.src?.startsWith("data:");
   return (
     <Section title="Image">
-      <Field label="Source (URL or data)">
-        <input aria-label="Image source" value={comp.src?.startsWith("data:") ? "(embedded image)" : comp.src ?? ""} onChange={(e) => patch(comp.id, { src: e.target.value })} />
+      <Field label="Image path or URL">
+        <input aria-label="Image path or URL" placeholder="/path/to/logo.png or https://…" value={embedded ? "" : comp.src ?? ""} onChange={(e) => patch(comp.id, { src: e.target.value })} />
       </Field>
+      <p className="field-hint">{embedded ? "Image embedded in this report. Enter a path or URL to link it instead." : "Linked images update on the next render. The server must be able to reach this path or URL."}</p>
       <label className="btn file">
-        Upload image
+        Embed image from file
         <input
           type="file"
           accept="image/png,image/jpeg,image/webp"

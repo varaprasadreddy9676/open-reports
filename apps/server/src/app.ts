@@ -14,6 +14,7 @@ import { assertStorageProvider, TemplateNotFoundError, VersionImmutableError, Ve
 import { createRuntime, RenderPipelineError, runRender } from "./render-pipeline.js";
 import type { PluginRegistry } from "@reporting/plugin-sdk";
 import { JobStore } from "./jobs.js";
+import { materializeChildren, materializeLinkedImages, readImageSource } from "./linked-images.js";
 
 export interface BuildAppOptions {
   dbPath: string;
@@ -24,12 +25,15 @@ export interface BuildAppOptions {
   plugins?: PluginRegistry;
   /** Directory of example *.report.json files to expose at /api/v1/examples. */
   examplesDir?: string;
+  /** Private image URL hosts the rendering server is allowed to fetch. */
+  imageAllowedHosts?: string[];
 }
 
 export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: StorageProvider; jobs: JobStore } {
   const app = Fastify({ logger: false, bodyLimit: 10 * 1024 * 1024 });
   const storage: StorageProvider = options.plugins?.storage !== undefined ? assertStorageProvider(options.plugins.storage) : new SqliteStorage(options.dbPath);
   const runtime = createRuntime(options.plugins);
+  runtime.imageAllowedHosts = options.imageAllowedHosts ?? (process.env.REPORT_IMAGE_ALLOWED_HOSTS ?? "").split(",").map((host) => host.trim()).filter(Boolean);
   const jobs = new JobStore(runtime);
   const authHook = createAuthHook(options.apiKeys ?? []);
 
@@ -90,6 +94,18 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   app.get("/api/v1/plugins", async () => ({ plugins: options.plugins?.statuses ?? [] }));
 
+  // The authenticated designer preview reads the same file that PDF/HTML will use.
+  app.get("/api/v1/resources/image", async (request, reply) => {
+    const { src } = request.query as { src?: string };
+    try {
+      if (!src) throw new RenderPipelineError("An image path or URL is required.", "INVALID_IMAGE_SOURCE", 400);
+      const dataUrl = await readImageSource(src, runtime.imageAllowedHosts);
+      return reply.header("cache-control", "no-store").send({ dataUrl });
+    } catch (err) {
+      return sendRenderError(reply, err);
+    }
+  });
+
   // --- Reusable blocks (shared "My Components") ---
   app.get("/api/v1/blocks", async () => storage.listBlocks());
   app.put("/api/v1/blocks/:id", async (request, reply) => {
@@ -143,8 +159,14 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     const report = extra.length ? { ...parsed.report, datasets: [...parsed.report.datasets, ...extra] } : parsed.report;
     try {
       const pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: body.parameters ?? {}, tolerant: true, functions: runtime.functions, customComponents: runtime.customComponents });
+      const imageSources = await materializeLinkedImages(pipeline.resolved, runtime.imageAllowedHosts);
+      const resolvePageSection = (section: Parameters<typeof pipeline.resolvePageSection>[0], page: Parameters<typeof pipeline.resolvePageSection>[1]) => {
+        const children = pipeline.resolvePageSection(section, page);
+        materializeChildren(children, imageSources);
+        return children;
+      };
       const pdf = runtime.renderers.pdf as { paginateOnly?: (i: unknown) => import("@reporting/layout").PaginatedReport };
-      const paginated = pdf.paginateOnly?.({ resolved: pipeline.resolved, resolvePageSection: pipeline.resolvePageSection });
+      const paginated = pdf.paginateOnly?.({ resolved: pipeline.resolved, resolvePageSection });
       reply.send({
         valid: validation.valid && pipeline.issues.length === 0,
         stage: "analyzed",
@@ -361,6 +383,7 @@ function buildOpenApiDocument(): Record<string, unknown> {
       "/api/v1/blocks/{id}": { put: { summary: "Create or replace a reusable block" }, delete: { summary: "Delete a reusable block" } },
       "/api/v1/validate": { post: { summary: "Validate a report definition" } },
       "/api/v1/render": { post: { summary: "Render a report inline" } },
+      "/api/v1/resources/image": { get: { summary: "Resolve a server-accessible image path or URL for authenticated designer preview" } },
       "/api/v1/templates": { get: { summary: "List templates" }, post: { summary: "Create a template" } },
       "/api/v1/templates/{id}": { get: { summary: "Get a template" }, put: { summary: "Update a template (creates a new version)" }, delete: { summary: "Delete a template" } },
       "/api/v1/templates/{id}/versions": { get: { summary: "List template versions" } },

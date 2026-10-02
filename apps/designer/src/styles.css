@@ -665,6 +665,12 @@ textarea {
   font-size: 11px;
   color: var(--muted);
 }
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

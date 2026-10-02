@@ -6,18 +6,10 @@ import { createDefaultDataSourceRegistry } from "./datasources.js";
 import type { ReportRenderer } from "@reporting/core";
 import type { PluginRegistry } from "@reporting/plugin-sdk";
 import { createRendererRegistry } from "./renderers.js";
+import { materializeChildren, materializeLinkedImages } from "./linked-images.js";
+import { RenderPipelineError } from "./render-error.js";
 
-export class RenderPipelineError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly statusCode: number,
-    public readonly details?: unknown
-  ) {
-    super(message);
-    this.name = "RenderPipelineError";
-  }
-}
+export { RenderPipelineError } from "./render-error.js";
 
 export interface RunRenderInput {
   report: unknown;
@@ -42,6 +34,7 @@ export interface RenderRuntime {
   dataSources: DataSourceRegistry;
   functions?: Record<string, (...args: unknown[]) => unknown>;
   customComponents?: ReturnType<PluginRegistry["componentExpanders"]>;
+  imageAllowedHosts?: string[];
 }
 
 export function createRuntime(plugins?: PluginRegistry): RenderRuntime {
@@ -102,10 +95,17 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
     });
   }
 
+  const imageSources = await materializeLinkedImages(pipeline.resolved, runtime.imageAllowedHosts);
+  const resolvePageSection = (section: Parameters<typeof pipeline.resolvePageSection>[0], page: Parameters<typeof pipeline.resolvePageSection>[1]) => {
+    const children = pipeline.resolvePageSection(section, page);
+    materializeChildren(children, imageSources);
+    return children;
+  };
+
   const renderer = runtime.renderers[input.format]!;
   let result: RenderResult;
   try {
-    result = await renderer.render({ resolved: pipeline.resolved, resolvePageSection: pipeline.resolvePageSection });
+    result = await renderer.render({ resolved: pipeline.resolved, resolvePageSection });
   } catch (err) {
     throw new RenderPipelineError(describeError(err), "REPORT_RENDER_FAILED", 422, { renderId });
   }

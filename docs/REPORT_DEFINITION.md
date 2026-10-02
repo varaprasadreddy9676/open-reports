@@ -43,6 +43,12 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 | `fragment` | `ref` to `fragments[]` (reusable blocks) |
 | `custom` | `kind`, `props` — provided by a plugin |
 
+### Image sources
+
+An image `src` can be an embedded PNG/JPEG/WebP data URL, a file path readable by the reporting server, a `file://` URL, or an HTTP(S) image URL. The designer's **Embed image from file** action stores a copy in the report. Entering a path or URL stores only that reference; the server reads it again on every render, so replacing the image at the same location updates later output without editing the report. A path on a designer user's computer works only if the reporting server can access that same path. Relative paths are relative to the server's working directory; `~/` uses the server user's home directory.
+
+Linked files and URLs are limited to 5 MB and must contain PNG, JPEG, or WebP image bytes. Public URLs work by default. Private/internal URL hosts require `REPORT_IMAGE_ALLOWED_HOSTS`, a comma-separated list of permitted hostnames; when this is set, other URL hosts are rejected. Redirect targets are checked again. The preview endpoint requires the same API authentication as rendering.
+
 ## Datasets
 - `inline`: `{ "data": [...] }`
 - `json`: sandboxed file read.

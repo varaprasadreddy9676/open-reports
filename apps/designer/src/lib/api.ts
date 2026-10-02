@@ -116,6 +116,10 @@ export const api = {
   async capabilities(): Promise<{ formats: { id: string; supports: string[] }[]; fonts: string[]; scriptFonts: Record<string, string>; secrets: string[] }> {
     return (await request("/api/v1/capabilities")).json();
   },
+  async imageSource(src: string): Promise<string> {
+    const result = await (await request(`/api/v1/resources/image?src=${encodeURIComponent(src)}`, { cache: "no-store" })).json() as { dataUrl: string };
+    return result.dataUrl;
+  },
   async listBlocks(): Promise<{ id: string; name: string; children: any[] }[]> {
     return (await request("/api/v1/blocks")).json();
   },

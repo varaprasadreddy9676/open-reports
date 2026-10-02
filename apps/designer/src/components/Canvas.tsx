@@ -17,6 +17,7 @@ import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 import { PageBreakDetails } from "./PageBreakDetails";
 import { PdfPreview } from "./Preview";
 import { fitZoom } from "../lib/zoom";
+import { api } from "../lib/api";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
@@ -70,6 +71,24 @@ function BarcodeView({ value }: { value: string }) {
   );
 }
 
+function ImageView({ component, style }: { component: any; style: React.CSSProperties }) {
+  const linked = Boolean(component.src && !component.src.startsWith("data:"));
+  const [preview, setPreview] = useState<{ source: string; dataUrl?: string; error?: string } | null>(null);
+  useEffect(() => {
+    if (!linked) return;
+    let active = true;
+    api.imageSource(component.src).then(
+      (dataUrl) => { if (active) setPreview({ source: component.src, dataUrl }); },
+      (error) => { if (active) setPreview({ source: component.src, error: error instanceof Error ? error.message : String(error) }); },
+    );
+    return () => { active = false; };
+  }, [component.src, linked]);
+  if (!component.src) return <div data-cid={component.id} className="cn cn-placeholder" style={style}><span>Image</span></div>;
+  if (linked && preview?.source !== component.src) return <div data-cid={component.id} className="cn cn-placeholder" style={style}><span>Loading image…</span></div>;
+  if (linked && preview?.error) return <div data-cid={component.id} className="cn cn-placeholder" style={style} title={preview.error}><span>Image unavailable</span></div>;
+  return <img data-cid={component.id} className="cn" src={linked ? preview?.dataUrl : component.src} alt={component.alt ?? ""} style={{ ...style, objectFit: component.fit === "cover" ? "cover" : component.fit === "fill" || component.fit === "stretch" ? "fill" : "contain" }} />;
+}
+
 function NodeView({ node, k }: { node: PositionedNode; k: number }) {
   const c = node.component as any;
   const common = { "data-cid": c.id } as Record<string, any>;
@@ -85,13 +104,7 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
         </div>
       );
     case "image":
-      return c.src ? (
-        <img {...common} className="cn" src={c.src} alt={c.alt ?? ""} style={{ ...st, objectFit: c.fit === "cover" ? "cover" : c.fit === "fill" || c.fit === "stretch" ? "fill" : "contain" }} />
-      ) : (
-        <div {...common} className="cn cn-placeholder" style={st}>
-          <span>Image</span>
-        </div>
-      );
+      return <ImageView component={c} style={st} />;
     case "line":
       return <div {...common} className="cn" style={{ ...st, ...(c.orientation === "vertical" ? { borderLeft: `${k}px solid #000` } : { borderTop: `${k}px solid #000` }) }} />;
     case "rectangle":

@@ -17,7 +17,7 @@ To make your own A4 header in the designer:
 2. Add a **Row** from Components into that band. With 10 mm left/right A4
    margins, set its width to 190 mm. Use **Side by side**, **Center** alignment,
    and **Space between** distribution.
-3. Select the row and add an **Image**. Use **Upload image** in Properties to
+3. Select the row and add an **Image**. Use **Embed image from file** in Properties to
    choose a left logo above. Set its width and height.
 4. Select the row again to add editable **Text**, then another **Image** for a
    right logo. Resize and reorder the three children as needed.
