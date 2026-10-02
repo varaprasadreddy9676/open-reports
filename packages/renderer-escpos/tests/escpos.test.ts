@@ -54,6 +54,18 @@ describe("EscPosRenderer", () => {
     expect(total.length).toBeGreaterThan(40);
   });
 
+  it("prints both levels of an explicit merged table header", async () => {
+    const r = await render(receipt(80, [{
+      type: "table", dataset: "s.items", columns: [{ id: "n", header: "Name", binding: "row.n", width: "*" }, { id: "q", header: "Qty", binding: "row.q", width: 30 }],
+      headerRows: [[{ column: 0, text: "Sale", colSpan: 2 }], [{ column: 0, text: "Item" }, { column: 1, text: "Qty" }]],
+    }]));
+    const printed = ascii(r.content as Buffer);
+    expect(printed).toContain("Sale");
+    expect(printed).toContain("Item");
+    expect(printed).toContain("Paracetamol 500");
+    expect(r.warnings).toEqual([]);
+  });
+
   it.each([58, 80])("keeps all 500 items in order on a continuous %i mm receipt", async (width) => {
     const doc = receipt(width, [{
       type: "table", dataset: "s.items", columns: [

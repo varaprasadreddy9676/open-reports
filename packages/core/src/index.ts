@@ -13,3 +13,4 @@ export * from "./validator.js";
 export * from "./renderer.js";
 export * from "./walk.js";
 export * from "./bands.js";
+export * from "./table-header.js";

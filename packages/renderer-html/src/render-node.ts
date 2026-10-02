@@ -1,9 +1,6 @@
-import type {
-  ResolvedChartComponent,
-  ResolvedTableComponent,
-} from "@reporting/core";
+import { tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { defaultTextMeasurer, measureFooterHeight, measureHeaderHeight, measureRowHeight, resolveColumnWidths } from "@reporting/layout";
+import { defaultTextMeasurer, measureFooterHeight, measureHeaderRowHeights, measureRowHeight, resolveColumnWidths } from "@reporting/layout";
 import { escapeHtml } from "./escape.js";
 import { barcodeDataUrl, qrCodeDataUrl } from "./codes.js";
 import { chartTitle, renderChartSvg } from "./chart.js";
@@ -74,8 +71,9 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? table.rows.length;
 
+  const headerHeights = measureHeaderRowHeights(table, widths, defaultTextMeasurer);
   const headerRow = table.showHeader
-    ? `<thead><tr style="height:${ptToPx(measureHeaderHeight(table, defaultTextMeasurer)).toFixed(2)}px">${table.columns.map((c) => `<th style="text-align:${c.align ?? "left"};border-bottom:1px solid #000;padding:2px 4px;">${escapeHtml(c.header)}</th>`).join("")}</tr></thead>`
+    ? `<thead>${tableHeaderRows(table).map((cells, row) => `<tr style="height:${ptToPx(headerHeights[row]!).toFixed(2)}px">${cells.map((cell) => `<th${cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ""}${cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ""} style="text-align:${cell.align ?? "left"};${table.headerRows ? "border:1px solid #000;" : "border-bottom:1px solid #000;"}padding:2px 4px;">${escapeHtml(cell.text)}</th>`).join("")}</tr>`).join("")}</thead>`
     : "";
 
   const bodyRows = table.rows

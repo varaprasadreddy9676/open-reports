@@ -383,7 +383,7 @@ function placeTable(
   placer: TablePlacer
 ): void {
   const columnWidths = resolveColumnWidths(table, width);
-  const headerHeight = table.showHeader ? measureHeaderHeight(table, measurer) : 0;
+  const headerHeight = table.showHeader ? measureHeaderHeight(table, measurer, columnWidths) : 0;
   const footerHeight = table.showFooter ? measureFooterHeight(table, measurer) : 0;
   const nextPageHeight = () => pageHeightAt(pageCount());
   const tid = (table as any).id as string | undefined;

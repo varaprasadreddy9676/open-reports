@@ -1,6 +1,6 @@
-import type { ResolvedChartComponent, ResolvedTableComponent } from "@reporting/core";
+import { tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { measureFooterHeight, measureHeaderHeight, measureRowHeight, resolveColumnWidths, type TextMeasurer } from "@reporting/layout";
+import { measureFooterHeight, measureHeaderRowHeights, measureRowHeight, resolveColumnWidths, type TextMeasurer } from "@reporting/layout";
 import { renderChartSvg } from "@reporting/renderer-html";
 // @ts-expect-error -- svg-to-pdfkit ships no types
 import SVGtoPDF from "svg-to-pdfkit";
@@ -168,7 +168,8 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
   const widths = resolveColumnWidths(table, node.box.width);
   // Row heights come from the layout engine's own measurements so what is
   // drawn here occupies exactly the space pagination reserved for it.
-  const headerHeight = measureHeaderHeight(table, ctx.measurer);
+  const headerRowHeights = measureHeaderRowHeights(table, widths, ctx.measurer);
+  const headerHeight = headerRowHeights.reduce((sum, height) => sum + height, 0);
   const footerHeight = measureFooterHeight(table, ctx.measurer);
   const fontSize = (table.style?.fontSize as number | undefined) ?? 10;
   let y = node.box.y;
@@ -176,14 +177,17 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
   doc.lineWidth(0.5).strokeColor("#000000");
 
   if (table.showHeader) {
-    let x = node.box.x;
     doc.fontSize(fontSize).fillColor("#000000");
-    table.columns.forEach((col, i) => {
-      drawRuns(ctx, col.header, x + 2, y + 3, { width: widths[i]!.width - 4, align: (col.align as any) ?? "left", lineBreak: false }, ctx.defaultFamily, true, false);
-      x += widths[i]!.width;
-    });
+    tableHeaderRows(table).forEach((cells, row) => cells.forEach((cell) => {
+      const x = node.box.x + widths.slice(0, cell.column).reduce((sum, column) => sum + column.width, 0);
+      const cellY = y + headerRowHeights.slice(0, row).reduce((sum, height) => sum + height, 0);
+      const cellWidth = widths.slice(cell.column, cell.column + (cell.colSpan ?? 1)).reduce((sum, column) => sum + column.width, 0);
+      const cellHeight = headerRowHeights.slice(row, row + (cell.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0);
+      if (table.headerRows) doc.rect(x, cellY, cellWidth, cellHeight).stroke();
+      drawRuns(ctx, cell.text, x + 2, cellY + 3, { width: Math.max(1, cellWidth - 4), height: Math.max(1, cellHeight - 4), align: cell.align ?? "left" }, ctx.defaultFamily, true, false);
+    }));
     y += headerHeight;
-    doc.moveTo(node.box.x, y).lineTo(node.box.x + node.box.width, y).stroke();
+    if (!table.headerRows) doc.moveTo(node.box.x, y).lineTo(node.box.x + node.box.width, y).stroke();
   }
 
   const start = node.rowRange?.start ?? 0;

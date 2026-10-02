@@ -397,6 +397,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     ...base(component),
     type: "table",
     columns,
+    headerRows: component.headerRows,
     rows: resolvedRows,
     showHeader: component.showHeader ?? true,
     showFooter: component.showFooter ?? false,

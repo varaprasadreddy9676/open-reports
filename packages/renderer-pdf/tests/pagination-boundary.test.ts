@@ -11,6 +11,7 @@ interface Opts {
   page?: Record<string, unknown>;
   cell?: (i: number) => string;
   extraColumns?: boolean;
+  headerRows?: unknown[][];
 }
 
 function reportWith(n: number, o: Opts = {}) {
@@ -30,6 +31,7 @@ function reportWith(n: number, o: Opts = {}) {
             type: "table",
             dataset: "d",
             repeatHeaderOnPageBreak: true,
+            headerRows: o.headerRows,
             columns: [
               { id: "code", header: "COLHEAD", binding: "row.code", width: "*" },
               { id: "qty", header: "Qty", binding: "row.qty", width: 60, align: "right" },
@@ -119,4 +121,18 @@ describe("pagination boundaries (real PDF output)", () => {
     const mp = await render(reportWith(45, { cell: multi }));
     expect(mp.flatMap((p) => rowsOn(p))).toHaveLength(45);
   }, 120_000);
+
+  it("repeats both levels of a merged header on every PDF page", async () => {
+    const headerRows = [
+      [{ column: 0, text: "SALES GROUP", colSpan: 2 }],
+      [{ column: 0, text: "COLHEAD" }, { column: 1, text: "Qty" }],
+    ];
+    const pages = await render(reportWith(80, { headerRows }));
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.flatMap((page) => rowsOn(page))).toHaveLength(80);
+    for (const page of pages) {
+      expect(page).toContain("SALES GROUP");
+      expect(page).toContain("COLHEAD");
+    }
+  });
 });

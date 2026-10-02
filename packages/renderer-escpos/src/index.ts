@@ -1,4 +1,5 @@
 import type { RenderInput, RenderResult, RendererCapabilities, ReportRenderer, ResolvedComponent } from "@reporting/core";
+import { tableHeaderRows } from "@reporting/core";
 import { paginate } from "@reporting/layout";
 
 export const escposCapabilities: RendererCapabilities = {
@@ -138,7 +139,22 @@ export class EscPosRenderer implements ReportRenderer {
             const flex = fixed.filter((f: number | undefined) => f === undefined).length || 1;
             const widths: number[] = fixed.map((f: number | undefined) => f ?? Math.max(4, Math.floor((cols - used - (c.columns.length - 1 - 0)) / flex)));
             const fmt = (cells: string[]) => cells.map((cell, i) => pad(cell, widths[i]!, c.columns[i].align ?? "left")).join(" ").slice(0, cols);
-            if (c.showHeader) (out.raw(ESC, 0x45, 1), out.line(fmt(c.columns.map((k: any) => k.header)), warn), out.raw(ESC, 0x45, 0), out.line("-".repeat(cols), warn));
+            if (c.showHeader) {
+              out.raw(ESC, 0x45, 1);
+              if (c.headerRows) {
+                for (const cells of tableHeaderRows(c)) {
+                  const line = Array<string>(cols).fill(" ");
+                  for (const cell of cells) {
+                    const start = widths.slice(0, cell.column).reduce((sum, width) => sum + width + 1, 0);
+                    const spanWidth = widths.slice(cell.column, cell.column + (cell.colSpan ?? 1)).reduce((sum, width) => sum + width, 0) + (cell.colSpan ?? 1) - 1;
+                    const value = pad(cell.text, spanWidth, cell.align ?? "left");
+                    for (let i = 0; i < value.length && start + i < cols; i++) line[start + i] = value[i]!;
+                  }
+                  out.line(line.join("").trimEnd(), warn);
+                }
+              } else out.line(fmt(c.columns.map((k: any) => k.header)), warn);
+              out.raw(ESC, 0x45, 0).line("-".repeat(cols), warn);
+            }
             for (const row of c.rows) out.line(fmt(c.columns.map((k: any) => String(row.formatted[k.id] ?? ""))), warn);
             if (c.showFooter) (out.line("-".repeat(cols), warn), out.line(fmt(c.columns.map((k: any) => String(k.footer?.value ?? ""))), warn));
             break;

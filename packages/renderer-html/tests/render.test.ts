@@ -105,6 +105,24 @@ describe("HtmlRenderer", () => {
     expect(theadCount).toBe(pageCount); // header repeated on every page
   });
 
+  it("renders multi-level header spans on each paginated page", async () => {
+    const doc = {
+      ...invoiceReport,
+      page: { size: "custom", width: 300, height: 320, unit: "pt", orientation: "portrait", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      datasets: [{ id: "items", source: "inline", query: { data: Array.from({ length: 40 }, (_, i) => ({ description: `Item ${i}`, price: i })) } }],
+      sections: [{ type: "detail", children: [{
+        type: "table", dataset: "items", columns: [{ id: "description", header: "Item", binding: "row.description" }, { id: "price", header: "Price", binding: "row.price" }],
+        headerRows: [[{ column: 0, text: "Sale", colSpan: 2 }], [{ column: 0, text: "Item" }, { column: 1, text: "Price" }]],
+      }] }],
+    };
+    const html = String((await renderReport(doc)).content);
+    const pageCount = (html.match(/class="page"/g) ?? []).length;
+    expect(pageCount).toBeGreaterThan(1);
+    expect((html.match(/colspan="2"/g) ?? []).length).toBe(pageCount);
+    expect((html.match(/<thead>/g) ?? []).length).toBe(pageCount);
+    expect((html.match(/<th(?:\s|>)/g) ?? []).length).toBe(pageCount * 3);
+  });
+
   it("renders a chart as inline SVG", async () => {
     const withChart = {
       ...invoiceReport,

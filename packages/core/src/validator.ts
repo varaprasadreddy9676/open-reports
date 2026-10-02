@@ -1,6 +1,7 @@
 import type { ReportDefinition } from "@reporting/schema";
 import { Parser } from "@reporting/expressions";
 import type { Component } from "./resolve-component.js";
+import { tableHeaderGridErrors } from "./table-header.js";
 
 export interface ValidationIssue {
   severity: "error" | "warning";
@@ -158,6 +159,11 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
   }
 
   if (component.type === "table") {
+    if (component.headerRows) {
+      for (const message of tableHeaderGridErrors(component.columns?.length ?? 0, component.headerRows)) {
+        ctx.issues.push({ severity: "error", code: "INVALID_TABLE_HEADER", path: `${path}.headerRows`, message, componentId: component.id });
+      }
+    }
     for (const col of component.columns ?? []) {
       for (const field of ["binding", "expression"] as const) {
         if (typeof col[field] === "string") {

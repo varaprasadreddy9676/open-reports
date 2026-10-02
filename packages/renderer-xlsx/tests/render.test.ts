@@ -76,6 +76,24 @@ describe("XlsxRenderer", () => {
     expect(sheet.views?.[0]?.state).toBe("frozen");
   });
 
+  it("merges horizontal and vertical multi-level headers and keeps typed data below them", async () => {
+    const t = table({ headerRows: [
+      [{ column: 0, text: "Product", rowSpan: 2 }, { column: 1, text: "Sale", colSpan: 2 }],
+      [{ column: 1, text: "Amount" }, { column: 2, text: "Date" }],
+    ] });
+    const result = await new XlsxRenderer().render({ resolved: report([t]), resolvePageSection: (s) => s.children });
+    const sheet = (await loadWorkbook(result.content as Buffer)).worksheets[0]!;
+    expect(sheet.getCell("A1").value).toBe("Product");
+    expect(sheet.getCell("B1").value).toBe("Sale");
+    expect(sheet.getCell("B2").value).toBe("Amount");
+    expect(sheet.getCell("C2").value).toBe("Date");
+    expect(sheet.getCell("A2").isMerged).toBe(true);
+    expect(sheet.getCell("C1").isMerged).toBe(true);
+    expect(sheet.getCell("A3").value).toBe("Widget");
+    expect(sheet.getCell("B3").value).toBe(1000);
+    expect(sheet.views?.[0]?.ySplit).toBe(2);
+  });
+
   it("writes footer totals as real numbers (not formatted strings)", async () => {
     const t = table({
       showFooter: true,

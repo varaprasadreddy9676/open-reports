@@ -2,6 +2,7 @@ import { PassThrough } from "node:stream";
 import ExcelJS from "exceljs";
 import type { RenderInput, RenderResult, RendererCapabilities, ReportRenderer, ResolvedTableComponent } from "@reporting/core";
 import { findComponentsByType } from "@reporting/core";
+import { tableHeaderRows } from "@reporting/core";
 import { excelNumberFormat } from "./formats.js";
 import { sanitizeSheetName } from "./sheet-name.js";
 
@@ -47,9 +48,10 @@ export class XlsxRenderer implements ReportRenderer {
     tables.forEach((table, index) => {
       const preferredName = index === 0 ? input.resolved.exports?.xlsx?.sheetName ?? table.id ?? (table as any).dataset : table.id ?? (table as any).dataset;
       const t = table as ResolvedTableComponent;
+      const headerCount = t.showHeader ? (t.headerRows?.length ?? 1) : 0;
       const sheet = workbook.addWorksheet(sanitizeSheetName(preferredName ?? `Table ${index + 1}`, index, usedNames), {
-        views: t.showHeader ? [{ state: "frozen", ySplit: 1 }] : undefined,
-        autoFilter: t.showHeader && t.columns.length > 0 ? { from: { row: 1, column: 1 }, to: { row: 1, column: t.columns.length } } : undefined,
+        views: headerCount ? [{ state: "frozen", ySplit: headerCount }] : undefined,
+        autoFilter: headerCount && t.columns.length > 0 ? { from: { row: headerCount, column: 1 }, to: { row: headerCount, column: t.columns.length } } : undefined,
       } as any);
       writeTable(sheet, t, warnings);
     });
@@ -69,19 +71,38 @@ export class XlsxRenderer implements ReportRenderer {
 
 function writeTable(sheet: ExcelJS.Worksheet, table: ResolvedTableComponent, warnings: RenderResult["warnings"]): void {
   sheet.columns = table.columns.map((col) => ({
-    header: col.header,
+    header: table.showHeader && !table.headerRows ? col.header : undefined,
     key: col.id,
     width: Math.max(10, col.header.length + 4),
   }));
 
   if (table.showHeader) {
-    const headerRow = sheet.getRow(1);
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true };
-      cell.fill = HEADER_FILL;
-      cell.border = THIN_BORDER;
-    });
-    headerRow.commit();
+    if (table.headerRows) {
+      const rows = tableHeaderRows(table);
+      rows.forEach((cells, row) => cells.forEach((cell) => {
+        if ((cell.colSpan ?? 1) > 1 || (cell.rowSpan ?? 1) > 1) sheet.mergeCells(row + 1, cell.column + 1, row + (cell.rowSpan ?? 1), cell.column + (cell.colSpan ?? 1));
+      }));
+      rows.forEach((cells, row) => {
+        const headerRow = sheet.getRow(row + 1);
+        cells.forEach((cell) => {
+          const x = headerRow.getCell(cell.column + 1);
+          x.value = cell.text;
+          x.alignment = { horizontal: cell.align ?? "left", vertical: "middle", wrapText: true };
+          x.font = { bold: true };
+          x.fill = HEADER_FILL;
+          x.border = THIN_BORDER;
+        });
+        headerRow.commit();
+      });
+    } else {
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.fill = HEADER_FILL;
+        cell.border = THIN_BORDER;
+      });
+      headerRow.commit();
+    }
   }
 
   table.rows.forEach((row, i) => {

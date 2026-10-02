@@ -163,6 +163,15 @@ export interface ResolvedTableColumn {
   footer?: { label?: string; value: string; raw?: unknown };
 }
 
+export interface ResolvedTableHeaderCell {
+  /** Zero-based starting column. */
+  column: number;
+  text: string;
+  colSpan?: number;
+  rowSpan?: number;
+  align?: "left" | "center" | "right";
+}
+
 export interface ResolvedTableRow {
   /** Raw per-column values, keyed by column id -- used by XLSX/CSV for correct cell types. */
   raw: Record<string, unknown>;
@@ -175,6 +184,8 @@ export interface ResolvedTableRow {
 export interface ResolvedTableComponent extends ResolvedComponentBase {
   type: "table";
   columns: ResolvedTableColumn[];
+  /** Omitted for the legacy single header row from columns[].header. */
+  headerRows?: ResolvedTableHeaderCell[][];
   rows: ResolvedTableRow[];
   showHeader: boolean;
   showFooter: boolean;

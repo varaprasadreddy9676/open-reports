@@ -4,6 +4,7 @@ import type {
   ResolvedContainerComponent,
   ResolvedGroupComponent,
 } from "@reporting/core";
+import { tableHeaderRows } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
 import { wrapLineCount, type TextStyleHint } from "./measure.js";
 import { resolveDimension } from "./units.js";
@@ -306,8 +307,23 @@ export function measureRowHeight(table: ResolvedTableComponent, rowIndex: number
   return maxLines * measurer.lineHeight(fontSize) + ROW_PADDING;
 }
 
-export function measureHeaderHeight(table: ResolvedTableComponent, measurer: TextMeasurer): number {
-  return measurer.lineHeight(styleFontSize(table)) + HEADER_FOOTER_PADDING;
+export function measureHeaderRowHeights(table: ResolvedTableComponent, columnWidths: ColumnWidth[], measurer: TextMeasurer): number[] {
+  const fontSize = styleFontSize(table);
+  const lineHeight = measurer.lineHeight(fontSize);
+  const rows = tableHeaderRows(table);
+  const heights = rows.map(() => lineHeight + HEADER_FOOTER_PADDING);
+  rows.forEach((cells, row) => cells.forEach((cell) => {
+    const span = cell.rowSpan ?? 1;
+    const width = columnWidths.slice(cell.column, cell.column + (cell.colSpan ?? 1)).reduce((sum, column) => sum + column.width, 0);
+    const required = wrapLineCount(cell.text, Math.max(1, width - 4), fontSize, measurer) * lineHeight + HEADER_FOOTER_PADDING;
+    const current = heights.slice(row, row + span).reduce((sum, height) => sum + height, 0);
+    if (required > current) heights[row + span - 1]! += required - current;
+  }));
+  return heights;
+}
+
+export function measureHeaderHeight(table: ResolvedTableComponent, measurer: TextMeasurer, columnWidths: ColumnWidth[]): number {
+  return measureHeaderRowHeights(table, columnWidths, measurer).reduce((sum, height) => sum + height, 0);
 }
 
 export function measureFooterHeight(table: ResolvedTableComponent, measurer: TextMeasurer): number {
@@ -317,7 +333,7 @@ export function measureFooterHeight(table: ResolvedTableComponent, measurer: Tex
 function layoutTable(table: ResolvedTableComponent, box: Box, measurer: TextMeasurer, width: number): PositionedNode {
   const columnWidths = resolveColumnWidths(table, width);
   let y = box.y;
-  if (table.showHeader) y += measureHeaderHeight(table, measurer);
+  if (table.showHeader) y += measureHeaderHeight(table, measurer, columnWidths);
   for (let i = 0; i < table.rows.length; i++) {
     y += measureRowHeight(table, i, columnWidths, measurer);
   }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { resolveColumnWidths, type PositionedNode } from "@reporting/layout";
+import { defaultTextMeasurer, measureHeaderRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
+import { tableHeaderRows } from "@reporting/core";
 import { renderChartSvg } from "@reporting/renderer-html/chart";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
@@ -131,6 +132,7 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
 function TableView({ node, k }: { node: PositionedNode; k: number }) {
   const t = node.component as any;
   const widths = resolveColumnWidths(t, node.box.width);
+  const headerHeights = measureHeaderRowHeights(t, widths, defaultTextMeasurer);
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? t.rows.length;
   const fs = ((t.style?.fontSize as number) ?? 10) * k;
@@ -143,13 +145,11 @@ function TableView({ node, k }: { node: PositionedNode; k: number }) {
       </colgroup>
       {t.showHeader && (
         <thead>
-          <tr>
-            {t.columns.map((c: any) => (
-              <th key={c.id} style={{ textAlign: c.align ?? "left", borderBottom: `${k}px solid #000`, padding: `${2 * k}px ${4 * k}px`, fontWeight: 700 }}>
-                {c.header}
-              </th>
-            ))}
-          </tr>
+          {tableHeaderRows(t).map((cells, row) => <tr key={row} style={{ height: headerHeights[row]! * k }}>
+            {cells.map((cell) => <th key={cell.column} colSpan={cell.colSpan} rowSpan={cell.rowSpan} style={{ textAlign: cell.align ?? "left", border: t.headerRows ? `${k}px solid #000` : undefined, borderBottom: `${k}px solid #000`, padding: `${2 * k}px ${4 * k}px`, fontWeight: 700 }}>
+              {cell.text}
+            </th>)}
+          </tr>)}
         </thead>
       )}
       <tbody>

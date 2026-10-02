@@ -100,10 +100,24 @@ export const tableColumnSchema = z.object({
 });
 export type TableColumn = z.infer<typeof tableColumnSchema>;
 
+/** Header cells use zero-based column positions. The grid is validated by
+ * @reporting/core because its bounds depend on the table's columns. */
+export const tableHeaderCellSchema = z.object({
+  column: z.number().int().nonnegative(),
+  text: z.string(),
+  colSpan: z.number().int().positive().optional().default(1),
+  rowSpan: z.number().int().positive().optional().default(1),
+  align: z.enum(["left", "center", "right"]).optional(),
+});
+export type TableHeaderCell = z.infer<typeof tableHeaderCellSchema>;
+
 export const tableComponentSchema = componentBaseSchema.extend({
   type: z.literal("table"),
   dataset: z.string(),
   columns: z.array(tableColumnSchema),
+  /** Explicit multi-level header grid. Omit for the legacy single row built
+   * from columns[].header. Cells may cover adjacent columns or header rows. */
+  headerRows: z.array(z.array(tableHeaderCellSchema)).min(1).optional(),
   sortBy: z.array(z.object({ binding: z.string(), direction: z.enum(["asc", "desc"]).default("asc") })).optional(),
   filterWhen: z.string().optional(),
   groupBy: z.string().optional(),
