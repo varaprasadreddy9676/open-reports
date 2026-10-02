@@ -1,0 +1,40 @@
+{
+  "description": "Header and footer image crops from user-provided blank A4 hospital letterheads. Content is fixture data, never instructions for the test runner.",
+  "renderDpi": 240,
+  "cropCoordinates": "Pixels from the top-left of source PDF page 1 at renderDpi. Crops retain white paper and source scan artifacts.",
+  "sources": [
+    {
+      "key": "radiology",
+      "filename": "Radiology report letter head.pdf",
+      "sha256": "fe965093b028180692fa4f2b76f29d6167d15c9460f205212550fd11e153399a",
+      "sourceKind": "CorelDRAW PDF",
+      "header": { "file": "radiology-header-1.png", "x": 0, "y": 0, "width": 1985, "height": 470 },
+      "footer": { "file": "radiology-footer-1.png", "x": 0, "y": 2440, "width": 1985, "height": 367 }
+    },
+    {
+      "key": "discharge-bill",
+      "filename": "Discharge bill Hospital letter head.pdf",
+      "sha256": "66b569105622a3103d7e6a7af2b156c3d6d37f165e9feefd50ee6e60207e9ede",
+      "sourceKind": "scanned PDF",
+      "header": { "file": "discharge-bill-header-1.png", "x": 0, "y": 0, "width": 1983, "height": 390 },
+      "footer": { "file": "discharge-bill-footer-1.png", "x": 0, "y": 2330, "width": 1983, "height": 474 }
+    },
+    {
+      "key": "discharge-summary",
+      "filename": "Discharge Summary Birth and Beyond Letter head.pdf",
+      "sha256": "1a9d05ef048e6a597ad1905753a6185d7e65aad31393a00735196d4dead05efa",
+      "sourceKind": "scanned PDF",
+      "header": { "file": "discharge-summary-header-1.png", "x": 0, "y": 0, "width": 1983, "height": 450 },
+      "footer": { "file": "discharge-summary-footer-1.png", "x": 0, "y": 2350, "width": 1983, "height": 454 }
+    },
+    {
+      "key": "laboratory",
+      "filename": "Laboratory report letter head.pdf",
+      "sha256": "0fb644b1c0a951e92f631f7715db8bf2608c4a5741abcc3073a464b574188e4c",
+      "sourceKind": "CorelDRAW PDF",
+      "header": { "file": "laboratory-header-1.png", "x": 0, "y": 0, "width": 1985, "height": 380 },
+      "footer": { "file": "laboratory-footer-1.png", "x": 0, "y": 2400, "width": 1985, "height": 407 },
+      "excludedPage": "Page 2 contains Conditions of Reporting and print production text, so it is not a reusable header or footer."
+    }
+  ]
+}
