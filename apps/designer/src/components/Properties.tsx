@@ -6,15 +6,13 @@ import { candidatesFor, type Candidate } from "../lib/bindings";
 import { datasetValue, datasetFields, scalarFields, inferFields, arrayRefs } from "../lib/fields";
 import { Icon } from "./Icon";
 import { BandProps } from "./BandProps";
-import { TableHeaderEditor } from "./TableHeaderEditor";
-import { TableBodyEditor } from "./TableBodyEditor";
 import { FormulaInput } from "./FormulaInput";
 import { InspectorSection as Section } from "./InspectorSection";
-import { appendHeaderColumn, removeHeaderColumn } from "../lib/table-header";
+import { removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
-import { findComponentsByType } from "@reporting/core";
 import { fitZoom } from "../lib/zoom";
 import { SpacingFields } from "./SpacingFields";
+import { InspectorActions } from "./InspectorActions";
 
 // ------------------------------------------------------------------ small controls
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -581,16 +579,9 @@ export function ColumnEditor({ table, col, index }: { table: ops.Comp; col: any;
 }
 
 function TableProps({ comp }: { comp: ops.Comp }) {
-  const { doc, sample, engine } = useStore();
+  const { doc, sample } = useStore();
   const patch = useStore((s) => s.patch);
   const refs = arrayRefs(doc, sample);
-  const resolvedTable = engine.resolved ? findComponentsByType(engine.resolved, "table").find((table) => table.id === comp.id) : undefined;
-  const flag = (key: string, label: string, def = false) => (
-    <label className="check" key={key}>
-      <input type="checkbox" data-testid={`flag-${key}`} checked={comp[key] ?? def} onChange={(e) => patch(comp.id, { [key]: e.target.checked })} />
-      {label}
-    </label>
-  );
   const generate = () => {
     const fields = scalarFields(datasetFields(doc, sample, comp.dataset));
     patch(comp.id, {
@@ -607,8 +598,14 @@ function TableProps({ comp }: { comp: ops.Comp }) {
   };
   return (
     <>
-      <div className="table-edit-entry"><button className="btn primary" data-testid="open-table-designer" onClick={() => useStore.getState().set({ tableEditId: comp.id })}>Edit table</button><span className="muted small">Double-click the table on the canvas</span></div>
-      <Section title="Data">
+      <div className="table-edit-entry">
+        <div className="table-edit-summary" data-testid="table-summary">
+          <strong>Table structure</strong>
+          <span>{comp.columns?.length ?? 0} columns · {comp.headerRows?.length ?? 1} header {comp.headerRows?.length === 1 || !comp.headerRows ? "level" : "levels"} · {comp.cellSpans?.length ?? 0} merges</span>
+        </div>
+        <button className="btn primary" data-testid="open-table-designer" onClick={() => useStore.getState().set({ tableEditId: comp.id })}>Edit table</button>
+      </div>
+      <Section title="Data" summary={comp.dataset || "Choose a dataset"}>
         <Field label="Dataset">
           <select aria-label="Table dataset" data-testid="table-dataset" value={comp.dataset ?? ""} onChange={(e) => patch(comp.id, { dataset: e.target.value })}>
             <option value="">Choose...</option>
@@ -621,52 +618,6 @@ function TableProps({ comp }: { comp: ops.Comp }) {
         <button className="btn" data-testid="generate-columns" onClick={generate} disabled={!comp.dataset}>
           Generate columns from data
         </button>
-      </Section>
-      <Section title={`Columns (${comp.columns?.length ?? 0})`}>
-        {(comp.columns ?? []).map((c: any, i: number) => (
-          <ColumnEditor key={i} table={comp} col={c} index={i} />
-        ))}
-        <button className="btn" data-testid="add-column" onClick={() => patch(comp.id, { columns: [...(comp.columns ?? []), { id: `col-${(comp.columns ?? []).length + 1}`, header: "New column", binding: "row.value" }], ...(comp.headerRows ? { headerRows: appendHeaderColumn(comp.headerRows, (comp.columns ?? []).length, "New column") } : {}) })}>
-          + Add column
-        </button>
-      </Section>
-      <Section title="Header grid" open={false} summary={comp.headerRows ? `${comp.headerRows.length} levels` : "1 level"}>
-        <TableHeaderEditor columns={comp.columns ?? []} headerRows={comp.headerRows} onChange={(headerRows) => patch(comp.id, { headerRows })} />
-      </Section>
-      <Section title="Body cell merges" open={false} summary={comp.cellSpans?.length ? `${comp.cellSpans.length} merges` : "None"}>
-        <TableBodyEditor columns={resolvedTable?.columns ?? []} rows={resolvedTable?.rows ?? []} spans={comp.cellSpans ?? []} onChange={(cellSpans) => patch(comp.id, { cellSpans })} />
-      </Section>
-      <Section title="Pagination & rows" open={false}>
-        {flag("showHeader", "Show header", true)}
-        {flag("repeatHeaderOnPageBreak", "Repeat header on every page", true)}
-        {flag("showFooter", "Show totals row")}
-        {flag("keepRowTogether", "Never split a row across pages", true)}
-        {flag("alternateRowStyle", "Zebra stripes")}
-        <div className="grid2">
-          <Field label="Min rows before break">
-            <Num label="Min rows before break" min={0} value={comp.minRowsBeforeBreak} onChange={(v) => patch(comp.id, { minRowsBeforeBreak: v })} />
-          </Field>
-          <Field label="Min rows after break">
-            <Num label="Min rows after break" min={0} value={comp.minRowsAfterBreak} onChange={(v) => patch(comp.id, { minRowsAfterBreak: v })} />
-          </Field>
-        </div>
-      </Section>
-      <Section title="Highlight rows" open={false} summary={comp.rowStyleWhen?.length ? `${comp.rowStyleWhen.length} rules` : "None"}>
-        <StyleRulesEditor comp={comp} property="rowStyleWhen" dataset={comp.dataset} testId="row-style-rules" />
-      </Section>
-      <Section title="When there is no data" open={false}>
-        <Field label="Show" wide>
-          <select aria-label="Empty state" value={comp.emptyState ?? "headers"} onChange={(e) => patch(comp.id, { emptyState: e.target.value })}>
-            <option value="headers">Headers only</option>
-            <option value="message">A message</option>
-            <option value="hide">Hide the table</option>
-          </select>
-        </Field>
-        {comp.emptyState === "message" && (
-          <Field label="Message" wide>
-            <input aria-label="Empty message" value={comp.emptyMessage ?? ""} placeholder="No records found" onChange={(e) => patch(comp.id, { emptyMessage: e.target.value })} />
-          </Field>
-        )}
       </Section>
       <Section title="Typography" open={false}>
         <Typography comp={comp} />
@@ -899,7 +850,7 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
   );
   return (
     <>
-      <Section title="Layout">
+      <Section title="Layout" open={comp.type !== "table"}>
         {isContainer && (
           <Field label="Arrange children">
             <select aria-label="Layout" value={comp.layout ?? (comp.type === "row" ? "row" : comp.type === "grid" ? "grid" : "flow")} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
@@ -1322,17 +1273,12 @@ function ComponentProps({ id }: { id: string }) {
       <div className="prop-head">
         <Icon name={t === "chart" ? `chart-${comp.chartType}` : t} />
         <input className="name-input" data-testid="component-name" aria-label="Element name" placeholder={ops.layerName({ ...comp, name: undefined })} value={comp.name ?? ""} onChange={(e) => useStore.getState().rename(comp.id, e.target.value)} />
-        <span className="muted small">{t}</span>
         <span className="spacer" />
-        <button className="mini" data-testid="open-in-code" title="Open this element in the code editor" onClick={() => useStore.getState().openCode(comp.id)}>
-          {"</>"}
-        </button>
-        <button className="mini" aria-label="Duplicate" onClick={() => useStore.getState().duplicateSelected()}>
-          ⧉
-        </button>
-        <button className="mini danger" aria-label="Delete" data-testid="delete-selected" onClick={() => useStore.getState().removeSelected()}>
-          🗑
-        </button>
+        <InspectorActions label="Element actions">
+          <button data-testid="open-in-code" onClick={() => useStore.getState().openCode(comp.id)}>Open in code</button>
+          <button onClick={() => useStore.getState().duplicateSelected()}>Duplicate element</button>
+          <button className="danger" data-testid="delete-selected" onClick={() => useStore.getState().removeSelected()}>Delete element</button>
+        </InspectorActions>
       </div>
       {(t === "text" || t === "richText" || t === "field") && <TextProps comp={comp} />}
       {t === "table" && <TableProps comp={comp} />}
@@ -1371,7 +1317,7 @@ export function Properties() {
       <div className="compact-properties-head">Properties<button className="compact-close" type="button" aria-label="Close properties" onClick={() => useStore.getState().set({ rightOpen: false })}>×</button></div>
       {selection.length === 0 && selectedBand !== null && <BandProps key={selectedBand} index={selectedBand} />}
       {selection.length === 0 && selectedBand === null && <PageProps />}
-      {selection.length === 1 && <ComponentProps id={selection[0]!} />}
+      {selection.length === 1 && <ComponentProps key={selection[0]} id={selection[0]!} />}
       {selection.length > 1 && <MultiProps ids={selection} />}
     </aside>
   );

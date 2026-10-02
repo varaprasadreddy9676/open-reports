@@ -7,6 +7,7 @@ import { useStore } from "../store";
 import { FormulaInput } from "./FormulaInput";
 import { InspectorSection } from "./InspectorSection";
 import { SpacingFields, type SpacingValue } from "./SpacingFields";
+import { InspectorActions } from "./InspectorActions";
 
 const PAGE_TYPES: readonly string[] = PAGE_BAND_TYPES;
 const DATA_TYPES = ["dataHeader", "groupHeader", "detail", "child", "groupFooter", "dataFooter", "noData"];
@@ -66,18 +67,20 @@ export function BandProps({ index }: { index: number }) {
     <div className="prop-head">
       <strong>{ops.BAND_TITLES[band.type] ?? band.type}</strong>
       <span className="spacer" />
-      <button className="mini" aria-label={band.locked ? "Unlock band layout" : "Lock band layout"} data-testid="band-lock" onClick={() => update({ locked: !band.locked })}>{band.locked ? "🔒" : "🔓"}</button>
-      <button className="mini" aria-label="Duplicate band" data-testid="duplicate-band" disabled={!!band.locked} onClick={() => {
+      <InspectorActions label="Band actions">
+      <button data-testid="band-lock" onClick={() => update({ locked: !band.locked })}>{band.locked ? "Unlock layout" : "Lock layout"}</button>
+      <button data-testid="duplicate-band" disabled={!!band.locked} onClick={() => {
         const st = useStore.getState();
         const next = ops.duplicateBand(st.doc, index);
         st.setDoc(next.doc);
         st.set({ selectedBand: next.index });
-      }}>⧉</button>
-      <button className="mini danger" aria-label="Delete band" data-testid="delete-band" disabled={!!band.locked} onClick={() => {
+      }}>Duplicate band</button>
+      <button className="danger" data-testid="delete-band" disabled={!!band.locked} onClick={() => {
         const st = useStore.getState();
         st.setDoc(ops.removeSection(st.doc, index));
         st.set({ selectedBand: null });
-      }}>🗑</button>
+      }}>Delete band</button>
+      </InspectorActions>
     </div>
 
     <InspectorSection title="General">

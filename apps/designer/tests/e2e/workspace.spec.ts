@@ -608,12 +608,13 @@ test("table: highlight rows rule and empty-state options write to the report", a
   await page.goto("/");
   await page.getByTestId("starter-lab-report").click();
   await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
-  if (await page.getByTestId("row-style-rules-add").count() === 0) await page.getByRole("button", { name: /Highlight rows/ }).click();
-  await page.getByTestId("row-style-rules-add").click();
+  await page.getByTestId("open-table-designer").click();
+  await page.getByTestId("table-tab-conditions").click();
+  await page.getByTestId("table-designer-row-rules-add").click();
   await page.getByLabel("Rule 2 field").selectOption("row.value");
   await page.getByLabel("Rule 2 operator").selectOption("gt");
   await page.getByLabel("Rule 2 value").fill("100");
-  await page.getByTestId("row-style-rules-add").click();
+  await page.getByTestId("table-designer-row-rules-add").click();
   await page.getByLabel("Rule 3 field").selectOption("row.value");
   await page.getByLabel("Rule 3 operator").selectOption("lt");
   await page.getByLabel("Rule 3 value").fill("0");
@@ -627,7 +628,7 @@ test("table: highlight rows rule and empty-state options write to the report", a
   await page.getByRole("button", { name: "Move rule 3 up" }).click();
   const reordered = (await page.evaluate(() => (window as any).__designer.getState().doc)).sections.flatMap((section: any) => section.children).find((child: any) => child.id === "results").rowStyleWhen;
   expect(reordered.map((rule: any) => rule.when)).toEqual(["row.value < row.low || row.value > row.high", "row.value < 0", "row.value > 100"]);
-  await page.getByRole("button", { name: /When there is no data/ }).click();
+  await page.getByTestId("table-tab-rows").click();
   await page.getByLabel("Empty state").selectOption("message");
   expect(JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc))).toContain('"emptyState":"message"');
 });
@@ -666,7 +667,8 @@ test("table header grid: add a level, split and merge cells, then edit the label
   await page.goto("/");
   await page.getByTestId("starter-lab-report").click();
   await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
-  await page.getByRole("button", { name: /Header grid/ }).click();
+  await page.getByTestId("open-table-designer").click();
+  await page.getByTestId("table-tab-header").click();
   await page.getByTestId("header-add-level").click();
   await expect(page.getByTestId("header-cell-0-0")).toContainText("Group");
   await page.getByTestId("header-cell-0-0").click();
@@ -677,15 +679,20 @@ test("table header grid: add a level, split and merge cells, then edit the label
   await page.getByLabel("Selected header text").fill("Test panel");
   const d = JSON.stringify(await doc(page));
   expect(d).toContain('"text":"Test panel","colSpan":2');
+  await page.getByTestId("table-designer-done").click();
   await expect(page.locator(".cn-table thead").first()).toContainText("Test panel");
   const originalColumns = await page.evaluate(() => {
     const s = (window as any).__designer.getState();
     const find = (list: any[]): any => list.flatMap((item) => item.children ?? []).find((item) => item.id === "results");
     return find(s.doc.sections).columns.length;
   });
-  await page.getByTestId("add-column").click();
+  await page.getByTestId("open-table-designer").click();
+  await page.getByTestId("table-designer-add-column").click();
+  await page.getByTestId("table-tab-header").click();
   await expect(page.getByTestId(`header-cell-0-${originalColumns}`)).toBeVisible();
+  await page.getByTestId("table-tab-columns").click();
   await page.getByTestId(`column-${originalColumns}`).getByLabel("Remove column").click();
+  await page.getByTestId("table-tab-header").click();
   await expect(page.getByTestId(`header-cell-0-${originalColumns}`)).toHaveCount(0);
 });
 
@@ -693,14 +700,19 @@ test("table body grid: merge and split rows using resolved sample data", async (
   await page.goto("/");
   await page.getByTestId("starter-lab-report").click();
   await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
-  await page.getByRole("button", { name: /Body cell merges/ }).click();
+  await page.getByTestId("open-table-designer").click();
+  await page.getByTestId("table-tab-rows").click();
   await expect(page.getByTestId("body-cell-1-0")).toBeVisible();
   await page.getByTestId("body-cell-0-0").click();
   await page.getByTestId("body-cell-1-0").click();
   await page.getByTestId("body-merge").click();
   expect(JSON.stringify(await doc(page))).toContain('"cellSpans":[{"row":0,"column":0,"rowSpan":2,"colSpan":1}]');
+  await page.getByTestId("table-designer-done").click();
   await expect(page.locator(".cn-table tbody td[rowspan='2']").first()).toBeVisible();
+  await page.getByTestId("open-table-designer").click();
+  await page.getByTestId("table-tab-rows").click();
   await page.getByTestId("body-cell-0-0").click();
   await page.getByTestId("body-split").click();
+  await page.getByTestId("table-designer-done").click();
   await expect(page.locator(".cn-table tbody td[rowspan='2']")).toHaveCount(0);
 });

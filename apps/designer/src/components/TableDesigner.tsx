@@ -106,7 +106,17 @@ export function TableDesigner({ id }: { id: string }) {
           <button className="btn" data-testid="table-designer-add-column" onClick={() => patch(id, { columns: [...table.columns, { id: `col-${Date.now()}`, header: "New column", binding: "row.value" }], ...(table.headerRows ? { headerRows: appendHeaderColumn(table.headerRows, table.columns.length, "New column") } : {}) })}>+ Add column</button>
         </>}
         {tab === "header" && <>{flag("showHeader", "Show table header", true)}{flag("repeatHeaderOnPageBreak", "Repeat header on every page", true)}<p className="muted small">Edit the header grid on the canvas. Its levels and merged cells print with the table.</p></>}
-        {tab === "rows" && <>{flag("alternateRowStyle", "Zebra stripes")}{flag("keepRowTogether", "Keep each row together", true)}<p className="muted small">Cell merges use resolved sample row positions. Recheck them if you change sorting or filtering.</p></>}
+        {tab === "rows" && <>
+          {flag("alternateRowStyle", "Zebra stripes")}
+          {flag("keepRowTogether", "Keep each row together", true)}
+          <label className="field"><span className="field-label">When there is no data</span>
+            <select aria-label="Empty state" value={table.emptyState ?? "headers"} onChange={(event) => patch(id, { emptyState: event.target.value })}>
+              <option value="headers">Show headers</option><option value="message">Show a message</option><option value="hide">Hide the table</option>
+            </select>
+          </label>
+          {table.emptyState === "message" && <label className="field"><span className="field-label">Message</span><input aria-label="Empty message" value={table.emptyMessage ?? ""} placeholder="No records found" onChange={(event) => patch(id, { emptyMessage: event.target.value })} /></label>}
+          <p className="muted small">Cell merges use resolved sample row positions. Recheck them if you change sorting or filtering.</p>
+        </>}
         {tab === "groups" && (group ? <>
           <label className="field"><span className="field-label">Group</span><select aria-label="Table group" value={selectedGroupId} onChange={(event) => setGroupId(event.target.value)}>{(doc.groups ?? []).map((item: any) => <option key={item.id} value={item.id}>{item.name || item.id}</option>)}</select></label>
           <label className="field"><span className="field-label">Name</span><input aria-label="Group name" value={group.name ?? ""} onChange={(event) => updateGroup({ name: event.target.value })} /></label>

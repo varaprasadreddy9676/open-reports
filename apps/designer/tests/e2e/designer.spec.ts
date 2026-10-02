@@ -55,13 +55,15 @@ test.describe("complete journey: create, bind, style, preview, save, reload, exp
     await expect(page.getByTestId("canvas")).toContainText("Description");
 
     // 5. add an Amount column with a formula and a currency format, plus a total
-    await page.getByTestId("add-column").click();
+    await page.getByTestId("open-table-designer").click();
+    await page.getByTestId("table-designer-add-column").click();
     await page.getByTestId("column-3").getByRole("button", { name: /New column/ }).click();
     await page.getByTestId("column-3").getByLabel("Column header").fill("Amount");
     await page.getByTestId("column-3").getByRole("button", { name: "fx Formula" }).click();
     await page.getByTestId("column-formula-3").fill("row.quantity * row.rate");
     await page.getByTestId("column-3").getByLabel("Format as").selectOption("currency");
     await page.getByTestId("column-3").getByLabel("Footer total").selectOption("sum");
+    await page.getByTestId("table-designer-done").click();
     await expect(page.getByTestId("canvas")).toContainText("1,800.00"); // 2*500 + 800 total, formatted
 
     // 6. change styling of the title
@@ -288,6 +290,7 @@ test.describe("data, code and problems", () => {
     await page.goto("/");
     await page.getByTestId("starter-invoice").click();
     await page.evaluate(() => (window as any).__designer.getState().select(["pay-qr"]));
+    await page.getByRole("button", { name: "Element actions" }).click();
     await page.getByTestId("open-in-code").click();
     const selected = await page.evaluate(() => { const v = (window as any).__codeView; const r = v.state.selection.main; return v.state.doc.sliceString(r.from, r.to); });
     expect(selected).toContain('"id": "pay-qr"');

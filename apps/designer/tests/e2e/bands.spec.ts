@@ -121,16 +121,25 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
 
   await page.getByTestId("left-tab-layers").click();
   await page.getByTestId(`layer-${table.id}`).click();
+  await expect(page.getByTestId("table-summary")).toContainText("4 columns");
+  await expect(page.getByTestId("properties").getByRole("button", { name: "Layout", exact: true })).toHaveAttribute("aria-expanded", "false");
+  const inspectorScreenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(inspectorScreenshots, { recursive: true });
+  await page.screenshot({ path: path.join(inspectorScreenshots, "35-table-inspector.png") });
+  await page.getByRole("button", { name: "Element actions" }).click();
+  await page.screenshot({ path: path.join(inspectorScreenshots, "36-inspector-actions.png") });
+  await page.getByRole("button", { name: "Element actions" }).click();
+  await page.getByTestId("open-table-designer").click();
   await page.getByTestId("column-1").getByRole("button", { name: /Test Name/ }).click();
   await page.getByTestId("column-1").getByLabel("Column header").fill("Investigation");
   await page.getByTestId("column-0").getByRole("button", { name: "Remove column" }).click();
   await page.getByTestId("column-2").getByRole("button", { name: "Remove column" }).click();
   expect((await doc(page)).sections[detailIndex].children[0].columns.map((column: any) => column.header)).toEqual(["Investigation", "Result"]);
-  if (await page.getByTestId("row-style-rules-add").count() === 0) await page.getByRole("button", { name: /Highlight rows/ }).click();
-  await page.getByTestId("row-style-rules-add").click();
+  await page.getByTestId("table-tab-conditions").click();
+  await page.getByTestId("table-designer-row-rules-add").click();
   await page.getByLabel("Rule 1 field").selectOption("row.flag");
   await page.getByLabel("Rule 1 value").fill("H");
-  await page.getByTestId("row-style-rules-add").click();
+  await page.getByTestId("table-designer-row-rules-add").click();
   await page.getByLabel("Rule 2 field").selectOption("row.flag");
   await page.getByLabel("Rule 2 value").fill("L");
   await page.getByLabel("Rule 2 text colour value").fill("#1d4ed8");
@@ -140,6 +149,7 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   ]);
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
   fs.mkdirSync(screenshots, { recursive: true });
+  await page.getByTestId("table-designer-done").click();
   await expect(page.locator(".cn-table tbody tr").first()).toHaveCSS("color", "rgb(185, 28, 28)");
   await page.screenshot({ path: path.join(screenshots, "21-conditional-row-rules.png") });
   await page.locator(".cn-table").first().dblclick();
@@ -401,7 +411,8 @@ test("array drop can create a blank editable table", async ({ page }) => {
   await page.getByTestId("drop-prompt").getByRole("checkbox", { name: "Create fields automatically" }).uncheck();
   await page.getByTestId("create-array-display").click();
   expect((await doc(page)).sections[0].children).toMatchObject([{ type: "table", columns: [{ header: "New column" }] }]);
-  await expect(page.getByTestId("add-column")).toBeVisible();
+  await page.getByTestId("open-table-designer").click();
+  await expect(page.getByTestId("table-designer-add-column")).toBeVisible();
 });
 
 test("empty dataset fields can be defined and dragged into a bound table", async ({ page }) => {
@@ -636,8 +647,10 @@ test("page band master and band actions are editable", async ({ page }) => {
   await page.getByTestId("band-appliesTo").selectOption("first");
   const first = (await doc(page)).sections.findIndex((s: any) => s.type === "pageHeader");
   expect((await doc(page)).sections[first].appliesTo).toBe("first");
+  await page.getByRole("button", { name: "Band actions" }).click();
   await page.getByTestId("duplicate-band").click();
   expect((await doc(page)).sections.filter((s: any) => s.type === "pageHeader")).toHaveLength(2);
+  await page.getByRole("button", { name: "Band actions" }).click();
   await page.getByTestId("delete-band").click();
   expect((await doc(page)).sections.filter((s: any) => s.type === "pageHeader")).toHaveLength(1);
 });
@@ -717,12 +730,15 @@ test("band visibility changes output while layout lock protects structure", asyn
   await row.click();
   await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
   await expect(page.getByTestId("band-height")).toBeDisabled();
+  await page.getByRole("button", { name: "Band actions" }).click();
   await expect(page.getByTestId("delete-band")).toBeDisabled();
+  await page.getByRole("button", { name: "Band actions" }).click();
   await page.getByTestId("properties").getByRole("button", { name: /Visibility/ }).click();
   await page.getByTestId("band-hidden").uncheck();
   await expect(row).not.toHaveClass(/is-hidden/);
   expect((await doc(page)).sections[0].hidden).toBeUndefined();
 
+  await page.getByRole("button", { name: "Band actions" }).click();
   await page.getByTestId("band-lock").click();
   await expect(page.getByTestId("band-height")).toBeEnabled();
   await expect(page.getByTestId("band-edge-0")).toHaveCount(1);

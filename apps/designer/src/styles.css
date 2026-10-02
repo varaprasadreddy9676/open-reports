@@ -632,6 +632,17 @@ textarea {
   background: var(--panel);
   z-index: 2;
 }
+.prop-head > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspector-actions { position: relative; flex: none; }
+.inspector-actions > summary { display: grid; place-items: center; width: 28px; height: 28px; list-style: none; border-radius: var(--radius-sm); color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; }
+.inspector-actions > summary::-webkit-details-marker { display: none; }
+.inspector-actions > summary:hover, .inspector-actions[open] > summary { background: var(--accent-soft); color: var(--accent); }
+.inspector-actions > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.inspector-actions-popover { position: absolute; top: calc(100% + 4px); right: 0; z-index: 5; width: 174px; padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); box-shadow: var(--shadow); }
+.inspector-actions-popover button { display: block; width: 100%; padding: 7px 8px; border: 0; border-radius: 4px; background: none; color: var(--text); text-align: left; font-size: 12px; }
+.inspector-actions-popover button:hover:not(:disabled), .inspector-actions-popover button:focus-visible { background: var(--accent-soft); }
+.inspector-actions-popover button.danger { color: var(--danger); }
+.inspector-actions-popover button:disabled { opacity: .45; cursor: not-allowed; }
 .prop-section {
   border-bottom: 1px solid var(--border);
 }
@@ -2223,7 +2234,10 @@ kbd {
 .table-designer-inspector > .field, .table-designer-inspector > .check { display: flex; margin-bottom: 14px; }
 .table-designer-inspector .column-card { margin-bottom: 6px; }
 .table-designer-missing { display: grid; place-content: center; gap: 16px; }
-.table-edit-entry { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.table-edit-entry { display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border); }
 .table-edit-entry .btn { flex: none; }
+.table-edit-summary { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.table-edit-summary strong { font-size: 12px; }
+.table-edit-summary span { color: var(--muted); font-size: 11px; line-height: 1.3; }
 .pages-master-entry { width: 100%; margin-bottom: 12px; }
 @media (max-width: 800px) { .table-designer-body { grid-template-columns: minmax(0, 1fr); } .table-designer-inspector { border-left: 0; border-top: 1px solid var(--border); max-height: 40vh; } .table-designer-canvas { padding: 20px; } }

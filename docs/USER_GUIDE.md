@@ -37,7 +37,9 @@ Run **Preview** or **Test request** to compare declared fields with returned val
 
 Open **Data → Test data** to run disposable 0, 1, 10, 31, 32, 100, or 1,000 record scenarios against an array. You can add long text, nulls, negative values, multilingual text, and many groups. The lab runs the designer's layout checks and can compare its page count with an actual generated PDF. It leaves the report and saved sample intact. A passing page-count comparison does not prove that every value appears correctly in the PDF, so inspect the output before publishing.
 
-For a grouped list such as `clinical.investigations`, create the group from that list, then drag the list into an otherwise empty Detail band and choose **Table**. The table prints once for each group using only that group's records. Add a field such as `row.department` to the Group Header, and remove a redundant Department table column in the inspector if you want a cleaner layout.
+For a grouped list such as `clinical.investigations`, create the group from that list, then drag the list into an otherwise empty Detail band and choose **Table**. The table prints once for each group using only that group's records. Add a field such as `row.department` to the Group Header, then select the table and choose **Edit table** (or double-click it) to remove a redundant Department column. Table Designer contains columns, multi-level headers, merged cells, groups, totals, pagination, conditions, and the no-data behavior; the normal inspector stays focused on the dataset and overall layout.
+
+The selected element or band's **⋯** menu contains its code, lock, duplicate, and delete actions, as applicable.
 
 For a custom hospital header, add Image components to the Page Header. **Embed image from file** stores a copy in the report. Alternatively, enter an **Image path or URL** to read the current logo on each render without editing the report; the rendering server must be able to access that path or URL. The repository's `apps/designer/tests/fixtures/letterheads/` folder includes separately cropped left brand artwork, left symbols, and right accreditation marks from the four supplied samples. Place editable Text components between the images, then preview the PDF to check spacing and legibility.
 
@@ -56,7 +58,7 @@ For a custom hospital header, add Image components to the Page Header. **Embed i
 - **Sticker sheets**: insert **Label sheet**, pick a stock (e.g. A4 2×4), design **one** label inside it, fill from a dataset (one label per record) or repeat the same label. *Start at position* reuses a partly used sheet. Print at **Actual size**; use *Draw label outlines* on plain paper to check alignment.
 
 ## 5b. Watermarks, bookmarks, highlighting
-**Page → Watermark** (DRAFT/CONFIDENTIAL…), element *Advanced → PDF bookmark*, table → **Highlight rows** (e.g. out-of-range results in red) and **When there is no data** (headers / message / hide).
+**Page → Watermark** (DRAFT/CONFIDENTIAL…), element *Advanced → PDF bookmark*, **Table Designer → Conditions** (e.g. out-of-range results in red), and **Table Designer → Rows & cells → When there is no data** (headers / message / hide).
 
 For band visibility, element visibility, and conditional appearance, choose **Builder** for a simple field/operator/value rule or **Code** to type a JavaScript-style expression such as `row.quantity > 0 && row.status == "Ready"`. Both tabs edit the same report expression. Code offers field suggestions and syntax errors; it supports expressions and built-in functions, not arbitrary JavaScript statements. A condition too complex for the simple Builder stays editable in Code.
 
