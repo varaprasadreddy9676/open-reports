@@ -12,6 +12,7 @@ import {
 import { layoutStructure, paginate, type PaginatedReport, type PositionedNode, type StructureLayout } from "@reporting/layout";
 import { findByPath, type Doc } from "./model/ops";
 import { datasetValue } from "./lib/fields";
+import { checkSchemaPreview, schemaIssueMessage } from "./lib/schema-preview";
 
 export interface Fix {
   label: string;
@@ -25,6 +26,7 @@ export interface Problem {
   code: string;
   message: string;
   componentId?: string;
+  datasetId?: string;
   path?: string;
   fix?: Fix;
 }
@@ -108,9 +110,18 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     return { problems };
   }
 
-  for (const ds of parsed.report.datasets) {
+  for (const [index, ds] of parsed.report.datasets.entries()) {
     if (ds.source !== "inline" && !(ds.id in sample)) {
       problems.push({ severity: "suggestion", code: "NO_SAMPLE_DATA", message: `Dataset "${ds.id}" (${ds.source}) has no sample data yet. Open the Data tab and run Test to load a preview.` });
+    }
+    if (ds.schema) {
+      const check = checkSchemaPreview(ds.schema, datasetValue(doc, sample, ds.id));
+      for (const issue of check.issues.slice(0, 12)) problems.push({
+        severity: "warning", code: "DATASET_SCHEMA_MISMATCH", datasetId: ds.id,
+        path: `datasets[${index}].schema`, message: `${ds.id}: ${schemaIssueMessage(issue)}`,
+      });
+      const hidden = Math.max(0, check.issues.length - 12) + check.omittedIssues;
+      if (hidden) problems.push({ severity: "warning", code: "DATASET_SCHEMA_MISMATCH", datasetId: ds.id, path: `datasets[${index}].schema`, message: `${ds.id}: ${hidden} more sampled mismatches; open the dataset to inspect its fields.` });
     }
   }
 

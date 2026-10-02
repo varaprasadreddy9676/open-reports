@@ -122,6 +122,7 @@ interface State {
   patchStyle(id: string, patch: Record<string, any>, coalesce?: string): void;
   nudge(dx: number, dy: number): void;
   setSample(id: string, value: unknown): void;
+  clearSample(id: string): void;
   setParameter(id: string, value: unknown): void;
   setMode(m: Mode): void;
   set(partial: Partial<State>): void;
@@ -402,6 +403,15 @@ export const useStore = create<State>((set, get) => ({
 
   setSample(id, value) {
     const sample = { ...get().sample, [id]: value };
+    set({ sample });
+    persistDraft(get().doc, sample);
+    get().refresh();
+  },
+
+  clearSample(id) {
+    const sample = { ...get().sample };
+    if (!(id in sample)) return;
+    delete sample[id];
     set({ sample });
     persistDraft(get().doc, sample);
     get().refresh();

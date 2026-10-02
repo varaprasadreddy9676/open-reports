@@ -282,6 +282,10 @@ export function ProblemsPanel() {
           <button
             className="problem-main"
             onClick={() => {
+              if (p.datasetId) {
+                useStore.getState().set({ mode: "data", editingDataset: p.datasetId });
+                return;
+              }
               if (p.componentId) {
                 useStore.getState().select([p.componentId]);
                 if (useStore.getState().mode !== "design") useStore.getState().set({ mode: "design" });

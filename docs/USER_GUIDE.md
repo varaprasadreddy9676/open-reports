@@ -31,6 +31,8 @@ For free-positioned elements inside the same absolute layout, select two or more
 
 When a source has no preview rows, open its dataset editor and add **Fields**. Enter paths such as `name`, `amount`, or `patient.name`, choose each type, and set **Data shape** to a list or single object. Save the dataset; the fields appear in the Data rail and can be bound immediately. If a preview is available, **Use fields from preview** copies its inferred fields into the report definition. Declared fields describe the data shape; they do not create sample records.
 
+Run **Preview** or **Test request** to compare declared fields with returned values. The result shows missing fields, mismatched types, and example row locations. A zero-row result keeps declared fields visible but cannot check their values. The check samples up to 20 records and a bounded number of nested values; **Problems** links any saved mismatch back to its dataset. It is an authoring warning, not a runtime rejection of source data.
+
 ## 4. Pagination for long documents
 - Tables: **Repeat header on every page**; set *Min rows after break* to avoid a lone row on a page.
 - Headings: **Keep with next**. Blocks that must not split: **Keep together** (Page breaks section).

@@ -123,6 +123,11 @@ test("empty dataset fields can be defined and dragged into a bound table", async
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
   fs.mkdirSync(screenshots, { recursive: true });
   await page.screenshot({ path: path.join(screenshots, "13-defined-dataset-fields.png") });
+  await page.getByTestId("dataset-test").click();
+  await expect(page.getByTestId("dataset-schema-check")).toContainText("No rows to compare");
+  await page.getByTestId("preview-empty").getByRole("button", { name: "View fields" }).click();
+  await expect(page.getByTestId("dataset-result")).toContainText("Declared fields");
+  await page.screenshot({ path: path.join(screenshots, "14-empty-dataset-preview.png") });
   await page.getByTestId("dataset-save").click();
   expect((await doc(page)).datasets[0].schema).toEqual({ kind: "array", fields: [{ path: "name", kind: "string" }, { path: "quantity", kind: "number" }] });
   await expect(page.getByTestId("field-items-name")).toBeVisible();
@@ -145,6 +150,35 @@ test("empty dataset fields can be defined and dragged into a bound table", async
   await page.getByTestId("btn-open").click();
   await page.getByTestId("open-schema-zero-rows").click();
   await expect.poll(async () => (await doc(page)).datasets[0]?.schema?.fields?.map((field: any) => field.path)).toEqual(["name", "quantity"]);
+});
+
+test("preview flags declared field mismatches and Problems opens the dataset", async ({ page }) => {
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("items");
+  await page.getByTestId("dataset-json").fill(JSON.stringify([{ name: "Flour", quantity: 2 }, { name: "Rice", quantity: "3" }]));
+  await page.getByTestId("schema-add-field").click();
+  await page.getByRole("textbox", { name: "Field 1 path" }).fill("name");
+  await page.getByTestId("schema-add-field").click();
+  await page.getByRole("textbox", { name: "Field 2 path" }).fill("quantity");
+  await page.getByRole("combobox", { name: "Field 2 type" }).selectOption("number");
+  await page.getByTestId("dataset-test").click();
+  await expect(page.getByTestId("dataset-schema-check")).toContainText("1 schema mismatch");
+  await expect(page.getByTestId("dataset-schema-check")).toContainText("row 2");
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "15-dataset-schema-mismatch.png") });
+  await page.getByTestId("dataset-save").click();
+  await expect(page.getByTestId("problem-counts")).toContainText("1 warning");
+  await page.getByTestId("toggle-problems").click();
+  await page.getByTestId("problem-warning").getByRole("button").click();
+  await expect(page.getByTestId("mode-data")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("data-item-items")).toHaveClass(/active/);
+  await page.getByTestId("dataset-json").fill(JSON.stringify([{ name: "Flour", quantity: 2 }, { name: "Rice", quantity: 3 }]));
+  await page.getByTestId("dataset-test").click();
+  await expect(page.getByTestId("dataset-schema-check")).toContainText("No mismatches in checked sample");
+  await page.getByTestId("dataset-save").click();
+  await expect(page.getByTestId("problem-counts")).toContainText("0 warnings");
 });
 
 test("REST fields remain bindable before the first request succeeds", async ({ page }) => {
@@ -173,6 +207,12 @@ test("REST fields remain bindable before the first request succeeds", async ({ p
   await page.getByTestId("data-item-record").click();
   await expect(page.locator(".data-main > .schema-tree")).toContainText("patient");
   await expect(page.locator(".data-main > .schema-tree")).toContainText("name");
+  await page.evaluate(() => (window as any).__designer.getState().setSample("record", { patient: { name: "Old preview" }, items: [] }));
+  await page.getByTestId("dataset-url").fill("https://example.com/new-record");
+  await page.getByTestId("dataset-save").click();
+  const samples = await page.evaluate(() => ({ current: (window as any).__designer.getState().sample, draft: JSON.parse(localStorage.getItem("designer.draft") ?? "null") }));
+  expect(samples.current.record).toBeUndefined();
+  expect(JSON.stringify(samples.draft)).not.toContain("Old preview");
 });
 
 test("collapse a band, then drag its ruler edge to resize and double-click to fit", async ({ page }) => {

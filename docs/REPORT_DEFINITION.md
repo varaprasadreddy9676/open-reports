@@ -52,6 +52,8 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 
 An optional dataset `schema` records field names and types for authoring when sample rows are empty or unavailable. For example: `"schema": { "kind": "array", "fields": [{ "path": "patient.name", "kind": "string" }, { "path": "amount", "kind": "number" }] }`. Paths are dot-separated; field kinds are `string`, `number`, `boolean`, `date`, `object`, or `array`. This metadata drives the designer's field tree, binding choices, and generated table/card fields. It does not fabricate runtime records or change source responses. Reports without it continue to infer fields from sample values.
 
+The designer compares declared fields with a bounded preview sample and reports shape, missing-field, and type mismatches. Null values and empty nested lists are counted as unchecked. The comparison does not change source data or reject rendering; absence of warnings only covers the values actually checked.
+
 See `examples/` for complete, working definitions of each feature.
 
 Table merge coordinates are zero-based. Body `row` positions refer to resolved rows **after** filtering and sorting. The top-left cell supplies the merged value; covered values are suppressed and a warning is emitted when they differ. Vertical body merges move as a unit at page breaks; a merge taller than one printable page fails explicitly.

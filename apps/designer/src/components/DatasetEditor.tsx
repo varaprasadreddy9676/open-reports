@@ -2,24 +2,26 @@ import React, { useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { parseCsv } from "../lib/csv";
-import { fieldDefinitions, inferFields } from "../lib/fields";
+import { declaredFields, fieldDefinitions, inferFields } from "../lib/fields";
 import { SchemaTree } from "./DataMode";
 import { datasetShapeSchema, type DatasetShape } from "@reporting/schema";
+import { checkSchemaPreview, schemaIssueMessage } from "../lib/schema-preview";
 
 type Kind = "inline" | "rest" | "sql" | "csv";
 
-function ResultPreview({ value }: { value: unknown }) {
+function ResultPreview({ value, shape }: { value: unknown; shape?: DatasetShape }) {
   const [view, setView] = useState<"table" | "json" | "schema">("table");
   const rows = Array.isArray(value) ? value : value && typeof value === "object" ? [value] : [];
-  const cols = rows.length ? Object.keys(rows[0] as object).slice(0, 8) : [];
+  const firstObject = rows.find((row) => row !== null && typeof row === "object" && !Array.isArray(row)) as Record<string, unknown> | undefined;
+  const cols = firstObject ? Object.keys(firstObject).slice(0, 8) : [];
   const fields = inferFields(value);
+  const check = shape ? checkSchemaPreview(shape, value) : undefined;
   const count = (k: string) => fields.filter((f) => f.kind === k).length;
   const hints: string[] = [];
-  if (Array.isArray(value)) hints.push(`${value.length} row${value.length === 1 ? "" : "s"} - ideal for a table`);
+  if (Array.isArray(value)) hints.push(`${value.length} row${value.length === 1 ? "" : "s"} returned`);
   const nested = fields.filter((f) => f.kind === "array");
   if (nested.length) hints.push(`Nested lists found: ${nested.map((f) => f.path).join(", ")} - drag one onto the page to make a table`);
   if (count("date")) hints.push(`${count("date")} date field${count("date") > 1 ? "s" : ""} - you can format them as dates`);
-  if (!rows.length) return <p className="muted">No rows returned.</p>;
   return (
     <div className="result-preview" data-testid="dataset-result">
       <div className="seg small" role="tablist" aria-label="Response view">
@@ -29,6 +31,11 @@ function ResultPreview({ value }: { value: unknown }) {
           </button>
         ))}
       </div>
+      {check && <div className={`schema-check ${check.issues.length ? "has-issues" : ""}`} data-testid="dataset-schema-check" role="status">
+        <strong>{check.state === "no-rows" ? "No rows to compare" : check.issues.length ? `${check.issues.length}${check.omittedIssues ? "+" : ""} schema mismatch${check.issues.length === 1 && !check.omittedIssues ? "" : "es"}` : shape?.fields.length ? "No mismatches in checked sample" : "No fields declared yet"}</strong>
+        <span>{check.state === "no-rows" ? "Declared fields remain available for binding. Add test data to check their values." : check.issues.some((issue) => issue.code === "ROOT_KIND") ? "The preview shape differs from the declaration, so field values were not checked." : `Checked ${check.checkedRows} of ${check.totalRows} preview record${check.totalRows === 1 ? "" : "s"}.${check.uncheckedValues ? ` ${check.uncheckedValues} null, empty, or unsampled nested value${check.uncheckedValues === 1 ? "" : "s"} could not be checked.` : ""}`}</span>
+        {check.issues.length > 0 && <ul>{check.issues.slice(0, 8).map((issue, index) => <li key={index}>{schemaIssueMessage(issue)}</li>)}{check.issues.length > 8 && <li>+{check.issues.length - 8} more mismatch groups</li>}{check.omittedIssues > 0 && <li>+{check.omittedIssues} additional sampled mismatches</li>}</ul>}
+      </div>}
       {hints.length > 0 && (
         <ul className="insights" data-testid="dataset-insights">
           {hints.map((h) => (
@@ -36,7 +43,8 @@ function ResultPreview({ value }: { value: unknown }) {
           ))}
         </ul>
       )}
-      {view === "table" && (
+      {view === "table" && rows.length === 0 && <div className="preview-empty" data-testid="preview-empty"><strong>No rows returned</strong><span>There are no values to show in a table.</span><button className="mini" onClick={() => setView("schema")}>View fields</button></div>}
+      {view === "table" && rows.length > 0 && (
         <table>
           <thead>
             <tr>
@@ -46,18 +54,17 @@ function ResultPreview({ value }: { value: unknown }) {
             </tr>
           </thead>
           <tbody>
-            {rows.slice(0, 8).map((r, i) => (
-              <tr key={i}>
-                {cols.map((c) => (
-                  <td key={c}>{typeof (r as any)[c] === "object" ? JSON.stringify((r as any)[c]) : String((r as any)[c])}</td>
-                ))}
-              </tr>
-            ))}
+            {rows.slice(0, 8).map((r, i) => r && typeof r === "object" && !Array.isArray(r) ? <tr key={i}>
+              {cols.map((c) => <td key={c}>{typeof (r as any)[c] === "object" ? JSON.stringify((r as any)[c]) : String((r as any)[c])}</td>)}
+            </tr> : <tr key={i}><td colSpan={Math.max(1, cols.length)}>Row {i + 1}: {String(r)}</td></tr>)}
           </tbody>
         </table>
       )}
       {view === "json" && <pre className="csv">{JSON.stringify(Array.isArray(value) ? value.slice(0, 20) : value, null, 2)}</pre>}
-      {view === "schema" && <SchemaTree nodes={fields} />}
+      {view === "schema" && <div className="preview-schema-trees">
+        {shape && <section><strong>Declared fields</strong>{shape.fields.length ? <SchemaTree nodes={declaredFields(shape, value)} /> : <p className="muted small">No fields declared.</p>}</section>}
+        <section><strong>Observed in preview</strong>{fields.length ? <SchemaTree nodes={fields} /> : <p className="muted small">No fields could be inferred from this preview.</p>}</section>
+      </div>}
     </div>
   );
 }
@@ -83,11 +90,13 @@ export function DatasetEditor() {
   const [csv, setCsv] = useState("");
   const secrets = useStore((st) => st.capabilities?.secrets ?? []);
   const sqlIds = useStore((st) => st.capabilities?.sqlConnections ?? []);
-  const [preview, setPreview] = useState<unknown>(sample[id]);
+  const [preview, setPreview] = useState<unknown>(sample[id] ?? (existing?.source === "inline" ? q.data : undefined));
   const previewFields = inferFields(preview);
   const [shape, setShape] = useState<DatasetShape["kind"]>(existing?.schema?.kind ?? (Array.isArray(sample[id] ?? q.data) || !existing || existing.source !== "inline" ? "array" : "object"));
   const [fields, setFields] = useState<DatasetShape["fields"]>(existing?.schema?.fields ?? []);
   const [hasSchema, setHasSchema] = useState(Boolean(existing?.schema));
+  const parsedShape = hasSchema ? datasetShapeSchema.safeParse({ kind: shape, fields }) : undefined;
+  const previewShape = parsedShape?.success ? parsedShape.data : undefined;
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
@@ -151,14 +160,9 @@ export function DatasetEditor() {
       const s = useStore.getState();
       const list = existing ? (doc.datasets as any[]).map((d) => (d.id === editingDataset ? def : d)) : [...(doc.datasets ?? []), def];
       s.setDoc({ ...doc, datasets: list });
-      if (kind !== "inline" && preview !== undefined) s.setSample(id, preview);
-      else if (kind === "inline" || kind === "csv") {
-        // inline data lives in the definition; drop any stale sample override
-        const { [id]: _drop, ...rest } = s.sample;
-        void _drop;
-        s.set({ sample: rest });
-        s.refresh();
-      }
+      if (kind !== "inline" && kind !== "csv" && preview !== undefined) s.setSample(id, preview);
+      else s.clearSample(id);
+      if (editingDataset && editingDataset !== id) s.clearSample(editingDataset);
       s.set({ dialog: null, editingDataset: id });
     } catch (e) {
       setError((e as Error).message);
@@ -174,7 +178,7 @@ export function DatasetEditor() {
       </label>
       <div className="seg" role="tablist">
         {(["inline", "rest", "sql", "csv"] as const).map((k) => (
-          <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? "active" : ""} data-testid={`dataset-kind-${k}`} onClick={() => { setKind(k); if (!hasSchema && k !== "inline") setShape("array"); }}>
+          <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? "active" : ""} data-testid={`dataset-kind-${k}`} onClick={() => { setKind(k); setPreview(undefined); if (!hasSchema && k !== "inline") setShape("array"); }}>
             {k === "inline" ? "JSON" : k === "rest" ? "REST API" : k === "sql" ? "Database (SQL)" : "CSV file"}
           </button>
         ))}
@@ -185,6 +189,7 @@ export function DatasetEditor() {
           <span className="field-label">JSON (object or array)</span>
           <textarea className="mono" data-testid="dataset-json" rows={10} value={data} onChange={(e) => {
             setData(e.target.value);
+            setPreview(undefined);
             if (!hasSchema) {
               try {
                 const parsed = JSON.parse(e.target.value);
@@ -204,39 +209,39 @@ export function DatasetEditor() {
               data-testid="dataset-csv-file"
               onChange={async (e) => {
                 const f = e.target.files?.[0];
-                if (f) setCsv(await f.text());
+                if (f) { setCsv(await f.text()); setPreview(undefined); }
               }}
             />
           </label>
-          <textarea className="mono" data-testid="dataset-csv" rows={8} value={csv} onChange={(e) => setCsv(e.target.value)} spellCheck={false} placeholder={"name,amount\nConsultation,600"} aria-label="CSV text" />
+          <textarea className="mono" data-testid="dataset-csv" rows={8} value={csv} onChange={(e) => { setCsv(e.target.value); setPreview(undefined); }} spellCheck={false} placeholder={"name,amount\nConsultation,600"} aria-label="CSV text" />
         </>
       )}
       {kind === "rest" && (
         <>
           <div className="grid-url">
-            <select aria-label="Method" value={method} onChange={(e) => setMethod(e.target.value)}>
+            <select aria-label="Method" value={method} onChange={(e) => { setMethod(e.target.value); setPreview(undefined); }}>
               <option>GET</option>
               <option>POST</option>
             </select>
-            <input aria-label="URL" data-testid="dataset-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.example.com/invoices/{{params.invoiceId}}" />
+            <input aria-label="URL" data-testid="dataset-url" value={url} onChange={(e) => { setUrl(e.target.value); setPreview(undefined); }} placeholder="https://api.example.com/invoices/{{params.invoiceId}}" />
           </div>
           <label className="field wide">
             <span className="field-label">Headers (JSON) - for API keys use {"{{secrets.NAME}}"}; the real value stays on the server</span>
-            <textarea className="mono" rows={2} value={headers} onChange={(e) => setHeaders(e.target.value)} spellCheck={false} />
+            <textarea className="mono" rows={2} value={headers} onChange={(e) => { setHeaders(e.target.value); setPreview(undefined); }} spellCheck={false} />
           </label>
           <label className="field wide">
             <span className="field-label">Query parameters (JSON)</span>
-            <textarea className="mono" rows={2} value={query} onChange={(e) => setQuery(e.target.value)} spellCheck={false} />
+            <textarea className="mono" rows={2} value={query} onChange={(e) => { setQuery(e.target.value); setPreview(undefined); }} spellCheck={false} />
           </label>
           {method === "POST" && (
             <label className="field wide">
               <span className="field-label">Body (JSON)</span>
-              <textarea className="mono" rows={3} value={body} onChange={(e) => setBody(e.target.value)} spellCheck={false} />
+              <textarea className="mono" rows={3} value={body} onChange={(e) => { setBody(e.target.value); setPreview(undefined); }} spellCheck={false} />
             </label>
           )}
           <label className="field wide">
             <span className="field-label">Result path (e.g. data.items)</span>
-            <input value={resultPath} onChange={(e) => setResultPath(e.target.value)} />
+            <input value={resultPath} onChange={(e) => { setResultPath(e.target.value); setPreview(undefined); }} />
           </label>
           <p className="muted small">Use {"{{params.name}}"} to insert report parameters.</p>
           {secrets.length > 0 && (
@@ -255,16 +260,16 @@ export function DatasetEditor() {
         <>
           <label className="field wide">
             <span className="field-label">Connection (PostgreSQL or MySQL, configured on the server - credentials never enter the report)</span>
-            <input list="sql-connections" data-testid="dataset-connection" value={connectionId} onChange={(e) => setConnectionId(e.target.value)} placeholder={sqlIds.length ? sqlIds[0] : "set REPORT_SQL_<NAME> on the server"} />
+            <input list="sql-connections" data-testid="dataset-connection" value={connectionId} onChange={(e) => { setConnectionId(e.target.value); setPreview(undefined); }} placeholder={sqlIds.length ? sqlIds[0] : "set REPORT_SQL_<NAME> on the server"} />
             <datalist id="sql-connections">{sqlIds.map((i) => <option key={i} value={i} />)}</datalist>
           </label>
           <label className="field wide">
             <span className="field-label">SQL (parameterized: $1 for Postgres, ? for MySQL)</span>
-            <textarea className="mono" rows={5} value={sql} onChange={(e) => setSql(e.target.value)} spellCheck={false} />
+            <textarea className="mono" rows={5} value={sql} onChange={(e) => { setSql(e.target.value); setPreview(undefined); }} spellCheck={false} />
           </label>
           <label className="field wide">
             <span className="field-label">Parameters (JSON array, e.g. ["{"{{params.id}}"}"])</span>
-            <textarea className="mono" rows={2} value={params} onChange={(e) => setParams(e.target.value)} spellCheck={false} />
+            <textarea className="mono" rows={2} value={params} onChange={(e) => { setParams(e.target.value); setPreview(undefined); }} spellCheck={false} />
           </label>
         </>
       )}
@@ -286,7 +291,7 @@ export function DatasetEditor() {
       </section>
 
       {error && <div className="field-error" role="alert" data-testid="dataset-error">{error}</div>}
-      {preview !== undefined && <ResultPreview value={preview} />}
+      {preview !== undefined && <ResultPreview value={preview} shape={previewShape} />}
       <div className="dialog-actions">
         <button className="btn" data-testid="dataset-test" onClick={test} disabled={busy}>
           {busy ? "Testing..." : kind === "inline" ? "Preview" : "Test request"}
