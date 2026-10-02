@@ -89,6 +89,11 @@ curl -X POST localhost:4000/api/v1/render -H 'content-type: application/json' \
 
 Step-by-step recipes: **[docs/USE_CASES.md](docs/USE_CASES.md)**.
 
+### Design the report's structure — bands, groups, rulers, guides
+![Banded structure view: report header, page header, nested groups, detail, totals, no-data and page footer](docs/images/bands.png)
+
+Reports are built from real **bands** (report/page/group/data headers and footers, detail, child, no-data, background) that the engine understands — nested groups, repeated group headers, keep-together and page-break rules all work in the PDF, not just on the canvas. Millimetre/inch/point rulers, draggable margins, persistent guides, band resize/collapse/reorder, and a *Structure ⇄ Pages* switch.
+
 ### See *why* a page broke — and fix it in one click
 ![Pagination decisions explained](docs/images/pagination.png)
 
@@ -152,18 +157,18 @@ Trust is earned with tests, so there are a lot (~400):
 - **Security suite:** formula sandbox, SSRF, SQL/HTML/CSV/ZPL injection, path traversal, prototype pollution, auth
 - **Real databases:** PostgreSQL and MySQL integration tests
 - **AI/MCP end-to-end:** a real MCP client against the real server
-- **~40 browser tests** driving the designer; a scripted "hospital day" demo (templates → versions → PDF/ZPL/XLSX/CSV, 100 000-row export)
+- **~95 browser tests** driving the designer; a scripted "hospital day" demo (templates → versions → PDF/ZPL/XLSX/CSV, 100 000-row export)
 - Indicative speed on a laptop-class CPU (`pnpm --filter @reporting/server bench`): 100 000-row XLSX ≈ 8 s · 100 000-row CSV ≈ 5 s · 2 000-row PDF ≈ 0.8 s
 
 CI (`.github/workflows/ci.yml`) runs all of it against real PostgreSQL and MySQL.
 
 ## 🗺️ Status and roadmap
 
-**Works today:** six outputs · pagination engine · designer (design / data / code / preview, layers, page layouts, print profiles, label sheets) · versioned template server · plugins · MCP server · designer AI bar · Docker · CI.
+**Works today:** six outputs · pagination engine · banded designer (structure/pages views, rulers, guides, nested groups, design / data / code / preview, layers, page layouts, print profiles, label sheets, embedded or linked logos) · versioned template server · plugins · MCP server · designer AI bar · Docker · CI.
 
 **Next** (contributions welcome — issues labelled `roadmap`): typed SDKs + CLI · PDF/A and digital signatures · footnotes and automatic table of contents · EPL output · streaming for million-row exports · subreports · advanced typography.
 
-**Known limits:** pagination matches the bundled Noto fonts (another font changes line breaks); ZPL uses the printer's built-in Latin fonts (print other scripts as PDF); plugin components preview in *Preview* rather than on the canvas.
+**Known limits:** tall side-by-side rows are not yet split across pages; physical printer output (Zebra/receipt) is verified as PDF/ZPL bytes, not on real hardware; visual baselines are pinned to the Linux CI font setup; pagination matches the bundled Noto fonts (another font changes line breaks); ZPL uses the printer's built-in Latin fonts (print other scripts as PDF); plugin components preview in *Preview* rather than on the canvas.
 
 ## 🤝 Contributing
 

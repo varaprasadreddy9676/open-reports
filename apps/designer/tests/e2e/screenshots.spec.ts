@@ -64,3 +64,11 @@ test("AI proposal with diff", async ({ page }) => {
   await page.waitForTimeout(800);
   await page.screenshot({ path: out("ai-diff.png") });
 });
+
+test("banded structure view", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("designer.canvasView", "structure"));
+  await open(page, "department-report", "department");
+  await page.evaluate(() => (window as any).__designer.getState().set({ zoom: 0.9, showGrid: false }));
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: out("bands.png") });
+});
