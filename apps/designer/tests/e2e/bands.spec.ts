@@ -2,6 +2,14 @@ import { test, expect, type Page } from "@playwright/test";
 
 const doc = (page: Page) => page.evaluate(() => (window as any).__designer.getState().doc);
 
+async function dropInBand(page: Page, source: string, index: number) {
+  const sheet = (await page.getByTestId("page-1").boundingBox())!;
+  const band = (await page.getByTestId(`band-${index}`).first().boundingBox())!;
+  await page.getByTestId(source).dragTo(page.getByTestId("page-1"), {
+    targetPosition: { x: sheet.width / 2, y: band.y - sheet.y + Math.min(band.height / 2, 24) },
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("designer.canvasView", "structure"));
   await page.goto("/");
@@ -20,6 +28,42 @@ test("structure view shows band tabs; the + menu inserts bands in reading order"
   expect(types.indexOf("reportHeader")).toBeLessThan(types.indexOf("reportFooter"));
   expect(types[0]).toBe("reportHeader");
   await expect(page.locator("[data-band-type=reportFooter]")).toBeVisible();
+});
+
+test("palette click adds a component to the selected empty Page Header", async ({ page }) => {
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId("explorer-add-band").selectOption("pageHeader");
+  const headerIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "pageHeader");
+  await page.getByTestId("left-tab-insert").click();
+  await page.getByTestId("palette-text").click();
+  const report = await doc(page);
+  expect(report.sections[headerIndex].children).toHaveLength(1);
+  expect(report.sections[headerIndex].children[0].type).toBe("text");
+  expect(report.sections.find((section: any) => section.type === "detail").children).toHaveLength(0);
+});
+
+test("data drops fill the empty Page Header and Detail bands", async ({ page }) => {
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId("explorer-add-band").selectOption("pageHeader");
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("patient");
+  await page.getByTestId("dataset-json").fill(JSON.stringify({ name: "Asha Rao" }));
+  await page.getByTestId("dataset-save").click();
+  const headerIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "pageHeader");
+  await dropInBand(page, "field-patient-name", headerIndex);
+  expect((await doc(page)).sections[headerIndex].children).toMatchObject([{ type: "text", binding: "data.patient.name" }]);
+
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("items");
+  await page.getByTestId("dataset-json").fill(JSON.stringify([{ name: "Flour", quantity: 2 }]));
+  await page.getByTestId("dataset-save").click();
+  const detailIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "detail");
+  await dropInBand(page, "array-items", detailIndex);
+  await page.getByTestId("drop-prompt").getByText("Table", { exact: true }).click();
+  const report = await doc(page);
+  expect(report.sections[detailIndex].children).toMatchObject([{ type: "table", dataset: "items" }]);
+  expect(report.sections[headerIndex].children).toHaveLength(1);
 });
 
 test("collapse a band, then drag its ruler edge to resize and double-click to fit", async ({ page }) => {

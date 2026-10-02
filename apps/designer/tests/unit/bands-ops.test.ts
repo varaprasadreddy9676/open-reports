@@ -4,6 +4,30 @@ import * as ops from "../../src/model/ops";
 const base = (): any => ({ schemaVersion: "1.0", id: "r", name: "r", datasets: [{ id: "d", source: "inline", query: { data: [] } }], groups: [], guides: [], sections: [{ type: "detail", dataset: "d", children: [] }] });
 const types = (d: any) => d.sections.map((s: any) => s.type + (s.groupId ? `:${s.groupId}` : ""));
 
+describe("component insertion into semantic bands", () => {
+  it("uses the chosen empty band and keeps Detail as the default", () => {
+    const doc = ops.addBand(base(), "pageHeader").doc;
+    const headerIndex = doc.sections.findIndex((section: any) => section.type === "pageHeader");
+    const inHeader = ops.insert(doc, { id: "patient", type: "text", binding: "d.patient.name" } as any, undefined, "after", headerIndex);
+    expect(inHeader.sections[headerIndex].children.map((child: any) => child.id)).toEqual(["patient"]);
+    expect(inHeader.sections.find((section: any) => section.type === "detail").children).toEqual([]);
+
+    const inDetail = ops.insert(inHeader, { id: "items", type: "table", dataset: "d.items", columns: [] } as any);
+    expect(inDetail.sections.find((section: any) => section.type === "detail").children.map((child: any) => child.id)).toEqual(["items"]);
+    expect(doc.sections[headerIndex].children).toEqual([]);
+  });
+
+  it("recognizes row context in empty detail and group bands", () => {
+    let doc = ops.addGroup(base(), { dataset: "d", by: "row.department", name: "Department" }).doc;
+    const groupIndex = doc.sections.findIndex((section: any) => section.type === "groupHeader");
+    const detailIndex = doc.sections.findIndex((section: any) => section.type === "detail");
+    expect(ops.rowDatasetAtBand(doc, groupIndex)).toBe("d");
+    expect(ops.rowDatasetAtBand(doc, detailIndex)).toBe("d");
+    doc = ops.addBand(doc, "pageHeader").doc;
+    expect(ops.rowDatasetAtBand(doc, doc.sections.findIndex((section: any) => section.type === "pageHeader"))).toBeUndefined();
+  });
+});
+
 describe("band insertion keeps the report in reading order", () => {
   it("adds headers/footers around the detail band", () => {
     let d = base();

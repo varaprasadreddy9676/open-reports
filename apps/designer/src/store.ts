@@ -54,6 +54,7 @@ export interface DropPrompt {
   dataset: string;
   targetId?: string;
   position: ops.DropPosition;
+  bandIndex?: number | null;
 }
 
 interface State {
@@ -111,8 +112,8 @@ interface State {
   undo(): void;
   redo(): void;
   select(ids: string[], additive?: boolean): void;
-  addComponent(type: string, targetId?: string, position?: ops.DropPosition, overrides?: Partial<Comp>): string;
-  insertComponent(comp: Comp, targetId?: string, position?: ops.DropPosition): string;
+  addComponent(type: string, targetId?: string, position?: ops.DropPosition, overrides?: Partial<Comp>, bandIndex?: number | null): string;
+  insertComponent(comp: Comp, targetId?: string, position?: ops.DropPosition, bandIndex?: number | null): string;
   removeSelected(): void;
   duplicateSelected(): void;
   copy(): void;
@@ -312,16 +313,16 @@ export const useStore = create<State>((set, get) => ({
     } else set({ selection: ids, ...(ids.length ? { selectedBand: null } : {}) });
   },
 
-  addComponent(type, targetId, position = "after", overrides = {}) {
+  addComponent(type, targetId, position = "after", overrides = {}, bandIndex) {
     const make = ops.PALETTE[type];
     if (!make) return "";
-    return get().insertComponent({ ...make(), ...overrides }, targetId, position);
+    return get().insertComponent({ ...make(), ...overrides }, targetId, position, bandIndex);
   },
 
-  insertComponent(comp, targetId, position = "after") {
+  insertComponent(comp, targetId, position = "after", bandIndex) {
     const s = get();
     const withId: Comp = comp.id ? comp : { id: ops.genId(s.doc, comp.type), ...comp };
-    const next = ops.insert(s.doc, withId, targetId, position);
+    const next = ops.insert(s.doc, withId, targetId, position, bandIndex === undefined ? s.selectedBand : bandIndex);
     get().setDoc(next);
     set({ selection: [withId.id] });
     return withId.id;

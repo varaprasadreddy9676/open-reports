@@ -415,7 +415,9 @@ export function Canvas() {
     if (!e.dataTransfer.types.includes("application/x-rpt")) return;
     e.preventDefault();
     const pt = pagePoint(e.clientX, e.clientY, page);
-    setIndicator(findTarget(page, pt.x, pt.y, new Set()));
+    const bandIndex = structure?.bands.find((band) => pt.y >= band.y && pt.y < band.y + band.height)?.sectionIndex ?? null;
+    const candidate = findTarget(page, pt.x, pt.y, new Set());
+    setIndicator(structure && (bandIndex === null || !candidate || ops.bandIndexOf(doc, candidate.id) !== bandIndex) ? null : candidate);
   }
 
   function onDrop(e: React.DragEvent, page: number) {
@@ -425,25 +427,28 @@ export function Canvas() {
     const payload = JSON.parse(raw);
     const store = useStore.getState();
     const pt = pagePoint(e.clientX, e.clientY, page);
-    const target = findTarget(page, pt.x, pt.y, new Set());
+    const bandIndex = structure?.bands.find((band) => pt.y >= band.y && pt.y < band.y + band.height)?.sectionIndex ?? null;
+    const candidate = findTarget(page, pt.x, pt.y, new Set());
+    const target = structure && (bandIndex === null || !candidate || ops.bandIndexOf(store.doc, candidate.id) !== bandIndex) ? null : candidate;
     setIndicator(null);
     const targetId = target?.id;
     const position = target?.position ?? "after";
 
     if (payload.kind === "component") {
-      store.addComponent(payload.type, targetId, position);
+      store.addComponent(payload.type, targetId, position, {}, bandIndex);
     } else if (payload.kind === "field") {
       const comp: any = { type: "text", binding: payload.binding };
       if (payload.fieldKind === "date") comp.format = "date:dd MMM yyyy";
       if (payload.fieldKind === "number" && /amount|price|total|rate|cost|balance|fee|tax/i.test(payload.name)) comp.format = "currency";
       if (payload.fieldKind === "number") comp.style = { align: "right" };
-      if (payload.rowDataset && !ops.rowDatasetAt(store.doc, targetId)) {
+      const rowDataset = ops.rowDatasetAt(store.doc, targetId) ?? (bandIndex === null ? undefined : ops.rowDatasetAtBand(store.doc, bandIndex));
+      if (payload.rowDataset && rowDataset !== payload.rowDataset) {
         // A field of an array dropped outside any row context: list that field once per row.
-        store.insertComponent({ type: "repeater", dataset: payload.rowDataset, children: [comp] }, targetId, position);
-      } else store.insertComponent(comp, targetId, position);
+        store.insertComponent({ type: "repeater", dataset: payload.rowDataset, children: [comp] }, targetId, position, bandIndex);
+      } else store.insertComponent(comp, targetId, position, bandIndex);
     } else if (payload.kind === "array") {
       const r = el(e);
-      store.set({ dropPrompt: { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0), dataset: payload.ref, targetId, position } });
+      store.set({ dropPrompt: { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0), dataset: payload.ref, targetId, position, bandIndex } });
     }
   }
 
@@ -690,7 +695,7 @@ function DropPromptMenu() {
     const s = useStore.getState();
     if (kind === "table") {
       const [heading, table] = tableFor(prompt.dataset, prompt.dataset.split(".").pop()!, rows);
-      s.insertComponent(table as any, prompt.targetId, prompt.position);
+      s.insertComponent(table as any, prompt.targetId, prompt.position, prompt.bandIndex);
       void heading;
     } else {
       const fields = inferFields(rows).filter((f) => f.kind !== "array" && f.kind !== "object").slice(0, 4);
@@ -701,7 +706,8 @@ function DropPromptMenu() {
           children: fields.map((f, i) => ({ type: "text", binding: `row.${f.path}`, style: i === 0 ? { fontWeight: "bold" } : { color: "#6b7280" } })),
         },
         prompt.targetId,
-        prompt.position
+        prompt.position,
+        prompt.bandIndex
       );
     }
     close();

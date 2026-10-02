@@ -105,8 +105,8 @@ export function ensureDetailSection(doc: Doc): { doc: Doc; index: number } {
 
 export type DropPosition = "before" | "after" | "inside";
 
-/** Inserts `comp` relative to `targetId` (or at the end of the detail section). */
-export function insert(doc: Doc, comp: Comp, targetId?: string, position: DropPosition = "after"): Doc {
+/** Inserts `comp` relative to a component, into a selected band, or into Detail. */
+export function insert(doc: Doc, comp: Comp, targetId?: string, position: DropPosition = "after", bandIndex?: number | null): Doc {
   const withId = comp.id ? comp : { id: genId(doc, comp.type), ...comp };
   const next = clone(doc);
   if (targetId) {
@@ -119,6 +119,10 @@ export function insert(doc: Doc, comp: Comp, targetId?: string, position: DropPo
       }
       return next;
     }
+  }
+  if (bandIndex !== null && bandIndex !== undefined && next.sections?.[bandIndex]) {
+    (next.sections[bandIndex].children ??= []).push(withId);
+    return next;
   }
   const { doc: d2, index } = ensureDetailSection(next);
   d2.sections[index].children.push(withId);
@@ -290,6 +294,16 @@ export function rowDatasetAt(doc: Doc, id: string | undefined): string | undefin
     loc = find(doc, loc.parent);
     if (loc && ["repeater", "group"].includes(loc.comp.type) && loc.comp.dataset) return loc.comp.dataset;
   }
+  return undefined;
+}
+
+/** Row context supplied by a semantic data band, even when it has no components yet. */
+export function rowDatasetAtBand(doc: Doc, bandIndex: number): string | undefined {
+  const band = doc.sections?.[bandIndex];
+  if (!band) return undefined;
+  if (band.dataset) return band.dataset;
+  if (band.groupId) return doc.groups?.find((group: any) => group.id === band.groupId)?.dataset ?? doc.sections?.find((section: any) => section.type === "detail")?.dataset;
+  if (band.type === "detail" || band.type === "child") return doc.sections?.find((section: any) => section.type === "detail")?.dataset;
   return undefined;
 }
 
