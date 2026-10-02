@@ -33,6 +33,8 @@ When a source has no preview rows, open its dataset editor and add **Fields**. E
 
 Run **Preview** or **Test request** to compare declared fields with returned values. The result shows missing fields, mismatched types, and example row locations. A zero-row result keeps declared fields visible but cannot check their values. The check samples up to 20 records and a bounded number of nested values; **Problems** links any saved mismatch back to its dataset. It is an authoring warning, not a runtime rejection of source data.
 
+For a grouped list such as `clinical.investigations`, create the group from that list, then drag the list into an otherwise empty Detail band and choose **Table**. The table prints once for each group using only that group's records. Add a field such as `row.department` to the Group Header, and remove a redundant Department table column in the inspector if you want a cleaner layout.
+
 ## 4. Pagination for long documents
 - Tables: **Repeat header on every page**; set *Min rows after break* to avoid a lone row on a page.
 - Headings: **Keep with next**. Blocks that must not split: **Keep together** (Page breaks section).

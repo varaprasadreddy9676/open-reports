@@ -187,6 +187,42 @@ describe("nested dataset paths", () => {
     const table = sectionChildren(resolved, 0)[0] as ResolvedTableComponent;
     expect(table.rows).toHaveLength(2);
   });
+
+  it("emits a table-only detail once per group with only that group's rows", async () => {
+    const rows = [
+      { department: "A", testName: "Glucose" },
+      { department: "A", testName: "Sodium" },
+      { department: "B", testName: "Haemoglobin" },
+    ];
+    const base = {
+      schemaVersion: "1.0", id: "clinical", name: "Clinical",
+      datasets: [{ id: "clinical", source: "inline", query: { data: { investigations: rows } } }],
+      sections: [{ type: "detail", dataset: "clinical.investigations", children: [
+        { type: "table", dataset: "clinical.investigations", columns: [{ id: "test", header: "Test", binding: "row.testName" }] },
+      ] }],
+    };
+    const ungrouped = parseReportDefinition(base);
+    if (!ungrouped.valid) throw new Error("invalid ungrouped fixture");
+    const whole = await resolveReport(ungrouped.report, { registry: registry() });
+    expect(sectionChildren(whole.resolved, 0)).toHaveLength(1);
+    expect((sectionChildren(whole.resolved, 0)[0] as ResolvedTableComponent).rows).toHaveLength(3);
+
+    const grouped = parseReportDefinition({
+      ...base,
+      groups: [{ id: "dept", name: "Department", dataset: "clinical.investigations", by: "row.department", repeatHeader: true }],
+      sections: [
+        { type: "groupHeader", groupId: "dept", children: [{ type: "text", binding: "row.department" }] },
+        ...base.sections,
+        { type: "groupFooter", groupId: "dept", children: [] },
+      ],
+    });
+    if (!grouped.valid) throw new Error("invalid grouped fixture");
+    const result = await resolveReport(grouped.report, { registry: registry() });
+    const tables = sectionChildren(result.resolved, 1) as ResolvedTableComponent[];
+    expect(tables).toHaveLength(2);
+    expect(tables.map((table) => table.rows.map((row) => row.raw.test))).toEqual([["Glucose", "Sodium"], ["Haemoglobin"]]);
+    expect(sectionChildren(result.resolved, 0).map((item: ResolvedTextComponent) => item.text)).toEqual(["A", "B"]);
+  });
 });
 
 describe("hidden, empty states and reusable fragments", () => {

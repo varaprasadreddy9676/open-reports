@@ -68,6 +68,67 @@ test("data drops fill the empty Page Header and Detail bands", async ({ page }) 
   expect(report.sections[headerIndex].children).toHaveLength(1);
 });
 
+test("A4 authoring keeps grouped investigation rows once from data binding through output", async ({ page }) => {
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("clinical");
+  await page.getByTestId("dataset-json").fill(JSON.stringify({
+    patient: { name: "Asha Rao" },
+    investigations: [
+      { department: "Biochemistry", testName: "Glucose", result: 92 },
+      { department: "Haematology", testName: "Haemoglobin", result: 12.8 },
+    ],
+  }));
+  await page.getByTestId("dataset-save").click();
+
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId("explorer-add-band").selectOption("pageHeader");
+  const headerIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "pageHeader");
+  await page.getByTestId("left-tab-data").click();
+  await dropInBand(page, "field-clinical-patient.name", headerIndex);
+  expect((await doc(page)).sections[headerIndex].children[0].binding).toBe("data.clinical.patient.name");
+
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId("explorer-add-group").click();
+  await page.getByTestId("wizard-dataset").selectOption("clinical.investigations");
+  await page.getByTestId("wizard-field").selectOption("row.department");
+  await page.getByTestId("wizard-name").fill("Department");
+  await page.getByTestId("wizard-repeat").check();
+  await page.getByTestId("wizard-create").click();
+
+  const groupHeaderIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "groupHeader");
+  const detailIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "detail");
+  await page.getByTestId("left-tab-data").click();
+  await dropInBand(page, "field-clinical-investigations.department", groupHeaderIndex);
+  expect((await doc(page)).sections[groupHeaderIndex].children[0].binding).toBe("row.department");
+  await dropInBand(page, "field-clinical-investigations", detailIndex);
+  await page.getByTestId("create-array-display").click();
+  const table = (await doc(page)).sections[detailIndex].children.find((child: any) => child.type === "table");
+  expect(table.dataset).toBe("clinical.investigations");
+  expect(table.columns.map((column: any) => column.binding)).toEqual(["row.department", "row.testName", "row.result"]);
+
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId(`layer-${table.id}`).click();
+  await page.getByTestId("column-1").getByRole("button", { name: /Test Name/ }).click();
+  await page.getByTestId("column-1").getByLabel("Column header").fill("Investigation");
+  await page.getByTestId("column-0").getByRole("button", { name: "Remove column" }).click();
+  expect((await doc(page)).sections[detailIndex].children[0].columns.map((column: any) => column.header)).toEqual(["Investigation", "Result"]);
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-frame")).toBeVisible();
+  await expect(page.getByTestId("pdf-info")).toContainText("page");
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "16-grouped-a4-pdf-preview.png") });
+  await page.getByTestId("preview-tab-html").click();
+  const body = page.getByTestId("html-frame").contentFrame().locator("body");
+  await expect(body).toContainText("Asha Rao");
+  await expect(body).toContainText("Glucose");
+  await expect(body).toContainText("Haemoglobin");
+  expect((await body.innerText()).match(/Glucose/g)).toHaveLength(1);
+  expect((await body.innerText()).match(/Haemoglobin/g)).toHaveLength(1);
+  await page.screenshot({ path: path.join(screenshots, "17-grouped-a4-html-preview.png") });
+});
+
 test("array drop offers table, repeater and cards with optional generated fields", async ({ page }) => {
   await page.getByTestId("left-tab-data").click();
   await page.getByTestId("add-dataset").click();

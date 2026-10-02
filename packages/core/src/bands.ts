@@ -218,9 +218,22 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
     for (const b of ofType("dataHeader")) out.push(...band(b, ctxFor(rows[0])));
 
     const details = bands.filter((b) => b.s.type === "detail" || (b.s.type === "child" && !attached.has(b)));
+    // A table already iterates its dataset. When it is the sole detail content,
+    // emit it once per group (or once for the whole dataset) instead of once per row.
+    const tableDetail = details.length === 1 && details[0]!.s.children?.length === 1
+      && (details[0]!.s.children[0] as any).type === "table"
+      && (details[0]!.s.children[0] as any).dataset === datasetId;
 
     const emitLevel = (level: number, levelRows: Record<string, unknown>[], parentGroup?: GroupContext, parentInstance?: number) => {
       if (level >= groups.length) {
+        if (tableDetail && datasetId) {
+          const ctx = ctxFor(levelRows[0], parentGroup, parentGroup?.rows);
+          // lookupDataset accepts an exact dotted reference before traversing
+          // the root object, so nested array datasets can be scoped as well.
+          ctx.data = { ...ctx.data, [datasetId]: levelRows };
+          out.push(...band(details[0]!, ctx, { rowIndex: 0, level: parentGroup?.level, groupId: parentGroup?.id, groupKey: parentGroup?.key, instance: parentInstance }));
+          return;
+        }
         levelRows.forEach((row, rowIndex) => {
           const ctx = ctxFor(row, parentGroup, parentGroup?.rows);
           for (const d of details) out.push(...band(d, ctx, { rowIndex, level: parentGroup?.level, groupId: parentGroup?.id, groupKey: parentGroup?.key, instance: parentInstance }));
