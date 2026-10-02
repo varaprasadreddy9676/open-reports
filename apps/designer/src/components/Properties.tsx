@@ -3,7 +3,7 @@ import { useStore } from "../store";
 import * as ops from "../model/ops";
 import { buildCalc, CALC_OPS, parseCalc, buildFormat, conditionToExpression, expressionToCondition, OPERATORS, parseFormat, titleCase, type Condition } from "../lib/lowcode";
 import { candidatesFor, type Candidate } from "../lib/bindings";
-import { datasetValue, inferFields, arrayRefs } from "../lib/fields";
+import { datasetValue, datasetFields, scalarFields, inferFields, arrayRefs } from "../lib/fields";
 import { Icon } from "./Icon";
 import { BandProps } from "./BandProps";
 import { TableHeaderEditor } from "./TableHeaderEditor";
@@ -493,8 +493,7 @@ function TableProps({ comp }: { comp: ops.Comp }) {
     </label>
   );
   const generate = () => {
-    const rows = datasetValue(doc, sample, comp.dataset);
-    const fields = inferFields(rows).filter((f) => f.kind !== "array" && f.kind !== "object");
+    const fields = scalarFields(datasetFields(doc, sample, comp.dataset));
     patch(comp.id, {
       columns: fields.slice(0, 10).map((f) => ({
         id: f.name,

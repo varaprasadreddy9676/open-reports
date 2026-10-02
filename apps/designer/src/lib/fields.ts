@@ -1,4 +1,6 @@
-/** Field discovery from sample data, for the Data panel and autocomplete. */
+import type { DatasetShape } from "@reporting/schema";
+
+/** Field discovery from sample data or a declared dataset schema. */
 export interface FieldNode {
   name: string;
   /** dotted path relative to the dataset root */
@@ -28,6 +30,83 @@ export function inferFields(value: unknown, basePath = "", depth = 0): FieldNode
   });
 }
 
+export function fieldDefinitions(nodes: FieldNode[]): DatasetShape["fields"] {
+  return nodes.flatMap((node) => [
+    { path: node.path, kind: node.kind },
+    ...fieldDefinitions(node.children ?? []),
+  ]);
+}
+
+function valueAtPath(value: unknown, path: string): unknown {
+  for (const key of path.split(".")) {
+    if (Array.isArray(value)) value = value.find((item) => item && typeof item === "object") ?? value[0];
+    if (value === null || typeof value !== "object") return undefined;
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
+
+export function declaredFields(shape: DatasetShape, sample: unknown): FieldNode[] {
+  const roots: FieldNode[] = [];
+  const nodes = new Map<string, FieldNode>();
+  const explicitFields = new Map(shape.fields.map((field) => [field.path, field]));
+  for (const field of shape.fields) {
+    const parts = field.path.split(".");
+    for (let length = 1; length <= parts.length; length++) {
+      const path = parts.slice(0, length).join(".");
+      const explicit = explicitFields.get(path);
+      const existing = nodes.get(path);
+      if (existing) continue;
+      const node: FieldNode = {
+        name: parts[length - 1]!, path,
+        kind: explicit?.kind ?? "object",
+        sample: valueAtPath(sample, path),
+        children: [],
+      };
+      nodes.set(path, node);
+      if (length === 1) roots.push(node);
+      else nodes.get(parts.slice(0, length - 1).join("."))?.children?.push(node);
+    }
+  }
+  return roots;
+}
+
+/** Declared fields are stable when a live source returns zero rows; older reports infer from samples. */
+export function datasetFields(doc: Record<string, any>, sample: Record<string, unknown>, ref: string): FieldNode[] {
+  const [root, ...rest] = ref.split(".");
+  const ds = (doc.datasets ?? []).find((item: any) => item.id === root);
+  if (ds?.schema) {
+    const fields = declaredFields(ds.schema, datasetValue(doc, sample, root ?? ""));
+    if (!rest.length) return fields;
+    const path = rest.join(".");
+    const find = (nodes: FieldNode[]): FieldNode | undefined => {
+      for (const node of nodes) {
+        if (node.path === path) return node;
+        const child = find(node.children ?? []);
+        if (child) return child;
+      }
+    };
+    const relative = (nodes: FieldNode[]): FieldNode[] => nodes.map((node) => ({
+      ...node,
+      path: node.path.slice(path.length + 1),
+      children: node.children ? relative(node.children) : undefined,
+    }));
+    return relative(find(fields)?.children ?? []);
+  }
+  return inferFields(datasetValue(doc, sample, ref));
+}
+
+export function datasetIsArray(doc: Record<string, any>, sample: Record<string, unknown>, ref: string): boolean {
+  const [root, ...rest] = ref.split(".");
+  const ds = (doc.datasets ?? []).find((item: any) => item.id === root);
+  if (ds?.schema) {
+    if (!rest.length) return ds.schema.kind === "array";
+    const path = rest.join(".");
+    return ds.schema.fields.some((field: DatasetShape["fields"][number]) => field.path === path && field.kind === "array");
+  }
+  return Array.isArray(datasetValue(doc, sample, ref));
+}
+
 /** Keep the ancestors of matching fields so a search result retains its data path. */
 export function filterFields(nodes: FieldNode[], query: string, ancestorMatches = false): FieldNode[] {
   const term = query.trim().toLowerCase();
@@ -52,6 +131,10 @@ export function flatFieldPaths(nodes: FieldNode[]): string[] {
   return nodes.flatMap((n) => (n.children && n.kind === "object" ? flatFieldPaths(n.children) : n.kind === "array" ? [] : [n.path]));
 }
 
+export function scalarFields(nodes: FieldNode[]): FieldNode[] {
+  return nodes.flatMap((node) => node.kind === "object" ? scalarFields(node.children ?? []) : node.kind === "array" ? [] : [node]);
+}
+
 /** Value of a dataset reference ("invoice" or "invoice.items") from sample data or inline definition data. */
 export function datasetValue(doc: Record<string, any>, sample: Record<string, unknown>, ref: string): unknown {
   const [root, ...rest] = ref.split(".");
@@ -69,16 +152,16 @@ export function arrayRefs(doc: Record<string, any>, sample: Record<string, unkno
   const refs: string[] = [];
   for (const ds of doc.datasets ?? []) {
     const v = datasetValue(doc, sample, ds.id);
-    if (Array.isArray(v)) refs.push(ds.id);
-    else if (v && typeof v === "object") {
+    if (datasetIsArray(doc, sample, ds.id)) refs.push(ds.id);
+    if (!datasetIsArray(doc, sample, ds.id) && (ds.schema || (v && typeof v === "object" && !Array.isArray(v)))) {
       const walk = (node: FieldNode[]) => {
         for (const f of node) {
           if (f.kind === "array") refs.push(`${ds.id}.${f.path}`);
           else if (f.kind === "object" && f.children) walk(f.children);
         }
       };
-      walk(inferFields(v));
-    } else if (ds.source !== "inline") refs.push(ds.id);
+      walk(datasetFields(doc, sample, ds.id));
+    } else if (!Array.isArray(v) && ds.source !== "inline") refs.push(ds.id);
   }
   return refs;
 }

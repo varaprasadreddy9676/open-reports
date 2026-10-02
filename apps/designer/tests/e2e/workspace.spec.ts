@@ -399,12 +399,14 @@ test.describe("data and code tooling", () => {
     await page.getByTestId("dataset-test").click();
     await expect(page.getByTestId("dataset-insights")).toContainText("2 rows");
     await page.getByTestId("result-view-schema").click();
+    await page.getByTestId("schema-use-preview").click();
     await page.getByTestId("dataset-save").click();
     const d = await page.evaluate(() => (window as any).__designer.getState().doc);
     expect(d.datasets[0].query.data).toEqual([
       { name: "Consultation", amount: 600, date: "2025-01-05" },
       { name: "X-ray", amount: 700, date: "2025-01-06" },
     ]);
+    expect(d.datasets[0].schema.fields).toEqual([{ path: "name", kind: "string" }, { path: "amount", kind: "number" }, { path: "date", kind: "date" }]);
   });
 
   test("compare versions lists changes between a saved version and the editor", async ({ page }) => {

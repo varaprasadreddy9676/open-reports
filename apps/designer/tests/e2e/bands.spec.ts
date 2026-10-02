@@ -107,6 +107,74 @@ test("array drop can create a blank editable table", async ({ page }) => {
   await expect(page.getByTestId("add-column")).toBeVisible();
 });
 
+test("empty dataset fields can be defined and dragged into a bound table", async ({ page }) => {
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("items");
+  await page.getByTestId("dataset-json").fill("[]");
+  await page.getByTestId("schema-add-field").click();
+  await page.getByRole("textbox", { name: "Field 1 path" }).fill("invalid field");
+  await page.getByTestId("dataset-save").click();
+  await expect(page.getByTestId("dataset-error")).toContainText("dot-separated field names");
+  await page.getByRole("textbox", { name: "Field 1 path" }).fill("name");
+  await page.getByTestId("schema-add-field").click();
+  await page.getByRole("textbox", { name: "Field 2 path" }).fill("quantity");
+  await page.getByRole("combobox", { name: "Field 2 type" }).selectOption("number");
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "13-defined-dataset-fields.png") });
+  await page.getByTestId("dataset-save").click();
+  expect((await doc(page)).datasets[0].schema).toEqual({ kind: "array", fields: [{ path: "name", kind: "string" }, { path: "quantity", kind: "number" }] });
+  await expect(page.getByTestId("field-items-name")).toBeVisible();
+  await expect(page.getByTestId("field-items-quantity")).toBeVisible();
+  await dropInBand(page, "array-items", 0);
+  await expect(page.getByTestId("drop-prompt")).toContainText("2 fields: Name, Quantity");
+  await page.getByTestId("create-array-display").click();
+  expect((await doc(page)).sections[0].children[0].columns.map((column: any) => column.binding)).toEqual(["row.name", "row.quantity"]);
+  await expect(page.locator(".cn-table")).toBeVisible();
+  await page.getByRole("button", { name: "Fit to width" }).click();
+  await expect(page.locator(".cn-table th")).toHaveText(["Name", "Quantity"]);
+  await page.screenshot({ path: path.join(screenshots, "12-empty-dataset-bound-table.png") });
+  await page.evaluate(() => { const state = (window as any).__designer.getState(); state.setDoc({ ...state.doc, id: "schema-zero-rows" }); });
+  await page.getByTestId("btn-save").click();
+  await expect(page.getByTestId("status-pill")).toContainText("draft · v1");
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByTestId("starter-blank").waitFor();
+  await page.keyboard.press("Escape");
+  await page.getByTestId("btn-open").click();
+  await page.getByTestId("open-schema-zero-rows").click();
+  await expect.poll(async () => (await doc(page)).datasets[0]?.schema?.fields?.map((field: any) => field.path)).toEqual(["name", "quantity"]);
+});
+
+test("REST fields remain bindable before the first request succeeds", async ({ page }) => {
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("record");
+  await page.getByTestId("dataset-kind-rest").click();
+  await page.getByTestId("dataset-url").fill("https://example.com/record");
+  await page.getByTestId("dataset-shape").selectOption("object");
+  await page.getByTestId("schema-add-field").click();
+  await page.getByRole("textbox", { name: "Field 1 path" }).fill("patient.name");
+  await page.getByTestId("schema-add-field").click();
+  await page.getByRole("textbox", { name: "Field 2 path" }).fill("items");
+  await page.getByRole("combobox", { name: "Field 2 type" }).selectOption("array");
+  await page.getByTestId("schema-add-field").click();
+  await page.getByRole("textbox", { name: "Field 3 path" }).fill("items.amount");
+  await page.getByRole("combobox", { name: "Field 3 type" }).selectOption("number");
+  await page.getByTestId("dataset-save").click();
+  await expect(page.getByTestId("field-record-patient.name")).toBeVisible();
+  await dropInBand(page, "field-record-patient.name", 0);
+  expect((await doc(page)).sections[0].children[0].binding).toBe("data.record.patient.name");
+  await dropInBand(page, "field-record-items", 0);
+  await page.getByTestId("create-array-display").click();
+  expect((await doc(page)).sections[0].children.find((child: any) => child.type === "table").columns[0].binding).toBe("row.amount");
+  await page.getByTestId("mode-data").click();
+  await page.getByTestId("data-item-record").click();
+  await expect(page.locator(".data-main > .schema-tree")).toContainText("patient");
+  await expect(page.locator(".data-main > .schema-tree")).toContainText("name");
+});
+
 test("collapse a band, then drag its ruler edge to resize and double-click to fit", async ({ page }) => {
   const idx = 0;
   await page.getByTestId(`band-collapse-${idx}`).click();

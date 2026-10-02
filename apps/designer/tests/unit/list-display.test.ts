@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseReportDefinition } from "@reporting/schema";
 import { listFor } from "../../src/lib/generate";
+import { datasetFields } from "../../src/lib/fields";
 
 const rows = [{ testName: "Glucose", result: 92, flag: "H" }, { testName: "Sodium", result: 139, flag: "N" }];
 
@@ -26,5 +27,14 @@ describe("array display generation", () => {
   it("uses a blank editable field when sample data has no schema", () => {
     const cards = listFor("clinical.investigations", "investigations", [], "cards", true);
     expect(cards.children[0].children).toEqual([{ type: "text", name: "Bind a field", value: "" }]);
+  });
+
+  it("generates bound columns from declared fields with zero rows", () => {
+    const doc = { datasets: [{ id: "items", source: "inline", query: { data: [] }, schema: { kind: "array", fields: [{ path: "name", kind: "string" }, { path: "quantity", kind: "number" }] } }] };
+    const table = listFor("items", "Items", [], "table", true, datasetFields(doc, {}, "items"));
+    expect(table.columns.map((column: any) => column.binding)).toEqual(["row.name", "row.quantity"]);
+    const nested = { datasets: [{ id: "invoice", source: "inline", query: { data: { items: [] } }, schema: { kind: "object", fields: [{ path: "items", kind: "array" }, { path: "items.amount", kind: "number" }] } }] };
+    const nestedTable = listFor("invoice.items", "Items", [], "table", true, datasetFields(nested, {}, "invoice.items"));
+    expect(nestedTable.columns[0]?.binding).toBe("row.amount");
   });
 });

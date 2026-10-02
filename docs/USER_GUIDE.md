@@ -29,6 +29,8 @@ For free-positioned elements inside the same absolute layout, select two or more
 ## 3. Data
 **Data mode** lists datasets: JSON, REST API, database (PostgreSQL/MySQL via server-side connections), or CSV upload. **Test request** shows a Table / Raw JSON / Schema view and hints (row counts, nested lists, dates). For API keys use `{{secrets.NAME}}`; the real value lives on the server as `REPORT_SECRET_NAME` and never enters the report. Add **parameters** (e.g. `invoiceId`) and use them as `{{params.invoiceId}}`.
 
+When a source has no preview rows, open its dataset editor and add **Fields**. Enter paths such as `name`, `amount`, or `patient.name`, choose each type, and set **Data shape** to a list or single object. Save the dataset; the fields appear in the Data rail and can be bound immediately. If a preview is available, **Use fields from preview** copies its inferred fields into the report definition. Declared fields describe the data shape; they do not create sample records.
+
 ## 4. Pagination for long documents
 - Tables: **Repeat header on every page**; set *Min rows after break* to avoid a lone row on a page.
 - Headings: **Keep with next**. Blocks that must not split: **Keep together** (Page breaks section).

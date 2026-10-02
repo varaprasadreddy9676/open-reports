@@ -1,7 +1,7 @@
 import { applyPatch, summarizeChanges, AUTHORING_GUIDE, type PatchOp } from "@reporting/ai-tools";
 import type { Doc } from "../model/ops";
 import { walkAll } from "../model/ops";
-import { inferFields } from "./fields";
+import { datasetFields, fieldDefinitions } from "./fields";
 
 /** BYOK settings live only in this browser (localStorage). They are sent to the chosen model provider and nowhere else - never to the report server. */
 export type Provider = "anthropic" | "openai";
@@ -62,8 +62,7 @@ function outline(doc: Doc): string[] {
 /** What the model is told. Selection-scoped: selected components are given in full, everything else as an outline. */
 export function buildContext(doc: Doc, sample: Record<string, unknown>, selection: string[], problems: { severity: string; message: string; componentId?: string }[]): string {
   const datasets = (doc.datasets ?? []).map((d: any) => {
-    const data = sample[d.id] ?? d.query?.data;
-    const fields = inferFields(data).map((f) => `${f.path}:${f.kind}`);
+    const fields = fieldDefinitions(datasetFields(doc, sample, d.id)).map((f) => `${f.path}:${f.kind}`);
     return `- ${d.id} (${d.source}) fields: ${fields.slice(0, 40).join(", ") || "unknown"}`;
   });
   const selected = selection

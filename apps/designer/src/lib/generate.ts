@@ -1,4 +1,4 @@
-import { inferFields, inferKind, type FieldNode } from "./fields";
+import { inferFields, inferKind, scalarFields, type FieldNode } from "./fields";
 import { titleCase } from "./lowcode";
 import type { Comp, Doc } from "../model/ops";
 
@@ -66,8 +66,8 @@ export function generateReportFromJson(json: unknown, name = "New report"): Doc 
   };
 }
 
-export function tableFor(datasetRef: string, title: string, rows: unknown): Comp[] {
-  const fields = inferFields(rows).filter((f) => f.kind !== "array" && f.kind !== "object");
+export function tableFor(datasetRef: string, title: string, rows: unknown, schemaFields?: FieldNode[]): Comp[] {
+  const fields = scalarFields(schemaFields ?? inferFields(rows));
   return [
     { type: "text", value: titleCase(title), style: { fontSize: 12, fontWeight: "bold", color: "#374151" }, keepWithNext: true },
     {
@@ -89,10 +89,10 @@ export function tableFor(datasetRef: string, title: string, rows: unknown): Comp
 export type ListDisplay = "table" | "repeater" | "cards";
 
 /** A dropped array becomes one editable component; every generated value stays bound to the row. */
-export function listFor(datasetRef: string, title: string, rows: unknown, display: ListDisplay, createFields: boolean): Comp {
-  const fields = inferFields(rows).filter((field) => field.kind !== "array" && field.kind !== "object");
+export function listFor(datasetRef: string, title: string, rows: unknown, display: ListDisplay, createFields: boolean, schemaFields?: FieldNode[]): Comp {
+  const fields = scalarFields(schemaFields ?? inferFields(rows));
   if (display === "table") {
-    const table = tableFor(datasetRef, title, rows)[1]!;
+    const table = tableFor(datasetRef, title, rows, fields)[1]!;
     return createFields && fields.length ? table : { ...table, columns: [{ id: "field-1", header: "New column" }] };
   }
 

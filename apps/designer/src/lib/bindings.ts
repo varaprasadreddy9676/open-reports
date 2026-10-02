@@ -1,5 +1,5 @@
 import * as ops from "../model/ops";
-import { datasetValue, inferFields, type FieldNode } from "./fields";
+import { datasetFields, datasetIsArray, type FieldNode } from "./fields";
 import { FUNCTIONS, titleCase } from "./lowcode";
 
 export interface Candidate {
@@ -21,12 +21,10 @@ export function candidatesFor(doc: ops.Doc, sample: Record<string, unknown>, id?
   const out: Candidate[] = [];
   const rowDs = tableDataset ?? ops.rowDatasetAt(doc, id);
   if (rowDs) {
-    const rows = datasetValue(doc, sample, rowDs);
-    leafPaths(inferFields(rows), "row.", "This row", "", out);
+    leafPaths(datasetFields(doc, sample, rowDs), "row.", "This row", "", out);
   }
   for (const ds of doc.datasets ?? []) {
-    const v = datasetValue(doc, sample, ds.id);
-    if (v && typeof v === "object" && !Array.isArray(v)) leafPaths(inferFields(v), `data.${ds.id}.`, titleCase(ds.id), `${titleCase(ds.id)} › `, out);
+    if (!datasetIsArray(doc, sample, ds.id)) leafPaths(datasetFields(doc, sample, ds.id), `data.${ds.id}.`, titleCase(ds.id), `${titleCase(ds.id)} › `, out);
   }
   for (const p of doc.parameters ?? []) out.push({ value: `params.${p.id}`, label: titleCase(p.id), group: "Parameters" });
   for (const v of doc.variables ?? []) out.push({ value: `vars.${v.id}`, label: titleCase(v.id), group: "Variables" });

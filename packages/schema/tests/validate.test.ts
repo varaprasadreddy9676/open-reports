@@ -24,6 +24,15 @@ describe("parseReportDefinition", () => {
     }
   });
 
+  it("preserves declared dataset fields and rejects duplicate or invalid nested paths", () => {
+    const report = { ...minimalValidReport, datasets: [{ id: "items", source: "inline", query: { data: [] }, schema: { kind: "array", fields: [{ path: "name", kind: "string" }, { path: "quantity", kind: "number" }] } }] };
+    const parsed = parseReportDefinition(report);
+    expect(parsed.valid).toBe(true);
+    if (parsed.valid) expect(parsed.report.datasets[0]?.schema?.fields).toEqual(report.datasets[0]?.schema.fields);
+    expect(parseReportDefinition({ ...report, datasets: [{ ...report.datasets[0], schema: { kind: "array", fields: [{ path: "name", kind: "string" }, { path: "name", kind: "number" }] } }] }).valid).toBe(false);
+    expect(parseReportDefinition({ ...report, datasets: [{ ...report.datasets[0], schema: { kind: "array", fields: [{ path: "name", kind: "string" }, { path: "name.first", kind: "string" }] } }] }).valid).toBe(false);
+  });
+
   it("rejects a non-object document", () => {
     const result = parseReportDefinition("not a report");
     expect(result.valid).toBe(false);
@@ -102,5 +111,6 @@ describe("getReportJsonSchema", () => {
     const schema = getReportJsonSchema();
     expect(schema.title ?? (schema as any).$ref).toBeTruthy();
     expect(JSON.stringify(schema)).toContain("schemaVersion");
+    expect((schema as any).definitions.ReportDefinition.properties.datasets.items.properties.schema.properties.fields.items.properties.kind.enum).toContain("array");
   });
 });

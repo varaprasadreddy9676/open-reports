@@ -23,10 +23,38 @@ export const sqlDataSourceQuerySchema = z.object({
   maxRows: z.number().int().positive().optional(),
 });
 
+/** Authoring metadata. It does not change the data returned by a source. */
+export const datasetFieldSchema = z.object({
+  path: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/, "Use dot-separated field names (for example patient.name)."),
+  kind: z.enum(["string", "number", "boolean", "date", "object", "array"]),
+});
+
+export const datasetShapeSchema = z.object({
+  kind: z.enum(["object", "array"]),
+  fields: z.array(datasetFieldSchema).default([]),
+}).superRefine((shape, ctx) => {
+  const seen = new Set<string>();
+  for (const [index, field] of shape.fields.entries()) {
+    if (seen.has(field.path)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["fields", index, "path"], message: `Field ${field.path} is declared twice.` });
+    seen.add(field.path);
+  }
+  for (const [index, field] of shape.fields.entries()) {
+    const parts = field.path.split(".");
+    for (let length = 1; length < parts.length; length++) {
+      const ancestor = shape.fields.find((other) => other.path === parts.slice(0, length).join("."));
+      if (ancestor && ancestor.kind !== "object" && ancestor.kind !== "array") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["fields", index, "path"], message: `Nested field ${field.path} needs ${ancestor.path} to be an object or array.` });
+      }
+    }
+  }
+});
+export type DatasetShape = z.infer<typeof datasetShapeSchema>;
+
 export const datasetDefinitionSchema = z.object({
   id: z.string().min(1),
   source: z.union([z.enum(["inline", "json", "rest", "sql"]), z.string().regex(/^plugin:[A-Za-z0-9._-]+$/, 'Plugin datasources are written "plugin:<name>".')]),
   query: z.unknown().optional(),
   transform: z.string().optional(),
+  schema: datasetShapeSchema.optional(),
 });
 export type DatasetDefinition = z.infer<typeof datasetDefinitionSchema>;

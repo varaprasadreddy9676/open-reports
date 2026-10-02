@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { arrayRefs, datasetValue, flatFieldPaths, inferFields } from "../lib/fields";
+import { arrayRefs, datasetFields, flatFieldPaths } from "../lib/fields";
 import { checkExpression } from "../lib/lowcode";
 import * as ops from "../model/ops";
 import { useStore } from "../store";
@@ -9,7 +9,7 @@ export function GroupWizard() {
   const { doc, sample } = useStore();
   const refs = useMemo(() => arrayRefs(doc, sample), [doc, sample]);
   const [dataset, setDataset] = useState(refs[0] ?? "");
-  const fields = useMemo(() => flatFieldPaths(inferFields(datasetValue(doc, sample, dataset))), [doc, sample, dataset]);
+  const fields = useMemo(() => flatFieldPaths(datasetFields(doc, sample, dataset)), [doc, sample, dataset]);
   const [mode, setMode] = useState<"field" | "formula">("field");
   const [by, setBy] = useState("");
   const [name, setName] = useState("");

@@ -1,6 +1,6 @@
 import React from "react";
 import { useStore } from "../store";
-import { datasetValue, inferFields, type FieldNode } from "../lib/fields";
+import { datasetFields, datasetValue, type FieldNode } from "../lib/fields";
 import { DatasetEditor } from "./DatasetEditor";
 
 const KIND_ICON: Record<FieldNode["kind"], string> = { string: "Aa", number: "#", boolean: "◐", date: "▣", object: "{}", array: "[]" };
@@ -27,7 +27,6 @@ export function DataMode() {
   const set = useStore((s) => s.set);
   const datasets = (doc.datasets ?? []) as any[];
   const current = datasets.find((d) => d.id === editingDataset);
-  const value = current ? datasetValue(doc, sample, current.id) : undefined;
   return (
     <div className="data-mode" data-testid="data-mode">
       <aside className="data-list" aria-label="Datasets">
@@ -58,7 +57,7 @@ export function DataMode() {
           <>
             <DatasetEditor key={current.id} />
             <div className="group-title">Schema</div>
-            <SchemaTree nodes={inferFields(value)} />
+            <SchemaTree nodes={datasetFields(doc, sample, current.id)} />
           </>
         ) : (
           <div className="empty-state">

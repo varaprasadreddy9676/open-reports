@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
-import { datasetValue, fieldSample, filterFields, inferFields, type FieldNode } from "../lib/fields";
+import { datasetFields, datasetIsArray, fieldSample, filterFields, type FieldNode } from "../lib/fields";
 import { titleCase } from "../lib/lowcode";
 import { Icon } from "./Icon";
 import { api } from "../lib/api";
@@ -152,6 +152,7 @@ function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray, searching }: { 
   const [open, setOpen] = useState(depth < 1);
   const isArray = node.kind === "array";
   const isObj = node.kind === "object";
+  const canDrag = !isObj && !(isArray && parentIsArray);
   const ref = `${dsId}.${node.path}`;
   const expanded = searching || open;
   const example = fieldSample(node.sample);
@@ -165,14 +166,14 @@ function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray, searching }: { 
       <div
         className={`field-row kind-${node.kind}`}
         style={{ paddingLeft: 8 + depth * 14 }}
-        draggable={!isObj}
+        draggable={canDrag}
         data-testid={`field-${dsId}-${node.path}`}
         onDragStart={(e) => {
           e.dataTransfer.setData("application/x-rpt", JSON.stringify(payload));
           e.dataTransfer.effectAllowed = "copy";
         }}
         onClick={() => (isObj || isArray) && setOpen(!open)}
-        title={`${node.path} · ${node.kind}${example ? ` · Sample: ${example}` : ""}${isArray ? " · Drag to choose Table, Repeater, or Cards" : !isObj ? " · Drag to bind" : ""}`}
+        title={`${node.path} · ${node.kind}${example ? ` · Sample: ${example}` : ""}${isArray ? canDrag ? " · Drag to choose Table, Repeater, or Cards" : " · Nested lists inside rows are not directly draggable yet" : !isObj ? " · Drag to bind" : ""}`}
       >
         <span className="twisty">{isObj || isArray ? (expanded ? "▾" : "▸") : ""}</span>
         <span className="field-icon">{isArray ? "[]" : isObj ? "{}" : node.kind === "number" ? "#" : node.kind === "date" ? "d" : node.kind === "boolean" ? "b" : "a"}</span>
@@ -205,10 +206,9 @@ function DataTab() {
       {datasets.length === 0 && <p className="muted">No data yet. Add a dataset or paste sample JSON to start binding fields.</p>}
       {datasets.length > 0 && <input className="search" type="search" aria-label="Search fields" placeholder="Search fields or paths…" value={query} onChange={(event) => setQuery(event.target.value)} />}
       {datasets.map((ds) => {
-        const value = datasetValue(doc, sample, ds.id);
         const datasetMatches = searching && `${ds.id} ${ds.source}`.toLowerCase().includes(query.trim().toLowerCase());
-        const fields = filterFields(inferFields(value), query, datasetMatches);
-        const isArray = Array.isArray(value);
+        const fields = filterFields(datasetFields(doc, sample, ds.id), query, datasetMatches);
+        const isArray = datasetIsArray(doc, sample, ds.id);
         if (searching && !datasetMatches && fields.length === 0) return null;
         visibleDatasets += 1;
         return (
@@ -244,7 +244,7 @@ function DataTab() {
             {fields.map((f) => (
               <FieldRow key={f.path} node={f} dsId={ds.id} depth={0} parentIsArray={isArray} arrayRoot={isArray ? "" : undefined} searching={searching} />
             ))}
-            {!searching && fields.length === 0 && <p className="muted small">No fields found{ds.source !== "inline" ? ` - open Edit and Test to load a preview` : ""}.</p>}
+            {!searching && fields.length === 0 && <p className="muted small">No fields yet. Open Edit to define fields or preview data.</p>}
           </div>
         );
       })}

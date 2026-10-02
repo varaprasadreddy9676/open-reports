@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useStore } from "../store";
 import { api } from "../lib/api";
 import { parseCsv } from "../lib/csv";
-import { inferFields } from "../lib/fields";
+import { fieldDefinitions, inferFields } from "../lib/fields";
 import { SchemaTree } from "./DataMode";
+import { datasetShapeSchema, type DatasetShape } from "@reporting/schema";
 
 type Kind = "inline" | "rest" | "sql" | "csv";
 
@@ -83,6 +84,10 @@ export function DatasetEditor() {
   const secrets = useStore((st) => st.capabilities?.secrets ?? []);
   const sqlIds = useStore((st) => st.capabilities?.sqlConnections ?? []);
   const [preview, setPreview] = useState<unknown>(sample[id]);
+  const previewFields = inferFields(preview);
+  const [shape, setShape] = useState<DatasetShape["kind"]>(existing?.schema?.kind ?? (Array.isArray(sample[id] ?? q.data) || !existing || existing.source !== "inline" ? "array" : "object"));
+  const [fields, setFields] = useState<DatasetShape["fields"]>(existing?.schema?.fields ?? []);
+  const [hasSchema, setHasSchema] = useState(Boolean(existing?.schema));
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
@@ -96,16 +101,17 @@ export function DatasetEditor() {
   };
 
   function definition() {
-    if (kind === "inline") return { id, source: "inline", query: { data: parseJson(data, "Data") } };
+    const metadata = hasSchema ? { schema: { kind: shape, fields } } : {};
+    if (kind === "inline") return { id, source: "inline", query: { data: parseJson(data, "Data") }, ...metadata };
     if (kind === "csv") {
       const rows = parseCsv(csv);
       if (rows.length === 0) throw new Error("The CSV has no data rows. The first line must be the column names.");
-      return { id, source: "inline", query: { data: rows } };
+      return { id, source: "inline", query: { data: rows }, ...metadata };
     }
     if (kind === "rest") {
-      return { id, source: "rest", query: { url, method, headers: parseJson(headers, "Headers"), query: parseJson(query, "Query parameters"), body: parseJson(body, "Body"), resultPath: resultPath || undefined } };
+      return { id, source: "rest", query: { url, method, headers: parseJson(headers, "Headers"), query: parseJson(query, "Query parameters"), body: parseJson(body, "Body"), resultPath: resultPath || undefined }, ...metadata };
     }
-    return { id, source: "sql", query: { connectionId, sql, params: parseJson(params, "Parameters") } };
+    return { id, source: "sql", query: { connectionId, sql, params: parseJson(params, "Parameters") }, ...metadata };
   }
 
   async function test() {
@@ -132,6 +138,16 @@ export function DatasetEditor() {
       const def = definition();
       if (!/^[A-Za-z_][\w-]*$/.test(id)) throw new Error("Dataset id must start with a letter and contain only letters, digits, - or _.");
       if ((doc.datasets ?? []).some((d: any) => d.id === id && d.id !== editingDataset)) throw new Error(`A dataset named "${id}" already exists.`);
+      if (hasSchema) {
+        const result = datasetShapeSchema.safeParse({ kind: shape, fields });
+        if (!result.success) throw new Error(result.error.issues.map((issue) => issue.message).join(" "));
+        if (kind === "inline") {
+          const actual = (def.query as { data?: unknown }).data;
+          if (actual !== undefined && (actual === null || typeof actual !== "object" || Array.isArray(actual) !== (shape === "array"))) {
+            throw new Error(`The JSON data is ${Array.isArray(actual) ? "a list" : "an object or value"}, but the declared shape is ${shape === "array" ? "a list" : "an object"}.`);
+          }
+        }
+      }
       const s = useStore.getState();
       const list = existing ? (doc.datasets as any[]).map((d) => (d.id === editingDataset ? def : d)) : [...(doc.datasets ?? []), def];
       s.setDoc({ ...doc, datasets: list });
@@ -143,7 +159,7 @@ export function DatasetEditor() {
         s.set({ sample: rest });
         s.refresh();
       }
-      s.set({ dialog: null });
+      s.set({ dialog: null, editingDataset: id });
     } catch (e) {
       setError((e as Error).message);
     }
@@ -158,7 +174,7 @@ export function DatasetEditor() {
       </label>
       <div className="seg" role="tablist">
         {(["inline", "rest", "sql", "csv"] as const).map((k) => (
-          <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? "active" : ""} data-testid={`dataset-kind-${k}`} onClick={() => setKind(k)}>
+          <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? "active" : ""} data-testid={`dataset-kind-${k}`} onClick={() => { setKind(k); if (!hasSchema && k !== "inline") setShape("array"); }}>
             {k === "inline" ? "JSON" : k === "rest" ? "REST API" : k === "sql" ? "Database (SQL)" : "CSV file"}
           </button>
         ))}
@@ -167,7 +183,15 @@ export function DatasetEditor() {
       {kind === "inline" && (
         <label className="field wide">
           <span className="field-label">JSON (object or array)</span>
-          <textarea className="mono" data-testid="dataset-json" rows={10} value={data} onChange={(e) => setData(e.target.value)} spellCheck={false} />
+          <textarea className="mono" data-testid="dataset-json" rows={10} value={data} onChange={(e) => {
+            setData(e.target.value);
+            if (!hasSchema) {
+              try {
+                const parsed = JSON.parse(e.target.value);
+                if (parsed && typeof parsed === "object") setShape(Array.isArray(parsed) ? "array" : "object");
+              } catch { /* wait for valid JSON */ }
+            }
+          }} spellCheck={false} />
         </label>
       )}
       {kind === "csv" && (
@@ -244,6 +268,22 @@ export function DatasetEditor() {
           </label>
         </>
       )}
+
+      <section className="dataset-schema-editor" data-testid="dataset-schema-editor" aria-label="Dataset fields">
+        <div className="row-title">
+          <div><strong>Fields</strong><p className="muted small">Define fields when preview data is empty or unavailable. These paths are saved with the report.</p></div>
+          <button className="mini" data-testid="schema-add-field" onClick={() => { setHasSchema(true); setFields([...fields, { path: "", kind: "string" }]); }}>+ Add field</button>
+        </div>
+        <label className="dataset-shape"><span>Data shape</span><select aria-label="Data shape" data-testid="dataset-shape" value={shape} onChange={(event) => { setShape(event.target.value as DatasetShape["kind"]); setHasSchema(true); }}><option value="array">List of records</option><option value="object">Single object</option></select></label>
+        {fields.map((field, index) => <div className="dataset-schema-row" key={index} data-testid={`schema-field-${index}`}>
+          <input aria-label={`Field ${index + 1} path`} placeholder="patient.name" value={field.path} onChange={(event) => { setHasSchema(true); setFields(fields.map((item, i) => i === index ? { ...item, path: event.target.value } : item)); }} />
+          <select aria-label={`Field ${index + 1} type`} value={field.kind} onChange={(event) => { setHasSchema(true); setFields(fields.map((item, i) => i === index ? { ...item, kind: event.target.value as DatasetShape["fields"][number]["kind"] } : item)); }}>
+            {(["string", "number", "boolean", "date", "object", "array"] as const).map((type) => <option key={type} value={type}>{type}</option>)}
+          </select>
+          <button className="mini danger" aria-label={`Remove field ${index + 1}`} onClick={() => { setHasSchema(true); setFields(fields.filter((_, i) => i !== index)); }}>×</button>
+        </div>)}
+        {preview !== undefined && <button className="mini" data-testid="schema-use-preview" disabled={previewFields.length === 0} title={previewFields.length === 0 ? "The preview has no fields to copy" : undefined} onClick={() => { setShape(Array.isArray(preview) ? "array" : "object"); setFields(fieldDefinitions(previewFields)); setHasSchema(true); }}>Use fields from preview</button>}
+      </section>
 
       {error && <div className="field-error" role="alert" data-testid="dataset-error">{error}</div>}
       {preview !== undefined && <ResultPreview value={preview} />}

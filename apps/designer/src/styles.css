@@ -1377,6 +1377,21 @@ textarea {
   flex-direction: column;
   gap: 10px;
 }
+.dataset-schema-editor {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+.dataset-schema-editor .row-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.dataset-schema-editor .row-title p { margin: 3px 0 0; }
+.dataset-schema-editor .row-title button { flex: none; }
+.dataset-shape { display: grid; grid-template-columns: 1fr 180px; align-items: center; gap: 8px; font-size: 12px; }
+.dataset-schema-row { display: grid; grid-template-columns: minmax(0, 1fr) 125px 26px; gap: 6px; align-items: center; }
+.dataset-schema-row input, .dataset-schema-row select { width: 100%; }
+.dataset-schema-row button { width: 26px; padding: 3px 0; }
 .grid-url {
   display: grid;
   grid-template-columns: 90px 1fr;

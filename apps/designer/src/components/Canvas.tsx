@@ -6,7 +6,7 @@ import { renderChartSvg } from "@reporting/renderer-html/chart";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
 import { cssFrom } from "../lib/css";
-import { datasetValue, inferFields } from "../lib/fields";
+import { datasetFields, datasetValue, scalarFields } from "../lib/fields";
 import { listFor, type ListDisplay } from "../lib/generate";
 import { titleCase } from "../lib/lowcode";
 import { snapBox, rectsIntersect, type Guide, type Distance } from "../lib/snap";
@@ -170,7 +170,7 @@ function TableView({ node, k }: { node: PositionedNode; k: number }) {
         {t.rows.length === 0 && (
           <tr>
             <td colSpan={t.columns.length} style={{ color: "#9ca3af", padding: 4 * k }}>
-              No rows - bind a dataset
+              No rows to preview
             </td>
           </tr>
         )}
@@ -693,7 +693,7 @@ function DropPromptChoice({ prompt }: { prompt: NonNullable<ReturnType<typeof us
   const firstChoice = useRef<HTMLInputElement>(null);
   const close = () => useStore.getState().set({ dropPrompt: null });
   const rows = datasetValue(doc, sample, prompt.dataset);
-  const fields = inferFields(rows).filter((field) => field.kind !== "array" && field.kind !== "object");
+  const fields = scalarFields(datasetFields(doc, sample, prompt.dataset));
   const title = titleCase(prompt.dataset.split(".").pop()!);
   const canvasBounds = document.querySelector(".center")?.getBoundingClientRect();
   const dialogWidth = Math.min(360, window.innerWidth - 24);
@@ -710,7 +710,7 @@ function DropPromptChoice({ prompt }: { prompt: NonNullable<ReturnType<typeof us
   }, []);
   const create = () => {
     const s = useStore.getState();
-    s.insertComponent(listFor(prompt.dataset, title, rows, display, createFields), prompt.targetId, prompt.position, prompt.bandIndex);
+    s.insertComponent(listFor(prompt.dataset, title, rows, display, createFields, fields), prompt.targetId, prompt.position, prompt.bandIndex);
     s.set({ rightOpen: true });
     close();
   };
@@ -732,7 +732,7 @@ function DropPromptChoice({ prompt }: { prompt: NonNullable<ReturnType<typeof us
         ))}
       </fieldset>
       <label className="drop-prompt-auto"><input type="checkbox" checked={createFields} onChange={(event) => setCreateFields(event.target.checked)} /> Create fields automatically</label>
-      <p className="drop-prompt-fields">{fields.length ? `${fields.length} sample field${fields.length === 1 ? "" : "s"}: ${fields.slice(0, 5).map((field) => titleCase(field.name)).join(", ")}${fields.length > 5 ? "…" : ""}` : "No sample fields found. A blank field will be created for editing."}</p>
+      <p className="drop-prompt-fields">{fields.length ? `${fields.length} field${fields.length === 1 ? "" : "s"}: ${fields.slice(0, 5).map((field) => titleCase(field.name)).join(", ")}${fields.length > 5 ? "…" : ""}` : "No fields found. A blank field will be created for editing."}</p>
       <div className="drop-prompt-actions"><button className="btn" onClick={close}>Cancel</button><button className="btn primary" data-testid="create-array-display" onClick={create}>Create {display === "table" ? "table" : display === "cards" ? "cards" : "repeater"}</button></div>
     </div>
   );
