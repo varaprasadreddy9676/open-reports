@@ -274,9 +274,9 @@ function analyse(doc: Doc, resolved: ResolvedReport, paginated: PaginatedReport,
   if (print?.safeMargin) {
     const m = (print.safeMargin as number) / MM;
     for (const page of paginated.pages) {
-      for (const n of page.content) {
+      for (const n of allNodes(page.content)) {
         const id = (n.component as any).id as string | undefined;
-        if (id && (n.box.x < m - 0.5 || n.box.y < m - 0.5 || n.box.x + n.box.width > paginated.pageSize.width - m + 0.5)) {
+        if (id && (n.box.x < m - 0.5 || n.box.y < m - 0.5 || n.box.x + n.box.width > paginated.pageSize.width - m + 0.5 || n.box.y + n.box.height > paginated.pageSize.height - m + 0.5)) {
           problems.push({ severity: "warning", code: "OUTSIDE_SAFE_AREA", message: `"${id}" is outside the printer's ${print.safeMargin} mm safe area and may be clipped.`, componentId: id });
         }
       }

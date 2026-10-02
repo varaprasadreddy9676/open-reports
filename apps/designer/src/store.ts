@@ -320,7 +320,7 @@ export const useStore = create<State>((set, get) => ({
       const set2 = new Set(s.selection);
       for (const id of ids) (set2.has(id) ? set2.delete(id) : set2.add(id));
       set({ selection: [...set2], selectedBand: null });
-    } else set({ selection: ids, ...(ids.length ? { selectedBand: null } : {}) });
+    } else set({ selection: ids, selectedBand: null });
   },
 
   addComponent(type, targetId, position = "after", overrides = {}, bandIndex) {

@@ -10,6 +10,12 @@ const absolute = (): any => ({
 });
 
 describe("free-positioned arrangement", () => {
+  it("recognizes a band as the parent of its direct children", () => {
+    const doc = { sections: [{ type: "detail", layout: "absolute", children: [{ id: "text", type: "text" }] }] };
+    expect(ops.parentLayout(doc, "text")).toBe("absolute");
+    expect(ops.parentLayout(absolute(), "a")).toBe("absolute");
+  });
+
   it("aligns and distributes only elements in one absolute parent", () => {
     const doc = absolute();
     expect(ops.canArrange(doc, ["a", "b", "c"])).toBe(true);

@@ -1086,6 +1086,7 @@ const PRINT_PRESETS: { label: string; profile: Record<string, unknown>; page?: R
   { label: "Office printer (A4)", profile: { printerType: "document", language: "pdf", dpi: 300, safeMargin: 5 } },
   { label: "Thermal receipt 80 mm", profile: { printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 80, height: 200, unit: "mm", orientation: "portrait" } },
   { label: "Thermal receipt 58 mm", profile: { printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 58, height: 200, unit: "mm", orientation: "portrait" } },
+  { label: "Label 40 × 25 mm (ZPL 203 dpi)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } },
   { label: "Label 50 × 30 mm (ZPL 203 dpi)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 50, height: 30, unit: "mm", orientation: "landscape" } },
   { label: "Label 100 × 50 mm (ZPL 300 dpi)", profile: { printerType: "label", language: "zpl", dpi: 300, safeMargin: 2 }, page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape" } },
   { label: "Wristband 25 × 250 mm (ZPL)", profile: { printerType: "wristband", language: "zpl", dpi: 300, safeMargin: 1 }, page: { size: "custom", width: 25, height: 250, unit: "mm", orientation: "portrait" } },
@@ -1098,24 +1099,31 @@ function PrintProfilePanel() {
   const pag = engine.paginated;
   const mm = (pt: number) => (pt * 25.4) / 72;
   const dpi = print?.dpi ?? 203;
+  const presetIndex = PRINT_PRESETS.findIndex((preset) =>
+    print && Object.entries(preset.profile).every(([key, value]) => print[key as keyof typeof print] === value)
+      && (!preset.page || Object.entries(preset.page).every(([key, value]) =>
+        key === "margin"
+          ? Object.entries(value as Record<string, number>).every(([side, amount]) => doc.page?.margin?.[side] === amount)
+          : doc.page?.[key as keyof typeof doc.page] === value))
+  );
   const set = (p: Record<string, unknown>) => setDoc({ ...doc, print: { ...(doc.print ?? {}), ...p } }, { coalesce: "print" });
   return (
     <Section title="Print & labels" open={!!print}>
-      <Field label="Preset" wide>
+      <Field label="Printer / media preset" wide>
         <select
-          aria-label="Print preset"
+          aria-label="Printer / media preset"
           data-testid="print-preset"
-          value=""
+          value={presetIndex < 0 ? "" : String(presetIndex)}
           onChange={(e) => {
             const preset = PRINT_PRESETS[Number(e.target.value)];
             if (!preset) return;
-            setDoc({ ...doc, print: { ...(doc.print ?? {}), ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
+            setDoc({ ...doc, print: { ...(doc.print ?? {}), ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: preset.page.margin ?? { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
             if (preset.page?.unit === "mm" && typeof preset.page.width === "number") {
               useStore.getState().set({ zoom: fitZoom(preset.page.width * 72 / 25.4) });
             }
           }}
         >
-          <option value="">Choose a printer / media…</option>
+          <option value="">{print ? "Custom settings" : "Choose a printer / media…"}</option>
           {PRINT_PRESETS.map((p, i) => (
             <option key={p.label} value={i}>{p.label}</option>
           ))}

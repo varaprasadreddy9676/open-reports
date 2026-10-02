@@ -214,7 +214,8 @@ export function shift(doc: Doc, id: string, delta: number): Doc {
 
 export function parentLayout(doc: Doc, id: string): string | undefined {
   const loc = find(doc, id);
-  if (!loc || loc.parent.startsWith("section:")) return undefined;
+  if (!loc) return undefined;
+  if (loc.parent.startsWith("section:")) return doc.sections?.[Number(loc.parent.slice(8))]?.layout;
   const parent = find(doc, loc.parent);
   return parent ? (parent.comp.layout ?? (parent.comp.type === "row" ? "row" : undefined)) : undefined;
 }
