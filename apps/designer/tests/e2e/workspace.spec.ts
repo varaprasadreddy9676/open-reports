@@ -13,6 +13,22 @@ async function absoluteForm(page: Page) {
 }
 
 test.describe("workspace", () => {
+  test("workspace rail switches semantic panels with pointer and keyboard", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    const rail = page.getByRole("tablist", { name: "Workspace panels" });
+    await expect(rail.getByRole("tab")).toHaveCount(4);
+    await page.getByTestId("left-tab-layers").click();
+    await expect(page.getByRole("tabpanel", { name: "Structure" })).toContainText("Report structure");
+    await page.getByTestId("left-tab-layers").press("ArrowDown");
+    await expect(page.getByTestId("left-tab-data")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel", { name: "Data" })).toContainText("Datasets");
+    await expect(page.getByTestId("left-tab-data")).toBeFocused();
+    await page.getByTestId("left-tab-insert").click();
+    await expect(page.getByRole("tabpanel", { name: "Components" })).toContainText("Text");
+    await expect(page.getByTestId("canvas")).toBeVisible();
+  });
+
   test("modes: Data mode lists datasets; split view shows canvas and code together", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-invoice").click();

@@ -1,0 +1,46 @@
+/* Shared designer surfaces and controls. Keep feature-specific colors in their feature styles. */
+:root {
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --panel-2: #f8faff;
+  --border: #dfe5ee;
+  --border-strong: #c8d2df;
+  --text: #1a2b49;
+  --muted: #65748a;
+  --accent: #2563eb;
+  --accent-soft: #eaf1ff;
+  --danger: #dc2626;
+  --warn: #b45309;
+  --ok: #047857;
+  --canvas: #e9edf4;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --shadow: 0 1px 2px rgba(22, 42, 73, 0.05), 0 6px 20px rgba(22, 42, 73, 0.06);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --control-height: 30px;
+  --rail-width: 58px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121821;
+    --panel: #1b2532;
+    --panel-2: #222e3d;
+    --border: #344254;
+    --border-strong: #495a70;
+    --text: #e6edf7;
+    --muted: #a4b1c3;
+    --accent: #7aa5ff;
+    --accent-soft: #21395f;
+    --canvas: #111b28;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 24px rgba(0, 0, 0, 0.32);
+    color-scheme: dark;
+  }
+}

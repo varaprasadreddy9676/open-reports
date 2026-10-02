@@ -572,19 +572,38 @@ function PagesTab() {
 export function LeftPanel() {
   const tab = useStore((s) => s.leftTab);
   const set = useStore((s) => s.set);
+  const tabs = [
+    { id: "layers", label: "Structure", icon: "structure" },
+    { id: "data", label: "Data", icon: "data" },
+    { id: "insert", label: "Components", icon: "components" },
+    { id: "pages", label: "Pages", icon: "pages" },
+  ] as const;
+  const moveTab = (event: React.KeyboardEvent, index: number) => {
+    const offset = event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 0;
+    if (!offset && event.key !== "Home" && event.key !== "End") return;
+    event.preventDefault();
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + offset + tabs.length) % tabs.length;
+    const id = tabs[next]!.id;
+    set({ leftTab: id });
+    requestAnimationFrame(() => document.getElementById(`workspace-tab-${id}`)?.focus());
+  };
   return (
-    <aside className="panel left" aria-label="Insert, data and layers">
-      <div className="tabs" role="tablist">
-        {(["insert", "layers", "data", "pages"] as const).map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`left-tab-${t}`} onClick={() => set({ leftTab: t })}>
-            {t === "insert" ? "Components" : titleCase(t)}
+    <aside className="panel left" aria-label="Workspace panels">
+      <nav className="workspace-rail" aria-label="Workspace panels" role="tablist">
+        {tabs.map((item, index) => (
+          <button key={item.id} id={`workspace-tab-${item.id}`} type="button" role="tab" aria-controls="workspace-panel" aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} className={tab === item.id ? "active" : ""} data-testid={`left-tab-${item.id}`} onClick={() => set({ leftTab: item.id })} onKeyDown={(event) => moveTab(event, index)} title={item.label}>
+            <Icon name={item.icon} small />
+            <span>{item.label}</span>
           </button>
         ))}
+      </nav>
+      <div id="workspace-panel" className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${tab}`}>
+        <div className="workspace-panel-head">{tabs.find((item) => item.id === tab)?.label}</div>
+        {tab === "insert" && <InsertTab />}
+        {tab === "data" && <DataTab />}
+        {tab === "layers" && <ReportExplorer />}
+        {tab === "pages" && <PagesTab />}
       </div>
-      {tab === "insert" && <InsertTab />}
-      {tab === "data" && <DataTab />}
-      {tab === "layers" && <ReportExplorer />}
-      {tab === "pages" && <PagesTab />}
     </aside>
   );
 }

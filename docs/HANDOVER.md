@@ -12,7 +12,31 @@ params → datasets → expressions → **band expansion** → Resolved Report T
 
 Packages: `schema` (zod), `expressions`, `core` (validator, pipeline, `bands.ts`), `layout` (box layout, `paginate.ts`, `design.ts`), `renderer-*`, `datasource-*`, `server`, `mcp`, `apps/designer`.
 
-## 2. The current mandate (user's "Designer 2.0 — Enterprise Banded Report Designer")
+## 2. Current mission
+
+Finish Open Reports Designer 2.0 as a world-class visual/low-code/code report authoring environment. Preserve the enterprise band/pagination engine already built, and now make the designer cohesive, Figma-quality, data-aware, condition-aware, pagination-explainable and first-class for both documents and physical printing. Use `docs/design/` as the UX reference set, while the universal report definition and deterministic core remain the architectural source of truth.
+
+The 12 images in `docs/design/` are composite workflow studies, not pixel specifications. Their common language is a white, blue-accented, canvas-first workspace with a narrow tool rail, semantic structure tree, contextual inspector, restrained band colors, and deeper workflows in dialogs/drawers. Variants disagree on exact tab order, toolbar content, and panel widths; implement one consistent system.
+
+### Designer 2.0 status at the 2026-10-02 baseline
+
+| Area | Classification | Evidence / next gap |
+|---|---|---|
+| Band schema, expansion, grouping, pagination | DONE AND GOOD | Core/layout/renderer tests; preserve semantics. |
+| Main workspace, band canvas, explorer, inspector | DONE BUT UX NEEDS IMPROVEMENT | Live 1536×1024 browser review shows dense top controls, persistent pagination thumbnails, cramped explorer rows, and an oversized band rail. |
+| Rulers, margins, guides, snapping, alignment | PARTIAL | Core interactions exist; printer dots, origins, named guides, baseline/equal spacing, and full alignment actions remain. |
+| Inline text editing and Visual/Code sync | DONE BUT UX NEEDS IMPROVEMENT | Browser flows work; keyboard/inspector polish remains. |
+| Data workspace, typed tree, drag to bind | PARTIAL | JSON/REST/SQL/CSV and field drag exist; selected-band insertion, richer preview/schema/search, and cards workflow remain. |
+| Table designer and group wizard | DONE BUT UX NEEDS IMPROVEMENT | Multi-level headers, spans, nested groups work; dedicated table interaction and clearer wizard steps remain. |
+| Universal conditions and debugger | NOT IMPLEMENTED | Existing visibility and row-style fields are separate; no rule phases or deterministic condition trace. |
+| Page masters, preview, pagination debugger | PARTIAL | Page applicability, actual PDF split preview, thumbnails, and decision messages exist; master editor and every-break explanation remain. |
+| Test/stress lab, shared PDF font measurer | NOT IMPLEMENTED | Both are required for trustworthy designer/PDF parity. |
+| Label/receipt workflows, calibration | PARTIAL | Presets, safe area and renderers exist; dot ruler, continuous receipt canvas, profiles, calibration remain. |
+| Publish validation flow | NOT IMPLEMENTED | Current Publish acts directly; needs validation, required tests, preview, warning review, and notes. |
+
+Phase priority: A) design system, main workspace and contextual authoring; B) data/table/group/conditions/page masters; C) real preview, explainability, stress testing and font parity; D) physical print; E) professional code/version/publish workflows. Release checks are the complete A4 authoring and 40×25 mm label journeys in the updated goal, both entirely through the UI.
+
+### Previous engine-focused mandate (preserved for historical status)
 
 Thesis: Open Reports had a page/component designer; it must become a true **report-structure designer** (Crystal / Jasper / DevExpress / ActiveReports / FastReport / Stimulsoft class). Bands must be part of the **universal schema and core layout engine**, not only visual rectangles. The user said: do **not** spend the sprint on AI, charts, templates, docs or new renderers. Mandated order (steps 1–12 release-blocking):
 
@@ -87,6 +111,7 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - Table headers now accept an explicit `headerRows` grid with horizontal and vertical cell spans. Core rejects gaps, overlaps, and out-of-bounds spans; layout reserves all header rows; PDF and HTML repeat them on page breaks; XLSX writes merged cells before data rows; ESC/POS prints the header levels as text. The table inspector can add a level, split, merge and edit cells; adding/removing a column maintains the grid. Legacy `columns[].header` still supplies a single row. Package builds, recursive tests, designer typecheck, and browser suite (57 passed, 5 skipped) passed for the header-grid increment.
 - Body `cellSpans` use positions after table sort/filter. Core validates overlap and bounds, skips out-of-range sample spans with a warning, and warns when a covered value differs from the anchor; PDF and HTML return that warning. Layout measures merged widths/heights and keeps vertical spans on one page; an oversized vertical span fails explicitly. PDF/HTML/canvas draw body merges; XLSX writes actual merged ranges at fixed physical rows so streaming data remains aligned; ESC/POS prints anchor values and blanks covered cells. The inspector displays resolved sample rows in windows of eight and merges/splits a selected rectangle. Recursive build and tests passed; designer browser suite passed 58 tests with 5 skipped.
 - Report Explorer band visibility and layout lock now persist in the section schema. Hidden bands are omitted from normal resolution, remain marked in the structure view, and locked bands cannot be moved, resized, duplicated, or removed. Visibility, naming, and print settings remain editable while locked. Package builds, recursive tests, designer typecheck, and browser suite passed (59 passed, 5 skipped).
+- Designer 2.0 UX phase began with a live comparison against all 12 `docs/design/` composite boards and a current 1536×1024 browser capture. `apps/designer/src/design-tokens.css` now centralizes surface, type, border, spacing, radius, shadow, and focus tokens. The left panel uses a narrow semantic tool rail with keyboard navigation and a scrollable contextual panel. Designer build/typecheck, 49 unit tests, and browser suite passed (60 passed, 5 skipped). The browser baseline before this UI increment was 59 passed, 5 skipped.
 
 ## 5. Next steps (do in this order)
 
