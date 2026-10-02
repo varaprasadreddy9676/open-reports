@@ -6,18 +6,27 @@ import { savePref, useStore } from "../store";
 /** Miniatures of the real paginated output, kept alongside the structure drawing. */
 export function StructurePageStrip({ paginated }: { paginated: PaginatedReport }) {
   const scale = 78 / paginated.pageSize.width;
+  const [explainedPage, setExplainedPage] = useState<number | null>(null);
   return <nav className="structure-page-strip" aria-label="Paginated pages" data-testid="structure-page-strip">
     <span className="muted small">Sample pages</span>
-    {paginated.pages.map((page, index) => <button key={index} className="structure-page-thumb" data-testid="structure-page-thumb" aria-label={`View page ${index + 1}`} onClick={() => {
-      savePref("canvasView", "pages");
-      useStore.getState().set({ canvasView: "pages" });
-      requestAnimationFrame(() => document.querySelector(`[data-page="${index}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
-    }}>
-      <span className="structure-page-mini" style={{ width: paginated.pageSize.width * scale, height: paginated.pageSize.height * scale }}>
-        {[...page.header, ...page.content, ...page.footer].map((node, i) => <span key={i} className="structure-page-box" style={{ left: node.box.x * scale, top: node.box.y * scale, width: Math.max(1, node.box.width * scale), height: Math.max(1, node.box.height * scale) }} />)}
-      </span>
-      <span>Page {index + 1}</span>
-    </button>)}
+    {paginated.pages.map((page, index) => <div key={index} className="structure-page-entry">
+      <button className="structure-page-thumb" data-testid="structure-page-thumb" aria-label={`View page ${index + 1}`} onClick={() => {
+        savePref("canvasView", "pages");
+        useStore.getState().set({ canvasView: "pages" });
+        requestAnimationFrame(() => document.querySelector(`[data-page="${index}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
+      }}>
+        <span className="structure-page-mini" style={{ width: paginated.pageSize.width * scale, height: paginated.pageSize.height * scale }}>
+          {[...page.header, ...page.content, ...page.footer].map((node, i) => <span key={i} className="structure-page-box" style={{ left: node.box.x * scale, top: node.box.y * scale, width: Math.max(1, node.box.width * scale), height: Math.max(1, node.box.height * scale) }} />)}
+        </span>
+        <span>Page {index + 1}</span>
+      </button>
+      {index > 0 && <button className="structure-page-why" data-testid={`structure-page-why-${index + 1}`} aria-expanded={explainedPage === index + 1} onClick={() => setExplainedPage(explainedPage === index + 1 ? null : index + 1)}>Why?</button>}
+    </div>)}
+    {explainedPage !== null && <div className="structure-page-reason" data-testid="structure-page-reason">
+      <strong>Why page {explainedPage} starts here</strong>
+      {paginated.decisions.filter((decision) => decision.page === explainedPage).map((decision, index) => <p key={index}>{decision.message}</p>)}
+      {!paginated.decisions.some((decision) => decision.page === explainedPage) && <p>No break reason was recorded by the paginator.</p>}
+    </div>}
   </nav>;
 }
 

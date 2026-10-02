@@ -14,6 +14,7 @@ import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
 import { Rulers } from "./Rulers";
 import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
 import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
+import { PdfPreview } from "./Preview";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
@@ -568,7 +569,7 @@ export function Canvas() {
           );
         })}
       </div>
-      {structure && previewSplit && engine.paginated && <PaginatedPreviewPane paginated={engine.paginated} />}
+      {structure && previewSplit && <PaginatedPreviewPane />}
       </div>
       <DropPromptMenu />
       <ContextMenu />
@@ -576,17 +577,10 @@ export function Canvas() {
   );
 }
 
-function PaginatedPreviewPane({ paginated }: { paginated: import("@reporting/layout").PaginatedReport }) {
-  const k = Math.min(0.6, 300 / paginated.pageSize.width);
+function PaginatedPreviewPane() {
   return <aside className="structure-preview-pane" aria-label="Paginated sample preview" data-testid="structure-preview-pane">
-    <strong>Paginated sample</strong>
-    <span className="muted small">{paginated.pages.length} page{paginated.pages.length === 1 ? "" : "s"} from the current sample data</span>
-    {paginated.pages.map((page, i) => <div key={i} className="structure-preview-page-wrap">
-      <div className="page structure-preview-page" data-testid="structure-preview-page" style={{ width: paginated.pageSize.width * k, height: paginated.pageSize.height * k }}>
-        {[...page.background, ...page.header, ...page.content, ...page.footer].map((node, j) => <NodeView key={j} node={node} k={k} />)}
-      </div>
-      <span className="muted small">Page {i + 1}</span>
-    </div>)}
+    <strong>Rendered PDF</strong>
+    <PdfPreview compact />
   </aside>;
 }
 

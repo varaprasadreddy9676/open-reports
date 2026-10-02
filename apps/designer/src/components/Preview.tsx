@@ -31,9 +31,10 @@ export async function exportReport(format: PreviewTab) {
   }
 }
 
-function PdfPreview() {
+export function PdfPreview({ compact = false }: { compact?: boolean }) {
   const { doc, sample } = useStore();
   const [url, setUrl] = useState<string>();
+  const urlRef = useRef<string>();
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
@@ -49,10 +50,9 @@ function PdfPreview() {
         const text = await blob.text();
         const pages = (text.match(/\/Type \/Page(?![s\w])/g) ?? []).length;
         setInfo(`${pages} page${pages === 1 ? "" : "s"} · ${(blob.size / 1024).toFixed(1)} KB · render ${renderId?.slice(0, 8) ?? ""}`);
-        setUrl((old) => {
-          if (old) URL.revokeObjectURL(old);
-          return URL.createObjectURL(blob);
-        });
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+        urlRef.current = URL.createObjectURL(blob);
+        setUrl(urlRef.current);
         setError("");
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
@@ -66,19 +66,19 @@ function PdfPreview() {
     };
   }, [doc, sample]);
 
+  useEffect(() => () => {
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+  }, []);
+
   return (
-    <div className="preview-pane">
+    <div className={`preview-pane ${compact ? "pdf-compact" : ""}`}>
       <div className="preview-bar">
-        <span data-testid="pdf-info">{busy ? "Rendering PDF..." : info}</span>
+        <span data-testid={compact ? "structure-pdf-info" : "pdf-info"}>{busy ? "Rendering PDF..." : info}</span>
         <span className="spacer" />
-        <button className="btn" onClick={() => frame.current?.contentWindow?.print()} disabled={!url}>
-          Print
-        </button>
-        <button className="btn" data-testid="download-pdf" onClick={() => exportReport("pdf")}>
-          Download PDF
-        </button>
+        {!compact && <><button className="btn" onClick={() => frame.current?.contentWindow?.print()} disabled={!url}>Print</button>
+          <button className="btn" data-testid="download-pdf" onClick={() => exportReport("pdf")}>Download PDF</button></>}
       </div>
-      {error ? <div className="field-error big" role="alert">{error}</div> : url ? <iframe ref={frame} data-testid="pdf-frame" title="PDF preview" src={url} /> : <div className="muted pad">Rendering...</div>}
+      {error ? <div className="field-error big" role="alert">{error}</div> : url ? <iframe ref={frame} data-testid={compact ? "structure-pdf-frame" : "pdf-frame"} title="PDF preview" src={url} /> : <div className="muted pad">Rendering...</div>}
     </div>
   );
 }
