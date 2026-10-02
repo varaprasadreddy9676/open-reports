@@ -1275,6 +1275,7 @@ export function Properties() {
   const selectedBand = useStore((s) => s.selectedBand);
   return (
     <aside className="panel right" aria-label="Properties" data-testid="properties">
+      <div className="compact-properties-head">Properties<button className="compact-close" type="button" aria-label="Close properties" onClick={() => useStore.getState().set({ rightOpen: false })}>×</button></div>
       {selection.length === 0 && selectedBand !== null && <BandProps key={selectedBand} index={selectedBand} />}
       {selection.length === 0 && selectedBand === null && <PageProps />}
       {selection.length === 1 && <ComponentProps id={selection[0]!} />}

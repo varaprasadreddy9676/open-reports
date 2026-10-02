@@ -10,6 +10,7 @@ import { GroupWizard } from "./GroupWizard";
 import { SaveBlockDialogBody } from "./CanvasTools";
 import { CompareDialogBody } from "./CompareDialog";
 import { AiSettingsBody } from "./AiBar";
+import { fitZoom } from "../lib/zoom";
 
 // ------------------------------------------------------------------ toolbar
 function useOutsideClose(open: boolean, close: () => void) {
@@ -211,14 +212,6 @@ async function deleteReport() {
   } catch (e) {
     s.toast((e as Error).message, "error");
   }
-}
-
-export function fitZoom(): number {
-  const el = document.querySelector(".canvas-scroll") as HTMLElement | null;
-  const s = useStore.getState();
-  const w = s.engine.paginated?.pageSize.width;
-  if (!el || !w) return 1;
-  return Math.max(0.25, Math.min(3, +((el.clientWidth - 80) / (w * (4 / 3))).toFixed(2)));
 }
 
 export function zoomToSelection() {

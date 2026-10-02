@@ -15,6 +15,50 @@ async function absoluteForm(page: Page) {
 }
 
 test.describe("workspace", () => {
+  test("laptop keeps the canvas wide and opens side panels without squeezing it", async ({ page }) => {
+    await page.setViewportSize({ width: 1120, height: 720 });
+    await absoluteForm(page);
+    await expect(page.getByTestId("btn-save")).toBeVisible();
+    await expect(page.getByTestId("btn-publish")).toBeVisible();
+    const publishBox = (await page.getByTestId("btn-publish").boundingBox())!;
+    expect(publishBox.x + publishBox.width).toBeLessThanOrEqual(1120);
+    await expect(page.getByTestId("properties")).toHaveCount(0);
+    const initialWidth = (await page.locator(".center").boundingBox())!.width;
+    expect(initialWidth).toBeGreaterThanOrEqual(740);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.getByRole("button", { name: "Show properties" }).click();
+    await expect(page.getByTestId("properties")).toBeVisible();
+    expect((await page.locator(".center").boundingBox())!.width).toBe(initialWidth);
+    await page.screenshot({ path: path.join(screenshots, "08-laptop-properties-overlay.png") });
+    await page.getByRole("button", { name: "Close properties" }).click();
+    await expect(page.getByTestId("properties")).toHaveCount(0);
+    await page.getByTestId("canvas-fit").click();
+    const center = (await page.locator(".center").boundingBox())!;
+    const pageBox = (await page.getByTestId("page-1").boundingBox())!;
+    expect(pageBox.x).toBeGreaterThanOrEqual(center.x);
+    expect(pageBox.x + pageBox.width).toBeLessThanOrEqual(center.x + center.width + 1);
+    await page.getByTestId("view-structure").click();
+    await page.getByTestId("canvas-fit").click();
+    const structureBox = (await page.getByTestId("page-1").boundingBox())!;
+    expect(structureBox.x).toBeGreaterThanOrEqual(center.x);
+    expect(structureBox.x + structureBox.width).toBeLessThanOrEqual(center.x + center.width + 1);
+    await page.getByTestId("view-pages").click();
+    await page.getByTestId("canvas-fit").click();
+    await page.screenshot({ path: path.join(screenshots, "07-laptop-canvas-collapsed-inspector.png") });
+
+    await page.setViewportSize({ width: 900, height: 720 });
+    expect((await page.getByTestId("title-input").boundingBox())!.width).toBeGreaterThanOrEqual(100);
+    await expect(page.getByRole("complementary", { name: "Workspace panels" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Show insert panel" }).click();
+    await expect(page.getByRole("complementary", { name: "Workspace panels" })).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "09-narrow-workspace-overlay.png") });
+    await page.getByRole("button", { name: "Close workspace panel" }).click();
+    await expect(page.getByRole("complementary", { name: "Workspace panels" })).toHaveCount(0);
+    await page.getByTestId("mode-preview").click();
+    expect((await page.locator(".center").boundingBox())!.width).toBe(900);
+  });
+
   test("structure rail and tree keep a 24 px hierarchy with fixed action columns", async ({ page }) => {
     await page.setViewportSize({ width: 1536, height: 1024 });
     await absoluteForm(page);

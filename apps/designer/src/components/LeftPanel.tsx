@@ -615,7 +615,7 @@ export function LeftPanel() {
         ))}
       </nav>
       <div id="workspace-panel" className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${tab}`}>
-        <div className="workspace-panel-head">{tabs.find((item) => item.id === tab)?.label}</div>
+        <div className="workspace-panel-head">{tabs.find((item) => item.id === tab)?.label}<button className="compact-close" type="button" aria-label="Close workspace panel" onClick={() => set({ leftOpen: false })}>×</button></div>
         {tab === "insert" && <InsertTab />}
         {tab === "data" && <DataTab />}
         {tab === "layers" && <ReportExplorer />}

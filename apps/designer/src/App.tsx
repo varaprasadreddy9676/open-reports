@@ -19,6 +19,8 @@ function isTyping(t: EventTarget | null): boolean {
 export default function App() {
   const { mode, leftOpen, rightOpen, split } = useStore();
   const set = useStore((s) => s.set);
+  const showsLeft = mode === "design" && leftOpen;
+  const showsRight = (mode === "design" || mode === "code") && rightOpen;
 
   useEffect(() => {
     const draft = loadDraft();
@@ -32,6 +34,22 @@ export default function App() {
     }
     s.loadCapabilities();
     s.loadBlocks();
+  }, []);
+
+  useEffect(() => {
+    const laptop = window.matchMedia("(max-width: 1200px)");
+    const overlay = window.matchMedia("(max-width: 980px)");
+    const collapseForWidth = () => {
+      if (!laptop.matches) return;
+      useStore.getState().set({ rightOpen: false, bottom: null, ...(overlay.matches ? { leftOpen: false } : {}) });
+    };
+    collapseForWidth();
+    laptop.addEventListener("change", collapseForWidth);
+    overlay.addEventListener("change", collapseForWidth);
+    return () => {
+      laptop.removeEventListener("change", collapseForWidth);
+      overlay.removeEventListener("change", collapseForWidth);
+    };
   }, []);
 
   useEffect(() => {
@@ -103,15 +121,15 @@ export default function App() {
   return (
     <div className="app" data-testid="app">
       <Toolbar />
-      <div className={`main ${leftOpen ? "" : "no-left"} ${rightOpen ? "" : "no-right"}`}>
-        {leftOpen && mode === "design" && <LeftPanel />}
+      <div className={`main ${showsLeft ? "" : "no-left"} ${showsRight ? "" : "no-right"}`}>
+        {showsLeft && <LeftPanel />}
         <section className="center" aria-label="Workspace">
-          <button className="edge left" aria-label={leftOpen ? "Hide insert panel" : "Show insert panel"} title="Toggle insert panel" onClick={() => set({ leftOpen: !leftOpen })}>
+          {mode === "design" && <button className="edge left" aria-label={leftOpen ? "Hide insert panel" : "Show insert panel"} title="Toggle insert panel" onClick={() => set({ leftOpen: !leftOpen })}>
             {leftOpen ? "‹" : "›"}
-          </button>
-          <button className="edge right" aria-label={rightOpen ? "Hide properties" : "Show properties"} title="Toggle properties" onClick={() => set({ rightOpen: !rightOpen })}>
+          </button>}
+          {(mode === "design" || mode === "code") && <button className="edge right" aria-label={rightOpen ? "Hide properties" : "Show properties"} title="Toggle properties" onClick={() => set({ rightOpen: !rightOpen })}>
             {rightOpen ? "›" : "‹"}
-          </button>
+          </button>}
           {mode === "design" && !split && <Canvas />}
           {mode === "design" && split && (
             <div className="split">
@@ -123,7 +141,7 @@ export default function App() {
           {mode === "code" && <CodeEditor />}
           {mode === "preview" && <Preview />}
         </section>
-        {rightOpen && (mode === "design" || mode === "code") && <Properties />}
+        {showsRight && <Properties />}
       </div>
       <BottomPanel />
       <BottomBar />

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { StructureBand } from "@reporting/layout";
 import { savePref, useStore, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
+import { fitZoom } from "../lib/zoom";
 
 const ADDABLE: { type: string; hint: string }[] = [
   { type: "reportHeader", hint: "Once, at the start" },
@@ -32,6 +33,7 @@ export function BandBar() {
           Pages
         </button>
       </div>
+      <button className="compact-fit" type="button" aria-label="Fit page to canvas" data-testid="canvas-fit" onClick={() => set({ zoom: fitZoom() })}>Fit</button>
       {canvasView === "structure" && (
         <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title="Show page starts and explain pagination decisions">
           Pagination
