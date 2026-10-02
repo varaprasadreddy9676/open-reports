@@ -1,9 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { PAGE_BAND_TYPES } from "@reporting/schema";
 import { candidatesFor } from "../lib/bindings";
-import { checkExpression, conditionToExpression, expressionToCondition, OPERATORS, type Condition } from "../lib/lowcode";
+import { conditionToExpression, expressionToCondition, OPERATORS, type Condition } from "../lib/lowcode";
 import * as ops from "../model/ops";
 import { useStore } from "../store";
+import { FormulaInput } from "./FormulaInput";
 
 const PAGE_TYPES: readonly string[] = PAGE_BAND_TYPES;
 const DATA_TYPES = ["dataHeader", "groupHeader", "detail", "child", "groupFooter", "dataFooter", "noData"];
@@ -19,11 +20,12 @@ function BandSection({ title, children }: { title: string; children: ReactNode }
 export function BandProps({ index }: { index: number }) {
   const { doc, sample } = useStore();
   const band = doc.sections?.[index];
+  const group = (doc.groups ?? []).find((g: any) => g.id === band?.groupId);
   const [formulaMode, setFormulaMode] = useState(false);
-  const candidates = useMemo(() => candidatesFor(doc, sample, undefined, band?.dataset), [doc, sample, band?.dataset]);
+  const rowDataset = band?.dataset ?? group?.dataset ?? doc.sections?.find((section: any) => section.type === "detail")?.dataset;
+  const candidates = useMemo(() => candidatesFor(doc, sample, undefined, rowDataset), [doc, sample, rowDataset]);
   if (!band) return null;
 
-  const group = (doc.groups ?? []).find((g: any) => g.id === band.groupId);
   const pageBand = PAGE_TYPES.includes(band.type);
   const dataBand = DATA_TYPES.includes(band.type);
   const update = (patch: Record<string, unknown>) => {
@@ -132,7 +134,7 @@ export function BandProps({ index }: { index: number }) {
         {condition.operator !== "empty" && condition.operator !== "notempty" && <input aria-label="Band condition value" data-testid="band-condition-value" value={condition.value} onChange={(e) => setCondition({ ...condition, value: e.target.value })} />}
       </div>}
       {!!expression && <button className="link" onClick={() => setFormulaMode(!showFormula)}>{showFormula ? "Use simple condition" : "fx Edit as formula"}</button>}
-      {!!expression && showFormula && <div className="formula"><input className="mono" aria-label="Band visibility formula" data-testid="band-visibleWhen" aria-invalid={!!checkExpression(expression)} value={expression} onChange={(e) => update({ visibleWhen: e.target.value })} />{checkExpression(expression) && <div className="field-error" role="alert">{checkExpression(expression)}</div>}</div>}
+      {!!expression && showFormula && <FormulaInput value={expression} candidates={candidates} placeholder="e.g. row.quantity > 0" testId="band-visibleWhen" onChange={(value) => update({ visibleWhen: value })} />}
     </BandSection>
 
     <BandSection title="Pagination">
@@ -154,7 +156,7 @@ export function BandProps({ index }: { index: number }) {
         <option value="">Inherit from detail band</option>
         {(doc.datasets ?? []).map((ds: any) => <option key={ds.id} value={ds.id}>{ds.name ?? ds.id}</option>)}
       </select></BandField>
-      <BandField label="Group by"><input aria-label="Group by" data-testid="group-by" value={group.by} onChange={(e) => updateGroup({ by: e.target.value })} /></BandField>
+      <BandField label="Group by"><FormulaInput value={group.by} candidates={candidates} placeholder="e.g. row.department" testId="group-by" onChange={(value) => updateGroup({ by: value })} /></BandField>
       <BandField label="Sort"><select aria-label="Group sort" data-testid="group-sort" value={group.sort ?? "asc"} onChange={(e) => updateGroup({ sort: e.target.value })}>
         <option value="asc">Ascending</option><option value="desc">Descending</option><option value="none">Source order</option>
       </select></BandField>

@@ -88,6 +88,10 @@ test("selecting a band opens its editor and persists layout and pagination rules
   await page.getByTestId("band-visibleWhen-toggle").check();
   await page.getByText("fx Edit as formula").click();
   await page.getByTestId("band-visibleWhen").fill("row.quantity > 0");
+  await expect(page.getByTestId("band-visibleWhen")).toHaveAttribute("aria-invalid", "false");
+  await page.getByTestId("band-visibleWhen").fill("row.quantity >");
+  await expect(page.getByTestId("band-visibleWhen")).toHaveAttribute("aria-invalid", "true");
+  await page.getByTestId("band-visibleWhen").fill("row.quantity > 0");
   expect((await doc(page)).sections[0].visibleWhen).toBe("row.quantity > 0");
 });
 
@@ -118,12 +122,15 @@ test("group band exposes the owning group's print rules", async ({ page }) => {
     });
   });
   await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("group-by").fill("row.dep");
+  await expect(page.getByRole("listbox")).toContainText("row.department");
+  await page.getByTestId("group-by").press("Tab");
   await page.getByTestId("group-sort").selectOption("desc");
   await page.getByTestId("group-repeatHeader").check();
   await page.getByTestId("band-repeatEveryPage").uncheck();
   await page.getByTestId("group-newPage").selectOption("before");
   await page.getByTestId("group-minDetailRows").fill("2");
-  expect((await doc(page)).groups[0]).toMatchObject({ sort: "desc", repeatHeader: true, newPage: "before", minDetailRows: 2 });
+  expect((await doc(page)).groups[0]).toMatchObject({ by: "row.department", sort: "desc", repeatHeader: true, newPage: "before", minDetailRows: 2 });
   expect((await doc(page)).sections[0].repeatEveryPage).toBe(false);
 });
 

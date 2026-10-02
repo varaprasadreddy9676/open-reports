@@ -90,7 +90,7 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 ## 5. Next steps (do in this order)
 
 ### D2-C
-1. **Section Expert** — implemented and verified in `BandProps.tsx` (2026-10-01). Remaining refinement: reuse the shared formula editor rather than the local expression input.
+1. **Section Expert** — implemented and verified in `BandProps.tsx` (2026-10-01). Band visibility and group-by formulas now share the component formula editor, with validation, field suggestions, and a readable expression summary; group fields use the owning group's dataset.
 2. **Report Explorer** — implemented for group order, add/remove, band and component layers, and band reorder (2026-10-01). Remaining refinement: show bands inside their owning group node and add band-level visibility/lock semantics.
 3. **Group wizard** — implemented in `GroupWizard.tsx` with nested levels and print settings (2026-10-01).
 4. **Pagination visualization on the structure canvas** — page thumbnails, source-band break lines, per-page reasons, and a real rendered-PDF split pane are implemented. Remaining: make the editable structure/page canvas use PDF font metrics, and show repeated-row page starts at a meaningful position without implying their symbolic band marker is physical paper geometry.
