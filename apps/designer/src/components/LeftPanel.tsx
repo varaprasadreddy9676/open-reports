@@ -172,7 +172,7 @@ function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray, searching }: { 
           e.dataTransfer.effectAllowed = "copy";
         }}
         onClick={() => (isObj || isArray) && setOpen(!open)}
-        title={`${node.path} · ${node.kind}${example ? ` · Sample: ${example}` : ""}${isArray ? " · Drag to create a Table or Repeater" : !isObj ? " · Drag to bind" : ""}`}
+        title={`${node.path} · ${node.kind}${example ? ` · Sample: ${example}` : ""}${isArray ? " · Drag to choose Table, Repeater, or Cards" : !isObj ? " · Drag to bind" : ""}`}
       >
         <span className="twisty">{isObj || isArray ? (expanded ? "▾" : "▸") : ""}</span>
         <span className="field-icon">{isArray ? "[]" : isObj ? "{}" : node.kind === "number" ? "#" : node.kind === "date" ? "d" : node.kind === "boolean" ? "b" : "a"}</span>
@@ -234,7 +234,7 @@ function DataTab() {
                 draggable
                 data-testid={`array-${ds.id}`}
                 onDragStart={(e) => e.dataTransfer.setData("application/x-rpt", JSON.stringify({ kind: "array", ref: ds.id }))}
-                title="Drag onto the page to create a Table or Repeater"
+                title="Drag onto the page to choose Table, Repeater, or Cards"
               >
                 <span className="field-icon">[]</span>
                 <span className="field-name">{titleCase(ds.id)} rows</span>

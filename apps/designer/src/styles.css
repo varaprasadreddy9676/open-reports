@@ -1024,32 +1024,51 @@ textarea {
   left: -10px;
 }
 .drop-prompt {
-  position: absolute;
+  position: fixed;
   z-index: 50;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 160px;
+  gap: 10px;
+  width: min(360px, calc(100vw - 24px));
 }
 .drop-prompt-title {
-  font-weight: 600;
-  margin-bottom: 2px;
+  font-weight: 700;
+  font-size: 14px;
 }
-.drop-prompt button {
-  background: var(--panel-2);
+.drop-prompt-subtitle,
+.drop-prompt-fields { margin: 0; color: var(--muted); font-size: 11px; }
+.drop-prompt-options { margin: 0; padding: 0; border: 0; display: grid; gap: 6px; }
+.drop-prompt-options legend { margin-bottom: 6px; font-size: 11px; font-weight: 650; color: var(--muted); }
+.drop-prompt-options label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 7px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 10px;
-  text-align: left;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
-.drop-prompt button:hover {
-  background: var(--accent-soft);
+.drop-prompt-options label.selected { border-color: var(--accent); background: var(--accent-soft); }
+.drop-prompt-options label:focus-within { box-shadow: var(--focus-ring); }
+.drop-prompt-options input[type="radio"] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
 }
+.drop-prompt-options label span { display: grid; gap: 2px; }
+.drop-prompt-options label small { color: var(--muted); font-size: 10px; }
+.drop-prompt-auto { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.drop-prompt-fields { line-height: 1.4; }
+.drop-prompt-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
 
 /* ---------- code editor */
 .code-editor {

@@ -48,7 +48,9 @@ test.describe("complete journey: create, bind, style, preview, save, reload, exp
 
     // 4. drag the items array -> prompt -> Table with generated columns
     await page.getByTestId("field-invoice-items").dragTo(page.getByTestId("page-1"), { targetPosition: { x: 200, y: 500 } });
-    await page.getByTestId("drop-prompt").getByText("Table", { exact: true }).click();
+    await expect(page.getByTestId("drop-prompt").getByRole("radio", { name: /Table/ })).toBeChecked();
+    await expect(page.getByTestId("drop-prompt").getByRole("checkbox", { name: "Create fields automatically" })).toBeChecked();
+    await page.getByTestId("create-array-display").click();
     await expect(page.getByTestId("canvas")).toContainText("Consult");
     await expect(page.getByTestId("canvas")).toContainText("Description");
 

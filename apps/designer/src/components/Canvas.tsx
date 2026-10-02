@@ -7,7 +7,7 @@ import { useStore } from "../store";
 import * as ops from "../model/ops";
 import { cssFrom } from "../lib/css";
 import { datasetValue, inferFields } from "../lib/fields";
-import { tableFor } from "../lib/generate";
+import { listFor, type ListDisplay } from "../lib/generate";
 import { titleCase } from "../lib/lowcode";
 import { snapBox, rectsIntersect, type Guide, type Distance } from "../lib/snap";
 import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
@@ -447,13 +447,8 @@ export function Canvas() {
         store.insertComponent({ type: "repeater", dataset: payload.rowDataset, children: [comp] }, targetId, position, bandIndex);
       } else store.insertComponent(comp, targetId, position, bandIndex);
     } else if (payload.kind === "array") {
-      const r = el(e);
-      store.set({ dropPrompt: { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0), dataset: payload.ref, targetId, position, bandIndex } });
+      store.set({ dropPrompt: { x: e.clientX, y: e.clientY, dataset: payload.ref, targetId, position, bandIndex } });
     }
-  }
-
-  function el(e: React.DragEvent) {
-    return (e.currentTarget as HTMLElement).closest(".canvas-scroll")?.getBoundingClientRect();
   }
 
   // ---- fit-to-width helper & keyboard are handled in App; here just render
@@ -687,39 +682,58 @@ function PaginationMarkers({ page, nodes, k }: { page: number; nodes: Positioned
 
 function DropPromptMenu() {
   const prompt = useStore((s) => s.dropPrompt);
-  const { doc, sample } = useStore();
   if (!prompt) return null;
+  return <DropPromptChoice key={`${prompt.dataset}:${prompt.x}:${prompt.y}`} prompt={prompt} />;
+}
+
+function DropPromptChoice({ prompt }: { prompt: NonNullable<ReturnType<typeof useStore.getState>["dropPrompt"]> }) {
+  const { doc, sample } = useStore();
+  const [display, setDisplay] = useState<ListDisplay>("table");
+  const [createFields, setCreateFields] = useState(true);
+  const firstChoice = useRef<HTMLInputElement>(null);
   const close = () => useStore.getState().set({ dropPrompt: null });
   const rows = datasetValue(doc, sample, prompt.dataset);
-  const create = (kind: "table" | "repeater") => {
+  const fields = inferFields(rows).filter((field) => field.kind !== "array" && field.kind !== "object");
+  const title = titleCase(prompt.dataset.split(".").pop()!);
+  const canvasBounds = document.querySelector(".center")?.getBoundingClientRect();
+  const dialogWidth = Math.min(360, window.innerWidth - 24);
+  const canvasHasRoom = canvasBounds && canvasBounds.width >= dialogWidth + 24;
+  const leftEdge = canvasHasRoom ? canvasBounds.left + 12 : 12;
+  const rightEdge = canvasHasRoom ? canvasBounds.right - dialogWidth - 12 : window.innerWidth - dialogWidth - 12;
+  useEffect(() => {
+    firstChoice.current?.focus();
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target as HTMLElement).closest(".drop-prompt")) close();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+  const create = () => {
     const s = useStore.getState();
-    if (kind === "table") {
-      const [heading, table] = tableFor(prompt.dataset, prompt.dataset.split(".").pop()!, rows);
-      s.insertComponent(table as any, prompt.targetId, prompt.position, prompt.bandIndex);
-      void heading;
-    } else {
-      const fields = inferFields(rows).filter((f) => f.kind !== "array" && f.kind !== "object").slice(0, 4);
-      s.insertComponent(
-        {
-          type: "repeater",
-          dataset: prompt.dataset,
-          children: fields.map((f, i) => ({ type: "text", binding: `row.${f.path}`, style: i === 0 ? { fontWeight: "bold" } : { color: "#6b7280" } })),
-        },
-        prompt.targetId,
-        prompt.position,
-        prompt.bandIndex
-      );
-    }
+    s.insertComponent(listFor(prompt.dataset, title, rows, display, createFields), prompt.targetId, prompt.position, prompt.bandIndex);
+    s.set({ rightOpen: true });
     close();
   };
   return (
-    <div className="drop-prompt" style={{ left: prompt.x, top: prompt.y }} role="menu" data-testid="drop-prompt">
-      <div className="drop-prompt-title">Create {titleCase(prompt.dataset.split(".").pop()!)} as</div>
-      <button onClick={() => create("table")}>Table</button>
-      <button onClick={() => create("repeater")}>Repeater</button>
-      <button className="ghost-btn" onClick={close}>
-        Cancel
-      </button>
+    <div className="drop-prompt" style={{ left: Math.max(leftEdge, Math.min(prompt.x, rightEdge)), top: Math.max(56, Math.min(prompt.y, window.innerHeight - 430)) }} role="dialog" aria-label={`Add ${title} to report`} onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } }} data-testid="drop-prompt">
+      <div className="drop-prompt-title">Add {title} to report</div>
+      <p className="drop-prompt-subtitle">Choose how each record should appear.</p>
+      <fieldset className="drop-prompt-options">
+        <legend>Display as</legend>
+        {([
+          ["table", "Table", "Columns with repeating rows"],
+          ["repeater", "Repeater", "A simple list of records"],
+          ["cards", "Cards", "A separate bordered card per record"],
+        ] as const).map(([value, label, description]) => (
+          <label key={value} className={display === value ? "selected" : ""}>
+            <input ref={value === "table" ? firstChoice : undefined} type="radio" name="array-display" value={value} checked={display === value} onChange={() => setDisplay(value)} />
+            <span><strong>{label}</strong><small>{description}</small></span>
+          </label>
+        ))}
+      </fieldset>
+      <label className="drop-prompt-auto"><input type="checkbox" checked={createFields} onChange={(event) => setCreateFields(event.target.checked)} /> Create fields automatically</label>
+      <p className="drop-prompt-fields">{fields.length ? `${fields.length} sample field${fields.length === 1 ? "" : "s"}: ${fields.slice(0, 5).map((field) => titleCase(field.name)).join(", ")}${fields.length > 5 ? "…" : ""}` : "No sample fields found. A blank field will be created for editing."}</p>
+      <div className="drop-prompt-actions"><button className="btn" onClick={close}>Cancel</button><button className="btn primary" data-testid="create-array-display" onClick={create}>Create {display === "table" ? "table" : display === "cards" ? "cards" : "repeater"}</button></div>
     </div>
   );
 }

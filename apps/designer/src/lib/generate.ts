@@ -85,3 +85,45 @@ export function tableFor(datasetRef: string, title: string, rows: unknown): Comp
     },
   ];
 }
+
+export type ListDisplay = "table" | "repeater" | "cards";
+
+/** A dropped array becomes one editable component; every generated value stays bound to the row. */
+export function listFor(datasetRef: string, title: string, rows: unknown, display: ListDisplay, createFields: boolean): Comp {
+  const fields = inferFields(rows).filter((field) => field.kind !== "array" && field.kind !== "object");
+  if (display === "table") {
+    const table = tableFor(datasetRef, title, rows)[1]!;
+    return createFields && fields.length ? table : { ...table, columns: [{ id: "field-1", header: "New column" }] };
+  }
+
+  const selected = createFields ? fields.slice(0, 6) : [];
+  const children: Comp[] = selected.length
+    ? selected.map((field, index) => index === 0 && display === "cards"
+      ? { type: "text", binding: `row.${field.path}`, format: formatFor(field), style: { fontWeight: "bold", fontSize: 12 } }
+      : {
+          type: "row",
+          gap: 8,
+          children: [
+            { type: "text", value: titleCase(field.name), width: 120, style: { color: "#65748a" } },
+            { type: "text", binding: `row.${field.path}`, format: formatFor(field) },
+          ],
+        })
+    : [{ type: "text", name: "Bind a field", value: "" }];
+
+  if (display === "cards") {
+    return {
+      type: "repeater",
+      dataset: datasetRef,
+      name: `${titleCase(title)} cards`,
+      children: [{
+        type: "container",
+        name: "Card",
+        layout: "flow",
+        gap: 4,
+        style: { padding: 12, margin: { bottom: 8 }, background: "#ffffff", border: { width: 1, color: "#dfe5ee" } },
+        children,
+      }],
+    };
+  }
+  return { type: "repeater", dataset: datasetRef, name: `${titleCase(title)} repeater`, gap: 8, children };
+}

@@ -5,7 +5,7 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 ## 1. Your first invoice (no documentation needed)
 1. **New report → Invoice** (or **From sample JSON**: paste a response from your API and the report is generated with fields and tables).
 2. Click any text on the page. The right panel shows its content as **Text · Field · Formula** — pick **Field** to bind to data.
-3. In **Data**, search by field name, path, or type. Check the sample value, then drag a field onto the intended report band. Drag a *list* (e.g. `items`) and choose **Table** or **Repeater**.
+3. In **Data**, search by field name, path, or type. Check the sample value, then drag a field onto the intended report band. Drag a *list* (e.g. `items`) and choose **Table**, **Repeater**, or **Cards**. Leave **Create fields automatically** on to bind columns or card fields from the sample; turn it off to start with a blank editable field.
 4. Changing a total? Choose **fx Formula → Builder**: pick *Quantity × Rate* from dropdowns. Switch to **Formula** for the raw expression; autocomplete and errors appear as you type.
 5. **Preview** shows the real PDF. **Export ▾** gives PDF, HTML, Excel, CSV or a ZPL label. **Save** keeps a version; **Publish** freezes it (published versions never change).
 

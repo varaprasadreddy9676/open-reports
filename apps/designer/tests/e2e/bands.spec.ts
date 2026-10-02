@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
 
 const doc = (page: Page) => page.evaluate(() => (window as any).__designer.getState().doc);
 
@@ -60,10 +62,49 @@ test("data drops fill the empty Page Header and Detail bands", async ({ page }) 
   await page.getByTestId("dataset-save").click();
   const detailIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "detail");
   await dropInBand(page, "array-items", detailIndex);
-  await page.getByTestId("drop-prompt").getByText("Table", { exact: true }).click();
+  await page.getByTestId("create-array-display").click();
   const report = await doc(page);
   expect(report.sections[detailIndex].children).toMatchObject([{ type: "table", dataset: "items" }]);
   expect(report.sections[headerIndex].children).toHaveLength(1);
+});
+
+test("array drop offers table, repeater and cards with optional generated fields", async ({ page }) => {
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("items");
+  await page.getByTestId("dataset-json").fill(JSON.stringify([{ name: "Flour", quantity: 2 }, { name: "Rice", quantity: 3 }]));
+  await page.getByTestId("dataset-save").click();
+  await dropInBand(page, "array-items", 0);
+  const prompt = page.getByTestId("drop-prompt");
+  await expect(prompt).toHaveAttribute("role", "dialog");
+  await expect(prompt.getByRole("radio")).toHaveCount(3);
+  await expect(prompt.getByRole("checkbox", { name: "Create fields automatically" })).toBeChecked();
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "10-array-display-choice.png") });
+  await prompt.getByRole("radio", { name: /Cards/ }).check();
+  await page.getByTestId("create-array-display").click();
+  const report = await doc(page);
+  expect(report.sections[0].children[0]).toMatchObject({ type: "repeater", dataset: "items", children: [{ type: "container" }] });
+  await expect(page.getByTestId("canvas")).toContainText("Flour");
+  await expect(page.getByTestId("canvas")).toContainText("Rice");
+  await page.screenshot({ path: path.join(screenshots, "11-array-cards-canvas.png") });
+
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-frame")).toBeVisible();
+});
+
+test("array drop can create a blank editable table", async ({ page }) => {
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("items");
+  await page.getByTestId("dataset-json").fill(JSON.stringify([{ name: "Flour", quantity: 2 }]));
+  await page.getByTestId("dataset-save").click();
+  await dropInBand(page, "array-items", 0);
+  await page.getByTestId("drop-prompt").getByRole("checkbox", { name: "Create fields automatically" }).uncheck();
+  await page.getByTestId("create-array-display").click();
+  expect((await doc(page)).sections[0].children).toMatchObject([{ type: "table", columns: [{ header: "New column" }] }]);
+  await expect(page.getByTestId("add-column")).toBeVisible();
 });
 
 test("collapse a band, then drag its ruler edge to resize and double-click to fit", async ({ page }) => {
