@@ -33,6 +33,8 @@ When a source has no preview rows, open its dataset editor and add **Fields**. E
 
 Run **Preview** or **Test request** to compare declared fields with returned values. The result shows missing fields, mismatched types, and example row locations. A zero-row result keeps declared fields visible but cannot check their values. The check samples up to 20 records and a bounded number of nested values; **Problems** links any saved mismatch back to its dataset. It is an authoring warning, not a runtime rejection of source data.
 
+Open **Data → Test data** to run disposable 0, 1, 10, 31, 32, 100, or 1,000 record scenarios against an array. You can add long text, nulls, negative values, multilingual text, and many groups. The lab runs the designer's layout checks and can compare its page count with an actual generated PDF. It leaves the report and saved sample intact. A passing page-count comparison does not prove that every value appears correctly in the PDF, so inspect the output before publishing.
+
 For a grouped list such as `clinical.investigations`, create the group from that list, then drag the list into an otherwise empty Detail band and choose **Table**. The table prints once for each group using only that group's records. Add a field such as `row.department` to the Group Header, and remove a redundant Department table column in the inspector if you want a cleaner layout.
 
 ## 4. Pagination for long documents

@@ -120,8 +120,8 @@ export const api = {
   async deleteBlock(id: string): Promise<void> {
     await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
-  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos"): Promise<{ blob: Blob; renderId: string | null; warningCount: number }> {
-    const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format }) });
+  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos", parameters?: Record<string, unknown>): Promise<{ blob: Blob; renderId: string | null; warningCount: number }> {
+    const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format, parameters }) });
     return { blob: await res.blob(), renderId: res.headers.get("x-render-id"), warningCount: Number(res.headers.get("x-render-warnings") ?? 0) };
   },
   async testDataset(dataset: unknown, parameters: Record<string, unknown> = {}): Promise<{ ok: boolean; issues: { message: string }[]; rowCount: number; durationMs?: number; value: unknown }> {

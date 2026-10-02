@@ -25,7 +25,7 @@ export function downloadBlob(blob: Blob, filename: string) {
 export async function exportReport(format: PreviewTab) {
   const s = useStore.getState();
   try {
-    const { blob } = await api.render(withSampleData(s.doc, s.sample), format);
+    const { blob } = await api.render(withSampleData(s.doc, s.sample), format, s.parameters);
     downloadBlob(blob, `${s.doc.id || "report"}.${format}`);
     s.toast(`Exported ${format.toUpperCase()}`, "success");
   } catch (e) {
@@ -34,7 +34,7 @@ export async function exportReport(format: PreviewTab) {
 }
 
 export function PdfPreview({ compact = false }: { compact?: boolean }) {
-  const { doc, sample } = useStore();
+  const { doc, sample, parameters } = useStore();
   const [url, setUrl] = useState<string>();
   const urlRef = useRef<string>();
   const [info, setInfo] = useState("");
@@ -47,7 +47,7 @@ export function PdfPreview({ compact = false }: { compact?: boolean }) {
     setBusy(true);
     const t = setTimeout(async () => {
       try {
-        const { blob, renderId } = await api.render(withSampleData(doc, sample), "pdf");
+        const { blob, renderId } = await api.render(withSampleData(doc, sample), "pdf", parameters);
         if (cancelled) return;
         const text = await blob.text();
         const pages = (text.match(/\/Type \/Page(?![s\w])/g) ?? []).length;
@@ -66,7 +66,7 @@ export function PdfPreview({ compact = false }: { compact?: boolean }) {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [doc, sample]);
+  }, [doc, sample, parameters]);
 
   useEffect(() => () => {
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
@@ -86,14 +86,14 @@ export function PdfPreview({ compact = false }: { compact?: boolean }) {
 }
 
 function HtmlPreview() {
-  const { doc, sample } = useStore();
+  const { doc, sample, parameters } = useStore();
   const [html, setHtml] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const { blob } = await api.render(withSampleData(doc, sample), "html");
+        const { blob } = await api.render(withSampleData(doc, sample), "html", parameters);
         const text = await blob.text();
         if (!cancelled) {
           setHtml(text);
@@ -107,7 +107,7 @@ function HtmlPreview() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [doc, sample]);
+  }, [doc, sample, parameters]);
   return (
     <div className="preview-pane">
       <div className="preview-bar">
@@ -255,7 +255,7 @@ function ZplPreview() {
 }
 
 function EscPosPreview() {
-  const { doc, sample } = useStore();
+  const { doc, sample, parameters } = useStore();
   const [rendered, setRendered] = useState<{ blob: Blob; text: string; lines: number; cuts: number; warningCount: number }>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
@@ -269,7 +269,7 @@ function EscPosPreview() {
     setRendered(undefined);
     const timer = setTimeout(async () => {
       try {
-        const { blob, warningCount } = await api.render(withSampleData(doc, sample), "escpos");
+        const { blob, warningCount } = await api.render(withSampleData(doc, sample), "escpos", parameters);
         const decoded = decodeEscPos(new Uint8Array(await blob.arrayBuffer()));
         if (cancelled) return;
         setRendered({ blob, ...decoded, warningCount });
@@ -281,7 +281,7 @@ function EscPosPreview() {
       }
     }, 350);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [doc, sample]);
+  }, [doc, sample, parameters]);
 
   return (
     <div className="preview-pane escpos-preview" data-testid="escpos-preview">
