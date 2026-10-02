@@ -225,10 +225,10 @@ function ConditionBuilder({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
   const expr: string = comp.visibleWhen ?? "";
   const cond = expr ? expressionToCondition(expr) : undefined;
-  const [raw, setRaw] = useState(false);
+  const [view, setView] = useState<"builder" | "code">("builder");
   const candidates = useMemo(() => candidatesFor(doc, sample, comp.id), [doc, sample, comp.id]);
   const enabled = expr !== "";
-  const showRaw = raw || (enabled && !cond);
+  const showCode = view === "code" || (enabled && !cond);
   const setCond = (c: Condition) => patch(comp.id, { visibleWhen: conditionToExpression(c) });
   const current: Condition = cond ?? { field: candidates[0]?.value ?? "row.value", operator: "gt", value: "0" };
 
@@ -243,7 +243,11 @@ function ConditionBuilder({ comp }: { comp: ops.Comp }) {
         />
         Show this element only when...
       </label>
-      {enabled && !showRaw && cond && (
+      {enabled && <div className="seg small" role="tablist" aria-label="Visibility condition editor">
+        <button type="button" role="tab" aria-selected={!showCode} disabled={!cond} className={!showCode ? "active" : ""} data-testid="visibility-builder" onClick={() => setView("builder")}>Builder</button>
+        <button type="button" role="tab" aria-selected={showCode} className={showCode ? "active" : ""} data-testid="visibility-code" onClick={() => setView("code")}>Code</button>
+      </div>}
+      {enabled && !showCode && cond && (
         <div className="condition-row">
           <select aria-label="Condition field" data-testid="cond-field" value={cond.field} onChange={(e) => setCond({ ...cond, field: e.target.value })}>
             {!candidates.some((c) => c.value === cond.field) && <option>{cond.field}</option>}
@@ -263,12 +267,10 @@ function ConditionBuilder({ comp }: { comp: ops.Comp }) {
           {cond.operator !== "empty" && cond.operator !== "notempty" && <input aria-label="Condition value" data-testid="cond-value" value={cond.value} onChange={(e) => setCond({ ...cond, value: e.target.value })} />}
         </div>
       )}
-      {enabled && (
-        <button className="link" onClick={() => setRaw(!showRaw)}>
-          {showRaw ? "Use the simple builder" : "fx Edit as formula"}
-        </button>
-      )}
-      {enabled && showRaw && <FormulaInput value={expr} candidates={candidates} placeholder="e.g. row.balance > 0" onChange={(v) => patch(comp.id, { visibleWhen: v })} />}
+      {enabled && showCode && <>
+        <FormulaInput value={expr} candidates={candidates} placeholder="e.g. row.balance > 0" onChange={(v) => patch(comp.id, { visibleWhen: v })} />
+        <p className="muted small">JavaScript-style expressions with report fields; no statements or arbitrary scripts.</p>
+      </>}
     </div>
   );
 }
@@ -286,8 +288,8 @@ function StyleRuleCard({ rule, index, count, candidates, onChange, onMove, onRem
   testId: string;
 }) {
   const condition = expressionToCondition(rule.when);
-  const [formulaMode, setFormulaMode] = useState(false);
-  const visual = !!condition && !formulaMode;
+  const [view, setView] = useState<"builder" | "code">("builder");
+  const visual = !!condition && view === "builder";
   const setStyle = (patch: Record<string, unknown>) => onChange({ ...rule, style: { ...rule.style, ...patch } });
   return (
     <div className="column-card style-rule-card" data-testid={`${testId}-${index}`}>
@@ -300,6 +302,10 @@ function StyleRuleCard({ rule, index, count, candidates, onChange, onMove, onRem
       </div>
       <div className="column-body">
         <div className="group-title small">If</div>
+        <div className="seg small" role="tablist" aria-label={`Rule ${index + 1} condition editor`}>
+          <button type="button" role="tab" aria-selected={visual} disabled={!condition} className={visual ? "active" : ""} data-testid={`${testId}-builder-${index}`} onClick={() => setView("builder")}>Builder</button>
+          <button type="button" role="tab" aria-selected={!visual} className={!visual ? "active" : ""} data-testid={`${testId}-code-${index}`} onClick={() => setView("code")}>Code</button>
+        </div>
         {visual && condition ? (
           <div className="condition-row">
             <select aria-label={`Rule ${index + 1} field`} value={condition.field} onChange={(e) => onChange({ ...rule, when: conditionToExpression({ ...condition, field: e.target.value }) })}>
@@ -316,7 +322,7 @@ function StyleRuleCard({ rule, index, count, candidates, onChange, onMove, onRem
         ) : (
           <FormulaInput value={rule.when} candidates={candidates} testId={`${testId}-formula-${index}`} placeholder={'e.g. row.flag == "H"'} onChange={(when) => onChange({ ...rule, when })} />
         )}
-        {condition && <button className="link" onClick={() => setFormulaMode(!formulaMode)}>{formulaMode ? "Use visual condition" : "fx Edit formula"}</button>}
+        {!visual && <p className="muted small">JavaScript-style expressions with report fields; no statements or arbitrary scripts.</p>}
         <div className="group-title small">Then</div>
         <Field label="Text colour" wide>
           <Color label={`Rule ${index + 1} text colour`} value={rule.style.color} onChange={(color) => setStyle({ color })} />

@@ -580,7 +580,7 @@ test("selecting a band opens its editor and persists layout and pagination rules
   expect((await doc(page)).sections[0]).toMatchObject({ name: "Line items", height: 72, layout: "grid", columns: 2, allowSplit: false, newPageBefore: true });
   await page.getByTestId("properties").getByRole("button", { name: /Visibility/ }).click();
   await page.getByTestId("band-visibleWhen-toggle").check();
-  await page.getByText("fx Edit as formula").click();
+  await page.getByTestId("band-condition-code").click();
   await page.getByTestId("band-visibleWhen").fill("row.quantity > 0");
   await expect(page.getByTestId("band-visibleWhen")).toHaveAttribute("aria-invalid", "false");
   await page.getByTestId("band-visibleWhen").fill("row.quantity >");

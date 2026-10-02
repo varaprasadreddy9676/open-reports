@@ -19,7 +19,7 @@ export function BandProps({ index }: { index: number }) {
   const { doc, sample } = useStore();
   const band = doc.sections?.[index];
   const group = (doc.groups ?? []).find((g: any) => g.id === band?.groupId);
-  const [formulaMode, setFormulaMode] = useState(false);
+  const [conditionView, setConditionView] = useState<"builder" | "code">("builder");
   const rowDataset = band?.dataset ?? group?.dataset ?? doc.sections?.find((section: any) => section.type === "detail")?.dataset;
   const candidates = useMemo(() => candidatesFor(doc, sample, undefined, rowDataset), [doc, sample, rowDataset]);
   if (!band) return null;
@@ -51,7 +51,7 @@ export function BandProps({ index }: { index: number }) {
   const expression = band.visibleWhen ?? "";
   const condition = expressionToCondition(expression);
   const current: Condition = condition ?? { field: candidates[0]?.value ?? "row.value", operator: "gt", value: "0" };
-  const showFormula = formulaMode || (!!expression && !condition);
+  const showCode = conditionView === "code" || (!!expression && !condition);
   const setCondition = (next: Condition) => update({ visibleWhen: conditionToExpression(next) });
   const move = (to: number) => {
     const st = useStore.getState();
@@ -134,7 +134,11 @@ export function BandProps({ index }: { index: number }) {
       {flag("hidden", "Hide band from output")}
       {flag("suppressWhenBlank", "Hide when empty")}
       <label className="check"><input type="checkbox" data-testid="band-visibleWhen-toggle" checked={!!expression} onChange={(e) => update({ visibleWhen: e.target.checked ? conditionToExpression(current) : undefined })} />Show only when...</label>
-      {!!expression && !showFormula && condition && <div className="condition-row">
+      {!!expression && <div className="seg small" role="tablist" aria-label="Band condition editor">
+        <button type="button" role="tab" aria-selected={!showCode} disabled={!condition} className={!showCode ? "active" : ""} data-testid="band-condition-builder" onClick={() => setConditionView("builder")}>Builder</button>
+        <button type="button" role="tab" aria-selected={showCode} className={showCode ? "active" : ""} data-testid="band-condition-code" onClick={() => setConditionView("code")}>Code</button>
+      </div>}
+      {!!expression && !showCode && condition && <div className="condition-row">
         <select aria-label="Band condition field" data-testid="band-condition-field" value={condition.field} onChange={(e) => setCondition({ ...condition, field: e.target.value })}>
           {!candidates.some((c) => c.value === condition.field) && <option value={condition.field}>{condition.field}</option>}
           {candidates.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -144,8 +148,10 @@ export function BandProps({ index }: { index: number }) {
         </select>
         {condition.operator !== "empty" && condition.operator !== "notempty" && <input aria-label="Band condition value" data-testid="band-condition-value" value={condition.value} onChange={(e) => setCondition({ ...condition, value: e.target.value })} />}
       </div>}
-      {!!expression && <button className="link" onClick={() => setFormulaMode(!showFormula)}>{showFormula ? "Use simple condition" : "fx Edit as formula"}</button>}
-      {!!expression && showFormula && <FormulaInput value={expression} candidates={candidates} placeholder="e.g. row.quantity > 0" testId="band-visibleWhen" onChange={(value) => update({ visibleWhen: value })} />}
+      {!!expression && showCode && <>
+        <FormulaInput value={expression} candidates={candidates} placeholder="e.g. row.quantity > 0" testId="band-visibleWhen" onChange={(value) => update({ visibleWhen: value })} />
+        <p className="muted small">JavaScript-style expressions with report fields; no statements or arbitrary scripts.</p>
+      </>}
     </InspectorSection>
 
     <InspectorSection title="Pagination" open={false} summary={band.newPageBefore || band.newPageAfter || band.keepTogether || band.repeatEveryPage ? "Custom rules" : "Default"}>

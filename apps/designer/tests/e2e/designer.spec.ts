@@ -242,6 +242,13 @@ test.describe("editing", () => {
     await page.getByTestId("cond-value").fill("0");
     const c = (await doc(page)).sections[0].children.find((x: any) => x.id === "attention");
     expect(c.visibleWhen).toMatch(/^[\w.]+ > 0$/);
+    await page.getByTestId("visibility-code").click();
+    const codeCondition = `${c.visibleWhen} && ${c.visibleWhen}`;
+    await page.getByLabel("Formula").fill(codeCondition);
+    expect((await doc(page)).sections[0].children.find((x: any) => x.id === "attention").visibleWhen).toBe(codeCondition);
+    await expect(page.getByTestId("visibility-builder")).toBeDisabled();
+    await page.getByLabel("Formula").fill(`${c.visibleWhen} &&`);
+    await expect(page.getByLabel("Formula")).toHaveAttribute("aria-invalid", "true");
   });
 });
 

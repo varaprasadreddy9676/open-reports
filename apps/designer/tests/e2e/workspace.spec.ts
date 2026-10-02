@@ -648,7 +648,10 @@ test("a text element can use the same visual conditional style editor", async ({
   await page.getByLabel("Rule 1 value").fill("H");
   const report = await page.evaluate(() => (window as any).__designer.getState().doc);
   expect(report.sections[0].children[0].styleWhen).toMatchObject([{ when: 'data.patient.flag == "H"', style: { color: "#b91c1c", fontWeight: "bold" } }]);
-  await page.getByRole("button", { name: "fx Edit formula" }).click();
+  await page.getByTestId("component-style-rules-code-0").click();
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "34-condition-code-tab.png") });
   await page.getByTestId("component-style-rules-formula-0").fill("data.patient.flag ==");
   await expect(page.getByTestId("problem-counts")).toContainText("1 error");
   await page.getByTestId("component-style-rules-formula-0").fill('data.patient.flag == "H"');

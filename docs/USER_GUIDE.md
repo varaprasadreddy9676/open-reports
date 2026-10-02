@@ -58,6 +58,8 @@ For a custom hospital header, add Image components to the Page Header. **Embed i
 ## 5b. Watermarks, bookmarks, highlighting
 **Page → Watermark** (DRAFT/CONFIDENTIAL…), element *Advanced → PDF bookmark*, table → **Highlight rows** (e.g. out-of-range results in red) and **When there is no data** (headers / message / hide).
 
+For band visibility, element visibility, and conditional appearance, choose **Builder** for a simple field/operator/value rule or **Code** to type a JavaScript-style expression such as `row.quantity > 0 && row.status == "Ready"`. Both tabs edit the same report expression. Code offers field suggestions and syntax errors; it supports expressions and built-in functions, not arbitrary JavaScript statements. A condition too complex for the simple Builder stays editable in Code.
+
 ## 6. Reuse
 Select elements → right-click → **Save as reusable component**. They appear under *My Components* for every report on that server.
 
