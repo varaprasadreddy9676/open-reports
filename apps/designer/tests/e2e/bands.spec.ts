@@ -1,15 +1,21 @@
 import { test, expect, type Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const doc = (page: Page) => page.evaluate(() => (window as any).__designer.getState().doc);
 
 async function dropInBand(page: Page, source: string, index: number) {
-  const sheet = (await page.getByTestId("page-1").boundingBox())!;
-  const band = (await page.getByTestId(`band-${index}`).first().boundingBox())!;
-  await page.getByTestId(source).dragTo(page.getByTestId("page-1"), {
-    targetPosition: { x: sheet.width / 2, y: band.y - sheet.y + Math.min(band.height / 2, 24) },
-  });
+  const target = page.getByTestId(`band-${index}`).first();
+  await target.scrollIntoViewIfNeeded();
+  const band = (await target.boundingBox())!;
+  const from = (await page.getByTestId(source).boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2 + 8, from.y + from.height / 2 + 8, { steps: 3 });
+  await page.mouse.move(band.x + band.width / 2, band.y + Math.min(band.height / 2, 24), { steps: 10 });
+  await page.mouse.up();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -69,6 +75,7 @@ test("data drops fill the empty Page Header and Detail bands", async ({ page }) 
 });
 
 test("A4 authoring keeps grouped investigation rows once from data binding through output", async ({ page }) => {
+  test.setTimeout(120_000);
   await page.getByTestId("left-tab-data").click();
   await page.getByTestId("add-dataset").click();
   await page.getByTestId("dataset-id").fill("clinical");
@@ -100,7 +107,7 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   const detailIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "detail");
   await page.getByTestId("left-tab-data").click();
   await dropInBand(page, "field-clinical-investigations.department", groupHeaderIndex);
-  expect((await doc(page)).sections[groupHeaderIndex].children[0].binding).toBe("row.department");
+  await expect.poll(async () => (await doc(page)).sections[groupHeaderIndex].children[0]?.binding).toBe("row.department");
   await dropInBand(page, "field-clinical-investigations", detailIndex);
   await page.getByTestId("create-array-display").click();
   const table = (await doc(page)).sections[detailIndex].children.find((child: any) => child.type === "table");
@@ -113,6 +120,8 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await page.getByTestId("column-1").getByLabel("Column header").fill("Investigation");
   await page.getByTestId("column-0").getByRole("button", { name: "Remove column" }).click();
   expect((await doc(page)).sections[detailIndex].children[0].columns.map((column: any) => column.header)).toEqual(["Investigation", "Result"]);
+  if (await page.getByTestId("flag-repeatHeaderOnPageBreak").count() === 0) await page.getByRole("button", { name: /Pagination & rows/ }).click();
+  await expect(page.getByTestId("flag-repeatHeaderOnPageBreak")).toBeChecked();
   await page.getByTestId("mode-preview").click();
   await expect(page.getByTestId("pdf-frame")).toBeVisible();
   await expect(page.getByTestId("pdf-info")).toContainText("page");
@@ -127,6 +136,77 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   expect((await body.innerText()).match(/Glucose/g)).toHaveLength(1);
   expect((await body.innerText()).match(/Haemoglobin/g)).toHaveLength(1);
   await page.screenshot({ path: path.join(screenshots, "17-grouped-a4-html-preview.png") });
+
+  await page.getByTestId("mode-data").click();
+  await page.getByTestId("data-item-clinical").click();
+  await page.getByTestId("dataset-json").fill(JSON.stringify({
+    patient: { name: "Asha Rao" },
+    investigations: Array.from({ length: 100 }, (_, index) => ({ department: "Biochemistry", testName: `LAB-${String(index).padStart(3, "0")}`, result: index })),
+  }));
+  await page.getByTestId("dataset-save").click();
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-info")).toContainText(/\d+ pages/);
+  const pageCount = Number((await page.getByTestId("pdf-info").innerText()).match(/(\d+) pages/)?.[1]);
+  expect(pageCount).toBeGreaterThan(1);
+  await page.screenshot({ path: path.join(screenshots, "20-grouped-a4-multipage-pdf.png") });
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-pdf").click()]);
+  const pdfFile = path.join(os.tmpdir(), `open-reports-a4-${Date.now()}.pdf`);
+  await download.saveAs(pdfFile);
+  const pdfText = execFileSync("pdftotext", ["-layout", pdfFile, "-"], { encoding: "utf-8" });
+  fs.unlinkSync(pdfFile);
+  const pdfRecords = pdfText.match(/LAB-\d{3}/g) ?? [];
+  expect(pdfRecords).toHaveLength(100);
+  expect(new Set(pdfRecords).size).toBe(100);
+  expect((pdfText.match(/Investigation/g) ?? []).length).toBe(pageCount);
+  expect((pdfText.match(/Biochemistry/g) ?? []).length).toBe(pageCount);
+  await page.getByTestId("preview-tab-html").click();
+  const longBody = page.getByTestId("html-frame").contentFrame().locator("body");
+  await expect(longBody).toContainText("LAB-099");
+  const text = await longBody.innerText();
+  const renderedRecords = text.match(/LAB-\d{3}/g) ?? [];
+  expect(renderedRecords).toHaveLength(100);
+  expect(new Set(renderedRecords).size).toBe(100);
+  expect(await longBody.getByRole("columnheader", { name: "Investigation" }).count()).toBe(pageCount);
+  expect((text.match(/Biochemistry/g) ?? []).length).toBe(pageCount);
+  await page.screenshot({ path: path.join(screenshots, "18-grouped-a4-multipage.png") });
+
+  for (const rowCount of [1, 31, 32]) {
+    await page.getByTestId("mode-data").click();
+    await page.getByTestId("data-item-clinical").click();
+    await page.getByTestId("dataset-json").fill(JSON.stringify({
+      patient: { name: "Asha Rao" },
+      investigations: Array.from({ length: rowCount }, (_, index) => ({ department: "Biochemistry", testName: `LAB-${String(index).padStart(3, "0")}`, result: index })),
+    }));
+    await page.getByTestId("dataset-save").click();
+    await page.getByTestId("mode-preview").click();
+    await expect(page.getByTestId("pdf-info")).toContainText(/\d+ page/);
+    await page.getByTestId("preview-tab-html").click();
+    const boundaryBody = page.getByTestId("html-frame").contentFrame().locator("body");
+    await expect(boundaryBody).toContainText(`LAB-${String(rowCount - 1).padStart(3, "0")}`);
+    const records = (await boundaryBody.innerText()).match(/LAB-\d{3}/g) ?? [];
+    expect(records).toHaveLength(rowCount);
+    expect(new Set(records).size).toBe(rowCount);
+  }
+
+  await page.getByTestId("mode-design").click();
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId("explorer-add-band").selectOption("noData");
+  const noDataIndex = (await doc(page)).sections.findIndex((section: any) => section.type === "noData");
+  await page.getByTestId("left-tab-insert").click();
+  await page.getByTestId("palette-text").click();
+  expect((await doc(page)).sections[noDataIndex].children).toHaveLength(1);
+  await page.getByTestId("value-text").fill("No investigations available");
+  await page.getByTestId("mode-data").click();
+  await page.getByTestId("data-item-clinical").click();
+  await page.getByTestId("dataset-json").fill(JSON.stringify({ patient: { name: "Asha Rao" }, investigations: [] }));
+  await page.getByTestId("dataset-save").click();
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-info")).toContainText(/\d+ page/);
+  await page.getByTestId("preview-tab-html").click();
+  const emptyBody = page.getByTestId("html-frame").contentFrame().locator("body");
+  await expect(emptyBody).toContainText("No investigations available");
+  expect(await emptyBody.getByRole("columnheader", { name: "Investigation" }).count()).toBe(0);
+  await page.screenshot({ path: path.join(screenshots, "19-grouped-a4-no-data.png") });
 });
 
 test("array drop offers table, repeater and cards with optional generated fields", async ({ page }) => {
