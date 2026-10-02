@@ -22,7 +22,7 @@ Thesis: Open Reports had a page/component designer; it must become a true **repo
 4. Draggable margins + guides — **DONE** (margins on rulers, click-ruler-to-add-guide, drag/delete guides, persistent in `report.guides`; named guides UI missing)
 5. Grid / snap / smart guides / dimension lines — **PARTIAL** (grid lines/dots/hidden, snap to guides + sibling edges + equal-distance labels existed; major/minor grid sizes, per-snap toggles, equal-spacing guides missing)
 6. Section resize / collapse / reorder — **DONE** (ruler edge drag, double-click fit, caret collapse, tab drag-reorder with order validation, "+" insertion)
-7. Report explorer — **PARTIAL (2026-10-01)** (`LeftPanel.tsx` now shows nested group order, group add/remove, all active band types, component layers and actions, band selection/collapse/add/reorder through `ops`; richer group-to-band nesting remains)
+7. Report explorer — **PARTIAL (2026-10-02)** (`LeftPanel.tsx` now nests each group's header, detail, child, footer, and component rows under its group in report order; add/remove, band selection/collapse/reorder through `ops` remain. Band-level visibility and lock semantics remain.)
 8. Report/page/group/data headers+footers — **engine DONE**, designer UI only via "+" menu
 9. Group designer (wizard, nested groups) — **DONE (2026-10-01)** (`GroupWizard.tsx` selects an array dataset and field/expression, print rules, header/footer; uses `ops.addGroup`; the explorer adds/removes levels)
 10. Section-Expert style properties panel — **DONE (2026-10-01)** (`BandProps.tsx` opens when a band is selected; all principal schema fields, group settings, and band actions are editable)
@@ -91,7 +91,7 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 
 ### D2-C
 1. **Section Expert** — implemented and verified in `BandProps.tsx` (2026-10-01). Band visibility and group-by formulas now share the component formula editor, with validation, field suggestions, and a readable expression summary; group fields use the owning group's dataset.
-2. **Report Explorer** — implemented for group order, add/remove, band and component layers, and band reorder (2026-10-01). Remaining refinement: show bands inside their owning group node and add band-level visibility/lock semantics.
+2. **Report Explorer** — group nodes now own their band/component rows, including nested groups and optional group footers. Remaining: band-level visibility/lock semantics.
 3. **Group wizard** — implemented in `GroupWizard.tsx` with nested levels and print settings (2026-10-01).
 4. **Pagination visualization on the structure canvas** — page thumbnails, source-band break lines, per-page reasons, and a real rendered-PDF split pane are implemented. Remaining: make the editable structure/page canvas use PDF font metrics, and show repeated-row page starts at a meaningful position without implying their symbolic band marker is physical paper geometry.
 5. e2e: Section-Expert edits, nested group wizard, and explorer reorder are covered; add full designer-only report construction with repeated headers, page variants, noData and totals, then run full suites.

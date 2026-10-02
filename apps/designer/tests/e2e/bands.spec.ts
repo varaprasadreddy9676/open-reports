@@ -192,7 +192,16 @@ test("group wizard creates nested levels with print rules and can remove one lev
   expect(report.groups.map((g: any) => g.name)).toEqual(["Department", "Doctor"]);
   expect(report.groups[1].sort).toBe("desc");
   expect(report.sections.map((s: any) => s.type)).toEqual(["groupHeader", "groupHeader", "detail", "groupFooter", "groupFooter"]);
-  await expect(page.getByTestId(`explorer-group-${report.groups[1].id}`)).toBeVisible();
+  const outer = page.getByTestId(`explorer-group-${report.groups[0].id}`);
+  const inner = outer.getByTestId(`explorer-group-${report.groups[1].id}`);
+  await expect(inner).toBeVisible();
+  await expect(inner.locator('[data-band-index="2"]')).toBeVisible();
+  await outer.getByRole("button", { name: "Collapse Department" }).click();
+  await expect(inner).toHaveCount(0);
+  await outer.getByRole("button", { name: "Expand Department" }).click();
+  await expect(outer.getByTestId(`explorer-group-${report.groups[1].id}`)).toBeVisible();
+  await outer.getByRole("button", { name: "Department", exact: true }).click();
+  await expect(page.getByTestId("group-name")).toHaveValue("Department");
 
   await page.getByTestId(`explorer-remove-group-${report.groups[1].id}`).click();
   const after = await doc(page);

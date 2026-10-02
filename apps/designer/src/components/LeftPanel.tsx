@@ -5,6 +5,7 @@ import { datasetValue, inferFields, type FieldNode } from "../lib/fields";
 import { titleCase } from "../lib/lowcode";
 import { Icon } from "./Icon";
 import { api } from "../lib/api";
+import { explorerTree, type ExplorerNode } from "../lib/explorer-tree";
 
 interface PaletteItem {
   type: string;
@@ -376,60 +377,21 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
   );
 }
 
-function GroupTree({ groups, index = 0 }: { groups: any[]; index?: number }) {
-  const group = groups[index];
-  if (!group) return null;
-  return <div className="explorer-group" style={{ marginLeft: index ? 14 : 0 }}>
-    <div className="layer" data-testid={`explorer-group-${group.id}`} title={group.by}>
-      <span className="layer-type">▣</span>
-      <span className="layer-name">{group.name ?? group.id}</span>
-      <span className="spacer" />
-      <span className="muted small">{group.by}</span>
-      <button className="mini danger" aria-label={`Remove group ${group.name ?? group.id}`} data-testid={`explorer-remove-group-${group.id}`} onClick={() => {
-        const st = useStore.getState();
-        st.setDoc(ops.removeGroup(st.doc, group.id));
-        st.set({ selectedBand: null, selection: [] });
-      }}>×</button>
-    </div>
-    <GroupTree groups={groups} index={index + 1} />
-  </div>;
-}
 
-function ReportExplorer() {
-  const { doc, selectedBand } = useStore();
+function ExplorerBand({ index, depth }: { index: number; depth: number }) {
+  const doc = useStore((state) => state.doc);
+  const selectedBand = useStore((state) => state.selectedBand);
   const sections: any[] = doc.sections ?? [];
-  const addBand = (type: string) => {
-    const st = useStore.getState();
-    const props: Record<string, any> = {};
-    if (type === "groupHeader" || type === "groupFooter") {
-      if (!(st.doc.groups ?? []).length) return st.set({ dialog: "group" });
-      props.groupId = st.doc.groups[0].id;
-    }
-    if (type === "child") {
-      const parent = st.selectedBand === null ? undefined : st.doc.sections[st.selectedBand];
-      if (!parent?.id) return st.toast("Select a named parent band before adding a child band", "info");
-      props.parent = parent.id;
-    }
-    const result = ops.addBand(st.doc, type, props);
-    st.setDoc(result.doc);
-    st.set({ selectedBand: result.index, selection: [], rightOpen: true });
-  };
+  const i = index;
+  const s = sections[i];
+  if (!s) return null;
   return (
-    <div className="tab-body" data-testid="layers-tab">
-      <div className="layer root">{doc.name}</div>
-      <div className="group-title row-title">Groups (outer to inner)
-        <button className="mini" data-testid="explorer-add-group" onClick={() => useStore.getState().set({ dialog: "group" })}>+ Add</button>
-      </div>
-      {(doc.groups ?? []).length > 0 && <>
-        <GroupTree groups={doc.groups} />
-      </>}
-      <div className="group-title">Bands</div>
-      {sections.map((s, i) => (
-        <div key={i}>
+        <div>
           <div
             className={`layer section ${selectedBand === i ? "selected" : ""}`}
             data-testid={`section-${s.type}`}
             data-band-index={i}
+            style={{ paddingLeft: 8 + depth * 14 }}
             role="button"
             tabIndex={0}
             draggable
@@ -493,10 +455,65 @@ function ReportExplorer() {
             </button>
           </div>
           {!s.collapsed && (s.children ?? []).map((c: ops.Comp) => (
-            <LayerRow key={c.id} comp={c} depth={1} />
+            <LayerRow key={c.id} comp={c} depth={depth + 1} />
           ))}
         </div>
-      ))}
+  );
+}
+
+function ExplorerNodeRow({ node, depth }: { node: ExplorerNode; depth: number }) {
+  const doc = useStore((state) => state.doc);
+  const [open, setOpen] = useState(true);
+  if (node.kind === "band") return <ExplorerBand index={node.index} depth={depth} />;
+  const group = (doc.groups ?? []).find((entry: any) => entry.id === node.id);
+  if (!group) return null;
+  const selectGroup = () => {
+    const index = (doc.sections ?? []).findIndex((section: any) => section.groupId === node.id && section.type === "groupHeader");
+    const fallback = (doc.sections ?? []).findIndex((section: any) => section.groupId === node.id && section.type === "groupFooter");
+    useStore.getState().set({ selectedBand: index >= 0 ? index : fallback >= 0 ? fallback : null, selection: [], rightOpen: true });
+  };
+  return <div className="explorer-group" data-testid={"explorer-group-" + node.id}>
+    <div className="layer" style={{ paddingLeft: 8 + depth * 14 }} title={group.by}>
+      <button className="mini" aria-label={(open ? "Collapse " : "Expand ") + (group.name ?? group.id)} onClick={() => setOpen(!open)}>{open ? "▾" : "▸"}</button>
+      <button className="explorer-group-name" onClick={selectGroup}>{group.name ?? group.id}</button>
+      <span className="spacer" />
+      <span className="muted small">{group.by}</span>
+      <button className="mini danger" aria-label={"Remove group " + (group.name ?? group.id)} data-testid={"explorer-remove-group-" + group.id} onClick={() => {
+        const st = useStore.getState();
+        st.setDoc(ops.removeGroup(st.doc, group.id));
+        st.set({ selectedBand: null, selection: [] });
+      }}>×</button>
+    </div>
+    {open && node.children.map((child) => <ExplorerNodeRow key={child.kind === "group" ? "g:" + child.id : "b:" + child.index} node={child} depth={depth + 1} />)}
+  </div>;
+}
+
+function ReportExplorer() {
+  const doc = useStore((state) => state.doc);
+  const tree = useMemo(() => explorerTree(doc.sections ?? [], doc.groups ?? []), [doc]);
+  const addBand = (type: string) => {
+    const st = useStore.getState();
+    const props: Record<string, any> = {};
+    if (type === "groupHeader" || type === "groupFooter") {
+      if (!(st.doc.groups ?? []).length) return st.set({ dialog: "group" });
+      props.groupId = st.doc.groups[0].id;
+    }
+    if (type === "child") {
+      const parent = st.selectedBand === null ? undefined : st.doc.sections[st.selectedBand];
+      if (!parent?.id) return st.toast("Select a named parent band before adding a child band", "info");
+      props.parent = parent.id;
+    }
+    const result = ops.addBand(st.doc, type, props);
+    st.setDoc(result.doc);
+    st.set({ selectedBand: result.index, selection: [], rightOpen: true });
+  };
+  return (
+    <div className="tab-body" data-testid="layers-tab">
+      <div className="layer root">{doc.name}</div>
+      <div className="group-title row-title">Report structure
+        <button className="mini" data-testid="explorer-add-group" onClick={() => useStore.getState().set({ dialog: "group" })}>+ Add</button>
+      </div>
+      {tree.map((node) => <ExplorerNodeRow key={node.kind === "group" ? "g:" + node.id : "b:" + node.index} node={node} depth={0} />)}
       <label className="add-section">
         <span>Add band</span>
         <select

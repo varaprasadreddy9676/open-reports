@@ -495,6 +495,8 @@ textarea {
   color: var(--accent);
   background: var(--accent-soft);
 }
+.explorer-group-name { border: 0; padding: 0; background: none; color: var(--text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.explorer-group .layer > .muted.small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .layer.root {
   font-weight: 700;
 }
