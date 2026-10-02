@@ -97,6 +97,29 @@ describe("band and guide edits", () => {
     d = ops.updateBand(d, 0, { allowSplit: undefined });
     expect(d.sections[0].allowSplit).toBeUndefined();
   });
+  it("hides bands and protects locked band layout until unlocked", () => {
+    let d = ops.addBand(base(), "reportHeader", { name: "Top" }).doc;
+    d = ops.updateBand(d, 0, { hidden: true, locked: true });
+    expect(d.sections[0]).toMatchObject({ hidden: true, locked: true });
+    expect(ops.updateBand(d, 0, { height: 50 })).toBe(d);
+    d = ops.updateBand(d, 0, { hidden: false, name: "Renamed" });
+    expect(d.sections[0]).toMatchObject({ name: "Renamed", locked: true });
+    expect(d.sections[0].hidden).toBeUndefined();
+    expect(ops.removeSection(d, 0)).toBe(d);
+    expect(ops.canMoveBand(d, 0, 1)).toBe(false);
+    expect(ops.canMoveBand(d, 1, 0)).toBe(false);
+    expect(ops.duplicateBand(d, 0).doc).toBe(d);
+    d = ops.updateBand(d, 0, { locked: false });
+    expect(d.sections[0].locked).toBeUndefined();
+    d = ops.updateBand(d, 0, { height: 50 });
+    expect(d.sections[0]).toMatchObject({ height: 50 });
+    expect(d.sections[0].hidden).toBeUndefined();
+  });
+  it("keeps a group with a locked band until that band is unlocked", () => {
+    let d = ops.addGroup(base(), { dataset: "d", by: "row.a", name: "A" }).doc;
+    d = ops.updateBand(d, 0, { locked: true });
+    expect(ops.removeGroup(d, d.groups[0].id)).toBe(d);
+  });
   it("guides: add, move, remove", () => {
     let d = base();
     const a = ops.addGuide(d, "x", 123.456);

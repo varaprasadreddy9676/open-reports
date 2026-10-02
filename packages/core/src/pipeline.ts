@@ -101,6 +101,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
   const pageSections: ResolvedSection[] = [];
   report.sections.forEach((section, index) => {
     if (!PAGE_BAND_TYPES.includes(section.type as any)) return;
+    if (section.hidden && !options.design) return;
     pageSections.push({
       type: section.type,
       repeat: section.repeat,

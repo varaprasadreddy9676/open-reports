@@ -142,7 +142,7 @@ export function BandChrome({ bands, k }: { bands: StructureBand[]; k: number }) 
             <div
               className={`band-tab ${dropOn === b.sectionIndex ? "drop" : ""}`}
               data-testid={`band-tab-${b.sectionIndex}`}
-              draggable
+              draggable={!section?.locked}
               onPointerDown={(e) => e.stopPropagation()}
               title={b.name}
               onClick={(e) => {
@@ -150,6 +150,7 @@ export function BandChrome({ bands, k }: { bands: StructureBand[]; k: number }) 
                 useStore.getState().set({ selectedBand: b.sectionIndex, selection: [], rightOpen: true });
               }}
               onDragStart={(e) => {
+                if (section?.locked) { e.preventDefault(); return; }
                 dragFrom.current = b.sectionIndex;
                 e.dataTransfer.setData("text/band", String(b.sectionIndex));
                 e.dataTransfer.effectAllowed = "move";

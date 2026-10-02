@@ -24,6 +24,8 @@ Units are **points** for component sizes (1 pt = 1/72 in) and `page.unit` for th
 ## Sections
 `reportHeader`, `pageHeader`, `groupHeader`, `detail`, `groupFooter`, `pageFooter`, `reportFooter`. Headers/footers take `appliesTo`: `first | last | odd | even | standard | all` (page masters).
 
+Bands also accept `hidden: true` to omit them from rendered output while keeping them in the designer's structure view. `locked: true` is a designer layout guard: it prevents moving, resizing, duplicating, or deleting a band; its visibility, name, and print rules can still be edited. Both flags default to false.
+
 ## Expressions
 Reference data as `data.<dataset>.<path>`, `params.x`, `vars.x`, `row.x` (inside tables/repeaters), `parent.x`, `page.number`, `page.total`, `report.name`. Operators: `+ - * / %`, comparison, `&& || !`, `a ? b : c`. Functions include `upper lower trim concat substring replace contains startsWith endsWith round ceil floor abs min max formatDate addDays difference now formatCurrency formatNumber formatPercent sum avg count first last sumBy avgBy minBy maxBy sumProduct`. Unknown names fail with a suggestion. No assignment, no statements, no arbitrary calls.
 

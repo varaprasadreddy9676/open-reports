@@ -85,6 +85,8 @@ export const sectionSchema = z.object({
   style: styleSchema.optional(),
 
   // --- visibility
+  /** Omit this band from rendered output; the designer keeps it in the structure for editing. */
+  hidden: z.boolean().optional(),
   visibleWhen: z.string().optional(),
   /** Drop the band when everything in it resolved to nothing. */
   suppressWhenBlank: z.boolean().optional(),
@@ -103,6 +105,8 @@ export const sectionSchema = z.object({
   printAtBottom: z.boolean().optional(),
   /** Designer-only: collapsed in the structure view. */
   collapsed: z.boolean().optional(),
+  /** Designer-only: protect this band's layout from move, resize, and removal. */
+  locked: z.boolean().optional(),
 
   children: z.array(componentSchema).default([]),
 });

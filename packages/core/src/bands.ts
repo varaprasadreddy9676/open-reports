@@ -93,9 +93,10 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
 
   const band = (entry: Entry, ctx: ResolveContext, meta: Partial<BandMeta> = {}): ResolvedComponent[] => {
     const { s, index } = entry;
+    if (s.hidden && !deps.design) return [];
     const env = deps.makeEnv(`sections[${index}]`);
-    let hiddenByRule = false;
-    if (s.visibleWhen) {
+    let hiddenByRule = Boolean(s.hidden);
+    if (s.visibleWhen && !s.hidden) {
       let visible = true;
       try {
         visible = truthy(engine.evaluate(s.visibleWhen, ctx));

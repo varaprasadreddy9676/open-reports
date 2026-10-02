@@ -51,6 +51,7 @@ function Axis({ vertical, length, k, unit }: { vertical: boolean; length: number
  */
 export function Rulers({ width, height, k, margin, bands }: Props) {
   const unit = useStore((s) => s.rulerUnit);
+  const doc = useStore((s) => s.doc);
   const dragRef = useRef<null | { edge: "top" | "right" | "bottom" | "left"; start: number; orig: number }>(null);
   const bandDrag = useRef<null | { index: number; start: number; orig: number; moved: boolean }>(null);
 
@@ -145,7 +146,7 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
           />
         ))}
         {bands?.map((b, i) =>
-          b.collapsed || b.zone === "background" ? null : (
+          b.collapsed || b.zone === "background" || doc.sections?.[b.sectionIndex]?.locked ? null : (
             <div
               key={i}
               className="band-edge"

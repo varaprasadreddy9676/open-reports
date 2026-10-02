@@ -162,6 +162,35 @@ test("report explorer shows nested groups and reorders only valid bands", async 
   expect((await doc(page)).sections.at(-1).type).toBe("reportFooter");
 });
 
+test("band visibility changes output while layout lock protects structure", async ({ page }) => {
+  await page.getByTestId("left-tab-layers").click();
+  const row = page.locator("[data-band-index='0']");
+  await row.click();
+  await page.getByTestId("explorer-hide-band-0").click();
+  expect((await doc(page)).sections[0].hidden).toBe(true);
+  await expect(row).toHaveClass(/is-hidden/);
+  await expect(page.getByTestId("band-0").first()).toHaveClass(/hidden-rule/);
+
+  await page.getByTestId("explorer-lock-band-0").click();
+  expect((await doc(page)).sections[0].locked).toBe(true);
+  await expect(row).toHaveAttribute("draggable", "false");
+  await expect(page.getByTestId("band-tab-0").first()).toHaveAttribute("draggable", "false");
+  await expect(page.getByTestId("band-edge-0")).toHaveCount(0);
+  await expect(row.getByRole("button", { name: /Remove .* band/ })).toBeDisabled();
+
+  await row.click();
+  await expect(page.getByTestId("band-height")).toBeDisabled();
+  await expect(page.getByTestId("delete-band")).toBeDisabled();
+  await page.getByTestId("band-hidden").uncheck();
+  await expect(row).not.toHaveClass(/is-hidden/);
+  expect((await doc(page)).sections[0].hidden).toBeUndefined();
+
+  await page.getByTestId("band-lock").click();
+  await expect(page.getByTestId("band-height")).toBeEnabled();
+  await expect(page.getByTestId("band-edge-0")).toHaveCount(1);
+  expect((await doc(page)).sections[0].locked).toBeUndefined();
+});
+
 test("group wizard creates nested levels with print rules and can remove one level", async ({ page }) => {
   await page.evaluate(() => {
     const st = (window as any).__designer.getState();

@@ -62,17 +62,16 @@ export function BandProps({ index }: { index: number }) {
     <div className="prop-head">
       <strong>{ops.BAND_TITLES[band.type] ?? band.type}</strong>
       <span className="spacer" />
-      <button className="mini" aria-label="Duplicate band" data-testid="duplicate-band" onClick={() => {
+      <button className="mini" aria-label={band.locked ? "Unlock band layout" : "Lock band layout"} data-testid="band-lock" onClick={() => update({ locked: !band.locked })}>{band.locked ? "🔒" : "🔓"}</button>
+      <button className="mini" aria-label="Duplicate band" data-testid="duplicate-band" disabled={!!band.locked} onClick={() => {
         const st = useStore.getState();
         const next = ops.duplicateBand(st.doc, index);
         st.setDoc(next.doc);
         st.set({ selectedBand: next.index });
       }}>⧉</button>
-      <button className="mini danger" aria-label="Delete band" data-testid="delete-band" onClick={() => {
+      <button className="mini danger" aria-label="Delete band" data-testid="delete-band" disabled={!!band.locked} onClick={() => {
         const st = useStore.getState();
-        const next = ops.clone(st.doc);
-        next.sections.splice(index, 1);
-        st.setDoc(next);
+        st.setDoc(ops.removeSection(st.doc, index));
         st.set({ selectedBand: null });
       }}>🗑</button>
     </div>
@@ -104,6 +103,7 @@ export function BandProps({ index }: { index: number }) {
       </BandField>}
     </BandSection>
 
+    <fieldset className="band-props-fields" disabled={!!band.locked}>
     <BandSection title="Size and layout">
       <div className="grid2">{number("height", "Fixed height (pt)")}{number("minHeight", "Min height (pt)")}</div>
       <BandField label="Layout"><select aria-label="Band layout" data-testid="band-layout" value={band.layout ?? "flow"} onChange={(e) => update({ layout: e.target.value === "flow" ? undefined : e.target.value })}>
@@ -119,8 +119,10 @@ export function BandProps({ index }: { index: number }) {
         </select></BandField>
       </div>
     </BandSection>
+    </fieldset>
 
     <BandSection title="Visibility">
+      {flag("hidden", "Hide band from output")}
       {flag("suppressWhenBlank", "Hide when empty")}
       <label className="check"><input type="checkbox" data-testid="band-visibleWhen-toggle" checked={!!expression} onChange={(e) => update({ visibleWhen: e.target.checked ? conditionToExpression(current) : undefined })} />Show only when...</label>
       {!!expression && !showFormula && condition && <div className="condition-row">

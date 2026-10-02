@@ -81,7 +81,7 @@ export function layoutStructure(resolved: ResolvedReport, sections: ReportSectio
       columns: s.columns,
       style: s.style,
       children,
-      band: { sectionIndex, sectionId: s.id, type: s.type, name: s.name },
+      band: { sectionIndex, sectionId: s.id, type: s.type, name: s.name, hiddenByRule: Boolean(s.hidden) },
     };
     return { sectionIndex, comp, zone };
   };

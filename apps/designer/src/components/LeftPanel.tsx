@@ -388,13 +388,13 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
   return (
         <div>
           <div
-            className={`layer section ${selectedBand === i ? "selected" : ""}`}
+            className={`layer section ${selectedBand === i ? "selected" : ""} ${s.hidden ? "is-hidden" : ""}`}
             data-testid={`section-${s.type}`}
             data-band-index={i}
             style={{ paddingLeft: 8 + depth * 14 }}
             role="button"
             tabIndex={0}
-            draggable
+            draggable={!s.locked}
             onClick={() => useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true })}
             onKeyDown={(e) => {
               if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
@@ -402,14 +402,17 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
               useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true });
             }}
             onDragStart={(e) => {
+              if (s.locked) { e.preventDefault(); return; }
               e.dataTransfer.setData("text/band", String(i));
               e.dataTransfer.effectAllowed = "move";
             }}
             onDragOver={(e) => {
+              if (s.locked) return;
               if (e.dataTransfer.types.includes("text/band")) e.preventDefault();
               if (e.dataTransfer.types.includes("application/x-layer")) e.preventDefault();
             }}
             onDrop={(e) => {
+              if (s.locked) return;
               const bandFrom = e.dataTransfer.getData("text/band");
               if (bandFrom !== "") {
                 e.preventDefault();
@@ -441,9 +444,22 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
             <span className="layer-type">{ops.BAND_CODES[s.type] ?? ""}</span>
             <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{ops.bandDisplayName(doc, s)}</span>
             <span className="spacer" />
+            <span className="layer-actions">
+              <button className={`layer-btn ${s.locked ? "on" : ""}`} aria-label={s.locked ? "Unlock band layout" : "Lock band layout"} title={s.locked ? "Unlock band layout" : "Lock band layout"} data-testid={`explorer-lock-band-${i}`} onClick={(e) => {
+                e.stopPropagation();
+                const st = useStore.getState();
+                st.setDoc(ops.updateBand(st.doc, i, { locked: !s.locked }));
+              }}>{s.locked ? "🔒" : "🔓"}</button>
+              <button className={`layer-btn ${s.hidden ? "on" : ""}`} aria-label={s.hidden ? "Show band" : "Hide band"} title={s.hidden ? "Show band" : "Hide band"} data-testid={`explorer-hide-band-${i}`} onClick={(e) => {
+                e.stopPropagation();
+                const st = useStore.getState();
+                st.setDoc(ops.updateBand(st.doc, i, { hidden: !s.hidden }));
+              }}>{s.hidden ? "🙈" : "👁"}</button>
+            </span>
             <button
               className="mini danger"
               aria-label={`Remove ${s.type} band`}
+              disabled={!!s.locked}
               onClick={(e) => {
                 e.stopPropagation();
                 const st = useStore.getState();
@@ -478,7 +494,7 @@ function ExplorerNodeRow({ node, depth }: { node: ExplorerNode; depth: number })
       <button className="explorer-group-name" onClick={selectGroup}>{group.name ?? group.id}</button>
       <span className="spacer" />
       <span className="muted small">{group.by}</span>
-      <button className="mini danger" aria-label={"Remove group " + (group.name ?? group.id)} data-testid={"explorer-remove-group-" + group.id} onClick={() => {
+      <button className="mini danger" aria-label={"Remove group " + (group.name ?? group.id)} data-testid={"explorer-remove-group-" + group.id} disabled={(doc.sections ?? []).some((section: any) => section.groupId === group.id && section.locked)} onClick={() => {
         const st = useStore.getState();
         st.setDoc(ops.removeGroup(st.doc, group.id));
         st.set({ selectedBand: null, selection: [] });

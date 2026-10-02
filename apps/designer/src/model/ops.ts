@@ -342,6 +342,7 @@ export function addMaster(doc: Doc, type: "pageHeader" | "pageFooter", appliesTo
 }
 
 export function removeSection(doc: Doc, index: number): Doc {
+  if (doc.sections?.[index]?.locked) return doc;
   const next = clone(doc);
   next.sections.splice(index, 1);
   return next;
@@ -492,8 +493,10 @@ export function updateBand(doc: Doc, index: number, patch: Record<string, any>):
   const next = clone(doc);
   const s = next.sections?.[index];
   if (!s) return doc;
+  const layoutKeys = new Set(["height", "minHeight", "layout", "gap", "alignItems", "justifyContent", "columns", "style", "groupId", "parent"]);
+  if (s.locked && Object.keys(patch).some((key) => layoutKeys.has(key))) return doc;
   for (const [k, v] of Object.entries(patch)) {
-    if (v === undefined || v === "" || v === false && ["newPageBefore", "newPageAfter", "keepTogether", "keepWithNext", "keepWithPrevious", "suppressWhenBlank", "collapsed", "printAtBottom"].includes(k)) delete s[k];
+    if (v === undefined || v === "" || v === false && ["newPageBefore", "newPageAfter", "keepTogether", "keepWithNext", "keepWithPrevious", "suppressWhenBlank", "collapsed", "hidden", "locked", "printAtBottom"].includes(k)) delete s[k];
     else s[k] = v;
   }
   return next;
@@ -504,6 +507,7 @@ export function canMoveBand(doc: Doc, from: number, to: number): boolean {
   const sections: any[] = doc.sections ?? [];
   if (from < 0 || from >= sections.length || to < 0 || to >= sections.length) return false;
   const moving = sections[from];
+  if (moving.locked || sections.slice(Math.min(from, to), Math.max(from, to) + 1).some((section, offset) => section.locked && Math.min(from, to) + offset !== from)) return false;
   if (PAGE_BANDS.has(moving.type)) return true;
   const rest = sections.filter((_, i) => i !== from);
   const before = rest.slice(0, to).reverse().find((s) => !PAGE_BANDS.has(s.type));
@@ -528,6 +532,7 @@ export function moveBand(doc: Doc, from: number, to: number): Doc | undefined {
 }
 
 export function duplicateBand(doc: Doc, index: number): { doc: Doc; index: number } {
+  if (doc.sections?.[index]?.locked) return { doc, index };
   const next = clone(doc);
   const src = next.sections[index];
   const copy = clone(src);
@@ -576,6 +581,7 @@ export function updateGroup(doc: Doc, groupId: string, patch: Record<string, any
 
 /** Removes a group and its header/footer bands (detail bands stay). */
 export function removeGroup(doc: Doc, groupId: string): Doc {
+  if ((doc.sections ?? []).some((section: any) => section.groupId === groupId && section.locked)) return doc;
   const next = clone(doc);
   next.groups = (next.groups ?? []).filter((g: any) => g.id !== groupId);
   next.sections = (next.sections ?? []).filter((s: any) => s.groupId !== groupId);
