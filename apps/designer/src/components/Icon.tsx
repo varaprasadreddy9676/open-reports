@@ -24,6 +24,8 @@ const P: Record<string, string> = {
   components: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
   pages: "M6 3h10l3 3v15H6zM16 3v4h3M9 11h7M9 15h7",
   conditional: "M12 3l9 9-9 9-9-9z",
+  lock: "M5 11h14v10H5zM8 11V8a4 4 0 0 1 8 0v3M12 15v2",
+  unlock: "M5 11h14v10H5zM8 11V8a4 4 0 0 1 7-2M12 15v2",
   subreport: "M5 5h10v10H5zM9 9h10v10H9z",
   "chart-bar": "M5 19V9M10 19V5M15 19v-8M20 19V12",
   "chart-line": "M4 17l5-6 4 3 7-9",

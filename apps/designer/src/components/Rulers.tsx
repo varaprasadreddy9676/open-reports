@@ -71,8 +71,8 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const pt = ((vertical ? e.clientY - r.top : e.clientX - r.left) / k);
     const st = useStore.getState();
-    // the top ruler produces a horizontal line (axis y), the left ruler a vertical one (axis x)
-    st.setDoc(ops.addGuide(st.doc, vertical ? "x" : "y", pt).doc, { keepSelection: true });
+    // The top ruler measures x and produces a vertical line; the left ruler measures y.
+    st.setDoc(ops.addGuide(st.doc, vertical ? "y" : "x", pt).doc, { keepSelection: true });
   }
 
   function edgeDown(e: React.PointerEvent, b: StructureBand) {
@@ -98,7 +98,7 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
 
   return (
     <>
-      <div className="ruler h" style={{ width }} data-testid="ruler-h" onClick={(e) => rulerClick(e, false)} title="Click to add a horizontal guide">
+      <div className="ruler h" style={{ width }} data-testid="ruler-h" onClick={(e) => rulerClick(e, false)} title="Click to add a vertical guide">
         <Axis vertical={false} length={width} k={k} unit={unit} dpi={dpi} originPt={origin === "printable" ? margin.left : 0} />
         {(["left", "right"] as const).map((edge) => (
           <div
@@ -114,7 +114,7 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
           />
         ))}
       </div>
-      <div className="ruler v" style={{ height }} data-testid="ruler-v" onClick={(e) => rulerClick(e, true)} title="Click to add a vertical guide">
+      <div className="ruler v" style={{ height }} data-testid="ruler-v" onClick={(e) => rulerClick(e, true)} title="Click to add a horizontal guide">
         <Axis vertical length={height} k={k} unit={unit} dpi={dpi} originPt={origin === "printable" ? margin.top : 0} />
         {(bands ? (["top"] as const) : (["top", "bottom"] as const)).map((edge) => (
           <div

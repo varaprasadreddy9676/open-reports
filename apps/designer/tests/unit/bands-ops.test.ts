@@ -150,7 +150,9 @@ describe("band and guide edits", () => {
     expect(a.doc.guides[0]).toMatchObject({ axis: "x", pos: 123.5 });
     const moved = ops.updateGuide(a.doc, a.id, { pos: 50 });
     expect(moved.guides[0].pos).toBe(50);
-    expect(ops.removeGuide(moved, a.id).guides).toHaveLength(0);
+    const named = ops.updateGuide(moved, a.id, { name: "Left column", locked: true });
+    expect(named.guides[0]).toMatchObject({ axis: "x", pos: 50, name: "Left column", locked: true });
+    expect(ops.removeGuide(named, a.id).guides).toHaveLength(0);
   });
   it("removeGroup drops the group and its bands but keeps detail", () => {
     const d = ops.addGroup(base(), { dataset: "d", by: "row.a", name: "A" });

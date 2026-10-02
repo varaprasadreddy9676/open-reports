@@ -2133,6 +2133,9 @@ kbd {
 .guide-line { position: absolute; background: #e11d8f; pointer-events: none; z-index: 5; opacity: 0.8; }
 .guide-line.x { width: 1px; top: 0; bottom: 0; }
 .guide-line.y { height: 1px; left: 0; right: 0; }
+.guide-line.locked { opacity: 0.45; }
+.guide-name { position: absolute; top: 3px; left: 3px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 4px; border-radius: 3px; background: #fff; color: #a21d67; font-size: 10px; line-height: 1.25; box-shadow: 0 1px 3px #0002; }
+.guide-line.y .guide-name { top: 3px; left: 4px; }
 .guide-hit { position: absolute; z-index: 6; }
 .guide-hit.x { width: 9px; margin-left: -4px; top: 0; bottom: 0; cursor: ew-resize; }
 .guide-hit.y { height: 9px; margin-top: -4px; left: 0; right: 0; cursor: ns-resize; }
@@ -2170,9 +2173,25 @@ kbd {
 .canvas-options summary::-webkit-details-marker { display: none; }
 .canvas-options summary::after { content: "⌄"; margin-left: 6px; }
 .canvas-options[open] summary, .canvas-options summary:hover { background: var(--accent-soft); color: var(--accent); }
-.canvas-options-panel { position: absolute; right: 0; top: calc(100% + 7px); display: flex; flex-direction: column; gap: 10px; width: 184px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+.canvas-options-panel { position: absolute; right: 0; top: calc(100% + 7px); display: flex; flex-direction: column; gap: 10px; width: 300px; max-height: min(70vh, 540px); overflow: auto; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
 .canvas-options-panel label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 11px; }
 .canvas-options-panel select { color: var(--text); }
+.guide-controls { display: flex; flex-direction: column; gap: 7px; padding-top: 10px; border-top: 1px solid var(--border); }
+.guide-controls-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+.guide-controls-head span, .guide-unit-note, .guide-controls-empty { color: var(--muted); font-size: 11px; }
+.guide-controls-empty { margin: 0; }
+.guide-controls-list { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow: auto; }
+.guide-control-row { display: grid; grid-template-columns: 19px minmax(0, 1fr) 57px 25px 25px; align-items: center; gap: 4px; }
+.guide-axis { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 3px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; }
+.guide-control-row input { min-width: 0; height: 27px; padding: 3px 5px; font-size: 11px; }
+.guide-control-row .guide-position { text-align: right; }
+.guide-control-row button { display: grid; place-items: center; height: 27px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 16px; }
+.guide-control-row button:hover { background: var(--accent-soft); color: var(--accent); }
+.guide-control-row button.danger:hover { color: var(--danger); }
+.guide-control-row button:disabled { opacity: .4; cursor: not-allowed; }
+.guide-add-actions { display: flex; gap: 5px; }
+.guide-add-actions button { flex: 1; padding: 5px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel); color: var(--text); font-size: 11px; }
+.guide-add-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .canvas-unit-hint { color: var(--muted); font-size: 11px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 
 .canvas-scroll.structure { padding-left: 160px; padding-right: 60px; }

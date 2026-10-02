@@ -3,6 +3,7 @@ import type { StructureBand } from "@reporting/layout";
 import { savePref, useStore, type RulerOrigin, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
 import { fitZoom } from "../lib/zoom";
+import { GuideControls } from "./GuideControls";
 
 const ADDABLE: { type: string; hint: string }[] = [
   { type: "reportHeader", hint: "Once, at the start" },
@@ -86,6 +87,7 @@ export function BandBar() {
           <option value="dots">Dots</option>
         </select>
         </label>
+        <GuideControls />
         </div>
       </details>
     </div>
@@ -243,10 +245,13 @@ export function GuideLayer({ k, width, height }: { k: number; width: number; hei
   return (
     <>
       {guides.map((g) => {
+        if (!Number.isFinite(g.pos) || g.pos < 0 || g.pos * k > (g.axis === "x" ? width : height)) return null;
         const style = g.axis === "x" ? { left: g.pos * k } : { top: g.pos * k };
         return (
           <div key={g.id}>
-            <div className={`guide-line ${g.axis}`} data-testid={`guide-${g.id}`} style={style} />
+            <div className={`guide-line ${g.axis} ${g.locked ? "locked" : ""}`} data-testid={`guide-${g.id}`} style={style}>
+              {g.name && <span className="guide-name">{g.name}</span>}
+            </div>
             {!g.locked && (
               <div
                 className={`guide-hit ${g.axis}`}

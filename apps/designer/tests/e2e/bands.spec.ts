@@ -548,9 +548,45 @@ test("click a ruler to add a guide; double-click it to delete it", async ({ page
   await page.mouse.click(b.x + 200, b.y + 9);
   const guides = (await doc(page)).guides;
   expect(guides).toHaveLength(1);
-  expect(guides[0].axis).toBe("y");
+  expect(guides[0].axis).toBe("x");
   await page.getByTestId(`guide-${guides[0].id}`).locator("xpath=..").locator(".guide-hit").dblclick({ force: true });
   expect((await doc(page)).guides).toHaveLength(0);
+  const verticalRuler = page.getByTestId("ruler-v");
+  const verticalBox = (await verticalRuler.boundingBox())!;
+  await page.mouse.click(verticalBox.x + 9, verticalBox.y + 80);
+  expect((await doc(page)).guides[0].axis).toBe("y");
+});
+
+test("guide settings edit exact position, name and lock without leaving the canvas", async ({ page }) => {
+  await page.getByTestId("canvas-options").locator("summary").click();
+  await page.getByRole("button", { name: "+ Vertical" }).click();
+  await page.getByRole("button", { name: "+ Horizontal" }).click();
+  const guides = (await doc(page)).guides;
+  expect(guides.map((guide: any) => guide.axis)).toEqual(["x", "y"]);
+  const visibleHeight = await page.evaluate(() => (window as any).__designer.getState().engine.structure.pageSize.height);
+  expect(guides[1].pos).toBeLessThan(visibleHeight);
+  const row = page.getByTestId(`guide-control-${guides[0].id}`);
+  await row.getByLabel("Guide name").fill("Logo edge");
+  await row.getByLabel("Guide position").fill("25");
+  await row.getByLabel("Guide position").blur();
+  expect((await doc(page)).guides[0]).toMatchObject({ name: "Logo edge", pos: 70.9 });
+  await expect(page.getByTestId(`guide-${guides[0].id}`).locator(".guide-name")).toHaveText("Logo edge");
+  await row.getByRole("button", { name: "Lock guide" }).click();
+  await expect(page.getByTestId(`guide-${guides[0].id}`).locator("xpath=..").locator(".guide-hit")).toHaveCount(0);
+  await expect(row.getByLabel("Guide position")).toBeDisabled();
+  await expect(row.getByRole("button", { name: "Delete guide" })).toBeDisabled();
+  await page.getByTestId("ruler-origin").selectOption("printable");
+  const leftMargin = await page.evaluate(() => (window as any).__designer.getState().engine.paginated.margin.left);
+  expect(Number(await row.getByLabel("Guide position").inputValue())).toBeCloseTo((70.9 - leftMargin) / (72 / 25.4), 1);
+  await page.getByTestId("ruler-unit").selectOption("dots");
+  expect(Number(await row.getByLabel("Guide position").inputValue())).toBeCloseTo((70.9 - leftMargin) / (72 / 203), 0);
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "37-guide-controls.png") });
+  await row.getByRole("button", { name: "Unlock guide" }).click();
+  await row.getByRole("button", { name: "Delete guide" }).click();
+  expect((await doc(page)).guides).toHaveLength(1);
+  expect((await doc(page)).guides[0].axis).toBe("y");
 });
 
 test("dragging a margin marker on the ruler changes the page margin", async ({ page }) => {

@@ -28,6 +28,8 @@ For free-positioned elements inside the same absolute layout, select two or more
 
 To arrange a band's contents, select its label in Structure and open **Size and layout**. Choose **Stack vertically**, **Side by side**, **Grid**, or **Free position**. Gap and padding use points; empty fixed height lets the band grow with its contents. Drag a child within a flow layout to reorder it. The inspector shows alignment and distribution controls only for layouts that use them.
 
+For precise alignment, click the top ruler to place a vertical guide or the left ruler to place a horizontal guide. Open **Canvas settings → Guides** to add guides by keyboard, name them, enter exact positions, lock them against changes, or remove them. Positions use the selected ruler unit and zero point; switching to **Inside margins** changes the displayed origin without moving a guide. Guides are saved with the report and can also be dragged or double-clicked on the canvas.
+
 ## 3. Data
 **Data mode** lists datasets: JSON, REST API, database (PostgreSQL/MySQL via server-side connections), or CSV upload. **Test request** shows a Table / Raw JSON / Schema view and hints (row counts, nested lists, dates). For API keys use `{{secrets.NAME}}`; the real value lives on the server as `REPORT_SECRET_NAME` and never enters the report. Add **parameters** (e.g. `invoiceId`) and use them as `{{params.invoiceId}}`.
 
