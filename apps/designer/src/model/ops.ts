@@ -220,13 +220,27 @@ export function parentLayout(doc: Doc, id: string): string | undefined {
 }
 
 export type AlignMode = "left" | "center" | "right" | "top" | "middle" | "bottom";
+export type MatchSizeMode = "width" | "height" | "both";
 
 const num = (v: any) => (typeof v === "number" ? v : Number.parseFloat(v) || 0);
 
+/** Coordinates can only be compared when every selection shares one absolute parent. */
+export function canArrange(doc: Doc, ids: string[], required: ("width" | "height")[] = []): boolean {
+  if (ids.length < 2 || new Set(ids).size !== ids.length) return false;
+  const locs = ids.map((id) => find(doc, id));
+  if (locs.some((loc) => !loc || loc.comp.locked)) return false;
+  const parentId = locs[0]!.parent;
+  if (locs.some((loc) => loc!.parent !== parentId || loc!.list !== locs[0]!.list)) return false;
+  const parent = parentId.startsWith("section:") ? doc.sections?.[Number(parentId.slice(8))] : find(doc, parentId)?.comp;
+  if (parent?.layout !== "absolute") return false;
+  return locs.every((loc) => ["x", "y", ...required].every((key) => typeof loc!.comp[key] === "number" && Number.isFinite(loc!.comp[key])));
+}
+
 /** Aligns absolutely-positioned components (x/y/width/height numbers) to each other. */
 export function align(doc: Doc, ids: string[], mode: AlignMode): Doc {
+  const required = mode === "center" || mode === "right" ? ["width"] as const : mode === "middle" || mode === "bottom" ? ["height"] as const : [];
+  if (!canArrange(doc, ids, [...required])) return doc;
   const comps = ids.map((id) => find(doc, id)?.comp).filter(Boolean) as Comp[];
-  if (comps.length < 2) return doc;
   const boxes = comps.map((c) => ({ id: c.id, x: num(c.x), y: num(c.y), w: num(c.width), h: num(c.height) }));
   const minX = Math.min(...boxes.map((b) => b.x));
   const maxR = Math.max(...boxes.map((b) => b.x + b.w));
@@ -247,8 +261,8 @@ export function align(doc: Doc, ids: string[], mode: AlignMode): Doc {
 }
 
 export function distribute(doc: Doc, ids: string[], axis: "horizontal" | "vertical"): Doc {
+  if (ids.length < 3 || !canArrange(doc, ids, [axis === "horizontal" ? "width" : "height"])) return doc;
   const comps = ids.map((id) => find(doc, id)?.comp).filter(Boolean) as Comp[];
-  if (comps.length < 3) return doc;
   const key = axis === "horizontal" ? "x" : "y";
   const size = axis === "horizontal" ? "width" : "height";
   const sorted = [...comps].sort((a, b) => num(a[key]) - num(b[key]));
@@ -263,6 +277,17 @@ export function distribute(doc: Doc, ids: string[], axis: "horizontal" | "vertic
     next = update(next, c.id, { [key]: Math.round(pos * 100) / 100 });
     pos += num(c[size]) + gap;
   }
+  return next;
+}
+
+/** Match sizes to the first selected element without changing positions. */
+export function matchSize(doc: Doc, ids: string[], mode: MatchSizeMode): Doc {
+  const keys = mode === "both" ? ["width", "height"] as const : [mode];
+  if (!canArrange(doc, ids)) return doc;
+  const source = find(doc, ids[0]!)!.comp;
+  if (keys.some((key) => typeof source[key] !== "number" || !Number.isFinite(source[key]))) return doc;
+  let next = doc;
+  for (const id of ids.slice(1)) next = update(next, id, Object.fromEntries(keys.map((key) => [key, source[key]])));
   return next;
 }
 

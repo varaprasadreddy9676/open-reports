@@ -179,6 +179,34 @@ test.describe("editing", () => {
     expect(new Set(xs).size).toBe(1);
   });
 
+  test("multi-selection matches width without changing positions", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-absolute-form").click();
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId("layer-title").click();
+    await page.getByTestId("layer-date").click({ modifiers: ["Shift"] });
+    const before = (await doc(page)).sections[0].children[0].children;
+    const dateBefore = before.find((component: any) => component.id === "date");
+    await expect(page.getByTestId("same-width")).toBeEnabled();
+    await expect(page.getByTestId("same-height")).toBeDisabled();
+    await page.getByTestId("same-width").click();
+    const after = (await doc(page)).sections[0].children[0].children;
+    expect(after.find((component: any) => component.id === "date")).toMatchObject({ x: dateBefore.x, y: dateBefore.y, width: 770 });
+  });
+
+  test("flow content does not offer coordinate alignment", async ({ page }) => {
+    await startBlank(page);
+    await page.getByTestId("palette-text").click();
+    await page.getByTestId("palette-text").click();
+    const ids = (await doc(page)).sections[0].children.map((component: any) => component.id);
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId(`layer-${ids[0]}`).click();
+    await page.getByTestId(`layer-${ids[1]}`).click({ modifiers: ["Shift"] });
+    await expect(page.getByTestId("align-left")).toBeDisabled();
+    await expect(page.getByTestId("same-width")).toBeDisabled();
+    expect((await doc(page)).sections[0].children.every((component: any) => component.x === undefined)).toBe(true);
+  });
+
   test("text content: field binding, formula with autocomplete and inline error", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-invoice").click();

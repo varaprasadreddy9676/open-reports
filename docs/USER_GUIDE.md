@@ -13,7 +13,7 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 | Area | What it does |
 |---|---|
 | Top modes | **Design · Data · Code · Preview**. ◫ shows Design and Code side by side. |
-| Left | **Components** (incl. *My Components* you save and *Plugins*) · **Layers** (rename, lock 🔒, hide 👁, right-click) · **Data** · **Pages** (thumbnails) |
+| Left | **Structure** (bands, layers, lock 🔒, hide 👁) · **Data** (searchable fields and samples) · **Components** (incl. *My Components* and *Plugins*) · **Pages** (thumbnails) |
 | Canvas | Smart guides with distances in mm, 8 resize handles, marquee select, Alt-drag to duplicate, double-click to edit text, floating format bar, right-click menu, zoom to selection |
 | Right | Properties for the selection — content, typography, layout (margin, padding, gap, grow, min/max), page-break rules, Advanced (visibility conditions) |
 | Bottom | **Problems** (with one-click *Fix*) · **Pagination** (why content moved to the next page) · **History** (labelled steps, restore) |
@@ -22,15 +22,17 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 
 Shortcuts: `Ctrl+K` command palette · `Ctrl+S` save · `Ctrl+Z/Y` undo/redo · `Ctrl+C/V/D` copy/paste/duplicate · `Ctrl+G` group · `Ctrl+Shift+G` ungroup · `Ctrl+L` lock · `Ctrl+Shift+H` hide · `F2` rename · arrows nudge (Shift = ×10).
 
+For free-positioned elements inside the same absolute layout, select two or more and use the right panel to align or match widths and heights. Match-size actions use the first selected element as the source. Flow content is arranged by its container, so coordinate actions are disabled for it.
+
 ## 3. Data
 **Data mode** lists datasets: JSON, REST API, database (PostgreSQL/MySQL via server-side connections), or CSV upload. **Test request** shows a Table / Raw JSON / Schema view and hints (row counts, nested lists, dates). For API keys use `{{secrets.NAME}}`; the real value lives on the server as `REPORT_SECRET_NAME` and never enters the report. Add **parameters** (e.g. `invoiceId`) and use them as `{{params.invoiceId}}`.
 
 ## 4. Pagination for long documents
 - Tables: **Repeat header on every page**; set *Min rows after break* to avoid a lone row on a page.
 - Headings: **Keep with next**. Blocks that must not split: **Keep together** (Page breaks section).
-- Paragraphs: *Min lines at top/bottom* prevents single stranded lines.
+- Long paragraphs are not yet split under the pagination engine's control; check the rendered PDF and overflow warnings before publishing long narrative reports.
 - **Page → Headers & footers**: add a different first-page header, a last-page footer (signatures/totals) or odd/even masters.
-- Open **Pagination** at the bottom to see every decision; click one to jump to it, or apply the suggested fix.
+- Open **Pagination** at the bottom to inspect recorded page-break decisions; click one to jump to it, or apply a suggested fix when available.
 
 ## 5. Printing and labels
 - **Page → Print & labels**: choose a preset (80/58 mm receipt, 50×30 or 100×50 mm label, wristband…). The panel shows the physical size and the dot size at the printer's DPI, and the safe area is drawn on the canvas.

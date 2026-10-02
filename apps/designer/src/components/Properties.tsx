@@ -1186,23 +1186,31 @@ function PageProps() {
 function MultiProps({ ids }: { ids: string[] }) {
   const { doc } = useStore();
   const setDoc = useStore((s) => s.setDoc);
-  const btn = (label: string, fn: () => void, testId?: string) => (
-    <button className="btn" data-testid={testId} onClick={fn}>
+  const btn = (label: string, fn: () => void, testId?: string, enabled = true) => (
+    <button className="btn" data-testid={testId} onClick={fn} disabled={!enabled} title={enabled ? label : "Select unlocked elements in the same absolute layout with numeric geometry"}>
       {label}
     </button>
   );
+  const free = ops.canArrange(doc, ids);
   return (
     <>
       <div className="prop-head">
         <strong>{ids.length} elements selected</strong>
       </div>
       <Section title="Align (free-positioned elements)">
+        {!free && <p className="muted small">Select unlocked elements in the same absolute layout to arrange them.</p>}
         <div className="btn-grid">
-          {(["left", "center", "right", "top", "middle", "bottom"] as const).map((m) => btn(`Align ${m}`, () => setDoc(ops.align(doc, ids, m)), `align-${m}`))}
+          {(["left", "center", "right", "top", "middle", "bottom"] as const).map((m) => btn(`Align ${m}`, () => setDoc(ops.align(doc, ids, m)), `align-${m}`, ops.canArrange(doc, ids, m === "center" || m === "right" ? ["width"] : m === "middle" || m === "bottom" ? ["height"] : [])))}
         </div>
         <div className="btn-grid">
-          {btn("Distribute horizontally", () => setDoc(ops.distribute(doc, ids, "horizontal")), "distribute-h")}
-          {btn("Distribute vertically", () => setDoc(ops.distribute(doc, ids, "vertical")), "distribute-v")}
+          {btn("Distribute horizontally", () => setDoc(ops.distribute(doc, ids, "horizontal")), "distribute-h", ids.length >= 3 && ops.canArrange(doc, ids, ["width"]))}
+          {btn("Distribute vertically", () => setDoc(ops.distribute(doc, ids, "vertical")), "distribute-v", ids.length >= 3 && ops.canArrange(doc, ids, ["height"]))}
+        </div>
+        <p className="muted small">Match dimensions to the first selected element.</p>
+        <div className="btn-grid">
+          {btn("Same width", () => setDoc(ops.matchSize(doc, ids, "width")), "same-width", free && typeof ops.find(doc, ids[0]!)?.comp.width === "number")}
+          {btn("Same height", () => setDoc(ops.matchSize(doc, ids, "height")), "same-height", free && typeof ops.find(doc, ids[0]!)?.comp.height === "number")}
+          {btn("Same size", () => setDoc(ops.matchSize(doc, ids, "both")), "same-size", free && typeof ops.find(doc, ids[0]!)?.comp.width === "number" && typeof ops.find(doc, ids[0]!)?.comp.height === "number")}
         </div>
       </Section>
       <Section title="Actions">
