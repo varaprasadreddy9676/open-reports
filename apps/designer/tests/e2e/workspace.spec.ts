@@ -438,3 +438,30 @@ test("table: highlight rows rule and empty-state options write to the report", a
   await page.getByLabel("Empty state").selectOption("message");
   expect(JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc))).toContain('"emptyState":"message"');
 });
+
+test("table header grid: add a level, split and merge cells, then edit the label", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-lab-report").click();
+  await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
+  await page.getByRole("button", { name: /Header grid/ }).click();
+  await page.getByTestId("header-add-level").click();
+  await expect(page.getByTestId("header-cell-0-0")).toContainText("Group");
+  await page.getByTestId("header-cell-0-0").click();
+  await page.getByTestId("header-split").click();
+  await page.getByTestId("header-cell-0-0").click();
+  await page.getByTestId("header-cell-0-1").click();
+  await page.getByTestId("header-merge").click();
+  await page.getByLabel("Selected header text").fill("Test panel");
+  const d = JSON.stringify(await doc(page));
+  expect(d).toContain('"text":"Test panel","colSpan":2');
+  await expect(page.locator(".cn-table thead").first()).toContainText("Test panel");
+  const originalColumns = await page.evaluate(() => {
+    const s = (window as any).__designer.getState();
+    const find = (list: any[]): any => list.flatMap((item) => item.children ?? []).find((item) => item.id === "results");
+    return find(s.doc.sections).columns.length;
+  });
+  await page.getByTestId("add-column").click();
+  await expect(page.getByTestId(`header-cell-0-${originalColumns}`)).toBeVisible();
+  await page.getByTestId(`column-${originalColumns}`).getByLabel("Remove column").click();
+  await expect(page.getByTestId(`header-cell-0-${originalColumns}`)).toHaveCount(0);
+});

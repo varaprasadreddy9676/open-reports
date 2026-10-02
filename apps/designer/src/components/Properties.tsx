@@ -6,6 +6,8 @@ import { candidatesFor, FUNCTION_CANDIDATES, type Candidate } from "../lib/bindi
 import { datasetValue, inferFields, arrayRefs } from "../lib/fields";
 import { Icon } from "./Icon";
 import { BandProps } from "./BandProps";
+import { TableHeaderEditor } from "./TableHeaderEditor";
+import { appendHeaderColumn, removeHeaderColumn } from "../lib/table-header";
 
 // ------------------------------------------------------------------ small controls
 function Section({ title, children, open = true }: { title: string; children: React.ReactNode; open?: boolean }) {
@@ -481,7 +483,7 @@ function ColumnEditor({ table, col, index }: { table: ops.Comp; col: any; index:
         <span className="spacer" />
         <button className="mini" aria-label="Move column left" onClick={() => move(-1)}>↑</button>
         <button className="mini" aria-label="Move column right" onClick={() => move(1)}>↓</button>
-        <button className="mini danger" aria-label="Remove column" onClick={() => patch(table.id, { columns: table.columns.filter((_: any, i: number) => i !== index) })}>×</button>
+        <button className="mini danger" aria-label="Remove column" onClick={() => patch(table.id, { columns: table.columns.filter((_: any, i: number) => i !== index), ...(table.headerRows ? { headerRows: table.columns.length === 1 ? undefined : removeHeaderColumn(table.headerRows, index) } : {}) })}>×</button>
       </div>
       {open && (
         <div className="column-body">
@@ -588,9 +590,12 @@ function TableProps({ comp }: { comp: ops.Comp }) {
         {(comp.columns ?? []).map((c: any, i: number) => (
           <ColumnEditor key={i} table={comp} col={c} index={i} />
         ))}
-        <button className="btn" data-testid="add-column" onClick={() => patch(comp.id, { columns: [...(comp.columns ?? []), { id: `col-${(comp.columns ?? []).length + 1}`, header: "New column", binding: "row.value" }] })}>
+        <button className="btn" data-testid="add-column" onClick={() => patch(comp.id, { columns: [...(comp.columns ?? []), { id: `col-${(comp.columns ?? []).length + 1}`, header: "New column", binding: "row.value" }], ...(comp.headerRows ? { headerRows: appendHeaderColumn(comp.headerRows, (comp.columns ?? []).length, "New column") } : {}) })}>
           + Add column
         </button>
+      </Section>
+      <Section title="Header grid" open={!!comp.headerRows}>
+        <TableHeaderEditor columns={comp.columns ?? []} headerRows={comp.headerRows} onChange={(headerRows) => patch(comp.id, { headerRows })} />
       </Section>
       <Section title="Pagination & rows">
         {flag("showHeader", "Show header", true)}

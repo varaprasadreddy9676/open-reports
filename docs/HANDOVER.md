@@ -26,7 +26,7 @@ Thesis: Open Reports had a page/component designer; it must become a true **repo
 8. Report/page/group/data headers+footers — **engine DONE**, designer UI only via "+" menu
 9. Group designer (wizard, nested groups) — **DONE (2026-10-01)** (`GroupWizard.tsx` selects an array dataset and field/expression, print rules, header/footer; uses `ops.addGroup`; the explorer adds/removes levels)
 10. Section-Expert style properties panel — **DONE (2026-10-01)** (`BandProps.tsx` opens when a band is selected; all principal schema fields, group settings, and band actions are editable)
-11. Table designer (merge/spans/multi-level headers) — NOT DONE (also GAP P2-3, task #17)
+11. Table designer (merge/spans/multi-level headers) — **PARTIAL (2026-10-02)** (explicit multi-level header grid, header colSpan/rowSpan, merge/split inspector, PDF/HTML/XLSX/canvas output; body cell spans remain)
 12. Real pagination visualization on the canvas — **PARTIAL (2026-10-01)** (structure view maps real sample page starts to source bands, shows page thumbnails, decision popovers, and a paginated sample split pane; shared PDF font measurement and exhaustive break explanations remain)
 13. Figma-style Auto Layout inside bands — PARTIAL (`layout/gap/alignItems/justifyContent/columns` are editable in Section Expert; drag/reflow controls remain)
 14. AI awareness of bands/pagination — NOT DONE (`apps/designer/src/lib/ai.ts`, `packages/mcp`)
@@ -83,6 +83,7 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - `lib/pagination-map.ts` maps page starts back to source bands, including dissolved table slices and repeated group headers. `StructurePagination.tsx` adds page thumbnails and source-band break explanations; `Canvas.tsx` can show the paginated sample beside the structure. The line marks which band a page starts within; for repeated data it is a symbolic source location rather than literal paper geometry. Designer unit and browser checks cover a 120-row table. PDF parity remains blocked by the shared-font-measurer gap.
 - Verification for this increment: package builds and designer typecheck passed; `pnpm -r test` passed with local PostgreSQL 16 and MySQL 8 test databases and Noto fonts supplied through `FONTS_DIR`; designer browser suite passed 56 tests with 5 skipped. The PDF watermark test requires Noto Sans Devanagari on this Mac, matching the CI font setup.
 - A 500-item continuous ESC/POS receipt is now checked on both 58 mm and 80 mm widths: every item remains in order, one cut command follows the receipt, and no renderer warnings are emitted. This verifies generated printer bytes, not a physical printer or spooler.
+- Table headers now accept an explicit `headerRows` grid with horizontal and vertical cell spans. Core rejects gaps, overlaps, and out-of-bounds spans; layout reserves all header rows; PDF and HTML repeat them on page breaks; XLSX writes merged cells before data rows; ESC/POS prints the header levels as text. The table inspector can add a level, split, merge and edit cells; adding/removing a column maintains the grid. Legacy `columns[].header` still supplies a single row. Package builds, recursive tests, designer typecheck, and browser suite (57 passed, 5 skipped) passed for the header-grid increment. Body cell spans and their pagination rules remain.
 
 ## 5. Next steps (do in this order)
 

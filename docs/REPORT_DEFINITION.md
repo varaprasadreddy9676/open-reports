@@ -33,7 +33,7 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 | Type | Key props |
 |---|---|
 | `text`, `richText`, `field` | `value` \| `binding` \| `expression`, `format` (`currency`, `date:dd MMM yyyy`, `number`, `percent`), `minLinesAtTop/Bottom` |
-| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, footer:{aggregate}}]`, `showHeader/Footer`, `repeatHeaderOnPageBreak`, `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
+| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, footer:{aggregate}}]`, optional `headerRows[[{column, text, colSpan?, rowSpan?, align?}]]` for a complete multi-level header grid, `showHeader/Footer`, `repeatHeaderOnPageBreak`, `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
 | `container`, `row`, `column`, `grid` | `children`, `layout` (`flow\|row\|grid\|absolute`), `columns` |
 | `repeater`, `group` | `dataset`, `groupBy`, group header/footer |
 | `image`, `qrcode`, `barcode`, `chart`, `line`, `rectangle`, `spacer`, `pageBreak` | `src`/`value`/`symbology`/`series` … |
