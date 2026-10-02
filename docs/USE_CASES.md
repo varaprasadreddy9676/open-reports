@@ -34,7 +34,7 @@ Every recipe starts from a ready-made example (**New report →** pick it, or `e
 **Start:** `receipt` (80 mm), `receipt-58mm`.
 - *Page → Print & labels →* preset **Thermal receipt 80 mm / 58 mm**; the printable width and dots are shown.
 - Export **PDF** (print through the OS driver) or **ESC/POS** (raw bytes for Epson-compatible printers): *Export → ESC/POS receipt*, then send the file to the printer (e.g. `cat out.bin > /dev/usb/lp0`, or via your POS software's raw-print API).
-- ESC/POS notes: 58 mm ≈ 32 columns, 80 mm ≈ 48; `₹` prints as `Rs.`; non-Latin scripts and charts are skipped with warnings (use PDF for those); a label/value `row` prints as left text + right-aligned value.
+- ESC/POS notes: 58 mm ≈ 32 columns, 80 mm ≈ 48; long table values wrap to continuation lines; `₹` prints as `Rs.`; non-Latin scripts and charts are skipped with warnings (use PDF for those); a label/value `row` prints as left text + right-aligned value. Verify the output with your physical printer and spooler before using it at a checkout.
 
 ## Zebra labels and wristbands
 **Start:** `specimen-label`, `pharmacy-label`, `blood-bag-label`, `wristband`, `label-50x30`, `label-100x50`, `patient-id-card`.

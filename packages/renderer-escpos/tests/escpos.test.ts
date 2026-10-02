@@ -77,19 +77,26 @@ describe("EscPosRenderer", () => {
     expect(r.warnings.some((warning) => warning.code === "TABLE_MERGE_HIDES_DATA")).toBe(true);
   });
 
-  it.each([58, 80])("keeps all 500 items in order on a continuous %i mm receipt", async (width) => {
+  it.each([58, 80])("wraps 500 long product names in order on a continuous %i mm receipt", async (width) => {
     const doc = receipt(width, [{
       type: "table", dataset: "s.items", columns: [
         { id: "n", header: "Item", binding: "row.n", width: "*" },
         { id: "q", header: "Qty", binding: "row.q", width: 30, align: "right" },
+        { id: "a", header: "Amt", expression: "row.q * row.p", format: "number:2", width: 50, align: "right" },
       ],
     }]);
-    doc.datasets[0]!.query.data.items = Array.from({ length: 500 }, (_, i) => ({ n: `Item${String(i).padStart(4, "0")}`, q: i + 1, p: 1 }));
+    doc.datasets[0]!.query.data.items = Array.from({ length: 500 }, (_, i) => ({ n: `Item${String(i).padStart(4, "0")} Premium Supermarket Family Pack Whole Grain Flour 10kg`, q: 1, p: 10 }));
     const result = await render(doc);
     const bytes = result.content as Buffer;
-    const printed = [...ascii(bytes).matchAll(/Item\d{4}/g)].map((match) => match[0]);
+    const receiptText = ascii(bytes);
+    const printed = [...receiptText.matchAll(/Item\d{4}/g)].map((match) => match[0]);
     expect(printed).toEqual(Array.from({ length: 500 }, (_, i) => `Item${String(i).padStart(4, "0")}`));
+    expect((receiptText.match(/Flour/g) ?? [])).toHaveLength(500);
+    expect((receiptText.match(/10\.00/g) ?? [])).toHaveLength(500);
+    expect(receiptText.indexOf("Flour")).toBeGreaterThan(receiptText.indexOf("Item0000"));
+    expect(receiptText.indexOf("Item0001")).toBeGreaterThan(receiptText.indexOf("Flour"));
     expect(bytes.subarray(bytes.length - 4).equals(Buffer.from([0x1d, 0x56, 0x42, 0x00]))).toBe(true);
+    expect((receiptText.match(/\x1d\x56\x42\x00/g) ?? [])).toHaveLength(1);
     expect(result.warnings).toEqual([]);
   });
 

@@ -54,7 +54,7 @@ function wrap(text: string, cols: number): string[] {
       else if (line.length + 1 + word.length <= cols) line += " " + word;
       else (out.push(line), (line = word));
     }
-    out.push(line);
+    if (line || para === "") out.push(line);
   }
   return out;
 }
@@ -82,6 +82,13 @@ export class EscPosRenderer implements ReportRenderer {
         warnings.push({ code: "ESCPOS_UNSUPPORTED_CHAR", path: "text", message: `Character "${c}" is not available on the printer code page and was printed as "?".` });
       }
     };
+    const printableCell = (value: unknown) => Array.from(String(value ?? "").replace(/\r\n?/g, "\n"), (ch) => {
+      if (ch === "\n") return ch;
+      if (ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f) return " ";
+      if (SUBSTITUTE[ch]) return SUBSTITUTE[ch];
+      if (ch.charCodeAt(0) > 0xff) { warn(ch); return "?"; }
+      return ch;
+    }).join("");
     const out = new Bytes().raw(ESC, 0x40, ESC, 0x74, 16); // reset, code page WPC1252
     const align = (a: "left" | "center" | "right") => out.raw(ESC, 0x61, a === "center" ? 1 : a === "right" ? 2 : 0);
 
@@ -140,6 +147,18 @@ export class EscPosRenderer implements ReportRenderer {
             const widths: number[] = fixed.map((f: number | undefined) => f ?? Math.max(4, Math.floor((cols - used - (c.columns.length - 1 - 0)) / flex)));
             const fmt = (cells: string[]) => cells.map((cell, i) => pad(cell, widths[i]!, c.columns[i].align ?? "left")).join(" ").slice(0, cols);
             const spanGrid = tableCellSpanGrid(c.cellSpans ?? []);
+            const tableLine = (cells: { start: number; width: number; align: "left" | "right" | "center"; text: string }[]) => {
+              const wrapped = cells.map((cell) => wrap(printableCell(cell.text), cell.width));
+              const lines = Math.max(1, ...wrapped.map((cell) => cell.length));
+              for (let lineIndex = 0; lineIndex < lines; lineIndex++) {
+                const line = Array<string>(cols).fill(" ");
+                cells.forEach((cell, cellIndex) => {
+                  const value = pad(wrapped[cellIndex]?.[lineIndex] ?? "", cell.width, cell.align);
+                  for (let i = 0; i < value.length && cell.start + i < cols; i++) line[cell.start + i] = value[i]!;
+                });
+                out.line(line.join("").trimEnd(), warn);
+              }
+            };
             if (c.showHeader) {
               out.raw(ESC, 0x45, 1);
               if (c.headerRows) {
@@ -157,17 +176,15 @@ export class EscPosRenderer implements ReportRenderer {
               out.raw(ESC, 0x45, 0).line("-".repeat(cols), warn);
             }
             for (const [rowIndex, row] of c.rows.entries()) {
-              if (!c.cellSpans?.length) { out.line(fmt(c.columns.map((k: any) => String(row.formatted[k.id] ?? ""))), warn); continue; }
-              const line = Array<string>(cols).fill(" ");
+              const cells: { start: number; width: number; align: "left" | "right" | "center"; text: string }[] = [];
               c.columns.forEach((column: any, columnIndex: number) => {
                 const slot = spanGrid.get(rowIndex)?.get(columnIndex);
                 if (slot && !slot.anchor) return;
                 const start = widths.slice(0, columnIndex).reduce((sum, width) => sum + width + 1, 0);
                 const spanWidth = widths.slice(columnIndex, columnIndex + (slot?.span.colSpan ?? 1)).reduce((sum, width) => sum + width, 0) + (slot?.span.colSpan ?? 1) - 1;
-                const value = pad(String(row.formatted[column.id] ?? ""), spanWidth, column.align ?? "left");
-                for (let i = 0; i < value.length && start + i < cols; i++) line[start + i] = value[i]!;
+                cells.push({ start, width: spanWidth, align: column.align ?? "left", text: String(row.formatted[column.id] ?? "") });
               });
-              out.line(line.join("").trimEnd(), warn);
+              tableLine(cells);
             }
             if (c.showFooter) (out.line("-".repeat(cols), warn), out.line(fmt(c.columns.map((k: any) => String(k.footer?.value ?? ""))), warn));
             break;
