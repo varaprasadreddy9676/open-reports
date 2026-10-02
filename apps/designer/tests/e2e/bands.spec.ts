@@ -80,12 +80,15 @@ test("selecting a band opens its editor and persists layout and pagination rules
   await page.getByTestId("band-tab-0").first().click();
   await expect(page.getByTestId("band-name")).toBeVisible();
   await page.getByTestId("band-name").fill("Line items");
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
   await page.getByTestId("band-height").fill("72");
   await page.getByTestId("band-layout").selectOption("grid");
   await page.getByTestId("band-columns").fill("2");
+  await page.getByTestId("properties").getByRole("button", { name: /Pagination/ }).click();
   await page.getByTestId("band-allowSplit").selectOption("false");
   await page.getByTestId("band-newPageBefore").check();
   expect((await doc(page)).sections[0]).toMatchObject({ name: "Line items", height: 72, layout: "grid", columns: 2, allowSplit: false, newPageBefore: true });
+  await page.getByTestId("properties").getByRole("button", { name: /Visibility/ }).click();
   await page.getByTestId("band-visibleWhen-toggle").check();
   await page.getByText("fx Edit as formula").click();
   await page.getByTestId("band-visibleWhen").fill("row.quantity > 0");
@@ -128,6 +131,7 @@ test("group band exposes the owning group's print rules", async ({ page }) => {
   await page.getByTestId("group-by").press("Tab");
   await page.getByTestId("group-sort").selectOption("desc");
   await page.getByTestId("group-repeatHeader").check();
+  await page.getByTestId("properties").getByRole("button", { name: /Pagination/ }).click();
   await page.getByTestId("band-repeatEveryPage").uncheck();
   await page.getByTestId("group-newPage").selectOption("before");
   await page.getByTestId("group-minDetailRows").fill("2");
@@ -180,8 +184,10 @@ test("band visibility changes output while layout lock protects structure", asyn
   await expect(row.getByRole("button", { name: /Remove .* band/ })).toBeDisabled();
 
   await row.click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
   await expect(page.getByTestId("band-height")).toBeDisabled();
   await expect(page.getByTestId("delete-band")).toBeDisabled();
+  await page.getByTestId("properties").getByRole("button", { name: /Visibility/ }).click();
   await page.getByTestId("band-hidden").uncheck();
   await expect(row).not.toHaveClass(/is-hidden/);
   expect((await doc(page)).sections[0].hidden).toBeUndefined();

@@ -433,7 +433,7 @@ test.describe("AI assistant (BYOK, mocked provider)", () => {
 test("watermark and bookmark settings write to the report", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("starter-blank").click();
-  await page.getByRole("button", { name: /^▸ Watermark|^▾ Watermark/ }).click().catch(() => {});
+  await page.getByRole("button", { name: "Watermark" }).click();
   await page.getByTestId("watermark-text").fill("CONFIDENTIAL");
   expect((await page.evaluate(() => (window as any).__designer.getState().doc)).watermark.text).toBe("CONFIDENTIAL");
   await page.getByTestId("palette-text").click();

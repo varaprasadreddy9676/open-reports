@@ -9,23 +9,12 @@ import { BandProps } from "./BandProps";
 import { TableHeaderEditor } from "./TableHeaderEditor";
 import { TableBodyEditor } from "./TableBodyEditor";
 import { FormulaInput } from "./FormulaInput";
+import { InspectorSection as Section } from "./InspectorSection";
 import { appendHeaderColumn, removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
 import { findComponentsByType } from "@reporting/core";
 
 // ------------------------------------------------------------------ small controls
-function Section({ title, children, open = true }: { title: string; children: React.ReactNode; open?: boolean }) {
-  const [o, setO] = useState(open);
-  return (
-    <section className="prop-section">
-      <button className="prop-section-title" aria-expanded={o} onClick={() => setO(!o)}>
-        <span>{o ? "▾" : "▸"}</span> {title}
-      </button>
-      {o && <div className="prop-body">{children}</div>}
-    </section>
-  );
-}
-
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <label className={`field ${wide ? "wide" : ""}`}>
