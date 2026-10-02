@@ -592,7 +592,7 @@ textarea {
   color: var(--accent);
   background: var(--accent-soft);
 }
-.band-props-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.band-props-fields { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
 .explorer-group-name { border: 0; padding: 0; background: none; color: var(--text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
 .explorer-group .layer > .muted.small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .layer.root {

@@ -6,6 +6,7 @@ import * as ops from "../model/ops";
 import { useStore } from "../store";
 import { FormulaInput } from "./FormulaInput";
 import { InspectorSection } from "./InspectorSection";
+import { SpacingFields, type SpacingValue } from "./SpacingFields";
 
 const PAGE_TYPES: readonly string[] = PAGE_BAND_TYPES;
 const DATA_TYPES = ["dataHeader", "groupHeader", "detail", "child", "groupFooter", "dataFooter", "noData"];
@@ -28,6 +29,12 @@ export function BandProps({ index }: { index: number }) {
   const update = (patch: Record<string, unknown>) => {
     const st = useStore.getState();
     st.setDoc(ops.updateBand(st.doc, index, patch), { coalesce: `band:${index}:${Object.keys(patch).join(",")}` });
+  };
+  const updatePadding = (padding: SpacingValue) => {
+    const style = { ...(band.style ?? {}) };
+    if (padding === undefined) delete style.padding;
+    else style.padding = padding;
+    update({ style: Object.keys(style).length ? style : undefined });
   };
   const updateGroup = (patch: Record<string, unknown>) => {
     const st = useStore.getState();
@@ -100,21 +107,26 @@ export function BandProps({ index }: { index: number }) {
       </BandField>}
     </InspectorSection>
 
-    <InspectorSection title="Size and layout" open={false} summary={`${band.layout ?? "Flow"} · ${band.height === undefined ? "Auto height" : `${band.height} pt`}`}>
+    <InspectorSection title="Size and layout" open={false} summary={`${({ flow: "Stack", row: "Row", grid: "Grid", absolute: "Free" } as Record<string, string>)[band.layout ?? "flow"] ?? "Stack"} · ${band.height === undefined ? "Auto height" : `${band.height} pt`}`}>
     <fieldset className="band-props-fields" disabled={!!band.locked}>
       <div className="grid2">{number("height", "Fixed height (pt)")}{number("minHeight", "Min height (pt)")}</div>
-      <BandField label="Layout"><select aria-label="Band layout" data-testid="band-layout" value={band.layout ?? "flow"} onChange={(e) => update({ layout: e.target.value === "flow" ? undefined : e.target.value })}>
-        {(["flow", "row", "grid", "absolute"] as const).map((v) => <option key={v} value={v}>{v}</option>)}
+      {band.height !== undefined && <button type="button" className="link" onClick={() => update({ height: undefined })}>Use content height</button>}
+      <BandField label="Arrange children"><select aria-label="Band layout" data-testid="band-layout" value={band.layout ?? "flow"} onChange={(e) => update({ layout: e.target.value === "flow" ? undefined : e.target.value })}>
+        <option value="flow">Stack vertically</option>
+        <option value="row">Side by side</option>
+        <option value="grid">Grid</option>
+        <option value="absolute">Free position</option>
       </select></BandField>
-      <div className="grid2">{number("gap", "Gap (pt)")}{band.layout === "grid" && number("columns", "Columns", 1)}</div>
-      <div className="grid2">
+      {band.layout !== "absolute" && <div className="grid2">{number("gap", "Gap (pt)")}{band.layout === "grid" && number("columns", "Columns", 1)}</div>}
+      <SpacingFields label="Padding (pt)" value={band.style?.padding} onChange={updatePadding} testId="band-padding" />
+      {(band.layout === undefined || band.layout === "flow" || band.layout === "row") && <div className="grid2">
         <BandField label="Align"><select aria-label="Band align" data-testid="band-alignItems" value={band.alignItems ?? ""} onChange={(e) => update({ alignItems: e.target.value || undefined })}>
           <option value="">Default</option>{["start", "center", "end", "stretch"].map((v) => <option key={v}>{v}</option>)}
         </select></BandField>
-        <BandField label="Distribute"><select aria-label="Band distribute" data-testid="band-justifyContent" value={band.justifyContent ?? ""} onChange={(e) => update({ justifyContent: e.target.value || undefined })}>
+        {band.layout === "row" && <BandField label="Distribute"><select aria-label="Band distribute" data-testid="band-justifyContent" value={band.justifyContent ?? ""} onChange={(e) => update({ justifyContent: e.target.value || undefined })}>
           <option value="">Default</option>{["start", "center", "end", "space-between", "space-around"].map((v) => <option key={v}>{v}</option>)}
-        </select></BandField>
-      </div>
+        </select></BandField>}
+      </div>}
     </fieldset>
     </InspectorSection>
 

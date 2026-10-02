@@ -14,6 +14,7 @@ import { appendHeaderColumn, removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
 import { findComponentsByType } from "@reporting/core";
 import { fitZoom } from "../lib/zoom";
+import { SpacingFields } from "./SpacingFields";
 
 // ------------------------------------------------------------------ small controls
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -876,22 +877,7 @@ function ImageProps({ comp }: { comp: ops.Comp }) {
 
 function SpacingEditor({ comp, prop, label }: { comp: ops.Comp; prop: "margin" | "padding"; label: string }) {
   const patchStyle = useStore((s) => s.patchStyle);
-  const raw = comp.style?.[prop];
-  const edges = typeof raw === "number" ? { top: raw, right: raw, bottom: raw, left: raw } : { top: 0, right: 0, bottom: 0, left: 0, ...(raw ?? {}) };
-  const set = (side: "top" | "right" | "bottom" | "left", v: number | undefined) => {
-    const next = { ...edges, [side]: v ?? 0 };
-    patchStyle(comp.id, { [prop]: Object.values(next).every((x) => x === 0) ? undefined : next });
-  };
-  return (
-    <div className="spacing">
-      <span className="field-label">{label}</span>
-      <div className="grid4">
-        {(["top", "right", "bottom", "left"] as const).map((side) => (
-          <input key={side} type="number" min={0} aria-label={`${label} ${side}`} title={side} placeholder={side[0]!.toUpperCase()} value={edges[side] || ""} onChange={(e) => set(side, e.target.value === "" ? undefined : Number(e.target.value))} />
-        ))}
-      </div>
-    </div>
-  );
+  return <SpacingFields label={label} value={comp.style?.[prop]} onChange={(next) => patchStyle(comp.id, { [prop]: next })} />;
 }
 
 function LayoutProps({ comp }: { comp: ops.Comp }) {

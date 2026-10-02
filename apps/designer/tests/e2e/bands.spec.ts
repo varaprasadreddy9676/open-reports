@@ -589,6 +589,46 @@ test("selecting a band opens its editor and persists layout and pagination rules
   expect((await doc(page)).sections[0].visibleWhen).toBe("row.quantity > 0");
 });
 
+test("band layout controls reflow children with gap and padding", async ({ page }) => {
+  for (let i = 0; i < 2; i++) {
+    await page.getByTestId("band-tab-0").first().click();
+    await page.getByTestId("left-tab-insert").click();
+    await page.getByTestId("palette-text").click();
+  }
+  expect((await doc(page)).sections[0].children).toHaveLength(2);
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-layout").selectOption("row");
+  await page.getByTestId("band-gap").fill("12");
+  await page.getByTestId("band-padding-top").fill("8");
+  await page.getByTestId("band-padding-left").fill("10");
+  await page.getByTestId("band-height").fill("90");
+  await page.getByRole("button", { name: "Use content height" }).click();
+  const band = (await doc(page)).sections[0];
+  expect(band).toMatchObject({ layout: "row", gap: 12, style: { padding: { top: 8, right: 0, bottom: 0, left: 10 } } });
+  expect(band.height).toBeUndefined();
+  await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.structure?.bands.find((b: any) => b.sectionIndex === 0)?.node?.component.layout)).toBe("row");
+  const row = await page.evaluate(() => {
+    const node = (window as any).__designer.getState().engine.structure.bands.find((b: any) => b.sectionIndex === 0).node;
+    return { band: node.box, children: node.children.map((child: any) => child.box) };
+  });
+  expect(row.children).toHaveLength(2);
+  expect(row.children[0].x).toBeGreaterThanOrEqual(row.band.x + 10);
+  expect(row.children[0].y).toBeGreaterThanOrEqual(row.band.y + 8);
+  expect(row.children[1].x - row.children[0].x - row.children[0].width).toBeGreaterThanOrEqual(11.5);
+  const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  await page.screenshot({ path: path.join(screenshotDir, "33-band-auto-layout.png") });
+
+  await page.getByTestId("band-layout").selectOption("flow");
+  await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.structure?.bands.find((b: any) => b.sectionIndex === 0)?.node?.component.layout)).toBeUndefined();
+  const flow = await page.evaluate(() => {
+    const node = (window as any).__designer.getState().engine.structure.bands.find((b: any) => b.sectionIndex === 0).node;
+    return node.children.map((child: any) => child.box);
+  });
+  expect(flow[1].y - flow[0].y - flow[0].height).toBeGreaterThanOrEqual(11.5);
+});
+
 test("page band master and band actions are editable", async ({ page }) => {
   await page.getByTestId("band-plus-0").first().click({ force: true });
   await page.getByTestId("add-pageHeader").click();

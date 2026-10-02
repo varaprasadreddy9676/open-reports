@@ -26,6 +26,8 @@ Shortcuts: `Ctrl+K` command palette · `Ctrl+S` save · `Ctrl+Z/Y` undo/redo · 
 
 For free-positioned elements inside the same absolute layout, select two or more and use the right panel to align or match widths and heights. Match-size actions use the first selected element as the source. Flow content is arranged by its container, so coordinate actions are disabled for it.
 
+To arrange a band's contents, select its label in Structure and open **Size and layout**. Choose **Stack vertically**, **Side by side**, **Grid**, or **Free position**. Gap and padding use points; empty fixed height lets the band grow with its contents. Drag a child within a flow layout to reorder it. The inspector shows alignment and distribution controls only for layouts that use them.
+
 ## 3. Data
 **Data mode** lists datasets: JSON, REST API, database (PostgreSQL/MySQL via server-side connections), or CSV upload. **Test request** shows a Table / Raw JSON / Schema view and hints (row counts, nested lists, dates). For API keys use `{{secrets.NAME}}`; the real value lives on the server as `REPORT_SECRET_NAME` and never enters the report. Add **parameters** (e.g. `invoiceId`) and use them as `{{params.invoiceId}}`.
 
@@ -37,7 +39,7 @@ Open **Data → Test data** to run disposable 0, 1, 10, 31, 32, 100, or 1,000 re
 
 For a grouped list such as `clinical.investigations`, create the group from that list, then drag the list into an otherwise empty Detail band and choose **Table**. The table prints once for each group using only that group's records. Add a field such as `row.department` to the Group Header, and remove a redundant Department table column in the inspector if you want a cleaner layout.
 
-For a custom hospital header, add Image components to the Page Header and use **Upload image** in each Image inspector. The repository's `apps/designer/tests/fixtures/letterheads/` folder includes separately cropped left brand artwork, left symbols, and right accreditation marks from the four supplied samples. Place editable Text components between the images, then preview the PDF to check spacing and legibility.
+For a custom hospital header, add Image components to the Page Header. **Embed image from file** stores a copy in the report. Alternatively, enter an **Image path or URL** to read the current logo on each render without editing the report; the rendering server must be able to access that path or URL. The repository's `apps/designer/tests/fixtures/letterheads/` folder includes separately cropped left brand artwork, left symbols, and right accreditation marks from the four supplied samples. Place editable Text components between the images, then preview the PDF to check spacing and legibility.
 
 ## 4. Pagination for long documents
 - Tables: **Repeat header on every page**; set *Min rows after break* to avoid a lone row on a page.
