@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { StructureBand } from "@reporting/layout";
-import { savePref, useStore, type RulerUnit } from "../store";
+import { savePref, useStore, type RulerOrigin, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
 import { fitZoom } from "../lib/zoom";
 
@@ -21,7 +21,7 @@ const ADDABLE: { type: string; hint: string }[] = [
 
 /** Compact canvas controls; detailed setup and pagination appear when requested. */
 export function BandBar() {
-  const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, gridMode, showGrid } = useStore();
+  const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, rulerOrigin, gridMode, showGrid, doc } = useStore();
   const set = useStore((s) => s.set);
   return (
     <div className="band-bar" data-testid="band-bar">
@@ -65,9 +65,17 @@ export function BandBar() {
         <label>
         Units{" "}
         <select data-testid="ruler-unit" value={rulerUnit} onChange={(e) => (savePref("rulerUnit", e.target.value), set({ rulerUnit: e.target.value as RulerUnit }))}>
-          {["mm", "cm", "in", "pt", "px"].map((u) => (
-            <option key={u}>{u}</option>
+          {["mm", "cm", "in", "pt", "px", "dots"].map((u) => (
+            <option key={u} value={u}>{u === "dots" ? "Printer dots" : u}</option>
           ))}
+        </select>
+        </label>
+        {rulerUnit === "dots" && <div className="canvas-unit-hint" data-testid="ruler-dpi">{doc.print?.dpi ?? 203} dpi{doc.print?.dpi ? "" : " default"} · 1 dot = {(25.4 / (doc.print?.dpi ?? 203)).toFixed(3)} mm</div>}
+        <label>
+        Ruler zero{" "}
+        <select data-testid="ruler-origin" value={rulerOrigin} onChange={(e) => (savePref("rulerOrigin", e.target.value), set({ rulerOrigin: e.target.value as RulerOrigin }))}>
+          <option value="page">Page edge</option>
+          <option value="printable">Inside margins</option>
         </select>
         </label>
         <label>

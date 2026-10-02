@@ -1044,11 +1044,11 @@ textarea {
 .tick span {
   position: absolute;
   left: 3px;
-  top: -12px;
+  top: -4px;
 }
 .ruler.v .tick span {
   top: 2px;
-  left: -10px;
+  left: -4px;
 }
 .drop-prompt {
   position: fixed;
@@ -2156,6 +2156,7 @@ kbd {
 .canvas-options-panel { position: absolute; right: 0; top: calc(100% + 7px); display: flex; flex-direction: column; gap: 10px; width: 184px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
 .canvas-options-panel label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 11px; }
 .canvas-options-panel select { color: var(--text); }
+.canvas-unit-hint { color: var(--muted); font-size: 11px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 
 .canvas-scroll.structure { padding-left: 160px; padding-right: 60px; }
 .structure-page-strip { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; overflow-x: auto; padding: 0 4px 10px; margin: 0 auto 18px; max-width: 100%; width: fit-content; }

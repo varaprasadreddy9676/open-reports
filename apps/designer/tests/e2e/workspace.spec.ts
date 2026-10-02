@@ -354,6 +354,45 @@ test.describe("properties, masters, print, blocks", () => {
     await expect(page.getByTestId("zpl-info")).toContainText("203 dpi");
   });
 
+  test("printer-dot rulers use the selected DPI and can start at the printable margin", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.evaluate(() => (window as any).__designer.getState().select([]));
+    await page.getByRole("button", { name: /Print & labels/ }).click();
+    await page.getByTestId("print-preset").selectOption({ label: "Label 50 × 30 mm (ZPL 203 dpi)" });
+    await expect.poll(() => page.getByTestId("page-1").evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(500);
+    await expect(page.getByTestId("ruler-h")).toBeVisible();
+    await page.getByTestId("canvas-options").locator("summary").click();
+    await page.getByTestId("ruler-unit").selectOption("dots");
+    await expect(page.getByTestId("ruler-dpi")).toContainText("203 dpi");
+    const mark = page.getByTestId("ruler-h").locator(".tick.major").filter({ hasText: /^200$/ });
+    await expect(mark).toBeVisible();
+    const at203 = await mark.evaluate((element: HTMLElement) => parseFloat(element.style.left));
+    await page.getByTestId("print-dpi").selectOption("300");
+    await expect(page.getByTestId("ruler-dpi")).toContainText("300 dpi");
+    const at300 = await mark.evaluate((element: HTMLElement) => parseFloat(element.style.left));
+    expect(at300).toBeLessThan(at203);
+    expect(at300 / at203).toBeCloseTo(203 / 300, 1);
+
+    await page.getByTestId("ruler-origin").selectOption("printable");
+    const zero = await page.getByTestId("ruler-h").locator(".tick.major").filter({ hasText: /^0$/ }).evaluate((element: HTMLElement) => parseFloat(element.style.left));
+    const margin = await page.getByTestId("margin-marker-left").evaluate((element: HTMLElement) => parseFloat(element.style.left));
+    expect(zero).toBeCloseTo(margin, 1);
+    for (const axis of ["h", "v"] as const) {
+      const ruler = (await page.getByTestId(`ruler-${axis}`).boundingBox())!;
+      const label = (await page.getByTestId(`ruler-${axis}`).locator(".tick.major").filter({ hasText: /^0$/ }).locator("span").boundingBox())!;
+      expect(label.x).toBeGreaterThanOrEqual(ruler.x);
+      expect(label.y).toBeGreaterThanOrEqual(ruler.y);
+      expect(label.x + label.width).toBeLessThanOrEqual(ruler.x + ruler.width);
+      expect(label.y + label.height).toBeLessThanOrEqual(ruler.y + ruler.height);
+    }
+    expect(await page.evaluate(() => localStorage.getItem("designer.rulerOrigin"))).toBe("printable");
+    await page.getByTestId("canvas-options").locator("summary").click();
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "29-printer-dot-ruler.png") });
+  });
+
   test("label starter: barcode too small gets a one-click fix", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-search").fill("pharmacy");

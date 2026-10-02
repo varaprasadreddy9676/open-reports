@@ -13,6 +13,7 @@ import { InspectorSection as Section } from "./InspectorSection";
 import { appendHeaderColumn, removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
 import { findComponentsByType } from "@reporting/core";
+import { fitZoom } from "../lib/zoom";
 
 // ------------------------------------------------------------------ small controls
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -1109,6 +1110,9 @@ function PrintProfilePanel() {
             const preset = PRINT_PRESETS[Number(e.target.value)];
             if (!preset) return;
             setDoc({ ...doc, print: { ...(doc.print ?? {}), ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
+            if (preset.page?.unit === "mm" && typeof preset.page.width === "number") {
+              useStore.getState().set({ zoom: fitZoom(preset.page.width * 72 / 25.4) });
+            }
           }}
         >
           <option value="">Choose a printer / media…</option>

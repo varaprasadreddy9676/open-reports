@@ -11,7 +11,8 @@ export type Mode = "design" | "data" | "code" | "preview";
 export type LeftTab = "insert" | "layers" | "data" | "pages";
 export type BottomPanel = null | "problems" | "pagination" | "history";
 export type CanvasView = "structure" | "pages";
-export type RulerUnit = "mm" | "cm" | "in" | "pt" | "px";
+export type RulerUnit = "mm" | "cm" | "in" | "pt" | "px" | "dots";
+export type RulerOrigin = "page" | "printable";
 export type SaveState = "saved" | "saving" | "dirty" | "error";
 
 export interface HistoryEntry {
@@ -78,6 +79,7 @@ interface State {
   /** Example records shown per detail band in the structure view. */
   ghosts: number;
   rulerUnit: RulerUnit;
+  rulerOrigin: RulerOrigin;
   gridMode: "lines" | "dots";
   /** Index (in doc.sections) of the band selected on the structure canvas. */
   selectedBand: number | null;
@@ -235,6 +237,7 @@ export const useStore = create<State>((set, get) => ({
   showPagination: false,
   ghosts: 0,
   rulerUnit: pref("rulerUnit", "mm") as RulerUnit,
+  rulerOrigin: pref("rulerOrigin", "page") as RulerOrigin,
   gridMode: "lines",
   selectedBand: null,
   view: { grid: false, rulers: true, guides: true, margins: true, boundaries: false, diagnostics: true },

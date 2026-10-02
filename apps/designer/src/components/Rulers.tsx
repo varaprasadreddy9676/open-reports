@@ -2,18 +2,7 @@ import { useRef } from "react";
 import { useStore, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
 import type { StructureBand } from "@reporting/layout";
-
-export const PT_PER_UNIT: Record<RulerUnit, number> = { mm: 72 / 25.4, cm: 72 / 2.54, in: 72, pt: 1, px: 0.75 };
-const NICE = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000];
-
-/** Chooses tick spacing (in the ruler's unit) so labelled ticks sit at least ~48px apart. */
-export function tickSteps(unit: RulerUnit, k: number): { major: number; minor: number } {
-  const pxPerUnit = PT_PER_UNIT[unit] * k;
-  const fractions = unit === "in" ? [0.125, 0.25, 0.5, 1, 2, 5, 10] : unit === "cm" ? [0.1, 0.5, 1, 2, 5, 10] : NICE;
-  const major = fractions.find((f) => f * pxPerUnit >= 48) ?? fractions[fractions.length - 1]!;
-  const minor = major / (major === 1 || major === 10 || major === 100 ? 10 : major === 2 || major === 20 ? 4 : major === 5 ? 5 : 5);
-  return { major, minor: Math.max(minor, 1 / pxPerUnit * 6) };
-}
+import { pointsPerRulerUnit, rulerTicks } from "../lib/ruler";
 
 function fmt(n: number): string {
   return String(Math.round(n * 1000) / 1000);
@@ -27,22 +16,12 @@ interface Props {
   bands?: StructureBand[];
 }
 
-function Axis({ vertical, length, k, unit }: { vertical: boolean; length: number; k: number; unit: RulerUnit }) {
-  const { major, minor } = tickSteps(unit, k);
-  const pxPer = PT_PER_UNIT[unit] * k;
-  const ticks: JSX.Element[] = [];
-  const n = Math.floor(length / (minor * pxPer));
-  for (let i = 0; i <= n; i++) {
-    const v = i * minor;
-    const isMajor = Math.abs(v / major - Math.round(v / major)) < 1e-6;
-    const pos = v * pxPer;
-    ticks.push(
-      <div key={i} className={isMajor ? "tick major" : "tick"} style={vertical ? { top: pos } : { left: pos }}>
-        {isMajor && <span>{fmt(v)}</span>}
+function Axis({ vertical, length, k, unit, dpi, originPt }: { vertical: boolean; length: number; k: number; unit: RulerUnit; dpi: number; originPt: number }) {
+  return <>{rulerTicks(length, k, unit, dpi, originPt).map(({ value, position, major }) =>
+      <div key={value} className={major ? "tick major" : "tick"} style={vertical ? { top: position } : { left: position }}>
+        {major && <span>{fmt(value)}</span>}
       </div>
-    );
-  }
-  return <>{ticks}</>;
+    )}</>;
 }
 
 /**
@@ -51,15 +30,18 @@ function Axis({ vertical, length, k, unit }: { vertical: boolean; length: number
  */
 export function Rulers({ width, height, k, margin, bands }: Props) {
   const unit = useStore((s) => s.rulerUnit);
+  const origin = useStore((s) => s.rulerOrigin);
   const doc = useStore((s) => s.doc);
+  const dpi = doc.print?.dpi ?? 203;
   const dragRef = useRef<null | { edge: "top" | "right" | "bottom" | "left"; start: number; orig: number }>(null);
   const bandDrag = useRef<null | { index: number; start: number; orig: number; moved: boolean }>(null);
 
   const setMargin = (edge: "top" | "right" | "bottom" | "left", pt: number) => {
     const st = useStore.getState();
     const next = structuredClone(st.doc);
-    const pageUnit = (next.page?.unit ?? "mm") as RulerUnit;
-    const val = Math.max(0, Math.round((pt / PT_PER_UNIT[pageUnit]) * 10) / 10);
+    const pageUnit = (next.page?.unit ?? "mm") as "mm" | "cm" | "in" | "pt" | "px";
+    const precision = unit === "dots" ? 1000 : 10;
+    const val = Math.max(0, Math.round((pt / pointsPerRulerUnit(pageUnit)) * precision) / precision);
     next.page = { ...(next.page ?? {}), margin: { ...(next.page?.margin ?? {}), [edge]: val } };
     st.setDoc(next, { coalesce: `margin-${edge}`, keepSelection: true });
   };
@@ -75,7 +57,9 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
     const horizontal = d.edge === "left" || d.edge === "right";
     const delta = ((horizontal ? e.clientX : e.clientY) - d.start) / k;
     const sign = d.edge === "left" || d.edge === "top" ? 1 : -1;
-    const snapped = Math.round((d.orig + sign * delta) / (PT_PER_UNIT[unit] * 0.5)) * PT_PER_UNIT[unit] * 0.5;
+    const step = unit === "dots" ? 1 : 0.5;
+    const unitPt = pointsPerRulerUnit(unit, dpi);
+    const snapped = Math.round((d.orig + sign * delta) / (unitPt * step)) * unitPt * step;
     setMargin(d.edge, Math.max(0, snapped));
   }
   function markerUp() {
@@ -115,7 +99,7 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
   return (
     <>
       <div className="ruler h" style={{ width }} data-testid="ruler-h" onClick={(e) => rulerClick(e, false)} title="Click to add a horizontal guide">
-        <Axis vertical={false} length={width} k={k} unit={unit} />
+        <Axis vertical={false} length={width} k={k} unit={unit} dpi={dpi} originPt={origin === "printable" ? margin.left : 0} />
         {(["left", "right"] as const).map((edge) => (
           <div
             key={edge}
@@ -131,7 +115,7 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
         ))}
       </div>
       <div className="ruler v" style={{ height }} data-testid="ruler-v" onClick={(e) => rulerClick(e, true)} title="Click to add a vertical guide">
-        <Axis vertical length={height} k={k} unit={unit} />
+        <Axis vertical length={height} k={k} unit={unit} dpi={dpi} originPt={origin === "printable" ? margin.top : 0} />
         {(bands ? (["top"] as const) : (["top", "bottom"] as const)).map((edge) => (
           <div
             key={edge}
