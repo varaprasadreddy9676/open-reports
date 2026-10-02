@@ -465,3 +465,19 @@ test("table header grid: add a level, split and merge cells, then edit the label
   await page.getByTestId(`column-${originalColumns}`).getByLabel("Remove column").click();
   await expect(page.getByTestId(`header-cell-0-${originalColumns}`)).toHaveCount(0);
 });
+
+test("table body grid: merge and split rows using resolved sample data", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-lab-report").click();
+  await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
+  await page.getByRole("button", { name: /Body cell merges/ }).click();
+  await expect(page.getByTestId("body-cell-1-0")).toBeVisible();
+  await page.getByTestId("body-cell-0-0").click();
+  await page.getByTestId("body-cell-1-0").click();
+  await page.getByTestId("body-merge").click();
+  expect(JSON.stringify(await doc(page))).toContain('"cellSpans":[{"row":0,"column":0,"rowSpan":2,"colSpan":1}]');
+  await expect(page.locator(".cn-table tbody td[rowspan='2']").first()).toBeVisible();
+  await page.getByTestId("body-cell-0-0").click();
+  await page.getByTestId("body-split").click();
+  await expect(page.locator(".cn-table tbody td[rowspan='2']")).toHaveCount(0);
+});

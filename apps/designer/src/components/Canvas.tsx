@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { defaultTextMeasurer, measureHeaderRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
-import { tableHeaderRows } from "@reporting/core";
+import { defaultTextMeasurer, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
+import { tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
 import { renderChartSvg } from "@reporting/renderer-html/chart";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
@@ -133,6 +133,8 @@ function TableView({ node, k }: { node: PositionedNode; k: number }) {
   const t = node.component as any;
   const widths = resolveColumnWidths(t, node.box.width);
   const headerHeights = measureHeaderRowHeights(t, widths, defaultTextMeasurer);
+  const rowHeights = measureTableRowHeights(t, widths, defaultTextMeasurer);
+  const spanGrid = tableCellSpanGrid(t.cellSpans ?? []);
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? t.rows.length;
   const fs = ((t.style?.fontSize as number) ?? 10) * k;
@@ -154,12 +156,14 @@ function TableView({ node, k }: { node: PositionedNode; k: number }) {
       )}
       <tbody>
         {t.rows.slice(start, end).map((row: any, i: number) => (
-          <tr key={start + i} style={{ background: t.alternateRowStyle && (start + i) % 2 === 1 ? "#f5f5f5" : undefined, ...cssFrom(row.style, k) }}>
-            {t.columns.map((c: any) => (
-              <td key={c.id} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "nowrap" }}>
+          <tr key={start + i} style={{ height: rowHeights[start + i]! * k, background: t.alternateRowStyle && (start + i) % 2 === 1 ? "#f5f5f5" : undefined, ...cssFrom(row.style, k) }}>
+            {t.columns.map((c: any, column: number) => {
+              const slot = spanGrid.get(start + i)?.get(column);
+              if (slot && !slot.anchor) return null;
+              return <td key={c.id} colSpan={slot?.span.colSpan} rowSpan={slot?.span.rowSpan} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "nowrap", border: slot ? `${k}px solid #000` : undefined }}>
                 {row.formatted[c.id]}
-              </td>
-            ))}
+              </td>;
+            })}
           </tr>
         ))}
         {t.rows.length === 0 && (

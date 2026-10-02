@@ -7,7 +7,10 @@ import { datasetValue, inferFields, arrayRefs } from "../lib/fields";
 import { Icon } from "./Icon";
 import { BandProps } from "./BandProps";
 import { TableHeaderEditor } from "./TableHeaderEditor";
+import { TableBodyEditor } from "./TableBodyEditor";
 import { appendHeaderColumn, removeHeaderColumn } from "../lib/table-header";
+import { removeBodyColumn } from "../lib/table-body";
+import { findComponentsByType } from "@reporting/core";
 
 // ------------------------------------------------------------------ small controls
 function Section({ title, children, open = true }: { title: string; children: React.ReactNode; open?: boolean }) {
@@ -483,7 +486,7 @@ function ColumnEditor({ table, col, index }: { table: ops.Comp; col: any; index:
         <span className="spacer" />
         <button className="mini" aria-label="Move column left" onClick={() => move(-1)}>↑</button>
         <button className="mini" aria-label="Move column right" onClick={() => move(1)}>↓</button>
-        <button className="mini danger" aria-label="Remove column" onClick={() => patch(table.id, { columns: table.columns.filter((_: any, i: number) => i !== index), ...(table.headerRows ? { headerRows: table.columns.length === 1 ? undefined : removeHeaderColumn(table.headerRows, index) } : {}) })}>×</button>
+        <button className="mini danger" aria-label="Remove column" onClick={() => patch(table.id, { columns: table.columns.filter((_: any, i: number) => i !== index), ...(table.headerRows ? { headerRows: table.columns.length === 1 ? undefined : removeHeaderColumn(table.headerRows, index) } : {}), ...(table.cellSpans ? { cellSpans: removeBodyColumn(table.cellSpans, index) } : {}) })}>×</button>
       </div>
       {open && (
         <div className="column-body">
@@ -548,9 +551,10 @@ function ColumnEditor({ table, col, index }: { table: ops.Comp; col: any; index:
 }
 
 function TableProps({ comp }: { comp: ops.Comp }) {
-  const { doc, sample } = useStore();
+  const { doc, sample, engine } = useStore();
   const patch = useStore((s) => s.patch);
   const refs = arrayRefs(doc, sample);
+  const resolvedTable = engine.resolved ? findComponentsByType(engine.resolved, "table").find((table) => table.id === comp.id) : undefined;
   const flag = (key: string, label: string, def = false) => (
     <label className="check" key={key}>
       <input type="checkbox" data-testid={`flag-${key}`} checked={comp[key] ?? def} onChange={(e) => patch(comp.id, { [key]: e.target.checked })} />
@@ -568,6 +572,8 @@ function TableProps({ comp }: { comp: ops.Comp }) {
         format: f.kind === "date" ? "date:dd MMM yyyy" : f.kind === "number" && /amount|price|total|rate|cost|balance/i.test(f.name) ? "currency" : undefined,
         align: f.kind === "number" ? "right" : undefined,
       })),
+      headerRows: undefined,
+      cellSpans: undefined,
     });
   };
   return (
@@ -596,6 +602,9 @@ function TableProps({ comp }: { comp: ops.Comp }) {
       </Section>
       <Section title="Header grid" open={!!comp.headerRows}>
         <TableHeaderEditor columns={comp.columns ?? []} headerRows={comp.headerRows} onChange={(headerRows) => patch(comp.id, { headerRows })} />
+      </Section>
+      <Section title="Body cell merges" open={!!comp.cellSpans?.length}>
+        <TableBodyEditor columns={resolvedTable?.columns ?? []} rows={resolvedTable?.rows ?? []} spans={comp.cellSpans ?? []} onChange={(cellSpans) => patch(comp.id, { cellSpans })} />
       </Section>
       <Section title="Pagination & rows">
         {flag("showHeader", "Show header", true)}

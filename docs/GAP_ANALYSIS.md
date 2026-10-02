@@ -11,7 +11,7 @@
 |---|---|---|---|
 | Count | 7 | 15 | 14 |
 
-**Correction to earlier statements.** I reported span/rowSpan/colSpan (task #17) and orphan/widow *for text* (`minLinesAtTop/Bottom`) as done, and the user guide documents them. They are **not implemented** (P0-7). Orphan/widow control works for **table rows only**.
+**Correction to earlier statements at the time of the audit.** Table span/rowSpan/colSpan support was absent in the original audit; header and body spans were subsequently implemented on 2026-10-02. Orphan/widow control for text (`minLinesAtTop/Bottom`) remains unimplemented. Orphan/widow control works for **table rows only**.
 
 ---
 
@@ -72,7 +72,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 |---|---|---|
 | `minLinesAtTop` / `minLinesAtBottom` | designer *Page breaks* section, `docs/USER_GUIDE.md`, `docs/USE_CASES.md` (“stops one stray line”) | text is never split; no effect |
 | `style.overflow: "ellipsis"/"clip"` | designer *Advanced → Overflow* | HTML only; **PDF ignores** |
-| `colSpan` / `rowSpan` | task #17 “completed” | not in schema; silently dropped |
+| `colSpan` / `rowSpan` | task #17 “completed” | **Addressed 2026-10-02:** explicit `headerRows` and positional body `cellSpans`; see current schema and tests. |
 | `table.groupBy` | schema, `docs/REPORT_DEFINITION.md` | ignored — no group rows/subtotals |
 | `richText` component | palette, docs | renders markup literally (`**bold**` shown as text) |
 | `allowRowSplit`, `allowSplit`, `keepFooterTogether` | schema comments say “implemented” | no consumer found |
@@ -115,7 +115,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 |---|---|---|
 | P2-1 | **Subreports** declared but not executed (`SUBREPORT_NOT_RENDERED`) | `core/src/resolve-component.ts` l.250 |
 | P2-2 | **`richText`** needs real inline formatting (bold/italic/links, bullet lists) | `resolve-component.ts` case `"richText"`; renderers |
-| P2-3 | **Table cell spans** (`colSpan`/`rowSpan`) and `allowRowSplit` | `schema/components.ts`, `layout/box-layout.ts` → `resolveColumnWidths`, `placeTable` |
+| P2-3 | **`allowRowSplit` remains unimplemented**; table header/body spans now have schema, layout, output and designer support | `schema/components.ts`, `layout/box-layout.ts`, `layout/paginate.ts` |
 | P2-4 | **`page.number` / `page.total` in body text** evaluates to empty (`"p/"`); only header/footer sections are re-resolved per page | `core/src/pipeline.ts` → `resolvePageSection` |
 | P2-5 | **Reproducible `now()`**: allow `generatedAt` input so a rerun is byte-comparable | `expressions/functions.ts` |
 | P2-6 | **Footnotes, TOC, PDF/A, signatures, bookmarks UI levels** | roadmap items #19, #21 |
