@@ -29,6 +29,23 @@ test.describe("workspace", () => {
     await expect(page.getByTestId("canvas")).toBeVisible();
   });
 
+  test("data rail searches nested paths and shows types with sample values", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.getByTestId("left-tab-data").click();
+    await page.getByTestId("add-dataset").click();
+    await page.getByTestId("dataset-id").fill("clinical");
+    await page.getByTestId("dataset-json").fill(JSON.stringify({ patient: { name: "Asha Rao", uhid: "UH123" }, investigations: [{ testName: "Glucose", result: 92 }] }));
+    await page.getByTestId("dataset-save").click();
+    await expect(page.getByTestId("field-clinical-patient.name")).toContainText("Asha Rao");
+    await expect(page.getByTestId("field-clinical-investigations")).toContainText("1 row");
+    await page.getByRole("searchbox", { name: "Search fields" }).fill("uhid");
+    await expect(page.getByTestId("field-clinical-patient.uhid")).toBeVisible();
+    await expect(page.getByTestId("field-clinical-patient.name")).toHaveCount(0);
+    await page.getByRole("searchbox", { name: "Search fields" }).fill("nothing-matches");
+    await expect(page.getByRole("status")).toContainText("No fields match");
+  });
+
   test("modes: Data mode lists datasets; split view shows canvas and code together", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-invoice").click();

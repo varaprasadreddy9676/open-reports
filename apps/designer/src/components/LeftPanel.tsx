@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
-import { datasetValue, inferFields, type FieldNode } from "../lib/fields";
+import { datasetValue, fieldSample, filterFields, inferFields, type FieldNode } from "../lib/fields";
 import { titleCase } from "../lib/lowcode";
 import { Icon } from "./Icon";
 import { api } from "../lib/api";
@@ -148,18 +148,20 @@ function InsertTab() {
   );
 }
 
-function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray }: { node: FieldNode; dsId: string; arrayRoot?: string; depth: number; parentIsArray: boolean }) {
+function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray, searching }: { node: FieldNode; dsId: string; arrayRoot?: string; depth: number; parentIsArray: boolean; searching: boolean }) {
   const [open, setOpen] = useState(depth < 1);
   const isArray = node.kind === "array";
   const isObj = node.kind === "object";
   const ref = `${dsId}.${node.path}`;
+  const expanded = searching || open;
+  const example = fieldSample(node.sample);
   const payload = isArray
     ? { kind: "array", ref }
     : parentIsArray
       ? { kind: "field", binding: `row.${node.path.split(".").slice(arrayRoot ? arrayRoot.split(".").length : 0).join(".")}`, name: node.name, fieldKind: node.kind, rowDataset: arrayRoot ? `${dsId}.${arrayRoot}` : dsId }
       : { kind: "field", binding: `data.${dsId}.${node.path}`, name: node.name, fieldKind: node.kind };
   return (
-    <div>
+    <div className="data-tree">
       <div
         className={`field-row kind-${node.kind}`}
         style={{ paddingLeft: 8 + depth * 14 }}
@@ -170,14 +172,16 @@ function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray }: { node: Field
           e.dataTransfer.effectAllowed = "copy";
         }}
         onClick={() => (isObj || isArray) && setOpen(!open)}
-        title={isArray ? "Drag onto the page to create a Table or Repeater" : isObj ? "" : "Drag onto the page to create a bound text"}
+        title={`${node.path} · ${node.kind}${example ? ` · Sample: ${example}` : ""}${isArray ? " · Drag to create a Table or Repeater" : !isObj ? " · Drag to bind" : ""}`}
       >
-        <span className="twisty">{isObj || isArray ? (open ? "▾" : "▸") : ""}</span>
+        <span className="twisty">{isObj || isArray ? (expanded ? "▾" : "▸") : ""}</span>
         <span className="field-icon">{isArray ? "[]" : isObj ? "{}" : node.kind === "number" ? "#" : node.kind === "date" ? "d" : node.kind === "boolean" ? "b" : "a"}</span>
-        <span className="field-name">{titleCase(node.name)}</span>
-        {isArray && <span className="badge">array</span>}
+        <span className="field-copy">
+          <span className="field-label-line"><span className="field-name">{titleCase(node.name)}</span><span className="field-type">{node.kind}</span></span>
+          {example && <span className="field-sample">{example}</span>}
+        </span>
       </div>
-      {open && node.children?.map((c) => <FieldRow key={c.path} node={c} dsId={dsId} arrayRoot={isArray ? node.path : arrayRoot} depth={depth + 1} parentIsArray={isArray || parentIsArray} />)}
+      {expanded && node.children?.map((c) => <FieldRow key={c.path} node={c} dsId={dsId} arrayRoot={isArray ? node.path : arrayRoot} depth={depth + 1} parentIsArray={isArray || parentIsArray} searching={searching} />)}
     </div>
   );
 }
@@ -185,8 +189,11 @@ function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray }: { node: Field
 function DataTab() {
   const { doc, sample, parameters } = useStore();
   const set = useStore((s) => s.set);
+  const [query, setQuery] = useState("");
+  const searching = Boolean(query.trim());
   const datasets: any[] = doc.datasets ?? [];
   const params: any[] = doc.parameters ?? [];
+  let visibleDatasets = 0;
   return (
     <div className="tab-body">
       <div className="group-title row-title">
@@ -196,10 +203,14 @@ function DataTab() {
         </button>
       </div>
       {datasets.length === 0 && <p className="muted">No data yet. Add a dataset or paste sample JSON to start binding fields.</p>}
+      {datasets.length > 0 && <input className="search" type="search" aria-label="Search fields" placeholder="Search fields or paths…" value={query} onChange={(event) => setQuery(event.target.value)} />}
       {datasets.map((ds) => {
         const value = datasetValue(doc, sample, ds.id);
-        const fields = inferFields(value);
+        const datasetMatches = searching && `${ds.id} ${ds.source}`.toLowerCase().includes(query.trim().toLowerCase());
+        const fields = filterFields(inferFields(value), query, datasetMatches);
         const isArray = Array.isArray(value);
+        if (searching && !datasetMatches && fields.length === 0) return null;
+        visibleDatasets += 1;
         return (
           <div key={ds.id} className="dataset" data-testid={`dataset-${ds.id}`}>
             <div className="dataset-head">
@@ -231,12 +242,13 @@ function DataTab() {
               </div>
             )}
             {fields.map((f) => (
-              <FieldRow key={f.path} node={f} dsId={ds.id} depth={0} parentIsArray={isArray} arrayRoot={isArray ? "" : undefined} />
+              <FieldRow key={f.path} node={f} dsId={ds.id} depth={0} parentIsArray={isArray} arrayRoot={isArray ? "" : undefined} searching={searching} />
             ))}
-            {fields.length === 0 && <p className="muted small">No fields found{ds.source !== "inline" ? ` - open Edit and Test to load a preview` : ""}.</p>}
+            {!searching && fields.length === 0 && <p className="muted small">No fields found{ds.source !== "inline" ? ` - open Edit and Test to load a preview` : ""}.</p>}
           </div>
         );
       })}
+      {searching && visibleDatasets === 0 && <p className="muted" role="status">No fields match “{query}”.</p>}
 
       <div className="group-title row-title">
         Parameters

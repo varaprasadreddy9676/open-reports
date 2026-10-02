@@ -466,6 +466,40 @@ textarea {
 .field-icon.drag {
   cursor: grab;
 }
+.data-tree .field-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.data-tree .field-label-line {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+.data-tree .field-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-tree .field-type {
+  flex: none;
+  color: var(--muted);
+  font-size: 10px;
+  opacity: 0.75;
+}
+.data-tree .field-sample {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
 .twisty {
   width: 10px;
   color: var(--muted);

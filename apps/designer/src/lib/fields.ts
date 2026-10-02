@@ -4,6 +4,7 @@ export interface FieldNode {
   /** dotted path relative to the dataset root */
   path: string;
   kind: "string" | "number" | "boolean" | "date" | "object" | "array";
+  sample?: unknown;
   children?: FieldNode[];
 }
 
@@ -23,8 +24,28 @@ export function inferFields(value: unknown, basePath = "", depth = 0): FieldNode
   return Object.entries(sample as Record<string, unknown>).map(([name, v]) => {
     const path = basePath ? `${basePath}.${name}` : name;
     const kind = inferKind(v);
-    return { name, path, kind, children: kind === "object" || kind === "array" ? inferFields(v, path, depth + 1) : undefined };
+    return { name, path, kind, sample: v, children: kind === "object" || kind === "array" ? inferFields(v, path, depth + 1) : undefined };
   });
+}
+
+/** Keep the ancestors of matching fields so a search result retains its data path. */
+export function filterFields(nodes: FieldNode[], query: string, ancestorMatches = false): FieldNode[] {
+  const term = query.trim().toLowerCase();
+  if (!term || ancestorMatches) return nodes;
+  return nodes.flatMap((node) => {
+    const matches = `${node.name} ${node.path} ${node.kind}`.toLowerCase().includes(term);
+    if (matches) return [node];
+    const children = filterFields(node.children ?? [], term);
+    return children.length ? [{ ...node, children }] : [];
+  });
+}
+
+/** Short sample for the narrow data rail; the complete value stays in the title. */
+export function fieldSample(value: unknown): string {
+  if (Array.isArray(value)) return `${value.length} row${value.length === 1 ? "" : "s"}`;
+  if (value !== null && typeof value === "object") return "";
+  if (value === undefined) return "";
+  return String(value);
 }
 
 export function flatFieldPaths(nodes: FieldNode[]): string[] {
