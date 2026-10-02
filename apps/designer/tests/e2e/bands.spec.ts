@@ -82,8 +82,8 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await page.getByTestId("dataset-json").fill(JSON.stringify({
     patient: { name: "Asha Rao" },
     investigations: [
-      { department: "Biochemistry", testName: "Glucose", result: 92 },
-      { department: "Haematology", testName: "Haemoglobin", result: 12.8 },
+      { department: "Biochemistry", testName: "Glucose", result: 92, flag: "H" },
+      { department: "Haematology", testName: "Haemoglobin", result: 12.8, flag: "L" },
     ],
   }));
   await page.getByTestId("dataset-save").click();
@@ -112,21 +112,36 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await page.getByTestId("create-array-display").click();
   const table = (await doc(page)).sections[detailIndex].children.find((child: any) => child.type === "table");
   expect(table.dataset).toBe("clinical.investigations");
-  expect(table.columns.map((column: any) => column.binding)).toEqual(["row.department", "row.testName", "row.result"]);
+  expect(table.columns.map((column: any) => column.binding)).toEqual(["row.department", "row.testName", "row.result", "row.flag"]);
 
   await page.getByTestId("left-tab-layers").click();
   await page.getByTestId(`layer-${table.id}`).click();
   await page.getByTestId("column-1").getByRole("button", { name: /Test Name/ }).click();
   await page.getByTestId("column-1").getByLabel("Column header").fill("Investigation");
   await page.getByTestId("column-0").getByRole("button", { name: "Remove column" }).click();
+  await page.getByTestId("column-2").getByRole("button", { name: "Remove column" }).click();
   expect((await doc(page)).sections[detailIndex].children[0].columns.map((column: any) => column.header)).toEqual(["Investigation", "Result"]);
+  if (await page.getByTestId("row-style-rules-add").count() === 0) await page.getByRole("button", { name: /Highlight rows/ }).click();
+  await page.getByTestId("row-style-rules-add").click();
+  await page.getByLabel("Rule 1 field").selectOption("row.flag");
+  await page.getByLabel("Rule 1 value").fill("H");
+  await page.getByTestId("row-style-rules-add").click();
+  await page.getByLabel("Rule 2 field").selectOption("row.flag");
+  await page.getByLabel("Rule 2 value").fill("L");
+  await page.getByLabel("Rule 2 text colour value").fill("#1d4ed8");
+  expect((await doc(page)).sections[detailIndex].children[0].rowStyleWhen).toMatchObject([
+    { when: 'row.flag == "H"', style: { color: "#b91c1c", fontWeight: "bold" } },
+    { when: 'row.flag == "L"', style: { color: "#1d4ed8", fontWeight: "bold" } },
+  ]);
+  await expect(page.locator(".cn-table tbody tr").first()).toHaveCSS("color", "rgb(185, 28, 28)");
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "21-conditional-row-rules.png") });
   if (await page.getByTestId("flag-repeatHeaderOnPageBreak").count() === 0) await page.getByRole("button", { name: /Pagination & rows/ }).click();
   await expect(page.getByTestId("flag-repeatHeaderOnPageBreak")).toBeChecked();
   await page.getByTestId("mode-preview").click();
   await expect(page.getByTestId("pdf-frame")).toBeVisible();
   await expect(page.getByTestId("pdf-info")).toContainText("page");
-  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
-  fs.mkdirSync(screenshots, { recursive: true });
   await page.screenshot({ path: path.join(screenshots, "16-grouped-a4-pdf-preview.png") });
   await page.getByTestId("preview-tab-html").click();
   const body = page.getByTestId("html-frame").contentFrame().locator("body");
@@ -135,13 +150,17 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await expect(body).toContainText("Haemoglobin");
   expect((await body.innerText()).match(/Glucose/g)).toHaveLength(1);
   expect((await body.innerText()).match(/Haemoglobin/g)).toHaveLength(1);
+  await expect(body.getByRole("row").filter({ hasText: "Glucose" })).toHaveCSS("color", "rgb(185, 28, 28)");
+  await expect(body.getByRole("row").filter({ hasText: "Haemoglobin" })).toHaveCSS("color", "rgb(29, 78, 216)");
+  await expect(body.getByRole("row").filter({ hasText: "Glucose" })).toHaveCSS("font-weight", "700");
+  await expect(body.getByRole("row").filter({ hasText: "Haemoglobin" })).toHaveCSS("font-weight", "700");
   await page.screenshot({ path: path.join(screenshots, "17-grouped-a4-html-preview.png") });
 
   await page.getByTestId("mode-data").click();
   await page.getByTestId("data-item-clinical").click();
   await page.getByTestId("dataset-json").fill(JSON.stringify({
     patient: { name: "Asha Rao" },
-    investigations: Array.from({ length: 100 }, (_, index) => ({ department: "Biochemistry", testName: `LAB-${String(index).padStart(3, "0")}`, result: index })),
+    investigations: Array.from({ length: 100 }, (_, index) => ({ department: "Biochemistry", testName: `LAB-${String(index).padStart(3, "0")}`, result: index, flag: index % 2 ? "L" : "H" })),
   }));
   await page.getByTestId("dataset-save").click();
   await page.getByTestId("mode-preview").click();
@@ -175,7 +194,7 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
     await page.getByTestId("data-item-clinical").click();
     await page.getByTestId("dataset-json").fill(JSON.stringify({
       patient: { name: "Asha Rao" },
-      investigations: Array.from({ length: rowCount }, (_, index) => ({ department: "Biochemistry", testName: `LAB-${String(index).padStart(3, "0")}`, result: index })),
+      investigations: Array.from({ length: rowCount }, (_, index) => ({ department: "Biochemistry", testName: `LAB-${String(index).padStart(3, "0")}`, result: index, flag: index % 2 ? "L" : "H" })),
     }));
     await page.getByTestId("dataset-save").click();
     await page.getByTestId("mode-preview").click();

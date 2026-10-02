@@ -271,6 +271,97 @@ function ConditionBuilder({ comp }: { comp: ops.Comp }) {
   );
 }
 
+type StyleRule = { when: string; style: Record<string, any> };
+
+function StyleRuleCard({ rule, index, count, candidates, onChange, onMove, onRemove, testId }: {
+  rule: StyleRule;
+  index: number;
+  count: number;
+  candidates: Candidate[];
+  onChange: (rule: StyleRule) => void;
+  onMove: (direction: -1 | 1) => void;
+  onRemove: () => void;
+  testId: string;
+}) {
+  const condition = expressionToCondition(rule.when);
+  const [formulaMode, setFormulaMode] = useState(false);
+  const visual = !!condition && !formulaMode;
+  const setStyle = (patch: Record<string, unknown>) => onChange({ ...rule, style: { ...rule.style, ...patch } });
+  return (
+    <div className="column-card style-rule-card" data-testid={`${testId}-${index}`}>
+      <div className="column-head">
+        <strong>Rule {index + 1}</strong>
+        <span className="spacer" />
+        <button className="mini" aria-label={`Move rule ${index + 1} up`} disabled={index === 0} onClick={() => onMove(-1)}>↑</button>
+        <button className="mini" aria-label={`Move rule ${index + 1} down`} disabled={index === count - 1} onClick={() => onMove(1)}>↓</button>
+        <button className="mini danger" aria-label={`Remove rule ${index + 1}`} onClick={onRemove}>×</button>
+      </div>
+      <div className="column-body">
+        <div className="group-title small">If</div>
+        {visual && condition ? (
+          <div className="condition-row">
+            <select aria-label={`Rule ${index + 1} field`} value={condition.field} onChange={(e) => onChange({ ...rule, when: conditionToExpression({ ...condition, field: e.target.value }) })}>
+              {!candidates.some((candidate) => candidate.value === condition.field) && <option value={condition.field}>{condition.field}</option>}
+              {candidates.map((candidate) => <option key={candidate.value} value={candidate.value}>{candidate.label}</option>)}
+            </select>
+            <select aria-label={`Rule ${index + 1} operator`} value={condition.operator} onChange={(e) => onChange({ ...rule, when: conditionToExpression({ ...condition, operator: e.target.value as Condition["operator"] }) })}>
+              {OPERATORS.map((operator) => <option key={operator.id} value={operator.id}>{operator.label}</option>)}
+            </select>
+            {condition.operator !== "empty" && condition.operator !== "notempty" && (
+              <input aria-label={`Rule ${index + 1} value`} value={condition.value} onChange={(e) => onChange({ ...rule, when: conditionToExpression({ ...condition, value: e.target.value }) })} />
+            )}
+          </div>
+        ) : (
+          <FormulaInput value={rule.when} candidates={candidates} testId={`${testId}-formula-${index}`} placeholder={'e.g. row.flag == "H"'} onChange={(when) => onChange({ ...rule, when })} />
+        )}
+        {condition && <button className="link" onClick={() => setFormulaMode(!formulaMode)}>{formulaMode ? "Use visual condition" : "fx Edit formula"}</button>}
+        <div className="group-title small">Then</div>
+        <Field label="Text colour" wide>
+          <Color label={`Rule ${index + 1} text colour`} value={rule.style.color} onChange={(color) => setStyle({ color })} />
+        </Field>
+        <Field label="Background" wide>
+          <Color label={`Rule ${index + 1} background`} value={rule.style.background} onChange={(background) => setStyle({ background })} />
+        </Field>
+        <label className="check">
+          <input type="checkbox" aria-label={`Rule ${index + 1} bold`} checked={rule.style.fontWeight === "bold"} onChange={(e) => setStyle({ fontWeight: e.target.checked ? "bold" : undefined })} /> Bold
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function StyleRulesEditor({ comp, property, dataset, testId }: { comp: ops.Comp; property: "styleWhen" | "rowStyleWhen"; dataset?: string; testId: string }) {
+  const { doc, sample } = useStore();
+  const patch = useStore((state) => state.patch);
+  const rules = (comp[property] ?? []) as StyleRule[];
+  // Appearance rules resolve before pagination, so page numbers are not available here.
+  const candidates = useMemo(() => candidatesFor(doc, sample, comp.id, dataset).filter((candidate) => candidate.group !== "Page"), [doc, sample, comp.id, dataset]);
+  const write = (next: StyleRule[]) => patch(comp.id, { [property]: next.length ? next : undefined });
+  const update = (index: number, rule: StyleRule) => write(rules.map((current, i) => i === index ? rule : current));
+  const move = (index: number, direction: -1 | 1) => {
+    const to = index + direction;
+    if (to < 0 || to >= rules.length) return;
+    const next = [...rules];
+    [next[index], next[to]] = [next[to]!, next[index]!];
+    write(next);
+  };
+  const add = () => {
+    const field = candidates.find((candidate) => candidate.value === "row.flag")?.value ?? candidates[0]?.value;
+    write([...rules, { when: field ? conditionToExpression({ field, operator: "eq", value: "H" }) : "false", style: { color: "#b91c1c", fontWeight: "bold" } }]);
+  };
+  return (
+    <div className="style-rules" data-testid={testId}>
+      {rules.length === 0 && <p className="muted small">Add an If/Then rule to change appearance when data matches.</p>}
+      {rules.map((rule, index) => (
+        <StyleRuleCard key={index} rule={rule} index={index} count={rules.length} candidates={candidates} testId={testId}
+          onChange={(next) => update(index, next)} onMove={(direction) => move(index, direction)} onRemove={() => write(rules.filter((_, i) => i !== index))} />
+      ))}
+      <button className="btn" data-testid={`${testId}-add`} onClick={add}>+ Add rule</button>
+      {rules.length > 1 && <p className="muted small">Rules run from top to bottom. Later matches override earlier style values.</p>}
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ typography & style sections
 function Typography({ comp }: { comp: ops.Comp }) {
   const patchStyle = useStore((s) => s.patchStyle);
@@ -552,33 +643,7 @@ function TableProps({ comp }: { comp: ops.Comp }) {
         </div>
       </Section>
       <Section title="Highlight rows" open={!!comp.rowStyleWhen?.length}>
-        {(() => {
-          const rule = (comp.rowStyleWhen ?? [])[0] as { when: string; style?: Record<string, any> } | undefined;
-          const setRule = (r: { when: string; style?: Record<string, any> }) => patch(comp.id, { rowStyleWhen: r.when || r.style?.color || r.style?.fontWeight ? [r] : undefined });
-          return (
-            <>
-              <Field label="When this is true" wide>
-                <FormulaInput
-                  value={rule?.when ?? ""}
-                  placeholder="e.g. row.value < row.low || row.value > row.high"
-                  testId="row-rule-when"
-                  candidates={candidatesFor(doc, sample, comp.id, comp.dataset)}
-                  onChange={(v) => setRule({ when: v, style: rule?.style ?? { fontWeight: "bold", color: "#b91c1c" } })}
-                />
-              </Field>
-              {rule && (
-                <div className="grid2">
-                  <Field label="Text colour">
-                    <Color label="Highlight colour" value={rule.style?.color} onChange={(v) => setRule({ ...rule, style: { ...rule.style, color: v } })} />
-                  </Field>
-                  <label className="check">
-                    <input type="checkbox" checked={rule.style?.fontWeight === "bold"} onChange={(e) => setRule({ ...rule, style: { ...rule.style, fontWeight: e.target.checked ? "bold" : undefined } })} /> Bold
-                  </label>
-                </div>
-              )}
-            </>
-          );
-        })()}
+        <StyleRulesEditor comp={comp} property="rowStyleWhen" dataset={comp.dataset} testId="row-style-rules" />
       </Section>
       <Section title="When there is no data" open={false}>
         <Field label="Show" wide>
@@ -1262,6 +1327,11 @@ function ComponentProps({ id }: { id: string }) {
           <Field label="Group by (expression)">
             <FormulaInput value={comp.groupBy ?? ""} candidates={candidatesFor(doc, useStore.getState().sample, comp.id, comp.dataset)} onChange={(v) => useStore.getState().patch(comp.id, { groupBy: v })} />
           </Field>
+        </Section>
+      )}
+      {t !== "pageBreak" && t !== "table" && (
+        <Section title="Conditional appearance" open={!!comp.styleWhen?.length}>
+          <StyleRulesEditor comp={comp} property="styleWhen" testId="component-style-rules" />
         </Section>
       )}
       {t !== "pageBreak" && <Advanced comp={comp} />}

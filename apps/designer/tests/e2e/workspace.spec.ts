@@ -549,13 +549,55 @@ test("table: highlight rows rule and empty-state options write to the report", a
   await page.goto("/");
   await page.getByTestId("starter-lab-report").click();
   await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
-  if ((await page.getByTestId("row-rule-when").count()) === 0) await page.getByRole("button", { name: /Highlight rows/ }).click();
-  await page.getByTestId("row-rule-when").fill("row.value > 100");
-  const d = JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc));
-  expect(d).toContain("row.value > 100");
+  if (await page.getByTestId("row-style-rules-add").count() === 0) await page.getByRole("button", { name: /Highlight rows/ }).click();
+  await page.getByTestId("row-style-rules-add").click();
+  await page.getByLabel("Rule 2 field").selectOption("row.value");
+  await page.getByLabel("Rule 2 operator").selectOption("gt");
+  await page.getByLabel("Rule 2 value").fill("100");
+  await page.getByTestId("row-style-rules-add").click();
+  await page.getByLabel("Rule 3 field").selectOption("row.value");
+  await page.getByLabel("Rule 3 operator").selectOption("lt");
+  await page.getByLabel("Rule 3 value").fill("0");
+  await page.getByLabel("Rule 3 text colour value").fill("#1d4ed8");
+  const rules = (await page.evaluate(() => (window as any).__designer.getState().doc)).sections.flatMap((section: any) => section.children).find((child: any) => child.id === "results").rowStyleWhen;
+  expect(rules).toMatchObject([
+    { when: "row.value < row.low || row.value > row.high", style: { color: "#b91c1c", fontWeight: "bold" } },
+    { when: "row.value > 100", style: { color: "#b91c1c", fontWeight: "bold" } },
+    { when: "row.value < 0", style: { color: "#1d4ed8", fontWeight: "bold" } },
+  ]);
+  await page.getByRole("button", { name: "Move rule 3 up" }).click();
+  const reordered = (await page.evaluate(() => (window as any).__designer.getState().doc)).sections.flatMap((section: any) => section.children).find((child: any) => child.id === "results").rowStyleWhen;
+  expect(reordered.map((rule: any) => rule.when)).toEqual(["row.value < row.low || row.value > row.high", "row.value < 0", "row.value > 100"]);
   await page.getByRole("button", { name: /When there is no data/ }).click();
   await page.getByLabel("Empty state").selectOption("message");
   expect(JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc))).toContain('"emptyState":"message"');
+});
+
+test("a text element can use the same visual conditional style editor", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("palette-text").click();
+  await page.getByTestId("value-text").fill("Priority");
+  await page.getByTestId("left-tab-data").click();
+  await page.getByTestId("add-dataset").click();
+  await page.getByTestId("dataset-id").fill("patient");
+  await page.getByTestId("dataset-json").fill(JSON.stringify({ flag: "H" }));
+  await page.getByTestId("dataset-save").click();
+  await page.getByRole("button", { name: /Conditional appearance/ }).click();
+  await page.getByTestId("component-style-rules-add").click();
+  await page.getByLabel("Rule 1 field").selectOption("data.patient.flag");
+  await page.getByLabel("Rule 1 value").fill("H");
+  const report = await page.evaluate(() => (window as any).__designer.getState().doc);
+  expect(report.sections[0].children[0].styleWhen).toMatchObject([{ when: 'data.patient.flag == "H"', style: { color: "#b91c1c", fontWeight: "bold" } }]);
+  await page.getByRole("button", { name: "fx Edit formula" }).click();
+  await page.getByTestId("component-style-rules-formula-0").fill("data.patient.flag ==");
+  await expect(page.getByTestId("problem-counts")).toContainText("1 error");
+  await page.getByTestId("component-style-rules-formula-0").fill('data.patient.flag == "H"');
+  await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
+  await page.getByTestId("mode-preview").click();
+  await page.getByTestId("preview-tab-html").click();
+  const body = page.getByTestId("html-frame").contentFrame().locator("body");
+  await expect(body.getByText("Priority")).toHaveCSS("color", "rgb(185, 28, 28)");
 });
 
 test("table header grid: add a level, split and merge cells, then edit the label", async ({ page }) => {

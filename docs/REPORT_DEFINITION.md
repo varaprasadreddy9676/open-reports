@@ -57,3 +57,7 @@ The designer compares declared fields with a bounded preview sample and reports 
 See `examples/` for complete, working definitions of each feature.
 
 Table merge coordinates are zero-based. Body `row` positions refer to resolved rows **after** filtering and sorting. The top-left cell supplies the merged value; covered values are suppressed and a warning is emitted when they differ. Vertical body merges move as a unit at page breaks; a merge taller than one printable page fails explicitly.
+
+## Conditional appearance
+
+Any component may use `styleWhen: [{ "when": "data.patient.flag == \"H\"", "style": { "color": "#b91c1c", "fontWeight": "bold" } }]`. A table may use `rowStyleWhen` with the same rule shape; its expressions can read `row.<field>` and style each matching row. Rules run in array order, with later matching styles overriding earlier values for the same property. The designer provides visual field/operator/value controls, a formula editor for complex expressions, and ordered rule controls. Invalid rule formulas are reported by validation at their rule path. These are appearance rules evaluated while resolving data; the broader conditional layout, pagination, output, and print rule model is not yet implemented.

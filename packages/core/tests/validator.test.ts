@@ -66,6 +66,22 @@ describe("validateReport", () => {
     expect(result.issues.some((i) => i.code === "INVALID_EXPRESSION")).toBe(true);
   });
 
+  it("flags malformed component and table row style rules at their rule paths", () => {
+    const report = parse({
+      ...base,
+      sections: [{ type: "detail", children: [
+        { type: "text", id: "heading", value: "Heading", styleWhen: [{ when: "row.flag ==", style: { color: "#b91c1c" } }] },
+        { type: "table", id: "rows", dataset: "items", columns: [{ header: "Flag", binding: "row.flag" }], rowStyleWhen: [{ when: "row.flag ==", style: { color: "#1d4ed8" } }] },
+      ] }],
+    });
+    const result = validateReport(report);
+    expect(result.valid).toBe(false);
+    expect(result.issues.filter((issue) => issue.code === "INVALID_EXPRESSION").map((issue) => issue.path)).toEqual([
+      "sections[0].children[0].styleWhen[0].when",
+      "sections[0].children[1].rowStyleWhen[0].when",
+    ]);
+  });
+
   it("detects a circular subreport chain", () => {
     const reportA = parse({ ...base, id: "a", sections: [{ type: "detail", children: [{ type: "subreport", reportId: "b" }] }] });
     const reportB = parse({ ...base, id: "b", sections: [{ type: "detail", children: [{ type: "subreport", reportId: "a" }] }] });

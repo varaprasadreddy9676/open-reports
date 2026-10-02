@@ -159,6 +159,23 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
     }
   }
 
+  for (const field of ["styleWhen", "rowStyleWhen"] as const) {
+    const rules = field === "styleWhen" ? component.styleWhen : component.type === "table" ? component.rowStyleWhen : undefined;
+    rules?.forEach((rule: { when: string }, index: number) => {
+      try {
+        Parser.parse(rule.when);
+      } catch (err) {
+        ctx.issues.push({
+          severity: "error",
+          code: "INVALID_EXPRESSION",
+          path: `${path}.${field}[${index}].when`,
+          message: err instanceof Error ? err.message : String(err),
+          componentId: component.id,
+        });
+      }
+    });
+  }
+
   if (component.type === "table") {
     for (const message of tableCellSpanErrors(component.columns?.length ?? 0, component.cellSpans ?? [])) {
       ctx.issues.push({ severity: "error", code: "INVALID_TABLE_SPAN", path: `${path}.cellSpans`, message, componentId: component.id });
