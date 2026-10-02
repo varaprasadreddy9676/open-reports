@@ -78,7 +78,9 @@ test("data drops fill the empty Page Header and Detail bands", async ({ page }) 
 });
 
 test("A4 authoring keeps grouped investigation rows once from data binding through output", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
+  await page.getByTestId("page-1").click({ position: { x: 10, y: 10 } });
+  await page.getByTestId("properties").getByLabel("Report id").fill("clinical-a4-journey");
   await page.getByTestId("left-tab-data").click();
   await page.getByTestId("add-dataset").click();
   await page.getByTestId("dataset-id").fill("clinical");
@@ -308,6 +310,59 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await expect(emptyBody).toContainText("No investigations available");
   expect(await emptyBody.getByRole("columnheader", { name: "Investigation" }).count()).toBe(0);
   await page.screenshot({ path: path.join(screenshots, "19-grouped-a4-no-data.png") });
+
+  // Code mode must show this entire UI-authored report and preserve it on return.
+  const beforeCode = await doc(page);
+  await page.getByTestId("mode-code").click();
+  await expect(page.getByTestId("code-editor")).toBeVisible();
+  await expect(page.getByTestId("code-status")).toContainText("valid");
+  const codeReport = await page.evaluate(() => JSON.parse((window as any).__codeView.state.doc.toString()));
+  expect(codeReport).toEqual(JSON.parse(JSON.stringify(beforeCode)));
+  await page.getByTestId("mode-design").click();
+  expect(await doc(page)).toEqual(beforeCode);
+
+  const stressRows = Array.from({ length: 32 }, (_, index) => ({
+    department: "Biochemistry",
+    testName: index === 0 ? `LAB-000 ${"Long investigation description ".repeat(4)}` : index === 1 ? "LAB-001 తెలుగు పరీక్ష" : `LAB-${String(index).padStart(3, "0")}`,
+    result: index === 2 ? null : index,
+    flag: index % 2 ? "L" : "H",
+  }));
+  await page.getByTestId("mode-data").click();
+  await page.getByTestId("data-item-clinical").click();
+  await page.getByTestId("dataset-json").fill(JSON.stringify({ patient: { name: "Asha Rao" }, investigations: stressRows }));
+  await page.getByTestId("dataset-save").click();
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-info")).toContainText(/\d+ page/);
+  await page.getByTestId("preview-tab-html").click();
+  const stressBody = page.getByTestId("html-frame").contentFrame().locator("body");
+  await expect(stressBody).toContainText("తెలుగు పరీక్ష");
+  expect((await stressBody.innerText()).match(/LAB-\d{3}/g)).toHaveLength(32);
+  await page.getByTestId("preview-tab-pdf").click();
+  const [stressDownload] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-pdf").click()]);
+  const stressPdf = path.join(os.tmpdir(), `open-reports-a4-stress-${Date.now()}.pdf`);
+  await stressDownload.saveAs(stressPdf);
+  const stressText = execFileSync("pdftotext", ["-layout", stressPdf, "-"], { encoding: "utf-8" });
+  fs.unlinkSync(stressPdf);
+  expect(stressText.match(/LAB-\d{3}/g)).toHaveLength(32);
+  expect(stressText).toContain("తెలుగు పరీక్ష");
+  expect(stressText).not.toContain("null");
+
+  await page.getByTestId("btn-publish").click();
+  await page.getByTestId("publish-run-checks").click();
+  await expect(page.getByTestId("publish-preview-reviewed")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("publish-review")).toContainText("clinical.investigations · stress values");
+  await expect(page.getByTestId("publish-review")).toContainText("Ready for review");
+  await page.getByTestId("publish-preview-reviewed").check();
+  if (await page.getByTestId("publish-warnings-reviewed").count()) await page.getByTestId("publish-warnings-reviewed").check();
+  await page.getByTestId("publish-notes").fill("Reviewed grouped A4 report and multilingual stress output");
+  await expect(page.getByTestId("publish-confirm")).toBeEnabled();
+  await page.getByTestId("publish-confirm").click();
+  await expect(page.getByTestId("status-pill")).toContainText("published");
+  const reportId = (await doc(page)).id;
+  const template = await page.request.get(`/api/v1/templates/${reportId}`);
+  const { currentVersion } = await template.json();
+  const version = await page.request.get(`/api/v1/templates/${reportId}/versions/${currentVersion}`);
+  expect((await version.json()).notes).toBe("Reviewed grouped A4 report and multilingual stress output");
 });
 
 test("array drop offers table, repeater and cards with optional generated fields", async ({ page }) => {

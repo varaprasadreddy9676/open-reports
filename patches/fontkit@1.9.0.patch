@@ -1,0 +1,152 @@
+diff --git a/dist/main.cjs b/dist/main.cjs
+index 2046e18ce54bd8bd8b80c2386332dd90724794a6..837060e9533d292662028280136a7435be50c2de 100644
+--- a/dist/main.cjs
++++ b/dist/main.cjs
+@@ -9920,8 +9920,7 @@ class $1ab772dcf2da50dd$export$2e2bcd8739ae039 extends $cca6af4639973976$export$
+                     if (baseIndex === -1) return false;
+                     let markRecord = table.markArray[markIndex];
+                     let baseAnchor = table.baseArray[baseIndex][markRecord.class];
+-                    this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+-                    return true;
++                    return this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+                 }
+             case 5:
+                 {
+@@ -9939,8 +9938,7 @@ class $1ab772dcf2da50dd$export$2e2bcd8739ae039 extends $cca6af4639973976$export$
+                     let compIndex = ligGlyph.ligatureID && ligGlyph.ligatureID === markGlyph.ligatureID && markGlyph.ligatureComponent > 0 ? Math.min(markGlyph.ligatureComponent, ligGlyph.codePoints.length) - 1 : ligGlyph.codePoints.length - 1;
+                     let markRecord = table.markArray[markIndex];
+                     let baseAnchor = ligAttach[compIndex][markRecord.class];
+-                    this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+-                    return true;
++                    return this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+                 }
+             case 6:
+                 {
+@@ -9964,8 +9962,7 @@ class $1ab772dcf2da50dd$export$2e2bcd8739ae039 extends $cca6af4639973976$export$
+                     if (mark2Index === -1) return false;
+                     let markRecord = table.mark1Array[mark1Index];
+                     let baseAnchor = table.mark2Array[mark2Index][markRecord.class];
+-                    this.applyAnchor(markRecord, baseAnchor, prevIndex);
+-                    return true;
++                    return this.applyAnchor(markRecord, baseAnchor, prevIndex);
+                 }
+             case 7:
+                 return this.applyContext(table);
+@@ -9978,6 +9975,7 @@ class $1ab772dcf2da50dd$export$2e2bcd8739ae039 extends $cca6af4639973976$export$
+         }
+     }
+     applyAnchor(markRecord, baseAnchor, baseGlyphIndex) {
++        if (!baseAnchor || !markRecord.markAnchor) return false;
+         let baseCoords = this.getAnchor(baseAnchor);
+         let markCoords = this.getAnchor(markRecord.markAnchor);
+         let basePos = this.positions[baseGlyphIndex];
+@@ -9985,6 +9983,7 @@ class $1ab772dcf2da50dd$export$2e2bcd8739ae039 extends $cca6af4639973976$export$
+         markPos.xOffset = baseCoords.x - markCoords.x;
+         markPos.yOffset = baseCoords.y - markCoords.y;
+         this.glyphIterator.cur.markAttachment = baseGlyphIndex;
++        return true;
+     }
+     getAnchor(anchor) {
+         // TODO: contour point, device tables
+diff --git a/dist/module.mjs b/dist/module.mjs
+index d782bfa7053760e5a6ef309956cb3dbfef42b8e0..fe7edb8f9cc4a08d48bd6327fcf650f0aeefe08d 100644
+--- a/dist/module.mjs
++++ b/dist/module.mjs
+@@ -9893,8 +9893,7 @@ class $d1645ec9e32ddac0$export$2e2bcd8739ae039 extends $cffd0e0e7e88a6c6$export$
+                     if (baseIndex === -1) return false;
+                     let markRecord = table.markArray[markIndex];
+                     let baseAnchor = table.baseArray[baseIndex][markRecord.class];
+-                    this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+-                    return true;
++                    return this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+                 }
+             case 5:
+                 {
+@@ -9912,8 +9911,7 @@ class $d1645ec9e32ddac0$export$2e2bcd8739ae039 extends $cffd0e0e7e88a6c6$export$
+                     let compIndex = ligGlyph.ligatureID && ligGlyph.ligatureID === markGlyph.ligatureID && markGlyph.ligatureComponent > 0 ? Math.min(markGlyph.ligatureComponent, ligGlyph.codePoints.length) - 1 : ligGlyph.codePoints.length - 1;
+                     let markRecord = table.markArray[markIndex];
+                     let baseAnchor = ligAttach[compIndex][markRecord.class];
+-                    this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+-                    return true;
++                    return this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+                 }
+             case 6:
+                 {
+@@ -9937,8 +9935,7 @@ class $d1645ec9e32ddac0$export$2e2bcd8739ae039 extends $cffd0e0e7e88a6c6$export$
+                     if (mark2Index === -1) return false;
+                     let markRecord = table.mark1Array[mark1Index];
+                     let baseAnchor = table.mark2Array[mark2Index][markRecord.class];
+-                    this.applyAnchor(markRecord, baseAnchor, prevIndex);
+-                    return true;
++                    return this.applyAnchor(markRecord, baseAnchor, prevIndex);
+                 }
+             case 7:
+                 return this.applyContext(table);
+@@ -9951,6 +9948,7 @@ class $d1645ec9e32ddac0$export$2e2bcd8739ae039 extends $cffd0e0e7e88a6c6$export$
+         }
+     }
+     applyAnchor(markRecord, baseAnchor, baseGlyphIndex) {
++        if (!baseAnchor || !markRecord.markAnchor) return false;
+         let baseCoords = this.getAnchor(baseAnchor);
+         let markCoords = this.getAnchor(markRecord.markAnchor);
+         let basePos = this.positions[baseGlyphIndex];
+@@ -9958,6 +9956,7 @@ class $d1645ec9e32ddac0$export$2e2bcd8739ae039 extends $cffd0e0e7e88a6c6$export$
+         markPos.xOffset = baseCoords.x - markCoords.x;
+         markPos.yOffset = baseCoords.y - markCoords.y;
+         this.glyphIterator.cur.markAttachment = baseGlyphIndex;
++        return true;
+     }
+     getAnchor(anchor) {
+         // TODO: contour point, device tables
+diff --git a/src/opentype/GPOSProcessor.js b/src/opentype/GPOSProcessor.js
+index 6a2c1f9fc9a027f17e51fb1690dea7a809cd5893..13a515b50dd06ed008bb6d88dc26b3bfd850d61f 100644
+--- a/src/opentype/GPOSProcessor.js
++++ b/src/opentype/GPOSProcessor.js
+@@ -176,8 +176,7 @@ export default class GPOSProcessor extends OTProcessor {
+ 
+         let markRecord = table.markArray[markIndex];
+         let baseAnchor = table.baseArray[baseIndex][markRecord.class];
+-        this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+-        return true;
++        return this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+       }
+ 
+       case 5: { // Mark to ligature positioning
+@@ -208,8 +207,7 @@ export default class GPOSProcessor extends OTProcessor {
+ 
+         let markRecord = table.markArray[markIndex];
+         let baseAnchor = ligAttach[compIndex][markRecord.class];
+-        this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+-        return true;
++        return this.applyAnchor(markRecord, baseAnchor, baseGlyphIndex);
+       }
+ 
+       case 6: { // Mark to mark positioning
+@@ -254,8 +252,7 @@ export default class GPOSProcessor extends OTProcessor {
+ 
+         let markRecord = table.mark1Array[mark1Index];
+         let baseAnchor = table.mark2Array[mark2Index][markRecord.class];
+-        this.applyAnchor(markRecord, baseAnchor, prevIndex);
+-        return true;
++        return this.applyAnchor(markRecord, baseAnchor, prevIndex);
+       }
+ 
+       case 7: // Contextual positioning
+@@ -273,6 +270,9 @@ export default class GPOSProcessor extends OTProcessor {
+   }
+ 
+   applyAnchor(markRecord, baseAnchor, baseGlyphIndex) {
++    // OpenType permits a null anchor when this mark class has no attachment
++    // on the selected base. Leave the mark unpositioned for this lookup.
++    if (!baseAnchor || !markRecord.markAnchor) return false;
+     let baseCoords = this.getAnchor(baseAnchor);
+     let markCoords = this.getAnchor(markRecord.markAnchor);
+ 
+@@ -282,6 +282,7 @@ export default class GPOSProcessor extends OTProcessor {
+     markPos.xOffset = baseCoords.x - markCoords.x;
+     markPos.yOffset = baseCoords.y - markCoords.y;
+     this.glyphIterator.cur.markAttachment = baseGlyphIndex;
++    return true;
+   }
+ 
+   getAnchor(anchor) {

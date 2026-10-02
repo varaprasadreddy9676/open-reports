@@ -18,10 +18,10 @@
     "dev": "node scripts/dev.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.4",
     "@types/node": "^22.9.0",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   },
   "packageManager": "pnpm@10.28.0",
   "engines": {
@@ -31,6 +31,9 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "better-sqlite3"
-    ]
+    ],
+    "patchedDependencies": {
+      "fontkit@1.9.0": "patches/fontkit@1.9.0.patch"
+    }
   }
 }

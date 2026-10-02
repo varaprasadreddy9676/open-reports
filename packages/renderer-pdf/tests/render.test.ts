@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { fileURLToPath } from "node:url";
 import { parseReportDefinition } from "@reporting/schema";
 import { DataSourceRegistry, InlineDataSource, resolveReport } from "@reporting/core";
 import { PdfRenderer } from "../src/render.js";
@@ -121,6 +122,23 @@ describe("PdfRenderer", () => {
     const result = await renderer.render({ resolved: pipeline.resolved, resolvePageSection: pipeline.resolvePageSection });
     expect((result.content as Buffer).subarray(0, 5).toString()).toBe("%PDF-");
     expect(result.warnings).toEqual([]);
+  });
+
+  it("renders Telugu text with null OpenType mark anchors", async () => {
+    const telugu = "మా ఆసుపత్రికి స్వాగతం. దయచేసి ఈ పత్రాన్ని భద్రంగా ఉంచండి.";
+    const report = {
+      ...invoiceReport,
+      sections: [{ type: "detail", children: [{ type: "text", value: telugu, style: { fontSize: 12 } }] }],
+    };
+    const parsed = parseReportDefinition(report);
+    if (!parsed.valid) throw new Error("fixture invalid");
+    const pipeline = await resolveReport(parsed.report, { registry: registry(), parameters: {} });
+    const font = fileURLToPath(new URL("./fixtures/fonts/NotoSansTelugu-Regular.ttf", import.meta.url));
+    const renderer = new PdfRenderer({ fonts: { families: { Telugu: { regular: font } }, scriptFamilies: { telugu: "Telugu" } } });
+    const result = await renderer.render({ resolved: pipeline.resolved, resolvePageSection: pipeline.resolvePageSection });
+    const pdf = result.content as Buffer;
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect((await extractPdfText(pdf)).text).toMatch(/[ఀ-౿]/u);
   });
 
   it("flags a missing/unfetchable image with a warning instead of throwing", async () => {

@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  fontkit@1.9.0:
+    hash: 38d7ee92dad353ebb84674e209e0188f98b2fd5aa145d6a4b5314560320fd0e7
+    path: patches/fontkit@1.9.0.patch
+
 importers:
 
   .:
@@ -4332,7 +4337,7 @@ snapshots:
       locate-path: 5.0.0
       path-exists: 4.0.0
 
-  fontkit@1.9.0:
+  fontkit@1.9.0(patch_hash=38d7ee92dad353ebb84674e209e0188f98b2fd5aa145d6a4b5314560320fd0e7):
     dependencies:
       '@swc/helpers': 0.3.17
       brotli: 1.3.3
@@ -4900,7 +4905,7 @@ snapshots:
   pdfkit@0.15.2:
     dependencies:
       crypto-js: 4.2.0
-      fontkit: 1.9.0
+      fontkit: 1.9.0(patch_hash=38d7ee92dad353ebb84674e209e0188f98b2fd5aa145d6a4b5314560320fd0e7)
       jpeg-exif: 1.1.4
       linebreak: 1.1.0
       png-js: 1.1.0
