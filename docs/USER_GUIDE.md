@@ -37,7 +37,8 @@ For free-positioned elements inside the same absolute layout, select two or more
 ## 5. Printing and labels
 - **Page → Print & labels**: choose a preset (80/58 mm receipt, 50×30 or 100×50 mm label, wristband…). The panel shows the physical size and the dot size at the printer's DPI, and the safe area is drawn on the canvas.
 - QR/barcodes are checked for scannable size; **Fix** enlarges them.
-- **Preview → ZPL** (or *Export → ESC/POS receipt* for thermal receipt printers) shows the label program and warnings (for example non-Latin text needs a PDF/image label, since Zebra's built-in fonts are Latin). **Download .zpl** to send to a printer.
+- **Preview → ZPL** shows the label program and warnings (for example non-Latin text needs a PDF/image label, since Zebra's built-in fonts are Latin). **Download .zpl** to send to a printer.
+- For thermal bills, choose a 58 mm or 80 mm receipt preset, set the target to **ESC/POS**, then open **Preview → ESC/POS**. The continuous roll shows decoded printer output, line and cut counts, and renderer warnings. **Download .bin** saves those exact bytes. Check paper feed, character set, and cutting on the target printer before using it at a checkout.
 - **Sticker sheets**: insert **Label sheet**, pick a stock (e.g. A4 2×4), design **one** label inside it, fill from a dataset (one label per record) or repeat the same label. *Start at position* reuses a partly used sheet. Print at **Actual size**; use *Draw label outlines* on plain paper to check alignment.
 
 ## 5b. Watermarks, bookmarks, highlighting

@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import path from "node:path";
+import fs from "node:fs";
 
 const doc = (page: Page) => page.evaluate(() => (window as any).__designer.getState().doc);
 const st = (page: Page) => page.evaluate(() => {
@@ -13,6 +15,44 @@ async function absoluteForm(page: Page) {
 }
 
 test.describe("workspace", () => {
+  test("structure rail and tree keep a 24 px hierarchy with fixed action columns", async ({ page }) => {
+    await page.setViewportSize({ width: 1536, height: 1024 });
+    await absoluteForm(page);
+    await page.getByTestId("left-tab-layers").click();
+    const geometry = await page.evaluate(() => {
+      const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+      const labelX = (selector: string) => rect(`${selector} .layer-name`).x;
+      const actionX = (selector: string) => rect(`${selector} .layer-actions`).x;
+      const rail = rect(".workspace-rail");
+      const components = document.querySelector('[data-testid="left-tab-insert"] span:last-child') as HTMLElement;
+      return {
+        railWidth: rail.width,
+        componentsFits: components.scrollWidth <= components.clientWidth,
+        rowHeights: ["[data-testid=\"section-detail\"]", "[data-testid=\"layer-canvas\"]", "[data-testid=\"layer-title\"]"].map((selector) => rect(selector).height),
+        labels: [labelX('[data-testid="section-detail"]'), labelX('[data-testid="layer-canvas"]'), labelX('[data-testid="layer-title"]')],
+        actions: [actionX('[data-testid="layer-title"]'), actionX('[data-testid="layer-name"]')],
+        addSelectX: rect(".add-section select").x,
+      };
+    });
+    expect(geometry.railWidth).toBeGreaterThanOrEqual(88);
+    expect(geometry.railWidth).toBeLessThanOrEqual(96);
+    expect(geometry.componentsFits).toBe(true);
+    expect(geometry.rowHeights.every((height) => height >= 36 && height <= 40)).toBe(true);
+    expect(geometry.labels[1] - geometry.labels[0]).toBe(24);
+    expect(geometry.labels[2] - geometry.labels[1]).toBe(24);
+    expect(geometry.actions[0]).toBe(geometry.actions[1]);
+    expect(geometry.addSelectX).toBe(geometry.labels[0]);
+
+    await page.getByTestId("layer-title").click();
+    await page.getByTestId("layer-course").click({ modifiers: ["Shift"] });
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "04-sidebar-aligned-desktop.png") });
+    await page.setViewportSize({ width: 1120, height: 720 });
+    await expect(page.getByTestId("left-tab-insert")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "05-sidebar-aligned-laptop.png") });
+  });
+
   test("workspace rail switches semantic panels with pointer and keyboard", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-blank").click();

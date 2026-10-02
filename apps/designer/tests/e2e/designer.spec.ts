@@ -351,6 +351,33 @@ test.describe("preview and export formats", () => {
     await page.getByTestId("mode-preview").click();
     await expect(page.getByTestId("pdf-info")).toContainText(/[2-9] pages/);
   });
+
+  test("a 500-item thermal bill previews as one continuous ESC/POS roll", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-receipt-58mm").click();
+    const sale = (await doc(page)).datasets[0].query.data;
+    sale.items = Array.from({ length: 500 }, (_, index) => ({ name: `Item${String(index).padStart(4, "0")} Supermarket Flour 10kg`, qty: 1, price: 10 }));
+    await page.getByTestId("left-tab-data").click();
+    await page.getByRole("button", { name: "Edit sale" }).click();
+    await page.getByTestId("dataset-json").fill(JSON.stringify(sale));
+    await page.getByTestId("dataset-save").click();
+    await page.getByTestId("target-select").selectOption("escpos");
+    await page.getByTestId("mode-preview").click();
+    await expect(page.getByTestId("preview-tab-escpos")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("escpos-text")).toContainText("Item0000");
+    await expect(page.getByTestId("escpos-text")).toContainText("Item0499");
+    await expect(page.getByTestId("escpos-info")).toContainText("58 mm");
+    await expect(page.getByTestId("escpos-info")).toContainText("1 cut");
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "06-receipt-roll-preview.png") });
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-escpos").click()]);
+    expect(download.suggestedFilename()).toMatch(/^receipt-58mm(?:-[a-z0-9]+)?\.bin$/);
+    const file = path.join(os.tmpdir(), `receipt-${Date.now()}.bin`);
+    await download.saveAs(file);
+    const bytes = fs.readFileSync(file);
+    expect(bytes.subarray(-4)).toEqual(Buffer.from([0x1d, 0x56, 0x42, 0x00]));
+  });
 });
 
 test("publish creates an immutable published version", async ({ page }) => {

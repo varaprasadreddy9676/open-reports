@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { findComponentsByType } from "@reporting/core";
 import { CsvRenderer } from "@reporting/renderer-csv";
 import { ZplRenderer } from "@reporting/renderer-zpl";
+import { resolvePageGeometry } from "@reporting/layout";
 import { useStore } from "../store";
 import { withSampleData } from "../engine";
 import { api } from "../lib/api";
+import { decodeEscPos } from "../lib/escpos-preview";
 
 export type PreviewTab = "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos";
 
@@ -252,15 +254,66 @@ function ZplPreview() {
   );
 }
 
+function EscPosPreview() {
+  const { doc, sample } = useStore();
+  const [rendered, setRendered] = useState<{ blob: Blob; text: string; lines: number; cuts: number; warningCount: number }>();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(true);
+  const geometry = resolvePageGeometry(doc.page);
+  const widthMm = (geometry.width * 25.4) / 72;
+  const columns = Math.max(16, Math.floor(((geometry.width - geometry.margin.left - geometry.margin.right) / 72 * (doc.print?.dpi ?? 203)) / 12));
+
+  useEffect(() => {
+    let cancelled = false;
+    setBusy(true);
+    setRendered(undefined);
+    const timer = setTimeout(async () => {
+      try {
+        const { blob, warningCount } = await api.render(withSampleData(doc, sample), "escpos");
+        const decoded = decodeEscPos(new Uint8Array(await blob.arrayBuffer()));
+        if (cancelled) return;
+        setRendered({ blob, ...decoded, warningCount });
+        setError("");
+      } catch (reason) {
+        if (!cancelled) setError((reason as Error).message);
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [doc, sample]);
+
+  return (
+    <div className="preview-pane escpos-preview" data-testid="escpos-preview">
+      <div className="preview-bar">
+        <span data-testid="escpos-info">{busy ? "Rendering receipt…" : rendered ? `${widthMm.toFixed(0)} mm · ${columns} columns · ${rendered.lines} lines · ${rendered.cuts} cut · ${(rendered.blob.size / 1024).toFixed(1)} KB${rendered.warningCount ? ` · ${rendered.warningCount} warning${rendered.warningCount === 1 ? "" : "s"}` : ""}` : ""}</span>
+        <span className="spacer" />
+        <button className="btn" data-testid="download-escpos" disabled={!rendered || busy} onClick={() => rendered && downloadBlob(rendered.blob, `${doc.id || "receipt"}.bin`)}>Download .bin</button>
+      </div>
+      <p className="escpos-note">Decoded from the generated ESC/POS bytes. Verify paper feed, character set, and cutting on the target printer.</p>
+      {error ? <div className="field-error big" role="alert">{error}</div> : rendered ? (
+        <div className="receipt-scroll">
+          <div className="receipt-paper" style={{ width: `${columns + 2}ch` }}>
+            <pre data-testid="escpos-text">{rendered.text}</pre>
+            <div className="receipt-cut" aria-label="Cut after receipt">Cut after receipt</div>
+          </div>
+        </div>
+      ) : <div className="muted pad">Rendering receipt…</div>}
+    </div>
+  );
+}
+
 export function Preview() {
   const target = useStore((s) => s.target);
-  const [tab, setTab] = useState<PreviewTab>(target === "zpl" || target === "xlsx" || target === "csv" || target === "html" ? (target as PreviewTab) : "pdf");
+  const targetTab = (["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as string[]).includes(target) ? target as PreviewTab : "pdf";
+  const [tab, setTab] = useState<PreviewTab>(targetTab);
+  useEffect(() => setTab(targetTab), [targetTab]);
   return (
     <div className="preview" data-testid="preview">
       <div className="tabs sub" role="tablist">
-        {(["pdf", "html", "xlsx", "csv", "zpl"] as const).map((t) => (
+        {(["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`preview-tab-${t}`} onClick={() => setTab(t)}>
-            {t.toUpperCase()}
+            {t === "escpos" ? "ESC/POS" : t.toUpperCase()}
           </button>
         ))}
       </div>
@@ -269,6 +322,7 @@ export function Preview() {
       {tab === "xlsx" && <XlsxPreview />}
       {tab === "csv" && <CsvPreview />}
       {tab === "zpl" && <ZplPreview />}
+      {tab === "escpos" && <EscPosPreview />}
     </div>
   );
 }

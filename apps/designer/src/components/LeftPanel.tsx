@@ -315,8 +315,9 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
   return (
     <div>
       <div
-        className={`layer ${selected ? "selected" : ""} ${comp.hidden ? "is-hidden" : ""}`}
-        style={{ paddingLeft: 8 + depth * 14 }}
+        className={`layer explorer-row ${selected ? "selected" : ""} ${comp.hidden ? "is-hidden" : ""}`}
+        style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }}
+        data-depth={depth}
         draggable={!comp.locked}
         data-testid={`layer-${comp.id}`}
         onClick={(e) => st().select([comp.id], e.shiftKey)}
@@ -367,6 +368,7 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
             {comp.hidden ? "🙈" : "👁"}
           </button>
         </span>
+        <span className="layer-end" aria-hidden="true" />
       </div>
       {open && comp.type === "table" && (
         <>
@@ -377,9 +379,12 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
           ]
             .filter(Boolean)
             .map((label) => (
-              <div key={label as string} className="layer pseudo" style={{ paddingLeft: 8 + (depth + 1) * 14 }} onClick={() => st().select([comp.id])}>
+              <div key={label as string} className="layer explorer-row pseudo" style={{ paddingLeft: `calc(8px + ${depth + 1} * var(--explorer-indent))` }} data-depth={depth + 1} onClick={() => st().select([comp.id])}>
+                <span className="twisty" />
                 <span className="layer-type">▤</span>
                 <span className="layer-name muted">{label}</span>
+                <span className="layer-actions" />
+                <span className="layer-end" aria-hidden="true" />
               </div>
             ))}
         </>
@@ -400,10 +405,11 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
   return (
         <div>
           <div
-            className={`layer section ${selectedBand === i ? "selected" : ""} ${s.hidden ? "is-hidden" : ""}`}
+            className={`layer explorer-row section ${selectedBand === i ? "selected" : ""} ${s.hidden ? "is-hidden" : ""}`}
             data-testid={`section-${s.type}`}
             data-band-index={i}
-            style={{ paddingLeft: 8 + depth * 14 }}
+            data-depth={depth}
+            style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }}
             role="button"
             tabIndex={0}
             draggable={!s.locked}
@@ -455,7 +461,6 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
             }}>{s.collapsed ? "▸" : "▾"}</button>
             <span className="layer-type">{ops.BAND_CODES[s.type] ?? ""}</span>
             <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{ops.bandDisplayName(doc, s)}</span>
-            <span className="spacer" />
             <span className="layer-actions">
               <button className={`layer-btn ${s.locked ? "on" : ""}`} aria-label={s.locked ? "Unlock band layout" : "Lock band layout"} title={s.locked ? "Unlock band layout" : "Lock band layout"} data-testid={`explorer-lock-band-${i}`} onClick={(e) => {
                 e.stopPropagation();
@@ -501,11 +506,11 @@ function ExplorerNodeRow({ node, depth }: { node: ExplorerNode; depth: number })
     useStore.getState().set({ selectedBand: index >= 0 ? index : fallback >= 0 ? fallback : null, selection: [], rightOpen: true });
   };
   return <div className="explorer-group" data-testid={"explorer-group-" + node.id}>
-    <div className="layer" style={{ paddingLeft: 8 + depth * 14 }} title={group.by}>
+    <div className="layer explorer-row" style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }} data-depth={depth} title={group.by}>
       <button className="mini" aria-label={(open ? "Collapse " : "Expand ") + (group.name ?? group.id)} onClick={() => setOpen(!open)}>{open ? "▾" : "▸"}</button>
+      <span className="layer-type" aria-hidden="true">▦</span>
       <button className="explorer-group-name" onClick={selectGroup}>{group.name ?? group.id}</button>
-      <span className="spacer" />
-      <span className="muted small">{group.by}</span>
+      <span className="layer-actions" />
       <button className="mini danger" aria-label={"Remove group " + (group.name ?? group.id)} data-testid={"explorer-remove-group-" + group.id} disabled={(doc.sections ?? []).some((section: any) => section.groupId === group.id && section.locked)} onClick={() => {
         const st = useStore.getState();
         st.setDoc(ops.removeGroup(st.doc, group.id));
