@@ -81,12 +81,12 @@ export function Toolbar() {
         <button className="icon-btn" data-testid="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!past.length} onClick={() => s().undo()}>↶</button>
         <button className="icon-btn" data-testid="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled={!future.length} onClick={() => s().redo()}>↷</button>
         <span className="sep" />
-        <button className="icon-btn" aria-label="Zoom out" title="Zoom out" onClick={() => set({ zoom: Math.max(0.25, +(zoom - 0.1).toFixed(2)) })}>−</button>
+        <button className="icon-btn" aria-label="Zoom out" title="Zoom out" onClick={() => set({ zoom: Math.max(0.25, +(zoom - 0.1).toFixed(2)), fitToWidth: false })}>−</button>
         <span className="zoom-label" data-testid="zoom-label">{Math.round(zoom * 100)}%</span>
-        <button className="icon-btn" aria-label="Zoom in" title="Zoom in" onClick={() => set({ zoom: Math.min(3, +(zoom + 0.1).toFixed(2)) })}>+</button>
-        <button className="icon-btn" title="Fit page width" aria-label="Fit to width" onClick={() => set({ zoom: fitZoom() })}>⤢</button>
+        <button className="icon-btn" aria-label="Zoom in" title="Zoom in" onClick={() => set({ zoom: Math.min(3, +(zoom + 0.1).toFixed(2)), fitToWidth: false })}>+</button>
+        <button className="icon-btn" title="Fit page width" aria-label="Fit to width" onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>⤢</button>
         <button className="icon-btn" title="Zoom to selection" aria-label="Zoom to selection" onClick={() => zoomToSelection()}>◎</button>
-        <button className="icon-btn" title="Actual size (100%)" aria-label="Actual size" onClick={() => set({ zoom: 1 })}>1:1</button>
+        <button className="icon-btn" title="Actual size (100%)" aria-label="Actual size" onClick={() => set({ zoom: 1, fitToWidth: false })}>1:1</button>
         <span className="sep" />
         <div className="menu-wrap">
           <button className="btn" data-testid="btn-view" aria-haspopup="menu" aria-expanded={menu === "view"} onClick={() => setMenu(menu === "view" ? null : "view")}>View ▾</button>
@@ -226,10 +226,10 @@ export function zoomToSelection() {
   const id = s.selection[0];
   const el = id ? (document.querySelector(`[data-cid="${id}"]`) as HTMLElement | null) : null;
   const scroller = document.querySelector(".canvas-scroll") as HTMLElement | null;
-  if (!el || !scroller) return s.set({ zoom: fitZoom() });
+  if (!el || !scroller) return s.set({ zoom: fitZoom(), fitToWidth: true });
   const r = el.getBoundingClientRect();
   const factor = Math.min((scroller.clientWidth - 120) / r.width, (scroller.clientHeight - 120) / r.height, 4);
-  s.set({ zoom: Math.max(0.25, Math.min(3, +(s.zoom * factor).toFixed(2))) });
+  s.set({ zoom: Math.max(0.25, Math.min(3, +(s.zoom * factor).toFixed(2))), fitToWidth: false });
   requestAnimationFrame(() => document.querySelector(`[data-cid="${id}"]`)?.scrollIntoView({ block: "center", inline: "center" }));
 }
 
@@ -623,7 +623,7 @@ function useCommands(): Command[] {
       { id: "pagination", label: "Show pagination decisions", run: () => s().set({ bottom: "pagination" }) },
       { id: "history", label: "Show history", run: () => s().set({ bottom: "history" }) },
       { id: "data", label: "Open Data mode", run: () => s().set({ mode: "data" }) },
-      { id: "fit", label: "Zoom to fit width", run: () => s().set({ zoom: fitZoom() }) },
+      { id: "fit", label: "Zoom to fit width", run: () => s().set({ zoom: fitZoom(), fitToWidth: true }) },
       ...PALETTE_ITEMS.map((i) => ({ id: `add-${i.label}`, label: `Add ${i.label.toLowerCase()}`, run: () => insertFromPalette(i) })),
       ...((useStore.getState().doc.sections ?? []) as any[]).flatMap((sec) => (sec.children ?? []).map((c: any) => ({ id: `find-${c.id}`, label: `Find component: ${c.id}`, run: () => s().select([c.id]) }))),
     ];

@@ -13,6 +13,87 @@ const { sources: fixtures, renderDpi } = JSON.parse(fs.readFileSync(path.join(di
   renderDpi: number;
 };
 
+test("a real two-logo letterhead is composed and exported entirely through designer controls", async ({ page }) => {
+  test.setTimeout(90_000);
+  const fixture = fixtures.find((source) => source.key === "radiology")!;
+  const logo = (role: Logo["role"]) => path.join(directory, fixture.logos.find((item) => item.role === role)!.file);
+  const report = () => page.evaluate(() => (window as any).__designer.getState().doc);
+  await page.addInitScript(() => localStorage.setItem("designer.canvasView", "structure"));
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("page-1").click({ position: { x: 10, y: 10 } });
+  await page.getByTestId("properties").getByLabel("Margin left").fill("10");
+  await page.getByTestId("properties").getByLabel("Margin right").fill("10");
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId("explorer-add-trigger").click();
+  await page.getByTestId("explorer-add-band-pageHeader").click();
+  const headerIndex = (await report()).sections.findIndex((section: any) => section.type === "pageHeader");
+  await page.getByTestId("left-tab-insert").click();
+  await page.getByTestId("palette-row").click();
+  const rowId = (await report()).sections[headerIndex].children[0].id;
+  await page.getByTestId("properties").getByLabel("Width").fill("190mm");
+  await page.getByTestId("properties").getByLabel("Height").fill("32mm");
+  await page.getByTestId("properties").getByLabel("Align items").selectOption("center");
+  await page.getByTestId("properties").getByLabel("Justify content").selectOption("space-between");
+
+  const insertInRow = async (type: "image" | "text") => {
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId(`layer-${rowId}`).click();
+    await page.getByTestId("left-tab-insert").click();
+    await page.getByTestId(`palette-${type}`).click();
+  };
+  await insertInRow("image");
+  await page.getByTestId("properties").locator('input[type="file"]').setInputFiles(logo("left-brand"));
+  await page.getByTestId("properties").getByLabel("Width").fill("62mm");
+  await page.getByTestId("properties").getByLabel("Height").fill("27mm");
+
+  await insertInRow("text");
+  await page.getByTestId("value-text").fill("Custom radiology report header");
+  await page.getByTestId("properties").getByLabel("Width").fill("82mm");
+
+  await insertInRow("image");
+  await page.getByTestId("properties").locator('input[type="file"]').setInputFiles(logo("right-accreditation"));
+  await page.getByTestId("properties").getByLabel("Width").fill("22mm");
+  await page.getByTestId("properties").getByLabel("Height").fill("27mm");
+
+  const header = (await report()).sections[headerIndex];
+  expect(header.children[0].children.map((item: any) => item.type)).toEqual(["image", "text", "image"]);
+  expect(header.children[0].children.filter((item: any) => item.type === "image").every((item: any) => item.src.startsWith("data:image/png;base64,"))).toBe(true);
+  await expect(page.locator(".page img[data-cid]")).toHaveCount(2);
+  for (const image of await page.locator(".page img[data-cid]").all()) await expect(image).toBeInViewport({ ratio: 0.8 });
+  expect(await page.evaluate(() => (window as any).__designer.getState().engine.problems.filter((problem: any) => problem.severity === "error"))).toEqual([]);
+  const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  await page.screenshot({ path: path.join(screenshotDir, "31-ui-composed-radiology-header.png") });
+
+  const fitted = Number((await page.getByTestId("zoom-label").innerText()).replace("%", ""));
+  await page.getByRole("button", { name: "Hide properties" }).click();
+  await expect.poll(async () => Number((await page.getByTestId("zoom-label").innerText()).replace("%", ""))).toBeGreaterThan(fitted);
+  await page.getByRole("button", { name: "Show properties" }).click();
+  await expect(page.getByTestId("zoom-label")).toHaveText(`${fitted}%`);
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  const manual = await page.getByTestId("zoom-label").innerText();
+  await page.getByRole("button", { name: "Hide properties" }).click();
+  await expect(page.getByTestId("zoom-label")).toHaveText(manual);
+  await page.getByRole("button", { name: "Show properties" }).click();
+  await page.reload();
+  await expect(page.locator(".page img[data-cid]")).toHaveCount(2);
+  for (const image of await page.locator(".page img[data-cid]").all()) await expect(image).toBeInViewport({ ratio: 0.8 });
+
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-info")).toContainText("1 page");
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-pdf").click()]);
+  const pdfFile = path.join(os.tmpdir(), `open-reports-ui-letterhead-${Date.now()}.pdf`);
+  await download.saveAs(pdfFile);
+  try {
+    expect(execFileSync("pdftotext", [pdfFile, "-"], { encoding: "utf8" })).toContain("Custom radiology report header");
+    const images = execFileSync("pdfimages", ["-list", pdfFile], { encoding: "utf8" }).trim().split("\n").slice(2);
+    expect(images.filter((line) => /^\s*1\s+/.test(line))).toHaveLength(2);
+  } finally {
+    fs.unlinkSync(pdfFile);
+  }
+});
+
 for (const fixture of fixtures) {
   test(`real ${fixture.key} logos can form a new editable header`, async ({ page }) => {
     test.setTimeout(90_000);

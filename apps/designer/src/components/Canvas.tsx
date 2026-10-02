@@ -16,6 +16,7 @@ import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
 import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 import { PageBreakDetails } from "./PageBreakDetails";
 import { PdfPreview } from "./Preview";
+import { fitZoom } from "../lib/zoom";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
@@ -215,7 +216,7 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode } = useStore();
+  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode } = useStore();
   const k = PT * zoom;
   const structure = canvasView === "structure" ? engine.structure : undefined;
   const paginated = structure ?? engine.paginated;
@@ -230,6 +231,20 @@ export function Canvas() {
   const selSet = useMemo(() => new Set(selection), [selection]);
 
   const pageEls = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!fitToWidth || !el || !paginated) return;
+    const sync = () => {
+      const next = fitZoom(paginated.pageSize.width);
+      const state = useStore.getState();
+      if (state.fitToWidth && state.zoom !== next) state.set({ zoom: next });
+    };
+    const observer = new ResizeObserver(sync);
+    observer.observe(el);
+    sync();
+    return () => observer.disconnect();
+  }, [fitToWidth, paginated?.pageSize.width]);
 
   function pagePoint(clientX: number, clientY: number, page: number) {
     const el = pageEls.current[page];

@@ -70,6 +70,7 @@ interface State {
   mode: Mode;
   leftTab: LeftTab;
   zoom: number;
+  fitToWidth: boolean;
   showGrid: boolean;
   snap: boolean;
   showRulers: boolean;
@@ -229,6 +230,7 @@ export const useStore = create<State>((set, get) => ({
   mode: "design",
   leftTab: "insert",
   zoom: 1,
+  fitToWidth: false,
   showGrid: false,
   snap: true,
   showRulers: true,
@@ -291,7 +293,7 @@ export const useStore = create<State>((set, get) => ({
 
   loadDoc(doc, meta = {}, sample = {}) {
     const d = ops.ensureIds(doc);
-    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved", showPagination: false });
+    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
     persistDraft(d, sample);
     get().refresh();
   },
