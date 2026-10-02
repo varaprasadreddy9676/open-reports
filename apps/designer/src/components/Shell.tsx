@@ -331,6 +331,7 @@ function PaginationPanel() {
     <div className="pagination-panel" data-testid="pagination-panel">
       <div className="pg-summary">
         <strong>{pag.pages.length} page{pag.pages.length === 1 ? "" : "s"}</strong>
+        <span className="muted" data-testid="pagination-source">{engine.paginationSource === "pdf" ? "PDF font layout" : "Estimated font layout"}</span>
         <span className="muted">Printable area {mm(pag.pageSize.width - pag.margin.left - pag.margin.right)} × {mm(pag.pageSize.height - pag.margin.top - pag.margin.bottom)}</span>
       </div>
       {pag.decisions.length === 0 && <div className="muted pad">The layout engine made no break decisions - everything fits.</div>}

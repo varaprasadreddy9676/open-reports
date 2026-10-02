@@ -352,6 +352,24 @@ describe("analyze", () => {
     expect(body.decisions.some((d: any) => d.kind === "table-split")).toBe(true);
   });
 
+  it("can return the same font-measured page layout used for PDF rendering", async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => ({ name: i % 3 === 0 ? `Investigation ${i} ${"Long clinical description. ".repeat(8)} తెలుగు` : `Investigation ${i}` }));
+    const report = {
+      schemaVersion: "1.0", id: "pdf-layout", name: "PDF layout",
+      datasets: [{ id: "items", source: "inline", query: { data: rows } }],
+      sections: [{ type: "detail", children: [{ id: "items-table", type: "table", dataset: "items", repeatHeaderOnPageBreak: true, columns: [{ id: "name", header: "Name", binding: "row.name" }] }] }],
+    };
+    const analyzed = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report, includeLayout: true } });
+    expect(analyzed.statusCode).toBe(200);
+    const body = analyzed.json();
+    expect(body.paginated.pages).toHaveLength(body.pageCount);
+    expect(body.paginated.decisions).toEqual(body.decisions);
+    expect(body.paginated.pages.some((page: any) => page.content.some((node: any) => node.rowRange))).toBe(true);
+    const rendered = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "pdf" } });
+    expect(rendered.statusCode).toBe(200);
+    expect((rendered.rawPayload.toString("latin1").match(/\/Type \/Page(?![s\w])/g) ?? [])).toHaveLength(body.pageCount);
+  });
+
   it("reports schema problems with paths instead of failing", async () => {
     const res = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report: { schemaVersion: "1.0", id: "x" } } });
     expect(res.json()).toMatchObject({ valid: false, stage: "schema" });

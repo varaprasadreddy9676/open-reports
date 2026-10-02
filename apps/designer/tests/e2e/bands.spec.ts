@@ -9,6 +9,7 @@ const addBand = async (page: Page, type: string) => { await page.getByTestId("ex
 const addGroup = async (page: Page) => { await page.getByTestId("explorer-add-trigger").click(); await page.getByTestId("explorer-add-group").click(); };
 
 async function dropInBand(page: Page, source: string, index: number) {
+  await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engineBusy)).toBe(false);
   const target = page.getByTestId(`band-${index}`).first();
   await target.scrollIntoViewIfNeeded();
   const band = (await target.boundingBox())!;

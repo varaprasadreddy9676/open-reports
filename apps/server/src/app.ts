@@ -135,7 +135,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   // --- Analyze: validation + real pagination, without producing a file. Built for the designer and AI tools. ---
   app.post("/api/v1/analyze", async (request, reply) => {
-    const body = request.body as { report: unknown; parameters?: Record<string, unknown>; data?: Record<string, unknown> };
+    const body = request.body as { report: unknown; parameters?: Record<string, unknown>; data?: Record<string, unknown>; includeLayout?: boolean };
     const parsed = parseReportDefinition(body?.report);
     if (!parsed.valid) return reply.send({ valid: false, stage: "schema", issues: parsed.issues.map((i) => ({ ...i, severity: "error" as const })) });
     const validation = validateReport(parsed.report);
@@ -154,6 +154,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
         pageSize: paginated?.pageSize,
         decisions: paginated?.decisions ?? [],
         pages: paginated?.pages.map((p) => ({ number: p.number, zones: p.zones, master: p.master })),
+        ...(body.includeLayout ? { paginated } : {}),
       });
     } catch (err) {
       reply.code(422).send({ error: { code: "ANALYZE_FAILED", message: err instanceof Error ? err.message : String(err) } });

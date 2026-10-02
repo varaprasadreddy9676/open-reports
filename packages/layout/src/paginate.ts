@@ -2,7 +2,7 @@ import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, Resolve
 import type { TextMeasurer } from "./measure.js";
 import { defaultTextMeasurer } from "./measure.js";
 import { resolvePageGeometry } from "./units.js";
-import { layoutComponent, marginOf, measureFooterHeight, measureHeaderHeight, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
+import { layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
 import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
 
 export interface PaginateOptions {
@@ -386,7 +386,8 @@ function placeTable(
 ): void {
   const columnWidths = resolveColumnWidths(table, width);
   const rowHeights = measureTableRowHeights(table, columnWidths, measurer);
-  const headerHeight = table.showHeader ? measureHeaderHeight(table, measurer, columnWidths) : 0;
+  const headerRowHeights = table.showHeader ? measureHeaderRowHeights(table, columnWidths, measurer) : [];
+  const headerHeight = headerRowHeights.reduce((sum, height) => sum + height, 0);
   const footerHeight = table.showFooter ? measureFooterHeight(table, measurer) : 0;
   const tid = (table as any).id as string | undefined;
 
@@ -422,6 +423,7 @@ function placeTable(
       component: { ...table, showHeader: showHeaderOnThisSlice, showFooter: includeFooter },
       box: { x: 0, y: 0, width, height },
       rowRange: { start: sliceStart, end },
+      tableMetrics: { headerRowHeights, rowHeights },
     };
     placer.place(node, height);
     sliceStart = end;

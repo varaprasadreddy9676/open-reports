@@ -77,6 +77,8 @@ describe("paginate: table row-splitting boundaries", () => {
 
     const page1Table = result.pages[0]!.content[0]!;
     expect(page1Table.rowRange).toEqual({ start: 0, end: 30 });
+    expect(page1Table.tableMetrics).toMatchObject({ headerRowHeights: [19], rowHeights: expect.arrayContaining([17]) });
+    expect(page1Table.tableMetrics?.rowHeights).toHaveLength(31);
     expect((page1Table.component as ResolvedTableComponent).showHeader).toBe(true);
 
     const page2Table = result.pages[1]!.content[0]!;

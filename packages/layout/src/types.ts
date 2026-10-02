@@ -13,6 +13,8 @@ export interface PositionedNode {
   children?: PositionedNode[];
   /** For a table split across pages: only this slice of `rows` is rendered on this page. */
   rowRange?: { start: number; end: number };
+  /** Measured with the paginator's font metrics; lets visual clients draw table rows at the same heights. */
+  tableMetrics?: { headerRowHeights: number[]; rowHeights: number[] };
 }
 
 export interface PageZones {

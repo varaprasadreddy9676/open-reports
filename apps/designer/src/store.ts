@@ -444,9 +444,9 @@ export const useStore = create<State>((set, get) => ({
 
   async refresh() {
     clearTimeout(timer);
+    const run = ++engineRun;
+    set({ engineBusy: true });
     timer = setTimeout(async () => {
-      const run = ++engineRun;
-      set({ engineBusy: true });
       const { doc: realDoc, aiProposal, sample, parameters, sampleRows, target, capabilities, ghosts } = get();
       // While an AI proposal awaits approval the canvas shows the proposed result; nothing is committed until Accept.
       const doc = aiProposal?.doc ?? realDoc;

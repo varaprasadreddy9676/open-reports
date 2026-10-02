@@ -13,6 +13,7 @@ import { layoutStructure, paginate, type PaginatedReport, type PositionedNode, t
 import { findByPath, type Doc } from "./model/ops";
 import { datasetValue } from "./lib/fields";
 import { checkSchemaPreview, schemaIssueMessage } from "./lib/schema-preview";
+import { api } from "./lib/api";
 
 export interface Fix {
   label: string;
@@ -55,6 +56,7 @@ export interface EngineResult {
   structure?: StructureLayout;
   resolvePageSection?: PageSectionResolver;
   problems: Problem[];
+  paginationSource?: "pdf" | "estimate";
 }
 
 /** Turns every dataset into an inline dataset, using sample data where provided.
@@ -159,7 +161,19 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     for (const w of pipeline.resolved.warnings) {
       problems.push({ severity: w.code === "COMPONENT_ERROR" ? "error" : w.code === "UNKNOWN_CUSTOM_COMPONENT" ? "suggestion" : "warning", code: w.code, message: w.message, path: w.path, componentId: w.componentId });
     }
-    const paginated = paginate(pipeline.resolved, { resolvePageDependentSection: pipeline.resolvePageSection });
+    let paginated = paginate(pipeline.resolved, { resolvePageDependentSection: pipeline.resolvePageSection });
+    let paginationSource: EngineResult["paginationSource"] = "estimate";
+    try {
+      const analyzed = await api.analyze(effective, parameters);
+      if (analyzed.paginated) {
+        paginated = analyzed.paginated;
+        paginationSource = "pdf";
+      } else {
+        problems.push({ severity: "warning", code: "PDF_PAGINATION_UNAVAILABLE", message: "Using estimated text measurements because the reporting server did not return a PDF page layout." });
+      }
+    } catch (error) {
+      problems.push({ severity: "warning", code: "PDF_PAGINATION_UNAVAILABLE", message: `Using estimated text measurements because PDF pagination could not be reached: ${error instanceof Error ? error.message : String(error)}` });
+    }
     for (const w of paginated.warnings) {
       if (!pipeline.resolved.warnings.some((x) => x.code === w.code && x.message === w.message)) {
         problems.push({ severity: "warning", code: w.code, message: w.message, path: w.path, componentId: w.path });
@@ -176,7 +190,7 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     } catch {
       /* the structure view falls back to the paginated pages */
     }
-    return { resolved: pipeline.resolved, paginated, structure, resolvePageSection: pipeline.resolvePageSection, problems };
+    return { resolved: pipeline.resolved, paginated, structure, resolvePageSection: pipeline.resolvePageSection, problems, paginationSource };
   } catch (err) {
     problems.push({ severity: "error", code: "ENGINE_FAILED", message: err instanceof Error ? err.message : String(err) });
     return { problems };

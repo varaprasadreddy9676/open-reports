@@ -42,10 +42,8 @@ test("test data workspace runs boundary and stress scenarios without changing th
   expect(pages).toBeGreaterThan(1);
   const pdfPages = Number((await page.getByTestId("stress-result-100").innerText()).match(/PDF (\d+)/)?.[1]);
   expect(pdfPages).toBeGreaterThan(1);
-  if (pages !== pdfPages) {
-    await page.getByTestId("stress-result-100").locator("summary").click();
-    await expect(page.getByTestId("stress-result-100")).toContainText("Designer shows");
-  }
+  expect(pages).toBe(pdfPages);
+  await expect(page.getByTestId("stress-result-100")).not.toContainText("Designer shows");
   if (process.env.UI_AUDIT_DIR) {
     fs.mkdirSync(process.env.UI_AUDIT_DIR, { recursive: true });
     await page.screenshot({ path: path.join(process.env.UI_AUDIT_DIR, "27-test-data-lab.png") });
@@ -76,6 +74,8 @@ test("test data workspace can render a 1,000-row scenario", async ({ page }) => 
   await group.getByLabel("1,000").check();
   await page.getByTestId("run-stress-tests").click();
   await expect(page.getByTestId("stress-result-1000")).toContainText(/\d+ pages · PDF \d+/, { timeout: 30_000 });
+  const summary = await page.getByTestId("stress-result-1000").innerText();
+  expect(summary.match(/(\d+) pages/)?.[1]).toBe(summary.match(/PDF (\d+)/)?.[1]);
 });
 
 test("Data parameter value reaches the real PDF preview", async ({ page }) => {
@@ -101,4 +101,11 @@ test("Data parameter value reaches the real PDF preview", async ({ page }) => {
   } finally {
     fs.unlinkSync(pdfFile);
   }
+});
+
+test("design pagination uses the PDF font layout and exposes its source", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("toggle-pagination").click();
+  await expect(page.getByTestId("pagination-source")).toHaveText("PDF font layout");
 });

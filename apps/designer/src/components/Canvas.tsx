@@ -134,8 +134,8 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
 function TableView({ node, k }: { node: PositionedNode; k: number }) {
   const t = node.component as any;
   const widths = resolveColumnWidths(t, node.box.width);
-  const headerHeights = measureHeaderRowHeights(t, widths, defaultTextMeasurer);
-  const rowHeights = measureTableRowHeights(t, widths, defaultTextMeasurer);
+  const headerHeights = node.tableMetrics?.headerRowHeights ?? measureHeaderRowHeights(t, widths, defaultTextMeasurer);
+  const rowHeights = node.tableMetrics?.rowHeights ?? measureTableRowHeights(t, widths, defaultTextMeasurer);
   const spanGrid = tableCellSpanGrid(t.cellSpans ?? []);
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? t.rows.length;
