@@ -3,6 +3,7 @@ import { Parser } from "@reporting/expressions";
 import { ROW_RELATIVE_SOURCE, type Component } from "./resolve-component.js";
 import { tableHeaderGridErrors } from "./table-header.js";
 import { PAGE_BAND_TYPES, validateRules } from "./rule-validation.js";
+import { validateGapToken, validateRuleThemeValues, validateStyleTokens, validateTextStyleRef, validateTheme } from "./theme-validation.js";
 import { tableCellSpanErrors } from "./table-cell-spans.js";
 
 export interface ValidationIssue {
@@ -56,6 +57,7 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
     }
     walkComponents(section.children as Component[], sectionPath, {
       pageBand: PAGE_BAND_TYPES.has(section.type),
+      theme: report.theme,
       fragmentIds,
       datasetIds,
       issues,
@@ -65,6 +67,7 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
   });
 
   validateBands(report, issues);
+  validateTheme(report.theme, issues);
 
   for (const f of report.fragments) {
     walkComponents(f.children as Component[], `fragments.${f.id}`, { fragmentIds, datasetIds, issues, seenComponentIds: new Set(), targetRenderers: options.targetRenderers });
@@ -116,6 +119,7 @@ function closest(target: string, candidates: string[]): string | undefined {
 interface WalkCtx {
   /** Inside a page header, footer or background (page-dependent rules allowed). */
   pageBand?: boolean;
+  theme?: ReportDefinition["theme"];
   fragmentIds: Set<string>;
   datasetIds: Set<string>;
   issues: ValidationIssue[];
@@ -132,6 +136,12 @@ function walkComponents(components: Component[] | undefined, path: string, ctx: 
 
 function validateComponent(component: Component, path: string, ctx: WalkCtx): void {
   validateRules(component.rules, path, { kind: "component", type: component.type }, ctx.pageBand ?? false, ctx.issues, component.id);
+  validateStyleTokens(component.style, ctx.theme, `${path}.style`, ctx.issues, component.id);
+  validateGapToken(component.gap, ctx.theme, `${path}.gap`, ctx.issues, component.id);
+  if (component.textStyle !== undefined) validateTextStyleRef(component.textStyle, ctx.theme, `${path}.textStyle`, ctx.issues, component.id);
+  validateRuleThemeValues(component.rules, ctx.theme, path, ctx.issues, component.id);
+  (component.styleWhen as { style: Record<string, unknown> }[] | undefined)?.forEach((rule, index) => validateStyleTokens(rule.style, ctx.theme, `${path}.styleWhen[${index}].style`, ctx.issues, component.id));
+  if (component.type === "table") (component.rowStyleWhen as { style: Record<string, unknown> }[] | undefined)?.forEach((rule, index) => validateStyleTokens(rule.style, ctx.theme, `${path}.rowStyleWhen[${index}].style`, ctx.issues, component.id));
   if (component.id) {
     if (ctx.seenComponentIds.has(component.id)) {
       ctx.issues.push({ severity: "error", code: "DUPLICATE_ID", path, message: `Duplicate component id "${component.id}".`, componentId: component.id });
@@ -295,6 +305,9 @@ function validateBands(report: ReportDefinition, issues: ValidationIssue[]): voi
     if (s.groupBy) parse(s.groupBy, `${path}.groupBy`);
     if (s.visibleWhen) parse(s.visibleWhen, `${path}.visibleWhen`);
     validateRules(s.rules, path, { kind: "band" }, PAGE_BAND_TYPES.has(s.type), issues);
+    validateStyleTokens(s.style as Record<string, unknown> | undefined, report.theme, `${path}.style`, issues);
+    validateGapToken(s.gap, report.theme, `${path}.gap`, issues);
+    validateRuleThemeValues(s.rules, report.theme, path, issues);
     if ((s.type === "groupHeader" || s.type === "groupFooter") && s.groupId && !groupIds.has(s.groupId)) {
       issues.push({ severity: "error", code: "UNKNOWN_GROUP", path, message: `Band refers to group "${s.groupId}", which is not declared in "groups".` });
     }

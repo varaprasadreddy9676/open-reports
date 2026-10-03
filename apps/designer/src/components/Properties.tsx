@@ -10,6 +10,7 @@ import { FormulaInput } from "./FormulaInput";
 import { InspectorSection as Section } from "./InspectorSection";
 import { removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
+import { textStyleFromStyle } from "../lib/theme-edit";
 import { fitZoom } from "../lib/zoom";
 import { SpacingFields } from "./SpacingFields";
 import { InspectorActions } from "./InspectorActions";
@@ -56,10 +57,16 @@ function Dim({ value, onChange, label, placeholder }: { value: unknown; onChange
 }
 
 function Color({ value, onChange, label }: { value: string | undefined; onChange: (v: string | undefined) => void; label: string }) {
+  const colors: Record<string, string> = useStore((st) => st.doc.theme?.colors) ?? {};
+  const shown = value?.startsWith("$") ? colors[value.slice(1)] : value;
   return (
     <span className="color">
-      <input type="color" aria-label={label} value={value && /^#[0-9a-f]{6}$/i.test(value) ? value : "#000000"} onChange={(e) => onChange(e.target.value)} />
+      <input type="color" aria-label={label} value={shown && /^#[0-9a-f]{6}$/i.test(shown) ? shown : "#000000"} onChange={(e) => onChange(e.target.value)} />
       <input aria-label={`${label} value`} placeholder="none" value={value ?? ""} onChange={(e) => onChange(e.target.value || undefined)} />
+      {Object.keys(colors).length > 0 && <select aria-label={`${label} theme colour`} value={value?.startsWith("$") ? value : ""} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">Theme…</option>
+        {Object.entries(colors).map(([name, colour]) => <option key={name} value={`$${name}`}>{`$${name} ${colour}`}</option>)}
+      </select>}
     </span>
   );
 }
@@ -379,11 +386,35 @@ function Typography({ comp }: { comp: ops.Comp }) {
   const doc = useStore((s) => s.doc);
   const bold = st.fontWeight === "bold" || (typeof st.fontWeight === "number" && st.fontWeight >= 600);
   const set = (p: Record<string, any>) => patchStyle(comp.id, p);
+  const textStyles = Object.keys(doc.theme?.textStyles ?? {});
+  const fontTokens = Object.keys(doc.theme?.fonts ?? {});
+  const sizeTokens = Object.keys(doc.theme?.fontSizes ?? {});
+  const saveAsTextStyle = () => {
+    const name = window.prompt("Name for the new text style", "style-1")?.trim();
+    if (!name) return;
+    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name) || doc.theme?.textStyles?.[name]) { useStore.getState().toast(`"${name}" is not a valid new text style name.`, "error"); return; }
+    const captured = textStyleFromStyle(st);
+    const rest = Object.fromEntries(Object.entries(st).filter(([key]) => !(key in captured)));
+    const s = useStore.getState();
+    const withStyle = { ...s.doc, theme: { ...(s.doc.theme ?? {}), textStyles: { ...(s.doc.theme?.textStyles ?? {}), [name]: captured } } };
+    s.setDoc(ops.update(withStyle, comp.id, { textStyle: name, style: Object.keys(rest).length ? rest : undefined }));
+  };
   return (
     <>
+      <Field label="Text style">
+        <span className="row-inline">
+          <select aria-label="Text style" data-testid="text-style" value={comp.textStyle ?? ""} onChange={(e) => useStore.getState().patch(comp.id, { textStyle: e.target.value || undefined })}>
+            <option value="">None</option>
+            {textStyles.map((name) => <option key={name} value={name}>{name}</option>)}
+            {comp.textStyle && !textStyles.includes(comp.textStyle) && <option value={comp.textStyle}>{comp.textStyle} (missing)</option>}
+          </select>
+          <button className="mini" data-testid="save-text-style" title="Save this component's text formatting as a reusable text style" onClick={saveAsTextStyle}>Save as style</button>
+        </span>
+      </Field>
       <Field label="Font">
         <select aria-label="Font family" value={st.fontFamily ?? ""} onChange={(e) => set({ fontFamily: e.target.value || undefined })}>
           <option value="">{doc.theme?.fonts?.body ?? "Default"}</option>
+          {fontTokens.map((name) => <option key={`token-${name}`} value={`$${name}`}>{`$${name} (${doc.theme?.fonts?.[name]})`}</option>)}
           {["Noto Sans", "Noto Sans Devanagari", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Tamil", "Noto Sans Arabic"].map((f) => (
             <option key={f}>{f}</option>
           ))}
@@ -391,7 +422,13 @@ function Typography({ comp }: { comp: ops.Comp }) {
       </Field>
       <div className="grid2">
         <Field label="Size">
-          <Num label="Font size" value={st.fontSize} min={4} onChange={(v) => set({ fontSize: v })} />
+          <span className="row-inline">
+            <Num label="Font size" value={typeof st.fontSize === "number" ? st.fontSize : undefined} min={4} onChange={(v) => set({ fontSize: v })} />
+            {sizeTokens.length > 0 && <select aria-label="Font size token" value={typeof st.fontSize === "string" ? st.fontSize : ""} onChange={(e) => set({ fontSize: e.target.value || undefined })}>
+              <option value="">pt</option>
+              {sizeTokens.map((name) => <option key={name} value={`$${name}`}>{`$${name}`}</option>)}
+            </select>}
+          </span>
         </Field>
         <Field label="Weight">
           <select aria-label="Font weight" value={bold ? "bold" : "normal"} onChange={(e) => set({ fontWeight: e.target.value === "bold" ? "bold" : undefined })}>
@@ -1237,6 +1274,7 @@ function PageProps() {
         <Field label="Body font">
           <input aria-label="Body font" value={doc.theme?.fonts?.body ?? ""} placeholder="Noto Sans" onChange={(e) => setTheme({ fonts: { ...(doc.theme?.fonts ?? {}), body: e.target.value || undefined } })} />
         </Field>
+        <button className="btn" data-testid="open-theme" onClick={() => useStore.getState().set({ dialog: "theme" })}>Edit theme…</button>
       </Section>}
       </InspectorTabs>
     </>

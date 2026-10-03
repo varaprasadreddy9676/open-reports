@@ -25,8 +25,6 @@ const DESIGN_ONLY = {
 const PLANNED = {
   allowRowSplit: "table rows are always kept whole; the designer hides the toggle",
   borderRadius: "no renderer draws rounded corners (plugin-clinic-pack statusBadge sets it)",
-  colors: "theme.colors is not applied by any renderer",
-  fontSizes: "theme.fontSizes is not applied by any renderer",
   itemLayout: "repeater itemLayout is ignored by layout",
   printAtBottom: "offered in section properties, but layout never anchors the band to the page bottom",
   resetOn: "variable reset scopes are not evaluated",

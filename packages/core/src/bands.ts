@@ -1,10 +1,11 @@
 import { applyOwnRules } from "./rules.js";
+import { resolveGapToken } from "./theme.js";
 import type { GroupDefinition, ReportDefinition, ReportSection } from "@reporting/schema";
 import { DATA_BAND_TYPES, PAGE_BAND_TYPES } from "@reporting/schema";
 import type { ExpressionEngine } from "@reporting/expressions";
 import type { ResolveContext } from "./context.js";
 import { computeGroupVariables } from "./variables.js";
-import { lookupDataset, resolveComponents, type ResolveEnv } from "./resolve-component.js";
+import { lookupDataset, resolveComponents, themeStyle, type ResolveEnv } from "./resolve-component.js";
 import type { BandMeta, ResolvedComponent } from "./resolved-report.js";
 
 export interface BandDeps {
@@ -112,12 +113,12 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       layout: s.layout,
       height: s.height,
       minHeight: s.minHeight,
-      gap: s.gap,
+      gap: resolveGapToken(s.gap, env.theme),
       wrap: s.wrap,
       alignItems: s.alignItems,
       justifyContent: s.justifyContent,
       columns: s.columns,
-      style: s.style,
+      style: themeStyle(s.style, env, s.id),
       pageBreakBefore: s.newPageBefore,
       pageBreakAfter: s.newPageAfter,
       keepTogether: s.keepTogether,

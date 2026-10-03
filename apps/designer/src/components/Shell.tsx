@@ -1,3 +1,4 @@
+import { ThemeDialogBody } from "./ThemeDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useStore, type Mode } from "../store";
 import { api, ApiError, settings, type TemplateRecord } from "../lib/api";
@@ -588,6 +589,7 @@ function useCommands(): Command[] {
       { id: "new", label: "New report...", run: () => s().set({ dialog: "new" }) },
       { id: "open", label: "Open report...", run: () => s().set({ dialog: "open" }) },
       { id: "dataset", label: "Create dataset", run: () => s().set({ dialog: "dataset", editingDataset: null }) },
+      { id: "theme", label: "Edit theme: colours, fonts, sizes, spacing and text styles", run: () => s().set({ dialog: "theme" }) },
       { id: "json", label: "Paste sample JSON to generate a report", run: () => s().set({ dialog: "generate" }) },
       { id: "undo", label: "Undo", hint: "Ctrl+Z", run: () => s().undo() },
       { id: "redo", label: "Redo", hint: "Ctrl+Shift+Z", run: () => s().redo() },
@@ -676,6 +678,12 @@ export function Dialogs() {
     return (
       <Modal wide onClose={() => set({ dialog: null })}>
         <PublishDialogBody />
+      </Modal>
+    );
+  if (dialog === "theme")
+    return (
+      <Modal wide onClose={() => set({ dialog: null })}>
+        <ThemeDialogBody />
       </Modal>
     );
   if (dialog === "block")

@@ -11,8 +11,11 @@ export const dimensionSchema = z.union([
 ]);
 export type Dimension = z.infer<typeof dimensionSchema>;
 
+/** A reference to a theme token, e.g. "$brand" (colors), "$heading" (fonts), "$xl" (fontSizes), "$md" (spacing). */
+export const tokenRefSchema = z.string().regex(/^\$[A-Za-z][A-Za-z0-9_-]*$/, "Use $name to reference a theme token.");
+
 export const colorSchema = z.string().regex(
-  /^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgba?\(.*\)|[a-zA-Z]+)$/,
+  /^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgba?\(.*\)|[a-zA-Z]+|\$[A-Za-z][A-Za-z0-9_-]*)$/,
   "Invalid color"
 );
 
@@ -33,13 +36,15 @@ export const borderSchema = z.union([
   }),
 ]);
 
+const spacingValueSchema = z.union([z.number(), tokenRefSchema]);
 export const spacingSchema = z.union([
   z.number(),
+  tokenRefSchema,
   z.object({
-    top: z.number().default(0),
-    right: z.number().default(0),
-    bottom: z.number().default(0),
-    left: z.number().default(0),
+    top: spacingValueSchema.default(0),
+    right: spacingValueSchema.default(0),
+    bottom: spacingValueSchema.default(0),
+    left: spacingValueSchema.default(0),
   }),
 ]);
 export type Spacing = z.infer<typeof spacingSchema>;
@@ -47,7 +52,7 @@ export type Spacing = z.infer<typeof spacingSchema>;
 export const styleSchema = z
   .object({
     fontFamily: z.string().optional(),
-    fontSize: z.number().optional(),
+    fontSize: z.union([z.number(), tokenRefSchema]).optional(),
     fontWeight: z.union([z.enum(["normal", "bold"]), z.number()]).optional(),
     italic: z.boolean().optional(),
     underline: z.boolean().optional(),
@@ -86,7 +91,7 @@ export const componentBaseSchema = z.object({
   /** Hidden elements are not rendered in any output format. */
   hidden: z.boolean().optional(),
   /** Auto-layout (container children): space between children, cross-axis alignment, main-axis distribution. */
-  gap: z.number().nonnegative().optional(),
+  gap: z.union([z.number().nonnegative(), tokenRefSchema]).optional(),
   /** Move row children to another line when their widths cannot fit together. */
   wrap: z.boolean().optional(),
   alignItems: z.enum(["start", "center", "end", "stretch"]).optional(),
@@ -105,6 +110,8 @@ export const componentBaseSchema = z.object({
   width: dimensionSchema.optional(),
   height: dimensionSchema.optional(),
   style: styleSchema.optional(),
+  /** Name of a text style in `theme.textStyles`, applied beneath this component's own style. */
+  textStyle: z.string().optional(),
   styleWhen: styleWhenSchema.optional(),
   visibleWhen: z.string().optional(),
   /** Conditional property overrides, evaluated in order (see rules.ts). */

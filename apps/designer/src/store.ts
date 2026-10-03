@@ -120,7 +120,7 @@ interface State {
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish";
+  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;

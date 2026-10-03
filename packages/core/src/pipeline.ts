@@ -8,7 +8,7 @@ import { executeDatasets, type DatasetExecutionIssue } from "./datasets.js";
 import { computeReportVariables } from "./variables.js";
 import { PAGE_BAND_TYPES } from "@reporting/schema";
 import { expandBodyBands } from "./bands.js";
-import { lookupDataset, resolveComponents, type CustomComponentExpander, type ResolveEnv } from "./resolve-component.js";
+import { lookupDataset, resolveComponents, themeStyle, type CustomComponentExpander, type ResolveEnv } from "./resolve-component.js";
 import type { ResolvedComponent, ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
 import type { ResolveContext } from "./context.js";
 
@@ -123,6 +123,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     fragments,
     customComponents: options.customComponents,
     decisions,
+    theme: report.theme,
   });
 
   /** A page band's own rules decide whether it prints; in the per-page pass they also see `page.*`. */
@@ -147,7 +148,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       repeat: section.repeat,
       sourceIndex: index,
       appliesTo: section.appliesTo,
-      style: section.style,
+      style: themeStyle(section.style, makeEnv(`sections[${index}]`), section.id),
       children: pageBandChildren(index, baseCtx, makeEnv(`sections[${index}]`)),
     });
   });
@@ -190,6 +191,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       fragments,
       customComponents: options.customComponents,
       decisions,
+      theme: report.theme,
     };
     return pageBandChildren(section.sourceIndex, { ...baseCtx, page: pageFacts(page) }, env);
   };

@@ -105,6 +105,28 @@ See `examples/` for complete, working definitions of each feature.
 
 Table merge coordinates are zero-based. Body `row` positions refer to resolved rows **after** filtering and sorting. The top-left cell supplies the merged value; covered values are suppressed and a warning is emitted when they differ. Vertical body merges move as a unit at page breaks; a merge taller than one printable page fails explicitly.
 
+## Theme, tokens and text styles
+
+`theme` holds reusable values:
+- `colors`, `fonts` (font families), `fontSizes` and `spacing` (points), each a name → value table;
+- `textStyles`: named partial styles;
+- `locale`, `currency` and `timezone`.
+
+**Using tokens.**
+- A style refers to a token as `"$name"`. The property decides which table is read:
+  - `color`, `background` and border colours → `colors`;
+  - `fontFamily` → `fonts`;
+  - `fontSize` → `fontSizes`;
+  - `padding`, `margin` (or any of their sides) and `gap` → `spacing`.
+- `"textStyle": "title"` applies a text style beneath the component's own style, so the component's own properties win. Text styles may use tokens too.
+- Tokens and text styles are resolved after conditional rules, so rules can set `"style.color": "$danger"` or `"textStyle": "warning"`. Every renderer receives final values.
+
+**Errors.**
+- Validation reports `THEME_UNKNOWN_TOKEN` and `THEME_UNKNOWN_TEXT_STYLE` at the exact path, including inside rules, `styleWhen` and the theme's own text styles.
+- At render time an unknown token is left unset, with a warning, and is never passed to a renderer.
+
+**In the designer.** **Edit theme…** (report properties, or the command palette) manages tokens and text styles. Renaming one updates every reference in the report, and deleting one in use asks first.
+
 ## Conditional rules
 
 Any component and any band may declare `rules`. A rule changes properties of the object it is declared on when its condition holds. Rules run in order; when two rules set the same property, the later one wins.

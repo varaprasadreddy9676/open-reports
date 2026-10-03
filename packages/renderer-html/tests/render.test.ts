@@ -209,4 +209,17 @@ describe("watermark", () => {
     expect(html).toContain("&lt;DRAFT&gt;");
     expect(html).not.toContain("<DRAFT>");
   });
+
+  it("renders theme tokens and named text styles as their resolved values", async () => {
+    const html = String((await renderReport({
+      schemaVersion: "1.0", id: "themed", name: "Themed",
+      theme: { colors: { brand: "#b91c1c" }, fonts: { heading: "Georgia" }, fontSizes: { xl: 18 }, textStyles: { title: { color: "$brand", fontSize: "$xl", fontFamily: "$heading" } } },
+      sections: [{ type: "detail", children: [{ type: "text", value: "Themed heading", textStyle: "title" }] }],
+    })).content);
+    expect(html).toContain("Themed heading");
+    expect(html).toMatch(/color:\s*#b91c1c/i);
+    expect(html).toMatch(/font-size:\s*18pt|font-size:\s*24px/);
+    expect(html).toContain("Georgia");
+    expect(html).not.toContain("$brand");
+  });
 });

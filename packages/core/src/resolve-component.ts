@@ -1,4 +1,6 @@
 import { applyLegacyStyleWhen, applyOwnRules, type RuleDecision } from "./rules.js";
+import { resolveGapToken, resolveStyleTokens, withTextStyle, type UnknownToken } from "./theme.js";
+import type { Theme } from "@reporting/schema";
 import { ExpressionEngine } from "@reporting/expressions";
 import type { ResolveContext } from "./context.js";
 import { formatValue } from "./format.js";
@@ -35,6 +37,27 @@ export interface ResolveEnv {
   customComponents?: Map<string, CustomComponentExpander>;
   /** Rule decisions are collected here when rule tracing is on. */
   decisions?: RuleDecision[];
+  /** Report theme: tokens ("$name") and named text styles are resolved against it. */
+  theme?: Theme;
+}
+
+/** Resolves theme tokens in a style, reporting unknown ones against the component. */
+export function themeStyle(style: Record<string, unknown> | undefined, env: ResolveEnv, componentId?: string): Record<string, unknown> | undefined {
+  const unknown: UnknownToken[] = [];
+  const resolved = resolveStyleTokens(style, env.theme, unknown);
+  for (const item of unknown) env.warnings.push({ code: "THEME_UNKNOWN_TOKEN", path: `${env.path}.style.${item.key}`, componentId, message: `Theme token ${item.token} is not defined in theme.${item.category}; ${item.key} was left unset.` });
+  return resolved;
+}
+
+/** A component with its text style applied and every theme token in its style and gap resolved. */
+function themeComponent<T extends Component>(component: T, env: ResolveEnv): T {
+  const c = component as any;
+  if (!c.style && !c.textStyle && c.gap === undefined) return component;
+  if (c.textStyle && !env.theme?.textStyles?.[c.textStyle]) env.warnings.push({ code: "THEME_UNKNOWN_TEXT_STYLE", path: env.path, componentId: c.id, message: `Text style "${c.textStyle}" is not defined in theme.textStyles.` });
+  const unknown: UnknownToken[] = [];
+  const gap = resolveGapToken(c.gap, env.theme, unknown);
+  for (const item of unknown) env.warnings.push({ code: "THEME_UNKNOWN_TOKEN", path: `${env.path}.gap`, componentId: c.id, message: `Theme token ${item.token} is not defined in theme.spacing; gap was left unset.` });
+  return { ...c, style: themeStyle(withTextStyle(c.style, c.textStyle, env.theme), env, c.id), gap } as T;
 }
 
 /** Plugin hook: turns a `custom` component's props into ordinary components. Must be pure and deterministic. */
@@ -115,7 +138,7 @@ export function resolveComponents(components: Component[], ctx: ResolveContext, 
     }
     if (resolved && !Array.isArray(resolved) && component.styleWhen) {
       const target = { kind: "component" as const, id: component.id, path: env.path };
-      resolved = { ...resolved, style: applyLegacyStyleWhen(component.styleWhen, resolved.style, ctx, { engine: env.engine, warnings: env.warnings, decisions: env.decisions, target }) } as ResolvedComponent;
+      resolved = { ...resolved, style: themeStyle(applyLegacyStyleWhen(component.styleWhen, resolved.style, ctx, { engine: env.engine, warnings: env.warnings, decisions: env.decisions, target }), env, component.id) } as ResolvedComponent;
     }
     if (resolved) out.push(...(Array.isArray(resolved) ? resolved : [resolved]));
   }
@@ -153,12 +176,14 @@ function base(component: Component) {
 
 function resolveComponent(definition: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | ResolvedComponent[] | null {
   if (definition.hidden) return null;
-  const component = applyOwnRules(definition, ctx, {
+  const ruled = applyOwnRules(definition, ctx, {
     engine: env.engine, warnings: env.warnings, decisions: env.decisions,
     target: { kind: "component", id: definition.id, path: env.path },
     visibleWhenErrors: "show",
   });
-  if (component.hidden) return null;
+  if (ruled.hidden) return null;
+  // Rules run first, so a rule can switch a text style or set a token.
+  const component = themeComponent(ruled, env);
 
   switch (component.type) {
     case "text":
@@ -384,7 +409,8 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
       formatted[id] = formatValue(value, col.format, env);
     });
     const style = component.rowStyleWhen?.length ? applyStyleWhen(component.rowStyleWhen, undefined, { ...rowCtx, vars: env.rowVarAccumulator }, env) : undefined;
-    return { raw, formatted, style: style && Object.keys(style).length ? style : undefined };
+    const themedRowStyle = themeStyle(style, env, component.id);
+    return { raw, formatted, style: themedRowStyle && Object.keys(themedRowStyle).length ? themedRowStyle : undefined };
   });
 
   const configuredSpans: TableCellSpanDefinition[] = component.cellSpans ?? [];
