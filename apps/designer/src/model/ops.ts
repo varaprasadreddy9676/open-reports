@@ -424,22 +424,25 @@ export function ungroup(doc: Doc, id: string): { doc: Doc; ids: string[] } {
 }
 
 export type MasterKind = "first" | "last" | "odd" | "even" | "standard";
+export type MasterBandType = "pageHeader" | "pageFooter" | "background";
 
-export function masterSections(doc: Doc, type: "pageHeader" | "pageFooter") {
+export function masterSections(doc: Doc, type: MasterBandType) {
   return (doc.sections ?? []).map((s: any, index: number) => ({ s, index })).filter((x: any) => x.s.type === type);
 }
 
-/** Adds a page master (a header or footer that applies to first/last/odd/even/standard pages). */
-export function addMaster(doc: Doc, type: "pageHeader" | "pageFooter", appliesTo: MasterKind, empty = false): Doc {
+/** Adds an independent header, footer, or background for one page variant. */
+export function addMaster(doc: Doc, type: MasterBandType, appliesTo: MasterKind, empty = false): Doc {
   const next = clone(doc);
   next.sections ??= [];
-  if (next.sections.some((s: any) => s.type === type && s.appliesTo === appliesTo)) return doc;
+  if (next.sections.some((s: any) => s.type === type && (appliesTo === "standard" ? !s.appliesTo || s.appliesTo === "all" || s.appliesTo === "standard" : s.appliesTo === appliesTo))) return doc;
   const standard = next.sections.find((s: any) => s.type === type && (!s.appliesTo || s.appliesTo === "all" || s.appliesTo === "standard"));
   const children = empty || !standard ? [] : clone(standard.children).map((c: Comp) => reId(next, c));
-  // headers go before the detail section, footers after it, so the layer tree reads like the page
-  const section = { type, appliesTo, children };
+  // Copy the band's geometry and appearance too; every variant remains independent.
+  const copied = empty || !standard ? {} : clone(standard);
+  const section = { ...copied, id: undefined, locked: undefined, hidden: undefined, collapsed: undefined, type, appliesTo, children, ...(type === "background" && !standard ? { layout: "absolute" } : {}) };
+  // Header/background bands go before Detail; footers follow it in the structure tree.
   const detail = next.sections.findIndex((s: any) => s.type === "detail");
-  if (type === "pageHeader") next.sections.splice(detail < 0 ? 0 : detail, 0, section);
+  if (type !== "pageFooter") next.sections.splice(detail < 0 ? 0 : detail, 0, section);
   else next.sections.push(section);
   return next;
 }

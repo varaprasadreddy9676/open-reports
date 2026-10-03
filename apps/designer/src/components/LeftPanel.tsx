@@ -625,11 +625,11 @@ function PagesTab() {
   const scale = 96 / pag.pageSize.width;
   return (
     <div className="tab-body" data-testid="pages-tab">
-      <button className="btn pages-master-entry" data-testid="edit-page-masters" onClick={() => { savePref("canvasView", "pages"); useStore.getState().set({ selection: [], selectedBand: null, rightOpen: true, canvasView: "pages" }); }}>Edit page masters</button>
+      <button className="btn pages-master-entry" data-testid="edit-page-masters" onClick={() => { savePref("canvasView", "pages"); useStore.getState().set({ selection: [], selectedBand: null, rightOpen: true, canvasView: "pages" }); requestAnimationFrame(() => { const section = document.querySelector('[data-testid="page-masters-section"]'); const toggle = section?.querySelector<HTMLButtonElement>(".prop-section-title"); if (toggle?.getAttribute("aria-expanded") === "false") toggle.click(); section?.scrollIntoView({ block: "start" }); }); }}>Edit page masters</button>
       {pag.pages.map((p, i) => (
         <button key={i} className="thumb" data-testid="page-thumb" onClick={() => document.querySelector(`[data-page="${i}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })} aria-label={`Go to page ${i + 1}`}>
           <span className="thumb-page" style={{ width: pag.pageSize.width * scale, height: pag.pageSize.height * scale }}>
-            {[...p.header, ...p.content, ...p.footer].map((n, j) => (
+            {[...p.background.flatMap((node) => node.children ?? []), ...p.header, ...p.content, ...p.footer].map((n, j) => (
               <span key={j} className={`thumb-box ${(n.component as any).type}`} style={{ left: n.box.x * scale, top: n.box.y * scale, width: Math.max(1, n.box.width * scale), height: Math.max(1, n.box.height * scale) }} />
             ))}
           </span>

@@ -8,7 +8,7 @@
  * output format reports the same numbers (see spec sections 82-83).
  */
 
-import type { ExportsConfig, PageConfig, Theme } from "@reporting/schema";
+import type { ExportsConfig, PageConfig, Style, Theme } from "@reporting/schema";
 
 export interface ResolvedReport {
   id: string;
@@ -36,6 +36,7 @@ export interface ResolvedSection {
   sourceIndex: number;
   appliesTo?: string;
   repeat?: boolean;
+  style?: Style;
   children: ResolvedComponent[];
 }
 

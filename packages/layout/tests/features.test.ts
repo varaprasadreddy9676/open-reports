@@ -56,6 +56,19 @@ describe("page masters", () => {
     const r = paginate(report([...sections, { type: "detail", sourceIndex: 3, children: [table(40)] }]));
     expect(r.pages[0]!.zones.header.height).toBeGreaterThan(r.pages[1]!.zones.header.height);
   });
+
+  it("uses first-page and normal background bands on the corresponding pages", () => {
+    const result = paginate(report([
+      { type: "background", sourceIndex: 0, appliesTo: "standard", children: [text("NORMAL BACKGROUND")] },
+      { type: "background", sourceIndex: 1, appliesTo: "first", style: { background: "#f4f7ff" }, children: [text("FIRST BACKGROUND")] },
+      { type: "detail", sourceIndex: 2, children: [text("First body"), text("Second body", { pageBreakBefore: true })] },
+    ] as any));
+    expect(result.pages).toHaveLength(2);
+    const backgroundText = (index: number) => ((result.pages[index]!.background[0]!.children ?? [])[0]!.component as any).text;
+    expect(backgroundText(0)).toBe("FIRST BACKGROUND");
+    expect(backgroundText(1)).toBe("NORMAL BACKGROUND");
+    expect((result.pages[0]!.background[0]!.component as any).style.background).toBe("#f4f7ff");
+  });
 });
 
 describe("auto-layout", () => {

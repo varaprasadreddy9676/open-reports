@@ -583,7 +583,7 @@ export function Canvas() {
       <div className={structure && previewSplit ? "canvas-layout with-preview" : "canvas-layout"}>
       <div className="pages">
         {paginated.pages.map((page, pi) => {
-          const allNodes = [...flat([...page.header, ...page.content, ...page.footer])];
+          const allNodes = [...flat([...page.background, ...page.header, ...page.content, ...page.footer])];
           const selected = allNodes.filter((n) => selSet.has((n.component as any).id));
           const single = selection.length === 1 ? selected[0] : undefined;
           const showHandles = single && ["text", "image", "qrcode", "barcode", "chart", "rectangle", "container", "row", "column", "grid", "spacer", "line", "table"].includes(single.component.type);
@@ -633,6 +633,7 @@ export function Canvas() {
                 onDragLeave={() => setIndicator(null)}
                 onDrop={(e) => onDrop(e, pi)}
               >
+                {page.background.length > 0 && <div className="page-background-layer" aria-hidden="true">{page.background.map((node, index) => <NodeView key={index} node={node} k={k} capabilities={capabilities} />)}</div>}
                 {view.margins && <div className="margin-guide" style={{ left: paginated.margin.left * k, top: paginated.margin.top * k, right: paginated.margin.right * k, bottom: paginated.margin.bottom * k }} />}
                 {view.margins && doc.print?.safeMargin ? (
                   <div className="safe-area" title="Printer safe area" style={{ left: (doc.print.safeMargin / MM) * k, top: (doc.print.safeMargin / MM) * k, right: (doc.print.safeMargin / MM) * k, bottom: (doc.print.safeMargin / MM) * k }} />

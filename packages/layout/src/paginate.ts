@@ -90,7 +90,7 @@ export function paginate(report: ResolvedReport, options: PaginateOptions = {}):
     const bgSection = pickMaster(backgrounds, number, total);
     const background = bgSection
       ? layoutBlock(
-          [{ type: "container", layout: "absolute", width: geometry.width, height: geometry.height, children: options.resolvePageDependentSection ? options.resolvePageDependentSection(bgSection, { number, total }) : bgSection.children } as any],
+          [{ type: "container", layout: "absolute", width: geometry.width, height: geometry.height, style: bgSection.style, children: options.resolvePageDependentSection ? options.resolvePageDependentSection(bgSection, { number, total }) : bgSection.children } as any],
           geometry.width,
           measurer,
           { x: 0, y: 0 }

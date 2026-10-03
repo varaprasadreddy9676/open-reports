@@ -2116,7 +2116,25 @@ kbd {
 .seg.small button { padding: 2px 8px; font-size: 11px; }
 .spacing { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 .spacing .grid4 input { width: 100%; text-align: center; }
-.master-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; font-size: 12px; }
+.master-heading { margin: 4px 0 2px; font-weight: 650; }
+.master-intro { margin: 3px 0 10px; }
+.master-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel-2); }
+.master-tabs button { min-width: 0; padding: 5px 1px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 10.5px; cursor: pointer; }
+.master-tabs button.active { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px #102a431a; font-weight: 650; }
+.master-description { min-height: 28px; margin: 9px 0 7px; }
+.master-outline { display: flex; flex-direction: column; gap: 5px; height: 132px; padding: 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; box-shadow: 0 1px 4px #102a4314; color: #32435a; font-size: 10px; }
+.master-outline-head, .master-outline-foot { overflow: hidden; padding: 4px 6px; border-left: 2px solid var(--accent); background: #edf4ff; white-space: nowrap; text-overflow: ellipsis; }
+.master-outline-head.blank, .master-outline-foot.blank { border-color: #cbd5e1; background: #f5f6f8; color: #6b7280; }
+.master-outline-body { display: flex; flex: 1; align-items: center; justify-content: space-between; padding: 4px 7px; border: 1px dashed #d8e0ea; color: #8491a4; }
+.master-outline-body small { max-width: 58%; overflow: hidden; color: #65748a; text-overflow: ellipsis; white-space: nowrap; }
+.master-slot { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.master-slot-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
+.master-slot-heading span { color: var(--muted); font-size: 11px; }
+.master-slot-actions { display: flex; gap: 5px; margin-top: 6px; }
+.master-slot-actions .mini { font-size: 11px; }
+.master-footer-tools { margin-top: 11px; }
+.master-footnote { margin-bottom: 0; }
+.page-background-layer { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .print-facts { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; margin: 6px 0; }
 .profile-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
 .profile-actions .link { font-size: 11px; }

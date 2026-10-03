@@ -15,6 +15,7 @@ import { SpacingFields } from "./SpacingFields";
 import { InspectorActions } from "./InspectorActions";
 import { api, type SavedPrinterProfile } from "../lib/api";
 import { PrintCalibration } from "./PrintCalibration";
+import { PageMasters } from "./PageMasters";
 
 // ------------------------------------------------------------------ small controls
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -953,78 +954,6 @@ function PaginationProps({ comp }: { comp: ops.Comp }) {
     {flag("pageBreakBefore", "Start on a new page")}
     {flag("pageBreakAfter", "Page break after")}
   </Section>;
-}
-
-// ------------------------------------------------------------------ page masters
-const MASTER_ROWS: { kind: ops.MasterKind; label: string; hint: string }[] = [
-  { kind: "first", label: "First page", hint: "Letterhead on page 1, compact header afterwards" },
-  { kind: "standard", label: "Standard pages", hint: "Used on every page without a more specific master" },
-  { kind: "last", label: "Last page", hint: "Totals / signature footer on the final page" },
-  { kind: "odd", label: "Odd pages", hint: "Mirrored layouts for double-sided printing" },
-  { kind: "even", label: "Even pages", hint: "Mirrored layouts for double-sided printing" },
-];
-
-function PageMasters() {
-  const { doc, leftTab } = useStore();
-  const setDoc = useStore((s) => s.setDoc);
-  const select = useStore((s) => s.select);
-  const set = useStore((s) => s.set);
-  const has = (type: "pageHeader" | "pageFooter", kind: ops.MasterKind) =>
-    (doc.sections ?? []).findIndex((x: any) => x.type === type && (kind === "standard" ? !x.appliesTo || x.appliesTo === "all" || x.appliesTo === "standard" : x.appliesTo === kind));
-  const open = (index: number) => {
-    const first = (doc.sections?.[index]?.children ?? [])[0];
-    set({ leftTab: "layers", leftOpen: true, rightOpen: true, canvasView: "pages", selectedBand: index, selection: [] });
-    if (first) select([first.id]);
-  };
-  const addPageCount = () => {
-    const st = useStore.getState();
-    let index = (st.doc.sections ?? []).findIndex((section: any) => section.type === "pageFooter" && (!section.appliesTo || section.appliesTo === "all" || section.appliesTo === "standard"));
-    if (index < 0) {
-      st.setDoc(ops.addMaster(st.doc, "pageFooter", "standard"));
-      index = (useStore.getState().doc.sections ?? []).findIndex((section: any) => section.type === "pageFooter" && section.appliesTo === "standard");
-    }
-    const footer = useStore.getState().doc.sections[index];
-    const existing = footer?.children?.find((comp: ops.Comp) => comp.type === "text" && /page\.number/.test(comp.expression ?? "") && /page\.total/.test(comp.expression ?? ""));
-    if (existing) {
-      st.select([existing.id]);
-    } else {
-      st.insertComponent({ type: "text", expression: '"Page " + page.number + " of " + page.total', style: { align: "right", fontSize: 8, color: "#6b7280" } }, undefined, "after", index);
-    }
-    st.set({ leftTab: "layers", leftOpen: true, rightOpen: true });
-  };
-  return (
-    <Section key={leftTab} title="Headers & footers" open={leftTab === "pages"}>
-      <p className="muted small">Different headers and footers per page type, like a word processor — without duplicating the report.</p>
-      {(["pageHeader", "pageFooter"] as const).map((type) => (
-        <div key={type} className="masters" data-testid={`masters-${type}`}>
-          <div className="group-title small">{type === "pageHeader" ? "Header" : "Footer"}</div>
-          {MASTER_ROWS.map((r) => {
-            const idx = has(type, r.kind);
-            return (
-              <div key={r.kind} className="master-row" title={r.hint}>
-                <span className={idx >= 0 ? "" : "muted"}>{r.label}</span>
-                <span className="spacer" />
-                {idx >= 0 ? (
-                  <>
-                    <button className="mini" data-testid={`master-open-${type}-${r.kind}`} onClick={() => open(idx)}>Edit</button>
-                    {r.kind !== "standard" && (
-                      <button className="mini danger" aria-label={`Remove ${r.label} ${type}`} data-testid={`master-remove-${type}-${r.kind}`} onClick={() => setDoc(ops.removeSection(doc, idx))}>×</button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <button className="mini" data-testid={`master-add-${type}-${r.kind}`} title="Start from a copy of the standard one" onClick={() => setDoc(ops.addMaster(doc, type, r.kind))}>+ Copy</button>
-                    <button className="mini" data-testid={`master-hide-${type}-${r.kind}`} title="Show nothing on these pages" onClick={() => setDoc(ops.addMaster(doc, type, r.kind, true))}>Hide</button>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-      <button className="btn" data-testid="master-add-page-count" onClick={addPageCount}>+ Page X of Y</button>
-    </Section>
-  );
 }
 
 const PRINT_PRESETS: { label: string; profile: Record<string, unknown>; page?: Record<string, unknown> }[] = [

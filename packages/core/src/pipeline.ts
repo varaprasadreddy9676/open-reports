@@ -107,6 +107,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       repeat: section.repeat,
       sourceIndex: index,
       appliesTo: section.appliesTo,
+      style: section.style,
       children: resolveComponents(section.children as any, baseCtx, makeEnv(`sections[${index}]`)),
     });
   });

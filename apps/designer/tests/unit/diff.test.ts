@@ -69,6 +69,18 @@ describe("group / ungroup / masters", () => {
     expect(d.sections[1].children[0].id).not.toBe("h");
   });
 
+  it("copies background geometry and children independently for a first-page variant", () => {
+    const standard = { id: "background", type: "background", layout: "absolute", style: { background: "#f4f7ff" }, appliesTo: "standard", children: [{ id: "mark", type: "text", value: "NORMAL" }] };
+    const source = { ...base(), sections: [standard, ...base().sections] } as any;
+    const next = ops.addMaster(source, "background", "first");
+    const first = next.sections.find((section: any) => section.type === "background" && section.appliesTo === "first");
+    expect(first).toMatchObject({ layout: "absolute", style: { background: "#f4f7ff" }, children: [{ value: "NORMAL" }] });
+    expect(first.id).not.toBe("background");
+    expect(first.children[0].id).not.toBe("mark");
+    expect(next.sections.find((section: any) => section.appliesTo === "standard").children[0].id).toBe("mark");
+    expect(ops.addMaster(next, "background", "first")).toBe(next);
+  });
+
   it("locks and hides", () => {
     const d = base();
     const id = d.sections[0].children[0].id;
