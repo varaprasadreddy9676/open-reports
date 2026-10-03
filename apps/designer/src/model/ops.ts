@@ -281,6 +281,69 @@ export function distribute(doc: Doc, ids: string[], axis: "horizontal" | "vertic
   return next;
 }
 
+/** Align the first rendered text line across text elements in one absolute parent. */
+export function alignTextBaseline(doc: Doc, ids: string[], offsets: Record<string, number>): Doc {
+  if (!canArrange(doc, ids)) return doc;
+  const comps = ids.map((id) => find(doc, id)!.comp);
+  if (comps.some((c) => !["text", "richText", "field"].includes(c.type) || !Number.isFinite(offsets[c.id]))) return doc;
+  const baseline = Math.min(...comps.map((c) => num(c.y) + offsets[c.id]!));
+  let next = doc;
+  for (const c of comps) next = update(next, c.id, { y: Math.round((baseline - offsets[c.id]!) * 100) / 100 });
+  return next;
+}
+
+export interface ArrangedSize { width: number; height: number }
+
+/** Compact selected absolute items into rows, preserving reading order. */
+export function tidyUp(doc: Doc, ids: string[], sizes: Record<string, ArrangedSize>, gap = 8): Doc {
+  if (!canArrange(doc, ids) || !Number.isFinite(gap) || gap < 0) return doc;
+  const comps = ids.map((id) => find(doc, id)!.comp);
+  if (comps.some((c) => !sizes[c.id] || !Number.isFinite(sizes[c.id]!.width) || !Number.isFinite(sizes[c.id]!.height) || sizes[c.id]!.width <= 0 || sizes[c.id]!.height <= 0)) return doc;
+  const minX = Math.min(...comps.map((c) => num(c.x)));
+  const minY = Math.min(...comps.map((c) => num(c.y)));
+  const rows: { comps: Comp[]; center: number; height: number }[] = [];
+  for (const c of [...comps].sort((a, b) => (num(a.y) + sizes[a.id]!.height / 2) - (num(b.y) + sizes[b.id]!.height / 2) || num(a.x) - num(b.x))) {
+    const size = sizes[c.id]!;
+    const center = num(c.y) + size.height / 2;
+    const row = rows.find((r) => Math.abs(center - r.center) <= Math.min(size.height, r.height) / 2);
+    if (row) {
+      row.center = (row.center * row.comps.length + center) / (row.comps.length + 1);
+      row.height = Math.max(row.height, size.height);
+      row.comps.push(c);
+    } else rows.push({ comps: [c], center, height: size.height });
+  }
+  let y = minY;
+  let next = doc;
+  for (const row of rows) {
+    let x = minX;
+    for (const c of row.comps.sort((a, b) => num(a.x) - num(b.x))) {
+      next = update(next, c.id, { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
+      x += sizes[c.id]!.width + gap;
+    }
+    y += row.height + gap;
+  }
+  const selected = new Set(ids);
+  const maxRight = Math.max(...comps.map((c) => num(c.x) + sizes[c.id]!.width));
+  const maxBottom = Math.max(...comps.map((c) => num(c.y) + sizes[c.id]!.height));
+  const siblings = find(doc, ids[0]!)!.list.filter((c) => {
+    if (!c.id || selected.has(c.id) || !sizes[c.id]) return false;
+    const size = sizes[c.id]!;
+    // A rectangle behind the entire selection is decoration, not an occupied slot.
+    return !(c.type === "rectangle" && num(c.x) <= minX && num(c.y) <= minY
+      && num(c.x) + size.width >= maxRight && num(c.y) + size.height >= maxBottom);
+  });
+  for (const id of ids) {
+    const c = find(next, id)!.comp;
+    const s = sizes[id]!;
+    if (siblings.some((other) => {
+      const o = sizes[other.id]!;
+      return num(c.x) < num(other.x) + o.width && num(c.x) + s.width > num(other.x)
+        && num(c.y) < num(other.y) + o.height && num(c.y) + s.height > num(other.y);
+    })) return doc;
+  }
+  return next;
+}
+
 /** Match sizes to the first selected element without changing positions. */
 export function matchSize(doc: Doc, ids: string[], mode: MatchSizeMode): Doc {
   const keys = mode === "both" ? ["width", "height"] as const : [mode];

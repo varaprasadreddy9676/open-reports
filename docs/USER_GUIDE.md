@@ -32,6 +32,8 @@ For precise alignment, click the top ruler to place a vertical guide or the left
 
 In **Canvas settings → Ruler zero**, choose **Selected band** in Structure view to measure vertically from that band's top. Choose **Selection bounds** to measure from the upper-left corner of the selected element(s) visible on the first page. Clearing the selection temporarily returns the ruler to the page edge; it does not move any report content or guides.
 
+For several elements in one **Free position** layout, the inspector's **Arrange** controls align edges, centres, and equal spacing. **Text baseline** aligns the first visible line of selected text using the canvas font measurements. **Tidy up** groups selected elements by their current rows, then places each row from the left with an 8 pt gap. It is disabled when that arrangement would overlap another visible element in the same layout. Both actions change report coordinates and can be undone. Flow items, locked elements, and items in different parents cannot be arranged together.
+
 ## 3. Data
 **Data mode** lists datasets: JSON, REST API, database (PostgreSQL/MySQL via server-side connections), or CSV upload. **Test request** shows a Table / Raw JSON / Schema view and hints (row counts, nested lists, dates). For API keys use `{{secrets.NAME}}`; the real value lives on the server as `REPORT_SECRET_NAME` and never enters the report. Add **parameters** (e.g. `invoiceId`) and use them as `{{params.invoiceId}}`.
 

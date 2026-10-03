@@ -101,7 +101,7 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
     case "field":
       return (
         <div {...common} className="cn cn-text" style={{ ...st, ...cssFrom(c.style, k), whiteSpace: "pre-wrap", overflow: "hidden" }}>
-          {c.text}
+          <span className="text-baseline-probe" aria-hidden="true" />{c.text}
         </div>
       );
     case "image":

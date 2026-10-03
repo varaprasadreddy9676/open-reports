@@ -1223,14 +1223,44 @@ function PageProps() {
 }
 
 function MultiProps({ ids }: { ids: string[] }) {
-  const { doc } = useStore();
+  const { doc, engine, canvasView, zoom } = useStore();
   const setDoc = useStore((s) => s.setDoc);
-  const btn = (label: string, fn: () => void, testId?: string, enabled = true) => (
-    <button className="btn" data-testid={testId} onClick={fn} disabled={!enabled} title={enabled ? label : "Select unlocked elements in the same absolute layout with numeric geometry"}>
+  const [arrangeError, setArrangeError] = useState("");
+  const btn = (label: string, fn: () => void, testId?: string, enabled = true, disabledHint = "Select unlocked elements in the same absolute layout with numeric geometry") => (
+    <button className="btn" data-testid={testId} onClick={fn} disabled={!enabled} title={enabled ? label : disabledHint}>
       {label}
     </button>
   );
   const free = ops.canArrange(doc, ids);
+  const textOnly = free && ids.every((id) => ["text", "richText", "field"].includes(ops.find(doc, id)?.comp.type ?? ""));
+  const layout = canvasView === "structure" ? engine.structure ?? engine.paginated : engine.paginated;
+  const first = layout?.pages[0];
+  const rendered = new Map<string, ops.ArrangedSize>();
+  const collect = (items: any[]) => {
+    for (const item of items) {
+      if (item.component.id && !rendered.has(item.component.id)) rendered.set(item.component.id, { width: item.box.width, height: item.box.height });
+      collect(item.children ?? []);
+    }
+  };
+  if (first) collect([...first.header, ...first.content, ...first.footer]);
+  const hasTidySizes = free && ids.every((id) => rendered.has(id));
+  const tidyCandidate = hasTidySizes ? ops.tidyUp(doc, ids, Object.fromEntries(rendered), 8) : doc;
+  const canTidy = tidyCandidate !== doc;
+  const alignBaseline = () => {
+    const textNodes = [...document.querySelectorAll<HTMLElement>(".cn-text[data-cid]")];
+    const offsets: Record<string, number> = {};
+    for (const id of ids) {
+      const node = textNodes.find((element) => element.dataset.cid === id);
+      const probe = node?.querySelector<HTMLElement>(".text-baseline-probe");
+      if (!node || !probe) {
+        setArrangeError("Select text visible on the canvas to align baselines.");
+        return;
+      }
+      offsets[id] = (probe.getBoundingClientRect().top - node.getBoundingClientRect().top) / (4 / 3 * zoom);
+    }
+    setArrangeError("");
+    setDoc(ops.alignTextBaseline(doc, ids, offsets));
+  };
   return (
     <>
       <div className="prop-head">
@@ -1241,7 +1271,9 @@ function MultiProps({ ids }: { ids: string[] }) {
         <p className="arrange-label">Align edges and centres</p>
         <div className="btn-grid">
           {(["left", "center", "right", "top", "middle", "bottom"] as const).map((m) => btn(`Align ${m}`, () => setDoc(ops.align(doc, ids, m)), `align-${m}`, ops.canArrange(doc, ids, m === "center" || m === "right" ? ["width"] : m === "middle" || m === "bottom" ? ["height"] : [])))}
+          {btn("Text baseline", alignBaseline, "align-baseline", textOnly && ids.every((id) => rendered.has(id)), "Select visible text elements in one free-position layout")}
         </div>
+        {arrangeError && <p className="muted small" role="status">{arrangeError}</p>}
         <p className="arrange-label">Equal spacing · keep the outer edges</p>
         <div className="btn-grid">
           {btn("Space horizontally", () => setDoc(ops.distribute(doc, ids, "horizontal")), "distribute-h", ids.length >= 3 && ops.canArrange(doc, ids, ["width"]))}
@@ -1253,6 +1285,11 @@ function MultiProps({ ids }: { ids: string[] }) {
           {btn("Same height", () => setDoc(ops.matchSize(doc, ids, "height")), "same-height", free && typeof ops.find(doc, ids[0]!)?.comp.height === "number")}
           {btn("Same size", () => setDoc(ops.matchSize(doc, ids, "both")), "same-size", free && typeof ops.find(doc, ids[0]!)?.comp.width === "number" && typeof ops.find(doc, ids[0]!)?.comp.height === "number")}
         </div>
+        <p className="arrange-label">Tidy into rows · 8 pt gap</p>
+        <div className="btn-grid">
+          {btn("Tidy up", () => setDoc(tidyCandidate), "tidy-up", canTidy, hasTidySizes ? "Tidy would overlap other elements" : "Select elements visible on the first page in one free-position layout")}
+        </div>
+        {hasTidySizes && !canTidy && <p className="muted small">Tidy would overlap another element. Select a clear group or move the surrounding content first.</p>}
       </Section>
       <Section title="Actions">
         <div className="btn-grid">

@@ -62,4 +62,42 @@ describe("free-positioned arrangement", () => {
     expect(ops.align(doc, ["a", "b"], "bottom")).toBe(doc);
     expect(ops.align(doc, ["a", "b"], "top")).not.toBe(doc);
   });
+
+  it("aligns measured first-line text baselines without changing other geometry", () => {
+    const doc = absolute();
+    const a = ops.find(doc, "a")!.comp;
+    const b = ops.find(doc, "b")!.comp;
+    a.type = "text";
+    b.type = "text";
+    const aligned = ops.alignTextBaseline(doc, ["a", "b"], { a: 12, b: 7 });
+    expect(ops.find(aligned, "b")?.comp).toMatchObject({ x: 140, y: 25, width: 40, height: 50 });
+    expect(ops.find(doc, "b")?.comp.y).toBe(70);
+    expect(ops.alignTextBaseline(doc, ["a", "b"], { a: 12 })).toBe(doc);
+    b.type = "rectangle";
+    expect(ops.alignTextBaseline(doc, ["a", "b"], { a: 12, b: 7 })).toBe(doc);
+  });
+
+  it("tidies rendered boxes into reading-order rows with consistent gaps", () => {
+    const doc = absolute();
+    const sizes = { a: { width: 80, height: 30 }, b: { width: 40, height: 50 }, c: { width: 20, height: 20 } };
+    const tidy = ops.tidyUp(doc, ["c", "b", "a"], sizes, 8);
+    expect(ops.find(tidy, "a")?.comp).toMatchObject({ x: 10, y: 20 });
+    expect(ops.find(tidy, "b")?.comp).toMatchObject({ x: 10, y: 58 });
+    expect(ops.find(tidy, "c")?.comp).toMatchObject({ x: 10, y: 116 });
+
+    const sameRow = absolute();
+    ops.find(sameRow, "b")!.comp.y = 22;
+    const grid = ops.tidyUp(sameRow, ["a", "b", "c"], sizes, 8);
+    expect(ops.find(grid, "b")?.comp).toMatchObject({ x: 98, y: 20 });
+    expect(ops.find(grid, "c")?.comp).toMatchObject({ x: 10, y: 78 });
+    expect(ops.tidyUp(doc, ["a", "b"], { a: sizes.a }, 8)).toBe(doc);
+
+    const occupied = absolute();
+    ops.find(occupied, "a")!.list.push({ id: "other", type: "text", x: 10, y: 60, width: 90, height: 30 });
+    expect(ops.tidyUp(occupied, ["a", "b", "c"], { ...sizes, other: { width: 90, height: 30 } }, 8)).toBe(occupied);
+
+    const decorated = absolute();
+    ops.find(decorated, "a")!.list.push({ id: "background", type: "rectangle", x: 0, y: 0, width: 300, height: 200 });
+    expect(ops.tidyUp(decorated, ["a", "b", "c"], { ...sizes, background: { width: 300, height: 200 } }, 8)).not.toBe(decorated);
+  });
 });

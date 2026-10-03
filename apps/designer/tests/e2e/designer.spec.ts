@@ -198,6 +198,55 @@ test.describe("editing", () => {
     expect(after.find((component: any) => component.id === "date")).toMatchObject({ x: dateBefore.x, y: dateBefore.y, width: 770 });
   });
 
+  test("multi-selection aligns the rendered first text baselines", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-absolute-form").click();
+    await page.evaluate(() => (window as any).__designer.getState().select(["title", "date"]));
+    await expect(page.getByTestId("align-baseline")).toBeEnabled();
+    const before = (await doc(page)).sections[0].children[0].children.find((item: any) => item.id === "date").y;
+    await page.getByTestId("align-baseline").click();
+    await expect.poll(async () => {
+      const baselines = await page.locator(".cn-text[data-cid]").evaluateAll((nodes) => ["title", "date"].map((id) => {
+        const node = nodes.find((item) => item.getAttribute("data-cid") === id)!;
+        return node.querySelector(".text-baseline-probe")!.getBoundingClientRect().top;
+      }));
+      return Math.abs(baselines[0]! - baselines[1]!);
+    }).toBeLessThan(1);
+    expect((await doc(page)).sections[0].children[0].children.find((item: any) => item.id === "date").y).not.toBe(before);
+  });
+
+  test("tidy up places selected elements into compact rows and is undoable", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-absolute-form").click();
+    await page.evaluate(() => (window as any).__designer.getState().select(["title", "name", "date"]));
+    await expect(page.getByTestId("tidy-up")).toBeDisabled();
+    await expect(page.getByText("Tidy would overlap another element.")).toBeVisible();
+
+    await page.evaluate(() => {
+      const store = (window as any).__designer.getState();
+      store.loadDoc({ ...store.doc, id: "tidy-demo", name: "Tidy demo", sections: [{ type: "detail", layout: "absolute", children: [
+        { id: "a", type: "text", value: "Patient name", x: 20, y: 30, width: 150, height: 30, style: { fontSize: 16 } },
+        { id: "b", type: "text", value: "UHID", x: 220, y: 32, width: 90, height: 30, style: { fontSize: 16 } },
+        { id: "c", type: "text", value: "Bill total", x: 170, y: 130, width: 120, height: 30, style: { fontSize: 16 } },
+      ] }] });
+      (window as any).__designer.getState().select(["a", "b", "c"]);
+    });
+    await expect(page.getByTestId("tidy-up")).toBeEnabled();
+    await page.getByTestId("tidy-up").click();
+    const after = (await doc(page)).sections[0].children;
+    expect(after.map((item: any) => [item.x, item.y])).toEqual([[20, 30], [178, 30], [20, 68]]);
+    await expect.poll(async () => {
+      const first = await page.locator('.cn-text[data-cid="a"]').boundingBox();
+      const last = await page.locator('.cn-text[data-cid="c"]').boundingBox();
+      return Math.abs((first?.x ?? Infinity) - (last?.x ?? -Infinity));
+    }).toBeLessThan(1);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "39-tidy-up.png") });
+    await page.evaluate(() => (window as any).__designer.getState().undo());
+    expect((await doc(page)).sections[0].children.find((item: any) => item.id === "c").y).toBe(130);
+  });
+
   test("selection ruler zero and canvas dimensions follow the rendered element", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();
