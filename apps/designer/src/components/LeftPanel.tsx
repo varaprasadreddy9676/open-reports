@@ -6,6 +6,7 @@ import { titleCase } from "../lib/lowcode";
 import { Icon } from "./Icon";
 import { api } from "../lib/api";
 import { explorerTree, type ExplorerNode } from "../lib/explorer-tree";
+import { searchExplorer, type ExplorerSearch } from "../lib/explorer-search";
 
 interface PaletteItem {
   type: string;
@@ -304,11 +305,13 @@ function DataTab() {
   }
 }
 
-function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
+function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; search?: ExplorerSearch }) {
   const selection = useStore((s) => s.selection);
   const editingText = useStore((s) => s.renaming);
   const [open, setOpen] = useState(true);
   const kids = ops.CHILD_LISTS.flatMap((k) => (Array.isArray(comp[k]) ? (comp[k] as ops.Comp[]) : []));
+  const searching = !!search;
+  const expanded = searching || open;
   const selected = selection.includes(comp.id);
   const renaming = editingText === comp.id;
   const st = useStore.getState;
@@ -316,25 +319,28 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
     if (!st().selection.includes(comp.id)) st().select([comp.id]);
     st().set({ contextMenu: { x, y, id: comp.id } });
   };
+  if (search && !search.components.has(comp.id)) return null;
   return (
     <div>
       <div
-        className={`layer explorer-row ${selected ? "selected" : ""} ${comp.hidden ? "is-hidden" : ""}`}
+        className={`layer explorer-row ${selected ? "selected" : ""} ${comp.hidden ? "is-hidden" : ""} ${search?.matchedComponents.has(comp.id) ? "search-match" : ""}`}
         style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }}
         data-depth={depth}
-        draggable={!comp.locked}
+        draggable={!comp.locked && !searching}
         data-testid={`layer-${comp.id}`}
+        data-explorer-entry=""
+        data-explorer-match={search?.matchedComponents.has(comp.id) ? "" : undefined}
         role="button"
         tabIndex={0}
         aria-label={`${ops.layerName(comp)}${comp.locked ? ", locked" : ""}${comp.hidden ? ", hidden" : ""}`}
-        aria-expanded={kids.length || comp.type === "table" ? open : undefined}
+        aria-expanded={kids.length || comp.type === "table" ? expanded : undefined}
         onClick={(e) => st().select([comp.id], e.shiftKey)}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" || e.key === " ") { e.preventDefault(); st().select([comp.id], e.shiftKey); }
           else if (e.key === "F2") { e.preventDefault(); st().set({ renaming: comp.id }); }
-          else if (e.key === "ArrowRight" && !open) { e.preventDefault(); setOpen(true); }
-          else if (e.key === "ArrowLeft" && open) { e.preventDefault(); setOpen(false); }
+          else if (!searching && e.key === "ArrowRight" && !open) { e.preventDefault(); setOpen(true); }
+          else if (!searching && e.key === "ArrowLeft" && open) { e.preventDefault(); setOpen(false); }
           else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); openActions(rect.right, rect.bottom); }
         }}
         onContextMenu={(e) => {
@@ -343,8 +349,9 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
         }}
         onDoubleClick={() => st().set({ renaming: comp.id })}
         onDragStart={(e) => e.dataTransfer.setData("application/x-layer", comp.id)}
-        onDragOver={(e) => e.dataTransfer.types.includes("application/x-layer") && e.preventDefault()}
+        onDragOver={(e) => !searching && e.dataTransfer.types.includes("application/x-layer") && e.preventDefault()}
         onDrop={(e) => {
+          if (searching) return;
           const id = e.dataTransfer.getData("application/x-layer");
           if (!id) return;
           e.preventDefault();
@@ -356,7 +363,7 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
           s.setDoc(ops.move(s.doc, id, comp.id, isContainer && rel > 0.3 && rel < 0.7 ? "inside" : rel < 0.5 ? "before" : "after"));
         }}
       >
-        <span className="twisty" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{kids.length || comp.type === "table" ? (open ? "▾" : "▸") : ""}</span>
+        <span className="twisty" onClick={(e) => { e.stopPropagation(); if (!searching) setOpen(!open); }}>{kids.length || comp.type === "table" ? (expanded ? "▾" : "▸") : ""}</span>
         <Icon name={comp.type} small />
         {renaming ? (
           <input
@@ -381,7 +388,7 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
         </span>
         <button className="layer-end explorer-more" type="button" aria-label={`Actions for ${ops.layerName(comp)}`} title="Element actions" data-testid={`layer-actions-${comp.id}`} onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); openActions(rect.right, rect.bottom); }}>⋯</button>
       </div>
-      {open && comp.type === "table" && (
+      {expanded && !searching && comp.type === "table" && (
         <>
           {[
             comp.showHeader !== false ? "H  Header" : null,
@@ -400,37 +407,41 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
             ))}
         </>
       )}
-      {open && kids.map((k) => <LayerRow key={k.id} comp={k} depth={depth + 1} />)}
+      {expanded && kids.map((k) => <LayerRow key={k.id} comp={k} depth={depth + 1} search={search} />)}
     </div>
   );
 }
 
 
-function ExplorerBand({ index, depth }: { index: number; depth: number }) {
+function ExplorerBand({ index, depth, search }: { index: number; depth: number; search?: ExplorerSearch }) {
   const doc = useStore((state) => state.doc);
   const selectedBand = useStore((state) => state.selectedBand);
   const sections: any[] = doc.sections ?? [];
   const i = index;
   const s = sections[i];
-  if (!s) return null;
+  if (!s || (search && !search.bands.has(i))) return null;
+  const searching = !!search;
+  const expanded = searching || !s.collapsed;
   const bandName = s.name ?? (s.type === "groupHeader" ? "Header" : s.type === "groupFooter" ? "Footer" : ops.BAND_TITLES[s.type] ?? s.type);
   return (
         <div>
           <div
-            className={`layer explorer-row section ${selectedBand === i ? "selected" : ""} ${s.hidden ? "is-hidden" : ""}`}
+            className={`layer explorer-row section ${selectedBand === i ? "selected" : ""} ${s.hidden ? "is-hidden" : ""} ${search?.matchedBands.has(i) ? "search-match" : ""}`}
             data-testid={`section-${s.type}`}
+            data-explorer-entry=""
+            data-explorer-match={search?.matchedBands.has(i) ? "" : undefined}
             data-band-index={i}
             data-depth={depth}
             style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }}
             role="button"
             tabIndex={0}
-            draggable={!s.locked}
+            draggable={!s.locked && !searching}
             onClick={() => useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true })}
             onKeyDown={(e) => {
               if (e.target !== e.currentTarget) return;
               if (e.key === "Enter" || e.key === " ") { e.preventDefault(); useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); }
-              else if (e.key === "ArrowRight" && s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: undefined })); }
-              else if (e.key === "ArrowLeft" && !s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: true })); }
+              else if (!searching && e.key === "ArrowRight" && s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: undefined })); }
+              else if (!searching && e.key === "ArrowLeft" && !s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: true })); }
               else if (e.key === "F2") { e.preventDefault(); useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); requestAnimationFrame(() => (document.querySelector('[data-testid="band-name"]') as HTMLInputElement | null)?.focus()); }
               else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); e.currentTarget.querySelector<HTMLDetailsElement>(".explorer-menu")?.setAttribute("open", ""); }
             }}
@@ -440,12 +451,12 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
               e.dataTransfer.effectAllowed = "move";
             }}
             onDragOver={(e) => {
-              if (s.locked) return;
+              if (s.locked || searching) return;
               if (e.dataTransfer.types.includes("text/band")) e.preventDefault();
               if (e.dataTransfer.types.includes("application/x-layer")) e.preventDefault();
             }}
             onDrop={(e) => {
-              if (s.locked) return;
+              if (s.locked || searching) return;
               const bandFrom = e.dataTransfer.getData("text/band");
               if (bandFrom !== "") {
                 e.preventDefault();
@@ -469,11 +480,11 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
               st.setDoc(next);
             }}
           >
-            <button className="mini" aria-label={s.collapsed ? "Expand band" : "Collapse band"} data-testid={`explorer-collapse-${i}`} onClick={(e) => {
+            <button className="mini" aria-label={expanded ? "Collapse band" : "Expand band"} title={searching ? "Clear search to change the band view" : undefined} disabled={searching} data-testid={`explorer-collapse-${i}`} onClick={(e) => {
               e.stopPropagation();
               const st = useStore.getState();
               st.setDoc(ops.updateBand(st.doc, i, { collapsed: s.collapsed ? undefined : true }));
-            }}>{s.collapsed ? "▸" : "▾"}</button>
+            }}>{expanded ? "▾" : "▸"}</button>
             <span className="layer-type" title={ops.BAND_TITLES[s.type] ?? s.type}>{ops.BAND_CODES[s.type] ?? ""}</span>
             <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{bandName}</span>
             <span className="layer-actions" aria-hidden="true">
@@ -489,34 +500,40 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
                 <button onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { hidden: !s.hidden })); }}>{s.hidden ? "Show in output" : "Hide from output"}</button>
                 <button disabled={!ops.canMoveBand(doc, i, i - 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i - 1); if (next) st.setDoc(next); }}>Move up</button>
                 <button disabled={!ops.canMoveBand(doc, i, i + 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i + 1); if (next) st.setDoc(next); }}>Move down</button>
-                <button onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { collapsed: !s.collapsed })); }}>{s.collapsed ? "Expand" : "Collapse"}</button>
+                <button disabled={searching} onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { collapsed: !s.collapsed })); }}>{s.collapsed ? "Expand" : "Collapse"}</button>
                 <button className="danger" aria-label={`Remove ${s.type} band`} disabled={!!s.locked} onClick={() => { const st = useStore.getState(); st.setDoc(ops.removeSection(st.doc, i)); st.set({ selectedBand: null }); }}>Delete section</button>
               </div>
             </details>
           </div>
-          {!s.collapsed && (s.children ?? []).map((c: ops.Comp) => (
-            <LayerRow key={c.id} comp={c} depth={depth + 1} />
+          {expanded && (s.children ?? []).map((c: ops.Comp) => (
+            <LayerRow key={c.id} comp={c} depth={depth + 1} search={search} />
           ))}
         </div>
   );
 }
 
-function ExplorerNodeRow({ node, depth }: { node: ExplorerNode; depth: number }) {
+function ExplorerNodeRow({ node, depth, search }: { node: ExplorerNode; depth: number; search?: ExplorerSearch }) {
   const doc = useStore((state) => state.doc);
   const [open, setOpen] = useState(true);
-  if (node.kind === "band") return <ExplorerBand index={node.index} depth={depth} />;
+  if (node.kind === "band") return <ExplorerBand index={node.index} depth={depth} search={search} />;
   const group = (doc.groups ?? []).find((entry: any) => entry.id === node.id);
-  if (!group) return null;
+  if (!group || (search && !search.groups.has(node.id))) return null;
+  const searching = !!search;
+  const expanded = searching || open;
   const selectGroup = () => {
     const index = (doc.sections ?? []).findIndex((section: any) => section.groupId === node.id && section.type === "groupHeader");
     const fallback = (doc.sections ?? []).findIndex((section: any) => section.groupId === node.id && section.type === "groupFooter");
     useStore.getState().set({ selectedBand: index >= 0 ? index : fallback >= 0 ? fallback : null, selection: [], rightOpen: true });
   };
   return <div className="explorer-group" data-testid={"explorer-group-" + node.id}>
-    <div className="layer explorer-row" style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }} data-depth={depth} title={group.by}>
-      <button className="mini" aria-label={(open ? "Collapse " : "Expand ") + (group.name ?? group.id)} onClick={() => setOpen(!open)}>{open ? "▾" : "▸"}</button>
+    <div className={`layer explorer-row ${search?.matchedGroups.has(node.id) ? "search-match" : ""}`} style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }} data-depth={depth} title={group.by}>
+      <button className="mini" aria-label={(expanded ? "Collapse " : "Expand ") + (group.name ?? group.id)} disabled={searching} onClick={() => setOpen(!open)}>{expanded ? "▾" : "▸"}</button>
       <span className="layer-type" aria-hidden="true">▦</span>
-      <button className="explorer-group-name" onClick={selectGroup}>{group.name ?? group.id}</button>
+      <button className="explorer-group-name" data-explorer-entry="" data-explorer-match={search?.matchedGroups.has(node.id) ? "" : undefined} aria-expanded={node.children.length ? expanded : undefined} onClick={selectGroup} onKeyDown={(event) => {
+        if (searching) return;
+        if (event.key === "ArrowRight" && !open) { event.preventDefault(); setOpen(true); }
+        if (event.key === "ArrowLeft" && open) { event.preventDefault(); setOpen(false); }
+      }}>{group.name ?? group.id}</button>
       <span className="layer-actions" />
       <details className="explorer-menu" onClick={(event) => event.stopPropagation()}>
         <summary role="button" aria-label={`Actions for ${group.name ?? group.id}`} title="Group actions">⋯</summary>
@@ -530,13 +547,20 @@ function ExplorerNodeRow({ node, depth }: { node: ExplorerNode; depth: number })
         </div>
       </details>
     </div>
-    {open && node.children.map((child) => <ExplorerNodeRow key={child.kind === "group" ? "g:" + child.id : "b:" + child.index} node={child} depth={depth + 1} />)}
+    {expanded && node.children.map((child) => <ExplorerNodeRow key={child.kind === "group" ? "g:" + child.id : "b:" + child.index} node={child} depth={depth + 1} search={search} />)}
   </div>;
 }
 
 function ReportExplorer() {
   const doc = useStore((state) => state.doc);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const tree = useMemo(() => explorerTree(doc.sections ?? [], doc.groups ?? []), [doc]);
+  const search = useMemo(() => query.trim() ? searchExplorer(doc, tree, query) : undefined, [doc, tree, query]);
+  const focusSearch = () => {
+    setSearchOpen(true);
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[data-testid="structure-search"]')?.focus());
+  };
   const addBand = (type: string) => {
     const st = useStore.getState();
     const props: Record<string, any> = {};
@@ -552,21 +576,44 @@ function ReportExplorer() {
     const result = ops.addBand(st.doc, type, props);
     st.setDoc(result.doc);
     st.set({ selectedBand: result.index, selection: [], rightOpen: true });
+    setQuery("");
   };
   return (
-    <div className="tab-body structure-tab" data-testid="layers-tab">
-      <div className="structure-head">Structure
-        <button className="compact-close" type="button" aria-label="Close workspace panel" onClick={() => useStore.getState().set({ leftOpen: false })}>×</button>
-        <details className="structure-add">
-          <summary role="button" aria-label="Add section or group" title="Add section or group" data-testid="explorer-add-trigger">+</summary>
-          <div className="structure-add-popover">
-            <button data-testid="explorer-add-group" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); useStore.getState().set({ dialog: "group" }); }}>Group…</button>
-            {ops.BAND_TYPES.map((type) => <button key={type} data-testid={`explorer-add-band-${type}`} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); addBand(type); }}>{ops.BAND_TITLES[type]}</button>)}
-          </div>
-        </details>
+    <div className="tab-body structure-tab" data-testid="layers-tab" onKeyDown={(event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") { event.preventDefault(); focusSearch(); return; }
+      if (!(event.target as HTMLElement).hasAttribute("data-explorer-entry")) return;
+      if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+      const rows = [...event.currentTarget.querySelectorAll<HTMLElement>("[data-explorer-entry]")];
+      const index = rows.indexOf(event.target as HTMLElement);
+      const next = event.key === "Home" ? 0 : event.key === "End" ? rows.length - 1 : Math.max(0, Math.min(rows.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
+      event.preventDefault();
+      rows[next]?.focus();
+      rows[next]?.scrollIntoView({ block: "nearest" });
+    }}>
+      <div className="structure-head"><span>Structure</span>
+        <div className="structure-head-actions">
+          <button className="structure-search-trigger" type="button" aria-label="Find in structure" title="Find in structure" aria-expanded={searchOpen} onClick={focusSearch}><Icon name="search" small /></button>
+          <button className="compact-close" type="button" aria-label="Close workspace panel" onClick={() => useStore.getState().set({ leftOpen: false })}>×</button>
+          <details className="structure-add">
+            <summary role="button" aria-label="Add section or group" title="Add section or group" data-testid="explorer-add-trigger">+</summary>
+            <div className="structure-add-popover">
+              <button data-testid="explorer-add-group" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); useStore.getState().set({ dialog: "group" }); }}>Group…</button>
+              {ops.BAND_TYPES.map((type) => <button key={type} data-testid={`explorer-add-band-${type}`} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); addBand(type); }}>{ops.BAND_TITLES[type]}</button>)}
+            </div>
+          </details>
+        </div>
       </div>
+      {searchOpen && <div className="structure-search-row">
+        <input className="search" type="search" data-testid="structure-search" aria-label="Search structure" placeholder="Find bands or elements…" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+          if (event.key === "Escape") { event.preventDefault(); setQuery(""); setSearchOpen(false); document.querySelector<HTMLButtonElement>(".structure-search-trigger")?.focus(); }
+          if (event.key === "Enter") { event.preventDefault(); document.querySelector<HTMLElement>("[data-explorer-match]")?.focus(); }
+        }} />
+        <button type="button" aria-label="Close structure search" onClick={() => { setQuery(""); setSearchOpen(false); }}>×</button>
+      </div>}
+      {search && <div className="structure-search-count" role="status">{search.count} {search.count === 1 ? "match" : "matches"}</div>}
       <div className="structure-root" title={doc.name}>{doc.name}</div>
-      {tree.map((node) => <ExplorerNodeRow key={node.kind === "group" ? "g:" + node.id : "b:" + node.index} node={node} depth={0} />)}
+      {tree.map((node) => <ExplorerNodeRow key={node.kind === "group" ? "g:" + node.id : "b:" + node.index} node={node} depth={0} search={search} />)}
+      {search && search.count === 0 && <p className="structure-search-empty">No bands or elements match “{query.trim()}”.</p>}
     </div>
   );
 }

@@ -20,6 +20,7 @@ const P: Record<string, string> = {
   keepTogether: "M4 4h16v16H4z",
   group: "M4 4h16v6H4zM4 14h16v6H4z",
   structure: "M5 4h14v4H5zM7 12h12v4H7zM9 20h10v1H9z",
+  search: "M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14zM16 16l5 5",
   data: "M4 6c0-3 16-3 16 0v12c0 3-16 3-16 0zM4 6c0 3 16 3 16 0M4 12c0 3 16 3 16 0",
   components: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
   pages: "M6 3h10l3 3v15H6zM16 3v4h3M9 11h7M9 15h7",

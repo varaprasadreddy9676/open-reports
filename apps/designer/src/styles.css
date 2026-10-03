@@ -387,6 +387,15 @@ textarea {
 .tab-body { padding: 10px; }
 .structure-tab { padding: 0 8px 12px; }
 .structure-head { display: flex; align-items: center; justify-content: space-between; height: 40px; padding: 0 2px 0 6px; border-bottom: 1px solid var(--border); font-weight: 650; }
+.structure-head-actions { display: flex; align-items: center; gap: 2px; }
+.structure-search-trigger { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer; }
+.structure-search-trigger:hover, .structure-search-trigger[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.structure-search-row { display: flex; align-items: center; gap: 4px; padding: 8px 4px 2px; }
+.structure-search-row .search { min-width: 0; flex: 1; margin: 0; }
+.structure-search-row > button { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer; }
+.structure-search-row > button:hover { background: var(--panel-2); color: var(--text); }
+.structure-search-count { padding: 4px 6px 0; font-size: 10px; color: var(--muted); }
+.structure-search-empty { margin: 8px 6px; color: var(--muted); font-size: 11px; line-height: 1.4; }
 .structure-root { height: 32px; display: flex; align-items: center; padding: 0 7px; margin: 4px 0 2px; color: var(--text); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .structure-add { position: relative; }
 .structure-add > summary { list-style: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 19px; }
@@ -596,6 +605,8 @@ textarea {
   color: var(--accent);
   background: var(--accent-soft);
 }
+.explorer-row.search-match:not(.selected) { background: var(--accent-soft); }
+.explorer-row.search-match > .layer-name, .explorer-row.search-match > .explorer-group-name { color: var(--accent); }
 .band-props-fields { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px; }
 .explorer-group-name { border: 0; padding: 0; background: none; color: var(--text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
 .explorer-group .layer > .muted.small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

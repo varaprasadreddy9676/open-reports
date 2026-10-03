@@ -99,6 +99,33 @@ test.describe("workspace", () => {
     await page.screenshot({ path: path.join(screenshots, "05-sidebar-aligned-laptop.png") });
   });
 
+  test("structure search reveals deep matches without changing collapsed bands", async ({ page }) => {
+    await page.setViewportSize({ width: 1536, height: 900 });
+    await absoluteForm(page);
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId("explorer-collapse-0").click();
+    await expect(page.getByTestId("layer-course")).toHaveCount(0);
+    await page.getByRole("button", { name: "Find in structure" }).click();
+    const search = page.getByRole("searchbox", { name: "Search structure" });
+    await search.fill("data.cert.course");
+    await expect(page.getByTestId("layers-tab").getByRole("status")).toHaveText("1 match");
+    await expect(page.getByTestId("layer-course")).toBeVisible();
+    await expect(page.getByTestId("layer-title")).toHaveCount(0);
+    await search.press("Enter");
+    await expect(page.getByTestId("layer-course")).toBeFocused();
+    await page.getByTestId("layer-course").press("ArrowUp");
+    await expect(page.getByTestId("layer-canvas")).toBeFocused();
+    await page.getByTestId("layer-canvas").press("ArrowDown");
+    await page.getByTestId("layer-course").press("Enter");
+    expect(await page.evaluate(() => (window as any).__designer.getState().selection)).toEqual(["course"]);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "48-structure-search.png") });
+    await search.press("Escape");
+    await expect(page.getByTestId("layer-course")).toHaveCount(0);
+    expect((await doc(page)).sections[0].collapsed).toBe(true);
+  });
+
   test("workspace rail switches semantic panels with pointer and keyboard", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-blank").click();
