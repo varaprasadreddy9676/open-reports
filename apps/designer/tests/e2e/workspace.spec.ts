@@ -59,6 +59,33 @@ test.describe("workspace", () => {
     await page.screenshot({ path: path.join(screenshots, "66-designer-workspace-laptop.png") });
   });
 
+  test("new blank reports open Components while designed reports open a compact Structure overview", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await expect(page.getByTestId("left-tab-insert")).toHaveAttribute("aria-selected", "true");
+    await page.getByTestId("btn-more").click();
+    await page.getByTestId("btn-new").click();
+    await page.getByTestId("starter-search").fill("department");
+    await page.getByTestId("starter-department-report").click();
+    await expect(page.getByTestId("left-tab-layers")).toHaveAttribute("aria-selected", "true");
+    await page.getByTestId("view-structure").click();
+    await expect(page.locator(".canvas-scroll")).toContainText("Department Revenue Report");
+    const reportBand = page.getByTestId("section-reportHeader");
+    const bandContents = reportBand.locator("..").locator('.explorer-row[data-testid^="layer-"]');
+    await expect(bandContents).toHaveCount(0);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "67-structure-overview.png") });
+    await page.getByTestId("explorer-collapse-0").click();
+    await expect(bandContents).toHaveCount(3);
+    expect((await doc(page)).sections[0].collapsed).toBeUndefined();
+    await page.reload();
+    await expect(page.getByTestId("left-tab-layers")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("section-reportHeader").locator("..").locator('.explorer-row[data-testid^="layer-"]')).toHaveCount(0);
+    await page.evaluate(() => { const s = (window as any).__designer.getState(); s.select([s.doc.sections[0].children[0].id]); });
+    await expect(page.getByTestId("section-reportHeader").locator("..").locator('.explorer-row[data-testid^="layer-"]')).toHaveCount(3);
+  });
+
   test("laptop keeps the canvas wide and opens side panels without squeezing it", async ({ page }) => {
     await page.setViewportSize({ width: 1120, height: 720 });
     await absoluteForm(page);
@@ -167,7 +194,7 @@ test.describe("workspace", () => {
     await page.screenshot({ path: path.join(screenshots, "48-structure-search.png") });
     await search.press("Escape");
     await expect(page.getByTestId("layer-course")).toHaveCount(0);
-    expect((await doc(page)).sections[0].collapsed).toBe(true);
+    expect((await doc(page)).sections[0].collapsed).toBeUndefined();
   });
 
   test("workspace rail switches semantic panels with pointer and keyboard", async ({ page }) => {

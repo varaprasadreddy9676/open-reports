@@ -294,7 +294,8 @@ export const useStore = create<State>((set, get) => ({
 
   loadDoc(doc, meta = {}, sample = {}) {
     const d = ops.ensureIds(doc);
-    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
+    const hasStructure = (d.sections ?? []).length > 1 || (d.groups ?? []).length > 0 || (d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
+    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
     persistDraft(d, sample);
     get().refresh();
   },

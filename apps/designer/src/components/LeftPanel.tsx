@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { savePref, useStore } from "../store";
 import * as ops from "../model/ops";
 import { datasetFields, datasetIsArray, fieldSample, filterFields, type FieldNode } from "../lib/fields";
@@ -413,15 +413,19 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
 }
 
 
-function ExplorerBand({ index, depth, search }: { index: number; depth: number; search?: ExplorerSearch }) {
+function ExplorerBand({ index, depth, search, overview }: { index: number; depth: number; search?: ExplorerSearch; overview: boolean }) {
   const doc = useStore((state) => state.doc);
+  const selection = useStore((state) => state.selection);
   const selectedBand = useStore((state) => state.selectedBand);
   const sections: any[] = doc.sections ?? [];
   const i = index;
   const s = sections[i];
+  const [open, setOpen] = useState(!overview && !s?.collapsed);
+  const selectedHere = selection.some((id) => ops.bandIndexOf(doc, id) === i);
+  useEffect(() => { if (selectedHere) setOpen(true); }, [selectedHere]);
   if (!s || (search && !search.bands.has(i))) return null;
   const searching = !!search;
-  const expanded = searching || !s.collapsed;
+  const expanded = searching || open;
   const bandName = s.name ?? (s.type === "groupHeader" ? "Header" : s.type === "groupFooter" ? "Footer" : ops.BAND_TITLES[s.type] ?? s.type);
   return (
         <div>
@@ -435,13 +439,14 @@ function ExplorerBand({ index, depth, search }: { index: number; depth: number; 
             style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }}
             role="button"
             tabIndex={0}
+            aria-expanded={expanded}
             draggable={!s.locked && !searching}
             onClick={() => useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true })}
             onKeyDown={(e) => {
               if (e.target !== e.currentTarget) return;
               if (e.key === "Enter" || e.key === " ") { e.preventDefault(); useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); }
-              else if (!searching && e.key === "ArrowRight" && s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: undefined })); }
-              else if (!searching && e.key === "ArrowLeft" && !s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: true })); }
+              else if (!searching && e.key === "ArrowRight" && !open) { e.preventDefault(); setOpen(true); }
+              else if (!searching && e.key === "ArrowLeft" && open) { e.preventDefault(); setOpen(false); }
               else if (e.key === "F2") { e.preventDefault(); useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); requestAnimationFrame(() => (document.querySelector('[data-testid="band-name"]') as HTMLInputElement | null)?.focus()); }
               else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); e.currentTarget.querySelector<HTMLDetailsElement>(".explorer-menu")?.setAttribute("open", ""); }
             }}
@@ -482,8 +487,7 @@ function ExplorerBand({ index, depth, search }: { index: number; depth: number; 
           >
             <button className="mini" aria-label={expanded ? "Collapse band" : "Expand band"} title={searching ? "Clear search to change the band view" : undefined} disabled={searching} data-testid={`explorer-collapse-${i}`} onClick={(e) => {
               e.stopPropagation();
-              const st = useStore.getState();
-              st.setDoc(ops.updateBand(st.doc, i, { collapsed: s.collapsed ? undefined : true }));
+              setOpen(!open);
             }}>{expanded ? "▾" : "▸"}</button>
             <span className="layer-type" title={ops.BAND_TITLES[s.type] ?? s.type}>{ops.BAND_CODES[s.type] ?? ""}</span>
             <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{bandName}</span>
@@ -500,7 +504,7 @@ function ExplorerBand({ index, depth, search }: { index: number; depth: number; 
                 <button onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { hidden: !s.hidden })); }}>{s.hidden ? "Show in output" : "Hide from output"}</button>
                 <button disabled={!ops.canMoveBand(doc, i, i - 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i - 1); if (next) st.setDoc(next); }}>Move up</button>
                 <button disabled={!ops.canMoveBand(doc, i, i + 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i + 1); if (next) st.setDoc(next); }}>Move down</button>
-                <button disabled={searching} onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { collapsed: !s.collapsed })); }}>{s.collapsed ? "Expand" : "Collapse"}</button>
+                <button disabled={searching} onClick={() => setOpen(!open)}>{open ? "Collapse in tree" : "Expand in tree"}</button>
                 <button className="danger" aria-label={`Remove ${s.type} band`} disabled={!!s.locked} onClick={() => { const st = useStore.getState(); st.setDoc(ops.removeSection(st.doc, i)); st.set({ selectedBand: null }); }}>Delete section</button>
               </div>
             </details>
@@ -512,10 +516,10 @@ function ExplorerBand({ index, depth, search }: { index: number; depth: number; 
   );
 }
 
-function ExplorerNodeRow({ node, depth, search }: { node: ExplorerNode; depth: number; search?: ExplorerSearch }) {
+function ExplorerNodeRow({ node, depth, search, overview }: { node: ExplorerNode; depth: number; search?: ExplorerSearch; overview: boolean }) {
   const doc = useStore((state) => state.doc);
   const [open, setOpen] = useState(true);
-  if (node.kind === "band") return <ExplorerBand index={node.index} depth={depth} search={search} />;
+  if (node.kind === "band") return <ExplorerBand index={node.index} depth={depth} search={search} overview={overview} />;
   const group = (doc.groups ?? []).find((entry: any) => entry.id === node.id);
   if (!group || (search && !search.groups.has(node.id))) return null;
   const searching = !!search;
@@ -547,7 +551,7 @@ function ExplorerNodeRow({ node, depth, search }: { node: ExplorerNode; depth: n
         </div>
       </details>
     </div>
-    {expanded && node.children.map((child) => <ExplorerNodeRow key={child.kind === "group" ? "g:" + child.id : "b:" + child.index} node={child} depth={depth + 1} search={search} />)}
+    {expanded && node.children.map((child) => <ExplorerNodeRow key={child.kind === "group" ? "g:" + child.id : "b:" + child.index} node={child} depth={depth + 1} search={search} overview={overview} />)}
   </div>;
 }
 
@@ -556,6 +560,7 @@ function ReportExplorer() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const tree = useMemo(() => explorerTree(doc.sections ?? [], doc.groups ?? []), [doc]);
+  const overview = (doc.sections ?? []).length >= 8;
   const search = useMemo(() => query.trim() ? searchExplorer(doc, tree, query) : undefined, [doc, tree, query]);
   const focusSearch = () => {
     setSearchOpen(true);
@@ -612,7 +617,7 @@ function ReportExplorer() {
       </div>}
       {search && <div className="structure-search-count" role="status">{search.count} {search.count === 1 ? "match" : "matches"}</div>}
       <div className="structure-root" title={doc.name}>{doc.name}</div>
-      {tree.map((node) => <ExplorerNodeRow key={node.kind === "group" ? "g:" + node.id : "b:" + node.index} node={node} depth={0} search={search} />)}
+      {tree.map((node) => <ExplorerNodeRow key={`${doc.id}:${node.kind === "group" ? "g:" + node.id : "b:" + node.index}`} node={node} depth={0} search={search} overview={overview} />)}
       {search && search.count === 0 && <p className="structure-search-empty">No bands or elements match “{query.trim()}”.</p>}
     </div>
   );

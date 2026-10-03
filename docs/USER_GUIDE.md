@@ -20,6 +20,8 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 | **More report actions → Canvas view options** | Grid, rulers, smart guides, margins & safe area, boundaries, diagnostics, "design with first N rows", Focus Canvas |
 | **More report actions → Output target** | Choose PDF / HTML / Excel / CSV / ZPL / ESC/POS — the designer warns about anything that format cannot express |
 
+A blank report opens **Components** so you can start adding content. A report with bands or elements opens **Structure**. Reports with many bands start with their band contents folded so the section outline stays readable; expand a band to inspect its elements. Selecting an element on the canvas opens its band in the tree. Folding the tree does not change the report or its output.
+
 On a laptop, the properties panel starts closed and opens over the canvas when requested. Below 980 px the left workspace panel also starts closed; use the side arrows to open it and the close button in its header to return to the canvas. The canvas **Fit** control scales a full page into the available width.
 
 Shortcuts: `Ctrl+K` command palette · `Ctrl+S` save · `Ctrl+Z/Y` undo/redo · `Ctrl+C/V/D` copy/paste/duplicate · `Ctrl+G` group · `Ctrl+Shift+G` ungroup · `Ctrl+L` lock · `Ctrl+Shift+H` hide · `F2` rename · arrows nudge (Shift = ×10).
