@@ -12,8 +12,8 @@ const faceStyle: Record<string, FontFaceDescriptors> = {
 /** Match the PDF registry's chosen family, then let the browser pick script faces per glyph. */
 export function canvasFontStack(caps: Capabilities | undefined, requested?: string): string {
   const installed = requested && caps?.fonts.find((family) => family.toLowerCase() === requested.toLowerCase());
-  const primary = installed ?? caps?.defaultFont;
-  const families = [primary, ...Object.values(caps?.scriptFonts ?? {}), "Helvetica", "Arial"].filter((value): value is string => Boolean(value));
+  const primary = installed ?? caps?.defaultFont ?? "Helvetica";
+  const families = [primary, ...Object.values(caps?.scriptFonts ?? {}), "Helvetica", "Arial"];
   return [...new Set(families)].map((family) => JSON.stringify(family)).join(", ") + ", sans-serif";
 }
 

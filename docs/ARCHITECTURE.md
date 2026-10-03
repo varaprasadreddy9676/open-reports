@@ -29,7 +29,7 @@ Dependencies point downward only: `core` knows nothing about renderers or concre
 Fastify 5 + better-sqlite3 (swappable via a storage plugin). Templates have **versions**: a draft can change, a **published** version is immutable. Rendering supports inline definitions, stored templates and async jobs. A `RenderRuntime` (renderers, data sources, plugin functions and components) is built once per server from the plugin registry.
 
 ## Designer
-The designer runs `core` and `layout` **in the browser** against sample data, so the canvas is the real engine, not an approximation (the Preview tab uses the server's PDF renderer for exact output). Edits are pure functions over the JSON (`model/ops.ts`); undo/redo and the labelled history are snapshots of the JSON. The code editor and the canvas stay in sync through the same store.
+The designer runs `core` and `layout` **in the browser** against sample data for immediate feedback, then replaces its paginated page tree with `/api/v1/analyze` output measured by the PDF renderer when the server responds. The browser loads the server's installed font faces and uses the returned text line advance; it labels the local estimate when analysis is unavailable. The Preview tab uses the server's PDF renderer for exact output. Edits are pure functions over the JSON (`model/ops.ts`); undo/redo and the labelled history are snapshots of the JSON. The code editor and the canvas stay in sync through the same store.
 
 ## Extension points
 Plugins (`@reporting/plugin-sdk`) can add: output formats, data sources, expression functions, `custom` components that expand into ordinary components (so all renderers support them), and a storage backend. See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md).

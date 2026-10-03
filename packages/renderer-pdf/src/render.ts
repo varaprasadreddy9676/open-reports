@@ -94,6 +94,7 @@ export function createPdfMeasurer(doc: PDFKit.PDFDocument, fonts: PdfFontRegistr
       return width;
     },
     lineHeight(fontSize, hint) {
+      if (hint?.lineHeight && hint.lineHeight > 0) return fontSize * hint.lineHeight;
       return doc.font(fonts.resolve(hint?.family ?? defaultFamily, Boolean(hint?.bold), Boolean(hint?.italic))).fontSize(fontSize).currentLineHeight(true);
     },
   };

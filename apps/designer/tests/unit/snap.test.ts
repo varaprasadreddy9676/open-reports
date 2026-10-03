@@ -47,6 +47,16 @@ describe("snapBox", () => {
     expect(r.y).toBe(200);
     expect(r.distances.filter((d) => d.axis === "y" && d.equal)).toHaveLength(2);
   });
+  it("snaps a dragged text baseline to a sibling text baseline", () => {
+    const other = { x: 100, y: 116, width: 50, height: 20 };
+    const moving = { x: 200, y: 130, width: 50, height: 20 };
+    const extra = { x: [], y: [], baseline: { movingOffset: 10, targets: [{ pos: 138, box: other }] } };
+    const result = snapBox(moving, [other], bounds, true, extra);
+    expect(result.y).toBe(128);
+    expect(result.guides).toContainEqual({ axis: "y", pos: 138, from: 100, to: 250, kind: "baseline" });
+    expect(result.snapped.y).toBe(true);
+    expect(snapBox(moving, [other], bounds, false, extra).y).toBe(130);
+  });
   it("snaps only active resize edges to sibling geometry", () => {
     const other = { x: 200, y: 200, width: 40, height: 30 };
     const east = snapResizeBox({ x: 100, y: 200, width: 98, height: 30 }, "e", [other], bounds, true);

@@ -247,7 +247,7 @@ test.describe("canvas interactions", () => {
     expect(JSON.stringify(d)).toContain('"fontWeight":"bold"');
   });
 
-  test("marquee selects several elements; alt-drag duplicates; guides snap", async ({ page }) => {
+  test("marquee selects several elements; Shift+Alt-drag duplicates; guides snap", async ({ page }) => {
     await absoluteForm(page);
     await page.waitForTimeout(400);
     const pageBox = (await page.getByTestId("page-1").boundingBox())!;
@@ -257,16 +257,18 @@ test.describe("canvas interactions", () => {
     await page.mouse.up();
     expect((await st(page)).selection.length).toBeGreaterThan(1);
 
-    // alt-drag a single element: original stays, a copy is created
+    // Shift+Alt-drag a single element: original stays, a copy is created.
     await page.evaluate(() => (window as any).__designer.getState().select([]));
     const before = (await doc(page)).sections[0].children[0].children.length;
     const el = (await page.locator('[data-cid="date"]').first().boundingBox())!;
     await page.keyboard.down("Alt");
+    await page.keyboard.down("Shift");
     await page.mouse.move(el.x + 4, el.y + 4);
     await page.mouse.down();
     await page.mouse.move(el.x + 40, el.y + 70, { steps: 6 });
     await page.mouse.up();
     await page.keyboard.up("Alt");
+    await page.keyboard.up("Shift");
     expect((await doc(page)).sections[0].children[0].children.length).toBe(before + 1);
   });
 

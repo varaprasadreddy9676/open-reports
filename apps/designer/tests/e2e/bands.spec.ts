@@ -577,9 +577,9 @@ test("guide settings edit exact position, name and lock without leaving the canv
   await expect(row.getByRole("button", { name: "Delete guide" })).toBeDisabled();
   await page.getByTestId("ruler-origin").selectOption("printable");
   const leftMargin = await page.evaluate(() => (window as any).__designer.getState().engine.paginated.margin.left);
-  expect(Number(await row.getByLabel("Guide position").inputValue())).toBeCloseTo((70.9 - leftMargin) / (72 / 25.4), 1);
+  await expect.poll(async () => Number(await row.getByLabel("Guide position").inputValue())).toBeCloseTo((70.9 - leftMargin) / (72 / 25.4), 1);
   await page.getByTestId("ruler-unit").selectOption("dots");
-  expect(Number(await row.getByLabel("Guide position").inputValue())).toBeCloseTo((70.9 - leftMargin) / (72 / 203), 0);
+  await expect.poll(async () => Number(await row.getByLabel("Guide position").inputValue())).toBeCloseTo((70.9 - leftMargin) / (72 / 203), 0);
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
   fs.mkdirSync(screenshots, { recursive: true });
   await page.screenshot({ path: path.join(screenshots, "37-guide-controls.png") });

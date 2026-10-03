@@ -15,5 +15,6 @@ describe("canvas font stack", () => {
     expect(canvasFontStack(caps, "noto sans telugu").startsWith('"Noto Sans Telugu"')).toBe(true);
     expect(canvasFontStack(caps, "Browser-only").startsWith('"Noto Sans"')).toBe(true);
     expect(canvasFontStack(undefined)).toBe('"Helvetica", "Arial", sans-serif');
+    expect(canvasFontStack({ ...caps, fonts: ["Noto Sans Telugu"], defaultFont: null })).toBe('"Helvetica", "Noto Sans Telugu", "Arial", sans-serif');
   });
 });

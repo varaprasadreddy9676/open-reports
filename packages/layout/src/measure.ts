@@ -10,6 +10,8 @@ export interface TextStyleHint {
   family?: string;
   bold?: boolean;
   italic?: boolean;
+  /** CSS-style line-height multiplier, when explicitly set by the report. */
+  lineHeight?: number;
 }
 
 export interface TextMeasurer {
@@ -23,8 +25,8 @@ export const defaultTextMeasurer: TextMeasurer = {
   widthOf(text: string, fontSize: number, hint?: TextStyleHint): number {
     return text.length * fontSize * AVG_CHAR_WIDTH_RATIO * (hint?.bold ? 1.06 : 1);
   },
-  lineHeight(fontSize: number): number {
-    return fontSize * 1.3;
+  lineHeight(fontSize: number, hint?: TextStyleHint): number {
+    return fontSize * (hint?.lineHeight && hint.lineHeight > 0 ? hint.lineHeight : 1.3);
   },
 };
 

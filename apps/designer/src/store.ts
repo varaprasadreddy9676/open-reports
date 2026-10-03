@@ -573,6 +573,7 @@ export const useStore = create<State>((set, get) => ({
       set({ capabilities });
       get().refresh();
       await loadCanvasFonts(capabilities);
+      set({ capabilities: { ...capabilities } });
     } catch {
       /* server unavailable: capability checks are skipped */
     }

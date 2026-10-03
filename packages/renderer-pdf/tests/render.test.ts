@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { parseReportDefinition } from "@reporting/schema";
 import { DataSourceRegistry, InlineDataSource, resolveReport } from "@reporting/core";
 import { PdfRenderer } from "../src/render.js";
@@ -68,6 +72,24 @@ describe("PdfRenderer", () => {
     expect(parsed.text).toContain("Acme Health");
     expect(parsed.text).toContain("Eye Examination");
     expect(parsed.text).toContain("$1,000.00");
+  });
+
+  it("draws explicit line height at the same advance used for layout", async () => {
+    const report = { schemaVersion: "1.0", id: "line-height", name: "Line height", sections: [
+      { type: "detail", children: [{ type: "text", value: "ONE\nTWO\nTHREE", width: 200, height: 100, style: { fontSize: 12, lineHeight: 1.8 } }] },
+    ] };
+    const pdf = (await renderPdf(report)).content as Buffer;
+    const file = path.join(os.tmpdir(), `report-line-height-${process.pid}-${Date.now()}.pdf`);
+    fs.writeFileSync(file, pdf);
+    try {
+      const boxes = execFileSync("pdftotext", ["-bbox", file, "-"], { encoding: "utf-8" });
+      const words = [...boxes.matchAll(/<word xMin="[\d.]+" yMin="([\d.]+)" xMax="[\d.]+" yMax="[\d.]+">(ONE|TWO|THREE)<\/word>/g)].map((match) => ({ text: match[2], y: Number(match[1]) }));
+      expect(words.map((word) => word.text)).toEqual(["ONE", "TWO", "THREE"]);
+      expect(words[1]!.y - words[0]!.y).toBeCloseTo(21.6, 1);
+      expect(words[2]!.y - words[1]!.y).toBeCloseTo(21.6, 1);
+    } finally {
+      fs.rmSync(file, { force: true });
+    }
   });
 
   it("produces the correct number of pages for a report that spans multiple pages", async () => {

@@ -25,8 +25,12 @@ function spacing(value: unknown): { top: number; right: number; bottom: number; 
 }
 
 /** Draws text as per-script runs so each run uses a font that has its glyphs (Latin, Devanagari, Telugu, ...). */
-function drawRuns(ctx: DrawContext, text: string, x: number, y: number, opts: Record<string, any>, family: string | undefined, bold: boolean, italic: boolean): void {
+function drawRuns(ctx: DrawContext, text: string, x: number, y: number, opts: Record<string, any>, family: string | undefined, bold: boolean, italic: boolean, fontSize = 10, lineHeight?: number): void {
   const runs = ctx.fonts.runs(text, family, bold, italic);
+  if (lineHeight && lineHeight > 0) {
+    ctx.doc.font(runs[0]?.font ?? ctx.fonts.resolve(family, bold, italic)).fontSize(fontSize);
+    opts = { ...opts, lineGap: fontSize * lineHeight - ctx.doc.currentLineHeight(true) };
+  }
   if (runs.length <= 1) {
     ctx.doc.font(runs[0]?.font ?? ctx.fonts.resolve(family, bold, italic)).text(text, x, y, opts);
     return;
@@ -94,7 +98,7 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
         align: style.align ?? (startsRtl(component.text ?? "") ? "right" : "left"),
         underline: Boolean(style.underline),
         strike: Boolean(style.strikethrough),
-      }, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic));
+      }, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight);
       break;
     }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ResolvedReport, ResolvedTableComponent } from "@reporting/core";
 import { paginate, pickMaster } from "../src/paginate.js";
-import { layoutFlow, layoutRow } from "../src/box-layout.js";
+import { layoutComponent, layoutFlow, layoutRow } from "../src/box-layout.js";
 import { defaultTextMeasurer } from "../src/measure.js";
 
 const text = (t: string, extra: Record<string, unknown> = {}) => ({ type: "text", text: t, ...extra }) as any;
@@ -60,6 +60,20 @@ describe("page masters", () => {
 
 describe("auto-layout", () => {
   const box = { x: 0, y: 0, width: 300, height: 0 };
+
+  it("carries the paginator's text line advance into positioned nodes", () => {
+    const measurer = { widthOf: () => 20, lineHeight: () => 17.25 };
+    const node = layoutComponent(text("Hello", { style: { fontSize: 12 } }), box, measurer);
+    expect(node.textMetrics?.lineHeight).toBe(17.25);
+    expect(node.box.height).toBe(17.25);
+  });
+
+  it("passes an explicit line-height multiplier to the measurer", () => {
+    const measurer = { widthOf: () => 20, lineHeight: (size: number, hint?: { lineHeight?: number }) => size * (hint?.lineHeight ?? 1.3) };
+    const node = layoutComponent(text("Hello", { style: { fontSize: 12, lineHeight: 1.8 } }), box, measurer);
+    expect(node.textMetrics?.lineHeight).toBeCloseTo(21.6, 5);
+    expect(node.box.height).toBeCloseTo(21.6, 5);
+  });
 
   it("flow honors gap and margins", () => {
     const { nodes, height } = layoutFlow([text("a"), text("b", { style: { margin: { top: 5, bottom: 5, left: 0, right: 0 } } })], box, defaultTextMeasurer, { gap: 10 });

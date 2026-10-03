@@ -15,6 +15,8 @@ export interface PositionedNode {
   rowRange?: { start: number; end: number };
   /** Measured with the paginator's font metrics; lets visual clients draw table rows at the same heights. */
   tableMetrics?: { headerRowHeights: number[]; rowHeights: number[] };
+  /** Text line advance measured by the same font engine that paginated this node. */
+  textMetrics?: { lineHeight: number };
 }
 
 export interface PageZones {

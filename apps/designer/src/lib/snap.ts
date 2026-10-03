@@ -5,6 +5,12 @@ export interface Guide {
   pos: number;
   from: number;
   to: number;
+  kind?: "baseline";
+}
+
+export interface BaselineSnap {
+  movingOffset: number;
+  targets: { pos: number; box: Box }[];
 }
 
 export interface Distance {
@@ -79,7 +85,7 @@ function spacingMatch(moving: Box, others: Box[], bounds: Box, axis: "x" | "y"):
 }
 
 /** Snap a moving box to the edges/centres of other boxes and the page margins. Returns the adjusted position plus guide lines to draw. */
-export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[] } = { x: [], y: [] }): { x: number; y: number; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
+export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[]; baseline?: BaselineSnap } = { x: [], y: [] }): { x: number; y: number; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
   let { x, y } = moving;
   const guides: Guide[] = [];
   if (!enabled) return { x, y, guides, distances: [] as Distance[], snapped: { x: false, y: false } };
@@ -104,8 +110,15 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
   if (equalX) x = equalX.pos;
   else if (bestX.d <= THRESHOLD) x += bestX.delta;
 
-  let bestY: { d: number; delta: number; at: number; source?: Box } = { d: THRESHOLD + 1, delta: 0, at: 0 };
+  let bestY: { d: number; delta: number; at: number; source?: Box; kind?: "baseline" } = { d: THRESHOLD + 1, delta: 0, at: 0 };
   for (const mine of ys({ ...moving, y })) for (const target of targetsY) if (Math.abs(target.pos - mine) < bestY.d) bestY = { d: Math.abs(target.pos - mine), delta: target.pos - mine, at: target.pos, source: target.box };
+  if (extra.baseline) {
+    const mine = y + extra.baseline.movingOffset;
+    for (const target of extra.baseline.targets) {
+      const d = Math.abs(target.pos - mine);
+      if (d <= THRESHOLD && d <= bestY.d) bestY = { d, delta: target.pos - mine, at: target.pos, source: target.box, kind: "baseline" };
+    }
+  }
   const spacingY = spacingMatch(moving, others, bounds, "y");
   const equalY = spacingY && Math.abs(spacingY.pos - y) <= bestY.d ? spacingY : undefined;
   if (equalY) y = equalY.pos;
@@ -113,7 +126,7 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
 
   const box = { ...moving, x, y };
   if (!equalX && bestX.d <= THRESHOLD) guides.push({ axis: "x", pos: bestX.at, from: Math.min(box.y, bestX.source?.y ?? bounds.y), to: Math.max(box.y + box.height, bestX.source ? bestX.source.y + bestX.source.height : bounds.y + bounds.height) });
-  if (!equalY && bestY.d <= THRESHOLD) guides.push({ axis: "y", pos: bestY.at, from: Math.min(box.x, bestY.source?.x ?? bounds.x), to: Math.max(box.x + box.width, bestY.source ? bestY.source.x + bestY.source.width : bounds.x + bounds.width) });
+  if (!equalY && bestY.d <= THRESHOLD) guides.push({ axis: "y", pos: bestY.at, from: Math.min(box.x, bestY.source?.x ?? bounds.x), to: Math.max(box.x + box.width, bestY.source ? bestY.source.x + bestY.source.width : bounds.x + bounds.width), ...(bestY.kind ? { kind: bestY.kind } : {}) });
 
   const distances = measureDistances(box, others);
   for (const [axis, equal] of [["x", equalX], ["y", equalY]] as const) {

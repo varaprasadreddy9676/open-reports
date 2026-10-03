@@ -215,6 +215,35 @@ test.describe("editing", () => {
     expect((await doc(page)).sections[0].children[0].children.find((item: any) => item.id === "date").y).not.toBe(before);
   });
 
+  test("dragging text snaps its baseline to a sibling", async ({ page }) => {
+    await startBlank(page);
+    await page.evaluate(() => {
+      const store = (window as any).__designer.getState();
+      store.loadDoc({ ...store.doc, id: "baseline-drag", sections: [{ type: "detail", layout: "absolute", children: [
+        { type: "text", id: "heading", value: "Heading", x: 80, y: 100, width: 150, height: 40, style: { fontSize: 24 } },
+        { type: "text", id: "value", value: "Value", x: 260, y: 150, width: 100, height: 24, style: { fontSize: 12 } },
+      ] }] });
+    });
+    const heading = page.locator('[data-cid="heading"] .text-baseline-probe');
+    const value = page.locator('[data-cid="value"] .text-baseline-probe');
+    await expect(page.locator('[data-cid="heading"]')).toBeVisible();
+    await expect(page.locator('[data-cid="value"]')).toBeVisible();
+    const pageBox = (await page.getByTestId("page-1").boundingBox())!;
+    const widthPt = await page.evaluate(() => (window as any).__designer.getState().engine.paginated.pageSize.width);
+    const k = pageBox.width / widthPt;
+    const headingTop = (await heading.boundingBox())!.y;
+    const valueTop = (await value.boundingBox())!.y;
+    const source = (await page.locator('[data-cid="value"]').boundingBox())!;
+    const start = { x: source.x + 8, y: source.y + 8 };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x, start.y + headingTop - valueTop + 2 * k, { steps: 8 });
+    await expect(page.getByTestId("baseline-snap-guide")).toBeVisible();
+    await page.screenshot({ path: path.resolve("../../output/playwright/ui-audit-2026-10-03/44-baseline-drag-guide.png") });
+    await page.mouse.up();
+    await expect.poll(async () => Math.abs((await heading.boundingBox())!.y - (await value.boundingBox())!.y)).toBeLessThan(1);
+  });
+
   test("tidy up places selected elements into compact rows and is undoable", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();

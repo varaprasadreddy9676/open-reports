@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { defaultTextMeasurer, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
 import { tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
@@ -91,6 +91,13 @@ function ImageView({ component, style }: { component: any; style: React.CSSPrope
   return <img data-cid={component.id} className="cn" src={linked ? preview?.dataUrl : component.src} alt={component.alt ?? ""} style={{ ...style, objectFit: component.fit === "cover" ? "cover" : component.fit === "fill" || component.fit === "stretch" ? "fill" : "contain" }} />;
 }
 
+function TextNodeView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
+  const c = node.component as any;
+  return <div data-cid={c.id} className="cn cn-text" style={{ ...boxStyle(node, k), ...cssFrom(c.style, k, capabilities), lineHeight: node.textMetrics ? `${node.textMetrics.lineHeight * k}px` : undefined, whiteSpace: "pre-wrap", overflow: "hidden" }}>
+    <span className="text-content"><span className="text-baseline-probe" aria-hidden="true" />{c.text}</span>
+  </div>;
+}
+
 function NodeView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
   const c = node.component as any;
   const common = { "data-cid": c.id } as Record<string, any>;
@@ -100,11 +107,7 @@ function NodeView({ node, k, capabilities }: { node: PositionedNode; k: number; 
     case "text":
     case "richText":
     case "field":
-      return (
-        <div {...common} className="cn cn-text" style={{ ...st, ...cssFrom(c.style, k, capabilities), whiteSpace: "pre-wrap", overflow: "hidden" }}>
-          <span className="text-baseline-probe" aria-hidden="true" />{c.text}
-        </div>
-      );
+      return <TextNodeView node={node} k={k} capabilities={capabilities} />;
     case "image":
       return <ImageView component={c} style={st} />;
     case "line":
@@ -249,6 +252,28 @@ export function Canvas() {
 
   const pageEls = useRef<(HTMLDivElement | null)[]>([]);
 
+  useLayoutEffect(() => {
+    const root = scroller.current;
+    if (!root || !paginated) return;
+    const items = [...root.querySelectorAll<HTMLElement>(".cn-text .text-content")];
+    // Batch writes, then reads, then writes so hundreds of text nodes do not
+    // force a fresh browser layout for each individual correction.
+    for (const content of items) content.style.top = "0px";
+    const corrections: [HTMLElement, number][] = [];
+    for (const content of items) {
+      const outer = content.parentElement;
+      const textNode = [...content.childNodes].find((child) => child.nodeType === Node.TEXT_NODE);
+      if (!outer || !textNode?.textContent) continue;
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+      const renderedTop = range.getBoundingClientRect().top - outer.getBoundingClientRect().top;
+      const paddingTop = parseFloat(getComputedStyle(outer).paddingTop) || 0;
+      // PDFKit starts text at the box padding; CSS line boxes add half-leading.
+      corrections.push([content, paddingTop - renderedTop]);
+    }
+    for (const [content, offset] of corrections) content.style.top = `${offset}px`;
+  }, [paginated, k, capabilities]);
+
   useEffect(() => {
     const el = scroller.current;
     if (!fitToWidth || !el || !paginated) return;
@@ -320,7 +345,15 @@ export function Canvas() {
     const sectionBand = structure && parentId.startsWith("section:") ? structure.bands.find((b) => b.sectionIndex === Number(parentId.slice(8)) && !b.ghost) : undefined;
     const bounds = parentBox ?? (sectionBand ? { x: paginated.margin.left, y: sectionBand.y, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: sectionBand.height } : { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom });
     const extra = { x: ((sourceDoc.guides ?? []) as any[]).filter((g) => g.axis === "x").map((g) => g.pos), y: ((sourceDoc.guides ?? []) as any[]).filter((g) => g.axis === "y").map((g) => g.pos) };
-    return { others, bounds, extra };
+    const pageEl = pageEls.current[page];
+    const pageTop = pageEl?.getBoundingClientRect().top ?? 0;
+    const textEls = new Map(pageEl ? [...pageEl.querySelectorAll<HTMLElement>(".cn-text[data-cid]")].map((el) => [el.dataset.cid, el] as const) : []);
+    const baselines = pageEl ? nodes.filter((n) => siblingIds.has((n.component as any).id) && ["text", "richText", "field"].includes(n.component.type)).flatMap((n) => {
+      const textEl = textEls.get((n.component as any).id);
+      const probe = textEl?.querySelector<HTMLElement>(".text-baseline-probe");
+      return probe ? [{ pos: (probe.getBoundingClientRect().top - pageTop) / k, box: n.box }] : [];
+    }) : [];
+    return { others, bounds, extra, baselines };
   }
 
   // ---- pointer interactions (select, move/reorder, resize)
@@ -358,7 +391,10 @@ export function Canvas() {
     const loc = ops.find(store.doc, id);
     if (loc?.comp.locked) return;
     const node = [...flat([...paginated!.pages[page]!.header, ...paginated!.pages[page]!.content, ...paginated!.pages[page]!.footer])].find((n) => (n.component as any).id === id);
-    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || typeof loc?.comp.x === "number", box: node?.box ? { ...node.box } : undefined }, page };
+    const probe = el.querySelector<HTMLElement>(".text-baseline-probe");
+    const pageEl = pageEls.current[page];
+    const baselineOffset = probe && pageEl && node ? (probe.getBoundingClientRect().top - pageEl.getBoundingClientRect().top) / k - node.box.y : undefined;
+    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || typeof loc?.comp.x === "number", box: node?.box ? { ...node.box } : undefined, baselineOffset }, page };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -434,7 +470,7 @@ export function Canvas() {
         const offX = me.x - d.orig.x;
         const offY = me.y - d.orig.y;
         const guideEnabled = store.view.guides && !e.altKey;
-        const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, context.others, context.bounds, guideEnabled, context.extra);
+        const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, context.others, context.bounds, guideEnabled, { ...context.extra, baseline: d.orig.baselineOffset === undefined ? undefined : { movingOffset: d.orig.baselineOffset, targets: context.baselines } });
         if (guideEnabled) {
           x = r.x - offX;
           y = r.y - offY;
@@ -694,7 +730,7 @@ function SmartGuides({ g, k }: { g: { guides: Guide[]; distances: Distance[] }; 
   return (
     <>
       {g.guides.map((l, i) => (
-        <div key={i} className={`guide ${l.axis}`} style={l.axis === "x" ? { left: l.pos * k, top: l.from * k, height: (l.to - l.from) * k } : { top: l.pos * k, left: l.from * k, width: (l.to - l.from) * k }} />
+        <div key={i} className={`guide ${l.axis}${l.kind ? ` ${l.kind}` : ""}`} data-testid={l.kind === "baseline" ? "baseline-snap-guide" : undefined} style={l.axis === "x" ? { left: l.pos * k, top: l.from * k, height: (l.to - l.from) * k } : { top: l.pos * k, left: l.from * k, width: (l.to - l.from) * k }} />
       ))}
       {g.distances.map((d, i) => (
         <div key={`d${i}`} className={`dist ${d.axis}${d.equal ? " equal" : ""}`} data-testid={d.equal ? "equal-gap-guide" : undefined} title={d.equal ? "Equal spacing" : undefined} style={d.axis === "x" ? { left: d.from * k, width: (d.to - d.from) * k, top: d.at * k } : { top: d.from * k, height: (d.to - d.from) * k, left: d.at * k }}>
