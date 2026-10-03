@@ -260,8 +260,10 @@ function layoutContentIntoPages(
         kind: "group-header-repeated",
         page: pages.length,
         componentId: (n.comp as any).id,
+        sectionIndex: (n.comp as any).band?.sectionIndex,
+        sectionId: (n.comp as any).band?.sectionId,
         message: `Group header ${label(n.comp)} is repeated at the top of page ${pages.length} because its group continues here.`,
-        actions: [{ label: "Stop repeating this header", patch: { repeatEveryPage: false } }],
+        actions: [{ label: "Stop repeating this header", target: "band", patch: { repeatEveryPage: false } }],
       });
     }
   };
@@ -302,14 +304,16 @@ function layoutContentIntoPages(
       }
     }
 
-    const band = anyC.band as { type?: string; level?: number; instance?: number; repeatEveryPage?: boolean } | undefined;
+    const band = anyC.band as { type?: string; level?: number; instance?: number; repeatEveryPage?: boolean; sectionIndex?: number; sectionId?: string } | undefined;
+    const source = band && typeof band.sectionIndex === "number" ? { sectionIndex: band.sectionIndex, sectionId: band.sectionId } : {};
+    const actionTarget = band && typeof band.sectionIndex === "number" ? "band" as const : "component" as const;
     if (band?.type === "groupHeader") {
       // a new instance of this group (or an outer one) closes any repeated header of the same or deeper level
       for (let k = repeatStack.length - 1; k >= 0; k--) if (repeatStack[k]!.level >= (band.level ?? 0) && repeatStack[k]!.instance !== band.instance) repeatStack.splice(k, 1);
     }
 
     if (anyC.pageBreakBefore && y > 0) {
-      decide({ kind: "forced-break", componentId: anyC.id, message: `${label(component)} starts on a new page (page break before).`, actions: [{ label: "Remove page break", patch: { pageBreakBefore: false } }] });
+      decide({ kind: "forced-break", componentId: anyC.id, ...source, message: `${label(component)} starts on a new page (page break before).`, actions: [{ label: "Remove page break", target: actionTarget, patch: actionTarget === "band" ? { newPageBefore: false } : { pageBreakBefore: false } }] });
       newPage();
     }
 
@@ -334,13 +338,14 @@ function layoutContentIntoPages(
         decide({
           kind: members > 2 ? "keep-chain" : "keep-with-next",
           componentId: anyC.id,
+          ...source,
           message:
             members > 2
               ? `${label(component)} is kept together with the ${members - 1} elements after it (${[...new Set(names)].slice(0, 3).join(", ")}): they need ${pt(combined)} but only ${pt(remaining())} is left.`
               : `${label(component)} is kept with the next element; together they need ${pt(combined)} but only ${pt(remaining())} is left.`,
           required: combined,
           available: remaining(),
-          actions: [{ label: "Release keep-with-next", patch: { keepWithNext: false } }],
+          actions: [{ label: "Release keep-with-next", target: actionTarget, patch: { keepWithNext: false } }],
         });
         newPage();
       }
@@ -433,12 +438,13 @@ function layoutContentIntoPages(
           decide({
             kind: keep ? "keep-together" : "cannot-split",
             componentId: anyC.id,
+            ...source,
             message: keep
               ? `${label(component)} is set to keep together: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`
               : `${label(component)} cannot be split across pages: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`,
             required: needed,
             available: remaining(),
-            actions: keep ? [{ label: "Allow split", patch: { keepTogether: false } }] : undefined,
+            actions: keep ? [{ label: "Allow split", target: actionTarget, patch: { keepTogether: false } }] : undefined,
           });
           newPage();
           moved = true;
@@ -476,7 +482,7 @@ function layoutContentIntoPages(
 
     if (anyC.pageBreakAfter) {
       newPage();
-      decisions.push({ kind: "forced-break", page: pages.length, componentId: anyC.id, message: `A page break follows ${label(component)}.`, actions: [{ label: "Remove page break", patch: { pageBreakAfter: false } }] });
+      decisions.push({ kind: "forced-break", page: pages.length, componentId: anyC.id, ...source, message: `A page break follows ${label(component)}.`, actions: [{ label: "Remove page break", target: actionTarget, patch: actionTarget === "band" ? { newPageAfter: false } : { pageBreakAfter: false } }] });
     }
   }
 

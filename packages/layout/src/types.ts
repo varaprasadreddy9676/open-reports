@@ -47,12 +47,15 @@ export interface PaginationDecision {
   /** The page the content moved onto (1-based). */
   page: number;
   componentId?: string;
+  /** Source band for a decision made about an expanded band container. */
+  sectionIndex?: number;
+  sectionId?: string;
   message: string;
   /** Points needed vs. points left on the page it did not fit on. */
   required?: number;
   available?: number;
   rowIndex?: number;
-  actions?: { label: string; patch: Record<string, unknown> }[];
+  actions?: { label: string; patch: Record<string, unknown>; target?: "component" | "band" }[];
 }
 
 export interface PaginatedReport {

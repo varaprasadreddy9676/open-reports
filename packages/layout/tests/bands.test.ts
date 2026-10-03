@@ -165,7 +165,22 @@ describe("group pagination rules", () => {
     expect(ids).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
     expect(pag.decisions.some((d) => d.kind === "group-header-repeated")).toBe(true);
     expect(pag.decisions.filter((d) => d.kind === "group-header-repeated").every((d) => d.page > 1 && (pag.pages[d.page - 1]?.content ?? []).some((n) => (n.component as any).band?.repeated))).toBe(true);
+    expect(pag.decisions.filter((d) => d.kind === "group-header-repeated").every((d) => d.sectionIndex === 0 && d.actions?.[0]?.target === "band")).toBe(true);
     expect(pag.pages.flatMap((p) => p.content).some((n) => (n.component as any).band?.repeated)).toBe(true);
+  });
+
+  it("attributes a forced band break and its fix to the source section", async () => {
+    const { pag } = await run({
+      data: [{ id: 1 }],
+      sections: [
+        { type: "reportHeader", children: [T("TITLE")] },
+        { id: "detail-band", type: "detail", dataset: "d", newPageBefore: true, children: [B("row.id")] },
+      ],
+    });
+    expect(pag.decisions).toContainEqual(expect.objectContaining({
+      kind: "forced-break", page: 2, sectionIndex: 1, sectionId: "detail-band",
+      actions: [{ label: "Remove page break", target: "band", patch: { newPageBefore: false } }],
+    }));
   });
 
   it("without repeatHeader the header prints once", async () => {

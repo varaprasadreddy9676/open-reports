@@ -886,3 +886,29 @@ test("structure view locates real page starts and opens their pagination reasons
   await expect(page.getByTestId("view-pages")).toHaveClass(/on/);
   await expect(page.getByTestId("page-2")).toBeVisible();
 });
+
+test("a repeated group-header explanation fixes the source band", async ({ page }) => {
+  await page.setViewportSize({ width: 1536, height: 900 });
+  await page.evaluate(() => {
+    const st = (window as any).__designer.getState();
+    st.setDoc({ ...st.doc,
+      datasets: [{ id: "items", source: "inline", query: { data: Array.from({ length: 120 }, (_, i) => ({ dept: "Laboratory", name: `Test ${i + 1}` })) } }],
+      groups: [{ id: "department", dataset: "items", by: "row.dept", repeatHeader: true, minDetailRows: 1 }],
+      sections: [
+        { id: "department-header", type: "groupHeader", groupId: "department", children: [{ id: "department-title", type: "text", value: "Laboratory" }] },
+        { id: "results-detail", type: "detail", dataset: "items", children: [{ id: "results-table", type: "table", dataset: "items", columns: [{ id: "name", header: "Test", binding: "row.name" }] }] },
+      ],
+    });
+  });
+  await page.getByTestId("toggle-structure-pagination").click();
+  await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.decisions.some((decision: any) => decision.kind === "group-header-repeated" && decision.page === 2))).toBe(true);
+  await page.getByTestId("structure-page-why-2").click();
+  const fix = page.getByTestId("structure-page-reason").getByRole("button", { name: "Stop repeating this header" });
+  await expect(fix).toBeVisible();
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "49-pagination-band-fix.png") });
+  await fix.click();
+  expect((await doc(page)).sections[0].repeatEveryPage).toBe(false);
+  await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.decisions.some((decision: any) => decision.kind === "group-header-repeated"))).toBe(false);
+});
