@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
 import { buildCalc, CALC_OPS, parseCalc, buildFormat, conditionToExpression, expressionToCondition, OPERATORS, parseFormat, titleCase, type Condition } from "../lib/lowcode";
@@ -13,6 +13,7 @@ import { removeBodyColumn } from "../lib/table-body";
 import { fitZoom } from "../lib/zoom";
 import { SpacingFields } from "./SpacingFields";
 import { InspectorActions } from "./InspectorActions";
+import { api, type SavedPrinterProfile } from "../lib/api";
 
 // ------------------------------------------------------------------ small controls
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -1038,6 +1039,11 @@ const PRINT_PRESETS: { label: string; profile: Record<string, unknown>; page?: R
 function PrintProfilePanel() {
   const { doc, engine } = useStore();
   const setDoc = useStore((s) => s.setDoc);
+  const [profiles, setProfiles] = useState<SavedPrinterProfile[]>([]);
+  const [profileError, setProfileError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
   const print = doc.print;
   const pag = engine.paginated;
   const mm = (pt: number) => (pt * 25.4) / 72;
@@ -1049,9 +1055,68 @@ function PrintProfilePanel() {
           ? Object.entries(value as Record<string, number>).every(([side, amount]) => doc.page?.margin?.[side] === amount)
           : doc.page?.[key as keyof typeof doc.page] === value))
   );
-  const set = (p: Record<string, unknown>) => setDoc({ ...doc, print: { ...(doc.print ?? {}), ...p } }, { coalesce: "print" });
+  const set = (p: Record<string, unknown>) => {
+    const { name: _name, ...settings } = doc.print ?? {};
+    setDoc({ ...doc, print: { ...settings, ...p } }, { coalesce: "print" });
+  };
+  useEffect(() => {
+    let active = true;
+    api.listPrinterProfiles().then((items) => { if (active) setProfiles(items); }).catch((error) => { if (active) setProfileError((error as Error).message); });
+    return () => { active = false; };
+  }, []);
+  const samePage = (page: Record<string, any>) => ["size", "width", "height", "unit", "orientation"].every((key) => page[key] === doc.page?.[key])
+    && ["top", "right", "bottom", "left"].every((side) => page.margin?.[side] === doc.page?.margin?.[side]);
+  const selectedProfile = profiles.find((profile) => print && ["printerType", "language", "dpi", "safeMargin"].every((key) => profile.print[key as keyof typeof profile.print] === print[key]) && samePage(profile.page));
+  const applySavedProfile = (profile: SavedPrinterProfile) => {
+    setDoc({ ...doc, print: { ...profile.print }, page: structuredClone(profile.page) });
+    if (profile.page.unit === "mm" && profile.page.size === "custom" && profile.page.width) useStore.getState().set({ zoom: fitZoom(profile.page.width * 72 / 25.4), fitToWidth: true });
+  };
+  const saveCurrentProfile = async () => {
+    const name = profileName.trim();
+    if (!name || !print || !doc.page) return;
+    setProfileBusy(true);
+    try {
+      const { name: _name, ...settings } = print;
+      const profile = await api.putPrinterProfile(`printer-${crypto.randomUUID()}`, name, settings, doc.page);
+      setProfiles((items) => [...items, profile].sort((a, b) => a.name.localeCompare(b.name)));
+      setProfileError("");
+      setSavingProfile(false);
+      setProfileName("");
+      useStore.getState().toast(`Saved printer profile “${name}”`, "success");
+    } catch (error) { setProfileError((error as Error).message); }
+    finally { setProfileBusy(false); }
+  };
+  const deleteSelectedProfile = async () => {
+    if (!selectedProfile) return;
+    setProfileBusy(true);
+    try {
+      await api.deletePrinterProfile(selectedProfile.id);
+      setProfiles((items) => items.filter((item) => item.id !== selectedProfile.id));
+      useStore.getState().toast(`Deleted saved profile “${selectedProfile.name}”; report settings kept`, "success");
+    } catch (error) { setProfileError((error as Error).message); }
+    finally { setProfileBusy(false); }
+  };
   return (
     <Section title="Print & labels" open={!!print}>
+      <Field label="Saved printer profile" wide>
+        <select aria-label="Saved printer profile" data-testid="saved-print-profile" value={selectedProfile?.id ?? ""} onChange={(event) => {
+          const profile = profiles.find((item) => item.id === event.target.value);
+          if (profile) applySavedProfile(profile);
+        }}>
+          <option value="">{profiles.length ? "Custom settings" : "No saved profiles yet"}</option>
+          {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+        </select>
+      </Field>
+      {!savingProfile ? <div className="profile-actions">
+        <button className="link" type="button" data-testid="save-printer-profile" disabled={!print} onClick={() => setSavingProfile(true)}>Save current settings as profile</button>
+        {selectedProfile && <button className="link danger" type="button" disabled={profileBusy} onClick={deleteSelectedProfile}>Delete saved profile</button>}
+      </div> : <div className="profile-save-row">
+        <input aria-label="New printer profile name" placeholder="e.g. Lab label printer" maxLength={100} value={profileName} onChange={(event) => setProfileName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void saveCurrentProfile(); if (event.key === "Escape") setSavingProfile(false); }} />
+        <button className="btn primary" type="button" disabled={!profileName.trim() || profileBusy} onClick={saveCurrentProfile}>Save</button>
+        <button className="btn" type="button" onClick={() => setSavingProfile(false)}>Cancel</button>
+      </div>}
+      {profileError && <p className="field-hint" role="alert">{profileError}</p>}
+      <p className="field-hint">Applying a saved profile copies its media and output settings into this report.</p>
       <Field label="Printer / media preset" wide>
         <select
           aria-label="Printer / media preset"
@@ -1060,7 +1125,7 @@ function PrintProfilePanel() {
           onChange={(e) => {
             const preset = PRINT_PRESETS[Number(e.target.value)];
             if (!preset) return;
-            setDoc({ ...doc, print: { ...(doc.print ?? {}), ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: preset.page.margin ?? { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
+            setDoc({ ...doc, print: { ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: preset.page.margin ?? { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
             if (preset.page?.unit === "mm" && typeof preset.page.width === "number") {
               useStore.getState().set({ zoom: fitZoom(preset.page.width * 72 / 25.4), fitToWidth: true });
             }

@@ -2085,6 +2085,11 @@ kbd {
 .spacing .grid4 input { width: 100%; text-align: center; }
 .master-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; font-size: 12px; }
 .print-facts { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; margin: 6px 0; }
+.profile-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.profile-actions .link { font-size: 11px; }
+.profile-actions .link.danger { color: var(--danger); }
+.profile-save-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px; }
+.profile-save-row .btn { white-space: nowrap; padding-inline: 7px; }
 .print-facts strong { color: var(--text); }
 .safe-area { position: absolute; border: 1px dashed rgba(220, 38, 38, 0.5); pointer-events: none; }
 .zpl-warnings { margin: 0; padding: 8px 12px 8px 28px; background: #fffbeb; color: var(--warn); font-size: 12px; }

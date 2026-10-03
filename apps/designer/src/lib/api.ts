@@ -1,5 +1,6 @@
 /** Thin client for the reporting server. Same-origin by default (Vite proxies /api to the server in dev). */
 import type { PaginatedReport } from "@reporting/layout";
+import type { PageConfig, PrintProfile } from "@reporting/schema";
 const KEY = "designer.apiKey";
 const BASE = "designer.apiBase";
 
@@ -85,6 +86,14 @@ export interface VersionRecord {
   notes?: string;
 }
 
+export interface SavedPrinterProfile {
+  id: string;
+  name: string;
+  print: PrintProfile;
+  page: PageConfig;
+  updatedAt: string;
+}
+
 export const api = {
   async listTemplates(): Promise<TemplateRecord[]> {
     return (await request("/api/v1/templates")).json();
@@ -131,6 +140,15 @@ export const api = {
   },
   async deleteBlock(id: string): Promise<void> {
     await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+  async listPrinterProfiles(): Promise<SavedPrinterProfile[]> {
+    return (await request("/api/v1/printer-profiles")).json();
+  },
+  async putPrinterProfile(id: string, name: string, print: PrintProfile, page: PageConfig): Promise<SavedPrinterProfile> {
+    return (await request(`/api/v1/printer-profiles/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ name, print, page }) })).json();
+  },
+  async deletePrinterProfile(id: string): Promise<void> {
+    await request(`/api/v1/printer-profiles/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
   async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos", parameters?: Record<string, unknown>): Promise<{ blob: Blob; renderId: string | null; warningCount: number }> {
     const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format, parameters }) });

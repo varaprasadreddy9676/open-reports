@@ -6,6 +6,8 @@ import path from "node:path";
 
 async function placeSelected(page: Page, x: number, y: number, width: number, height: number) {
   const props = page.getByTestId("properties");
+  const layout = props.getByRole("button", { name: "Layout", exact: true });
+  if (await layout.getAttribute("aria-expanded") === "false") await layout.click();
   const positionFreely = props.getByRole("button", { name: "Position freely" });
   if (await positionFreely.count()) await positionFreely.click();
   await props.getByLabel("Width", { exact: true }).fill(String(width));
@@ -104,4 +106,43 @@ test("build a 40 × 25 mm patient label through the UI, validate it, and preview
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
   fs.mkdirSync(screenshots, { recursive: true });
   await page.getByTestId("publish-review").screenshot({ path: path.join(screenshots, "30-patient-label-validation.png") });
+});
+
+test("save and reapply a named printer profile to a label", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("blank-size").selectOption({ label: "Label 40 × 25 mm" });
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("page-1").click();
+  await page.getByTestId("properties").getByRole("button", { name: "Print & labels" }).click();
+  await page.getByTestId("print-preset").selectOption({ label: "Label 40 × 25 mm (ZPL 203 dpi)" });
+  await page.getByTestId("save-printer-profile").click();
+  await page.getByLabel("New printer profile name").fill("Lab Zebra 40 × 25");
+  await page.getByRole("button", { name: "Save", exact: true }).last().click();
+  await expect(page.getByTestId("saved-print-profile").getByRole("option", { name: "Lab Zebra 40 × 25" })).toBeAttached();
+  const savedId = await page.getByTestId("saved-print-profile").inputValue();
+  expect(savedId).toMatch(/^printer-/);
+
+  await page.getByTestId("print-preset").selectOption({ label: "Label 50 × 30 mm (ZPL 203 dpi)" });
+  await expect(page.getByTestId("print-facts")).toContainText("50.0 × 30.0 mm");
+  await page.getByTestId("saved-print-profile").selectOption(savedId);
+  await expect(page.getByTestId("print-facts")).toContainText("40.0 × 25.0 mm");
+  const report = await page.evaluate(() => (window as any).__designer.getState().doc);
+  expect(report.print).toMatchObject({ language: "zpl", dpi: 203, safeMargin: 1.5 });
+  expect(report.page).toMatchObject({ size: "custom", width: 40, height: 25, unit: "mm" });
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "50-saved-printer-profile.png") });
+
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-info")).toContainText("1 page");
+  await page.getByTestId("preview-tab-zpl").click();
+  await expect(page.getByTestId("zpl-text")).toContainText("^PW320");
+  await expect(page.getByTestId("zpl-text")).toContainText("^LL200");
+  await page.getByTestId("mode-design").click();
+  const printSection = page.getByTestId("properties").getByRole("button", { name: "Print & labels" });
+  if (await printSection.getAttribute("aria-expanded") === "false") await printSection.click();
+  await expect(page.getByRole("button", { name: "Delete saved profile" })).toBeVisible();
+  await page.getByRole("button", { name: "Delete saved profile" }).click();
+  await expect(page.getByTestId("saved-print-profile").getByRole("option", { name: "Lab Zebra 40 × 25" })).toHaveCount(0);
+  expect((await page.evaluate(() => (window as any).__designer.getState().doc)).print.dpi).toBe(203);
 });

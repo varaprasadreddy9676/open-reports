@@ -5,6 +5,7 @@ import {
   VersionNotFoundError,
   type CreateTemplateInput,
   type StorageProvider,
+  type SavedPrinterProfile,
   type TemplateRecord,
   type TemplateVersionRecord,
 } from "./types.js";
@@ -33,6 +34,13 @@ export class SqliteStorage implements StorageProvider {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         children TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS printer_profiles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        print TEXT NOT NULL,
+        page TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS template_versions (
@@ -144,6 +152,22 @@ export class SqliteStorage implements StorageProvider {
 
   async deleteBlock(id: string): Promise<void> {
     this.db.prepare(`DELETE FROM blocks WHERE id = ?`).run(id);
+  }
+
+  async listPrinterProfiles(): Promise<SavedPrinterProfile[]> {
+    const rows = this.db.prepare(`SELECT * FROM printer_profiles ORDER BY name COLLATE NOCASE`).all() as Array<Omit<SavedPrinterProfile, "print" | "page"> & { print: string; page: string }>;
+    return rows.map((row) => ({ ...row, print: JSON.parse(row.print), page: JSON.parse(row.page) }));
+  }
+
+  async putPrinterProfile(id: string, name: string, print: SavedPrinterProfile["print"], page: SavedPrinterProfile["page"]): Promise<SavedPrinterProfile> {
+    const updatedAt = new Date().toISOString();
+    this.db.prepare(`INSERT INTO printer_profiles (id, name, print, page, updatedAt) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, print = excluded.print, page = excluded.page, updatedAt = excluded.updatedAt`)
+      .run(id, name, JSON.stringify(print), JSON.stringify(page), updatedAt);
+    return { id, name, print, page, updatedAt };
+  }
+
+  async deletePrinterProfile(id: string): Promise<void> {
+    this.db.prepare(`DELETE FROM printer_profiles WHERE id = ?`).run(id);
   }
 
   close(): void {

@@ -1,3 +1,5 @@
+import type { PageConfig, PrintProfile } from "@reporting/schema";
+
 export type TemplateStatus = "draft" | "published" | "archived";
 
 export interface TemplateRecord {
@@ -28,6 +30,14 @@ export interface CreateTemplateInput {
   createdBy?: string;
 }
 
+export interface SavedPrinterProfile {
+  id: string;
+  name: string;
+  print: PrintProfile;
+  page: PageConfig;
+  updatedAt: string;
+}
+
 /**
  * Storage abstraction (spec section 50/41): the server depends only on this
  * interface, never directly on SQLite/Postgres, so a Postgres-backed
@@ -52,6 +62,10 @@ export interface StorageProvider {
   listBlocks(): Promise<{ id: string; name: string; children: unknown; updatedAt: string }[]>;
   putBlock(id: string, name: string, children: unknown): Promise<void>;
   deleteBlock(id: string): Promise<void>;
+  /** Optional for storage plugins written before printer profiles were introduced. */
+  listPrinterProfiles?(): Promise<SavedPrinterProfile[]>;
+  putPrinterProfile?(id: string, name: string, print: PrintProfile, page: PageConfig): Promise<SavedPrinterProfile>;
+  deletePrinterProfile?(id: string): Promise<void>;
   /** Release connections on shutdown. */
   close?(): void | Promise<void>;
 }

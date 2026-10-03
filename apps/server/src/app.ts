@@ -6,7 +6,7 @@ import { executeDatasets } from "@reporting/core";
 import { createDefaultDataSourceRegistry, secretsFromEnv, sqlConnectionIds } from "./datasources.js";
 import { discoverFonts } from "@reporting/renderer-pdf";
 import { randomUUID } from "node:crypto";
-import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
+import { getReportJsonSchema, pageConfigSchema, parseReportDefinition, printProfileSchema } from "@reporting/schema";
 import { resolveReport, validateReport } from "@reporting/core";
 import { isDataLossWarningCode } from "@reporting/layout";
 import { createAuthHook } from "./auth.js";
@@ -138,6 +138,32 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   app.delete("/api/v1/blocks/:id", async (request, reply) => {
     await storage.deleteBlock((request.params as { id: string }).id);
     reply.code(204).send();
+  });
+
+  // Saved printer/media setups are shared by reports on this server. Applying
+  // one in the designer copies its settings into the report definition.
+  app.get("/api/v1/printer-profiles", async (_request, reply) => {
+    if (!storage.listPrinterProfiles) return reply.code(501).send({ error: { code: "PRINTER_PROFILES_UNAVAILABLE", message: "This storage backend does not support printer profiles." } });
+    return storage.listPrinterProfiles();
+  });
+  app.put("/api/v1/printer-profiles/:id", async (request, reply) => {
+    if (!storage.putPrinterProfile) return reply.code(501).send({ error: { code: "PRINTER_PROFILES_UNAVAILABLE", message: "This storage backend does not support printer profiles." } });
+    const { id } = request.params as { id: string };
+    const body = request.body as { name?: unknown; print?: unknown; page?: unknown } | undefined;
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const print = printProfileSchema.safeParse(body?.print);
+    const page = pageConfigSchema.safeParse(body?.page);
+    if (!/^[a-z0-9][a-z0-9._-]{0,99}$/.test(id) || !name || name.length > 100 || !print.success || !page.success || !Object.keys(print.data).length || (page.data.size === "custom" && (!(typeof page.data.width === "number" && page.data.width > 0) || !(typeof page.data.height === "number" && page.data.height > 0)))) {
+      return reply.code(400).send({ error: { code: "INVALID_PRINTER_PROFILE", message: "Provide a valid id, name, print settings, and positive media size." } });
+    }
+    return storage.putPrinterProfile(id, name, print.data, page.data);
+  });
+  app.delete("/api/v1/printer-profiles/:id", async (request, reply) => {
+    if (!storage.deletePrinterProfile) return reply.code(501).send({ error: { code: "PRINTER_PROFILES_UNAVAILABLE", message: "This storage backend does not support printer profiles." } });
+    const { id } = request.params as { id: string };
+    if (!/^[a-z0-9][a-z0-9._-]{0,99}$/.test(id)) return reply.code(400).send({ error: { code: "INVALID_PRINTER_PROFILE", message: "Invalid printer profile id." } });
+    await storage.deletePrinterProfile(id);
+    return reply.code(204).send();
   });
 
   // --- Validation ---
@@ -401,6 +427,8 @@ function buildOpenApiDocument(): Record<string, unknown> {
       "/api/v1/datasets/test": { post: { summary: "Run one dataset (with parameters) and return a preview" } },
       "/api/v1/blocks": { get: { summary: "List reusable blocks" } },
       "/api/v1/blocks/{id}": { put: { summary: "Create or replace a reusable block" }, delete: { summary: "Delete a reusable block" } },
+      "/api/v1/printer-profiles": { get: { summary: "List saved printer and media profiles" } },
+      "/api/v1/printer-profiles/{id}": { put: { summary: "Save a printer and media profile" }, delete: { summary: "Delete a printer and media profile" } },
       "/api/v1/validate": { post: { summary: "Validate a report definition" } },
       "/api/v1/render": { post: { summary: "Render a report inline" } },
       "/api/v1/resources/image": { get: { summary: "Resolve a server-accessible image path or URL for authenticated designer preview" } },
