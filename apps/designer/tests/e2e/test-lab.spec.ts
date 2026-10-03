@@ -202,6 +202,54 @@ test("a missing PDF logo draw identifies its page and image component", async ({
   expect(await page.evaluate(() => (window as any).__designer.getState().selection)).toEqual(["hospital-logo"]);
 });
 
+test("a changed PDF logo is detected even when both image draws remain", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  const rightLogo = `data:image/png;base64,${fs.readFileSync(path.resolve("tests/fixtures/letterheads/radiology-right-accreditation.png")).toString("base64")}`;
+  await page.evaluate(({ left, right }) => {
+    const store = (window as any).__designer.getState();
+    store.setDoc({
+      ...store.doc,
+      datasets: [{ id: "clinical", source: "inline", query: { data: { investigations: [{ testName: "Glucose" }] } } }],
+      sections: [
+        { type: "reportHeader", children: [
+          { id: "left-logo", type: "image", src: left, width: 120, height: 50 },
+          { id: "right-logo", type: "image", src: right, width: 50, height: 50 },
+        ] },
+        { type: "detail", children: [{ id: "investigation-table", type: "table", dataset: "clinical.investigations", columns: [{ id: "test", header: "Test", binding: "row.testName" }] }] },
+      ],
+    });
+  }, { left: path.resolve("tests/fixtures/letterheads/radiology-left-brand.png"), right: rightLogo });
+  let replaceRight = false;
+  await page.route("**/api/v1/render", async (route) => {
+    const body = route.request().postDataJSON();
+    if (body.format !== "pdf") return route.continue();
+    if (replaceRight) body.report.sections[0].children[1].src = body.report.sections[0].children[0].src;
+    await route.fulfill({ response: await route.fetch({ postData: JSON.stringify(body) }) });
+  });
+  await page.getByTestId("mode-data").click();
+  await page.getByTestId("data-workspace-tests").click();
+  const counts = page.getByRole("group", { name: "Record counts" });
+  for (const count of [0, 1, 31, 32, 100]) await counts.getByLabel(String(count), { exact: true }).uncheck();
+  await counts.getByLabel("10", { exact: true }).check();
+  await page.getByTestId("run-stress-tests").click();
+  const result = page.getByTestId("stress-result-10");
+  await expect(result.getByTestId("pdf-image-coverage")).toHaveText("Image draws 2/2");
+  await result.locator("summary").click();
+  await expect(result.getByTestId("pdf-image-identity")).toContainText("2/2 checked source images matched");
+  replaceRight = true;
+  await page.getByTestId("run-stress-tests").click();
+  await expect(result.getByTestId("pdf-image-coverage")).toHaveText("Image draws 2/2");
+  await result.locator("summary").click();
+  await expect(result.getByTestId("pdf-image-identity")).toContainText("1/2 checked source images matched");
+  await expect(result).toContainText("image “right-logo” does not match any PDF image draw");
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "81-test-lab-image-identity-warning.png") });
+  await result.getByRole("button", { name: "Show component" }).click();
+  expect(await page.evaluate(() => (window as any).__designer.getState().selection)).toEqual(["right-logo"]);
+});
+
 test("Data parameter value reaches the real PDF preview", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("starter-blank").click();
