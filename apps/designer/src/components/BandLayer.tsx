@@ -4,6 +4,7 @@ import { savePref, useStore, type RulerOrigin, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
 import { fitZoom } from "../lib/zoom";
 import { GuideControls } from "./GuideControls";
+import { rulerAnchor } from "../lib/ruler-origin";
 
 const ADDABLE: { type: string; hint: string }[] = [
   { type: "reportHeader", hint: "Once, at the start" },
@@ -22,8 +23,12 @@ const ADDABLE: { type: string; hint: string }[] = [
 
 /** Compact canvas controls; detailed setup and pagination appear when requested. */
 export function BandBar() {
-  const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, rulerOrigin, gridMode, showGrid, doc } = useStore();
+  const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, rulerOrigin, gridMode, showGrid, doc, engine, selection, selectedBand } = useStore();
   const set = useStore((s) => s.set);
+  const originContext = { canvasView, doc, engine, selection, selectedBand };
+  const sectionOrigin = rulerAnchor("section", originContext);
+  const selectionOrigin = rulerAnchor("selection", originContext);
+  const currentOrigin = rulerAnchor(rulerOrigin, originContext);
   return (
     <div className="band-bar" data-testid="band-bar">
       <div className="seg" role="group" aria-label="Canvas view">
@@ -77,8 +82,11 @@ export function BandBar() {
         <select data-testid="ruler-origin" value={rulerOrigin} onChange={(e) => (savePref("rulerOrigin", e.target.value), set({ rulerOrigin: e.target.value as RulerOrigin }))}>
           <option value="page">Page edge</option>
           <option value="printable">Inside margins</option>
+          <option value="section" disabled={!sectionOrigin.available}>Selected band</option>
+          <option value="selection" disabled={!selectionOrigin.available}>Selection bounds</option>
         </select>
         </label>
+        {(rulerOrigin === "section" || rulerOrigin === "selection") && <div className="canvas-unit-hint" role="status">{currentOrigin.available ? `Zero at ${currentOrigin.label.toLowerCase()}.` : currentOrigin.label + "."}</div>}
         <label>
         Grid{" "}
         <select data-testid="grid-mode" value={showGrid ? gridMode : "off"} onChange={(e) => (e.target.value === "off" ? set({ showGrid: false }) : set({ showGrid: true, gridMode: e.target.value as "lines" | "dots" }))}>

@@ -26,6 +26,10 @@ describe("free-positioned arrangement", () => {
     expect(ops.find(distributed, "a")?.comp.x).toBe(10);
     expect(ops.find(distributed, "b")?.comp.x).toBe(130);
     expect(ops.find(distributed, "c")?.comp.x).toBe(210);
+    const a = ops.find(distributed, "a")!.comp;
+    const b = ops.find(distributed, "b")!.comp;
+    const c = ops.find(distributed, "c")!.comp;
+    expect(b.x - a.x - a.width).toBe(c.x - b.x - b.width);
   });
 
   it("matches width, height, or both to the first selected element", () => {

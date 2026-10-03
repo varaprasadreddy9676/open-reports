@@ -1236,16 +1236,18 @@ function MultiProps({ ids }: { ids: string[] }) {
       <div className="prop-head">
         <strong>{ids.length} elements selected</strong>
       </div>
-      <Section title="Align (free-positioned elements)">
+      <Section title="Arrange">
         {!free && <p className="muted small">Select unlocked elements in the same absolute layout to arrange them.</p>}
+        <p className="arrange-label">Align edges and centres</p>
         <div className="btn-grid">
           {(["left", "center", "right", "top", "middle", "bottom"] as const).map((m) => btn(`Align ${m}`, () => setDoc(ops.align(doc, ids, m)), `align-${m}`, ops.canArrange(doc, ids, m === "center" || m === "right" ? ["width"] : m === "middle" || m === "bottom" ? ["height"] : [])))}
         </div>
+        <p className="arrange-label">Equal spacing · keep the outer edges</p>
         <div className="btn-grid">
-          {btn("Distribute horizontally", () => setDoc(ops.distribute(doc, ids, "horizontal")), "distribute-h", ids.length >= 3 && ops.canArrange(doc, ids, ["width"]))}
-          {btn("Distribute vertically", () => setDoc(ops.distribute(doc, ids, "vertical")), "distribute-v", ids.length >= 3 && ops.canArrange(doc, ids, ["height"]))}
+          {btn("Space horizontally", () => setDoc(ops.distribute(doc, ids, "horizontal")), "distribute-h", ids.length >= 3 && ops.canArrange(doc, ids, ["width"]))}
+          {btn("Space vertically", () => setDoc(ops.distribute(doc, ids, "vertical")), "distribute-v", ids.length >= 3 && ops.canArrange(doc, ids, ["height"]))}
         </div>
-        <p className="muted small">Match dimensions to the first selected element.</p>
+        <p className="arrange-label">Match the first selected element</p>
         <div className="btn-grid">
           {btn("Same width", () => setDoc(ops.matchSize(doc, ids, "width")), "same-width", free && typeof ops.find(doc, ids[0]!)?.comp.width === "number")}
           {btn("Same height", () => setDoc(ops.matchSize(doc, ids, "height")), "same-height", free && typeof ops.find(doc, ids[0]!)?.comp.height === "number")}

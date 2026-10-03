@@ -12,7 +12,7 @@ export type LeftTab = "insert" | "layers" | "data" | "pages";
 export type BottomPanel = null | "problems" | "pagination" | "history";
 export type CanvasView = "structure" | "pages";
 export type RulerUnit = "mm" | "cm" | "in" | "pt" | "px" | "dots";
-export type RulerOrigin = "page" | "printable";
+export type RulerOrigin = "page" | "printable" | "section" | "selection";
 export type SaveState = "saved" | "saving" | "dirty" | "error";
 
 export interface HistoryEntry {

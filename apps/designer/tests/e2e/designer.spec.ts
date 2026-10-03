@@ -198,6 +198,32 @@ test.describe("editing", () => {
     expect(after.find((component: any) => component.id === "date")).toMatchObject({ x: dateBefore.x, y: dateBefore.y, width: 770 });
   });
 
+  test("selection ruler zero and canvas dimensions follow the rendered element", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-absolute-form").click();
+    await page.evaluate(() => (window as any).__designer.getState().select(["date"]));
+    await page.getByTestId("canvas-options").locator("summary").click();
+    await page.getByTestId("ruler-origin").selectOption("selection");
+    await expect(page.getByTestId("selection-metrics").first()).toContainText(/X .* Y .* W .* H .* mm/);
+    const selected = await page.evaluate(() => {
+      const st = (window as any).__designer.getState();
+      const walk = (items: any[]): any => {
+        for (const item of items) {
+          if (item.component.id === "date") return item;
+          const child = walk(item.children ?? []);
+          if (child) return child;
+        }
+      };
+      const first = st.engine.paginated.pages[0];
+      return { box: walk([...first.header, ...first.content, ...first.footer]).box, zoom: st.zoom };
+    });
+    const zero = page.getByTestId("ruler-h").locator('.tick.major[data-value="0"]');
+    expect(Number(await zero.evaluate((element) => (element as HTMLElement).style.left.replace("px", "")))).toBeCloseTo(selected.box.x * 4 / 3 * selected.zoom, 1);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "38-selection-ruler-origin.png") });
+  });
+
   test("flow content does not offer coordinate alignment", async ({ page }) => {
     await startBlank(page);
     await page.getByTestId("palette-text").click();

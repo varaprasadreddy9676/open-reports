@@ -607,6 +607,22 @@ test("ruler unit switch relabels the rulers and persists", async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem("designer.rulerUnit"))).toBe("in");
 });
 
+test("the selected band sets the Structure ruler zero without moving content", async ({ page }) => {
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("canvas-options").locator("summary").click();
+  await page.getByTestId("ruler-origin").selectOption("section");
+  const state = await page.evaluate(() => {
+    const st = (window as any).__designer.getState();
+    return { y: st.engine.structure.bands.find((band: any) => band.sectionIndex === st.selectedBand).y, zoom: st.zoom };
+  });
+  const zero = page.getByTestId("ruler-v").locator('.tick.major[data-value="0"]');
+  expect(Number(await zero.evaluate((element) => (element as HTMLElement).style.top.replace("px", "")))).toBeCloseTo(state.y * 4 / 3 * state.zoom, 1);
+  await expect(page.locator(".canvas-options-panel [role=status]")).toContainText("selected band");
+  await page.getByTestId("view-pages").click();
+  const pageZero = page.getByTestId("ruler-v").locator('.tick.major[data-value="0"]');
+  expect(Number(await pageZero.evaluate((element) => (element as HTMLElement).style.top.replace("px", "")))).toBe(0);
+});
+
 test("switching to Pages shows the paginated result", async ({ page }) => {
   await page.getByTestId("view-pages").click();
   await expect(page.locator("[data-testid^=band-tab-]")).toHaveCount(0);

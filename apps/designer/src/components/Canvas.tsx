@@ -17,6 +17,7 @@ import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 import { PageBreakDetails } from "./PageBreakDetails";
 import { PdfPreview } from "./Preview";
 import { fitZoom } from "../lib/zoom";
+import { pointsPerRulerUnit } from "../lib/ruler";
 import { api } from "../lib/api";
 
 const PT = 4 / 3;
@@ -229,8 +230,10 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode } = useStore();
+  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode, rulerUnit } = useStore();
   const k = PT * zoom;
+  const unitPt = pointsPerRulerUnit(rulerUnit, doc.print?.dpi ?? 203);
+  const measure = (pt: number) => String(Math.round((pt / unitPt) * (rulerUnit === "dots" ? 1 : 10)) / (rulerUnit === "dots" ? 1 : 10));
   const structure = canvasView === "structure" ? engine.structure : undefined;
   const paginated = structure ?? engine.paginated;
   const [indicator, setIndicator] = useState<DropTarget | null>(null);
@@ -570,6 +573,9 @@ export function Canvas() {
                       </>
                     )}
                     {ops.find(doc, (n.component as any).id)?.comp.locked && <span className="lock-badge" title="Locked">🔒</span>}
+                    {n === single && !editingText && <span className={`selection-metrics ${n.box.y + n.box.height + 22 > paginated.pageSize.height ? "above" : ""}`} data-testid="selection-metrics" title="Position and size in page coordinates">
+                      X {measure(n.box.x)} · Y {measure(n.box.y)} · W {measure(n.box.width)} · H {measure(n.box.height)} {rulerUnit}
+                    </span>}
                   </div>
                 ))}
                 {single && !drag.current && !editingText && <FloatingToolbar id={(single.component as any).id} left={Math.max(0, single.box.x * k)} top={Math.max(0, single.box.y * k - 38)} />}

@@ -3,6 +3,7 @@ import { useStore, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
 import type { StructureBand } from "@reporting/layout";
 import { pointsPerRulerUnit, rulerTicks } from "../lib/ruler";
+import { rulerAnchor } from "../lib/ruler-origin";
 
 function fmt(n: number): string {
   return String(Math.round(n * 1000) / 1000);
@@ -18,7 +19,7 @@ interface Props {
 
 function Axis({ vertical, length, k, unit, dpi, originPt }: { vertical: boolean; length: number; k: number; unit: RulerUnit; dpi: number; originPt: number }) {
   return <>{rulerTicks(length, k, unit, dpi, originPt).map(({ value, position, major }) =>
-      <div key={value} className={major ? "tick major" : "tick"} style={vertical ? { top: position } : { left: position }}>
+      <div key={value} className={major ? "tick major" : "tick"} data-value={value} style={vertical ? { top: position } : { left: position }}>
         {major && <span>{fmt(value)}</span>}
       </div>
     )}</>;
@@ -32,6 +33,11 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
   const unit = useStore((s) => s.rulerUnit);
   const origin = useStore((s) => s.rulerOrigin);
   const doc = useStore((s) => s.doc);
+  const engine = useStore((s) => s.engine);
+  const canvasView = useStore((s) => s.canvasView);
+  const selection = useStore((s) => s.selection);
+  const selectedBand = useStore((s) => s.selectedBand);
+  const anchor = rulerAnchor(origin, { doc, engine, canvasView, selection, selectedBand });
   const dpi = doc.print?.dpi ?? 203;
   const dragRef = useRef<null | { edge: "top" | "right" | "bottom" | "left"; start: number; orig: number }>(null);
   const bandDrag = useRef<null | { index: number; start: number; orig: number; moved: boolean }>(null);
@@ -99,7 +105,7 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
   return (
     <>
       <div className="ruler h" style={{ width }} data-testid="ruler-h" onClick={(e) => rulerClick(e, false)} title="Click to add a vertical guide">
-        <Axis vertical={false} length={width} k={k} unit={unit} dpi={dpi} originPt={origin === "printable" ? margin.left : 0} />
+        <Axis vertical={false} length={width} k={k} unit={unit} dpi={dpi} originPt={anchor.x} />
         {(["left", "right"] as const).map((edge) => (
           <div
             key={edge}
@@ -115,7 +121,7 @@ export function Rulers({ width, height, k, margin, bands }: Props) {
         ))}
       </div>
       <div className="ruler v" style={{ height }} data-testid="ruler-v" onClick={(e) => rulerClick(e, true)} title="Click to add a horizontal guide">
-        <Axis vertical length={height} k={k} unit={unit} dpi={dpi} originPt={origin === "printable" ? margin.top : 0} />
+        <Axis vertical length={height} k={k} unit={unit} dpi={dpi} originPt={anchor.y} />
         {(bands ? (["top"] as const) : (["top", "bottom"] as const)).map((edge) => (
           <div
             key={edge}

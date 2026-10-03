@@ -4,6 +4,7 @@ import { useStore } from "../store";
 import { pointsPerRulerUnit } from "../lib/ruler";
 import * as ops from "../model/ops";
 import { Icon } from "./Icon";
+import { rulerAnchor } from "../lib/ruler-origin";
 
 function GuideRow({ guide, unitPt, unit, origin, limit }: { guide: Guide; unitPt: number; unit: string; origin: number; limit: number }) {
   const shown = () => {
@@ -41,8 +42,9 @@ function GuideRow({ guide, unitPt, unit, origin, limit }: { guide: Guide; unitPt
 }
 
 export function GuideControls() {
-  const { doc, engine, canvasView, rulerUnit, rulerOrigin } = useStore();
+  const { doc, engine, canvasView, rulerUnit, rulerOrigin, selection, selectedBand } = useStore();
   const page = canvasView === "structure" ? engine.structure ?? engine.paginated : engine.paginated;
+  const anchor = rulerAnchor(rulerOrigin, { doc, engine, canvasView, selection, selectedBand });
   const dpi = doc.print?.dpi ?? 203;
   const unitPt = pointsPerRulerUnit(rulerUnit, dpi);
   const guides: Guide[] = doc.guides ?? [];
@@ -58,13 +60,13 @@ export function GuideControls() {
   return <div className="guide-controls" data-testid="guide-controls">
     <div className="guide-controls-head"><strong>Guides</strong><span>{guides.length}</span></div>
     {guides.length > 0 && <div className="guide-controls-list">
-      {guides.map((guide) => <GuideRow key={guide.id} guide={guide} unitPt={unitPt} unit={rulerUnit} origin={rulerOrigin === "printable" ? guide.axis === "x" ? page?.margin.left ?? 0 : page?.margin.top ?? 0 : 0} limit={guide.axis === "x" ? page?.pageSize.width ?? Infinity : page?.pageSize.height ?? Infinity} />)}
+      {guides.map((guide) => <GuideRow key={guide.id} guide={guide} unitPt={unitPt} unit={rulerUnit} origin={guide.axis === "x" ? anchor.x : anchor.y} limit={guide.axis === "x" ? page?.pageSize.width ?? Infinity : page?.pageSize.height ?? Infinity} />)}
     </div>}
     {guides.length === 0 && <p className="guide-controls-empty">Add a guide here or click a ruler.</p>}
     <div className="guide-add-actions">
       <button type="button" disabled={!page} onClick={() => add("x")}>+ Vertical</button>
       <button type="button" disabled={!page} onClick={() => add("y")}>+ Horizontal</button>
     </div>
-    <span className="guide-unit-note">Positions use {rulerUnit} from {rulerOrigin === "printable" ? "inside margins" : "the page edge"}.</span>
+    <span className="guide-unit-note">Positions use {rulerUnit} from {anchor.available ? anchor.label.toLowerCase() : "the page edge"}.</span>
   </div>;
 }

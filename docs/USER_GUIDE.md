@@ -24,11 +24,13 @@ On a laptop, the properties panel starts closed and opens over the canvas when r
 
 Shortcuts: `Ctrl+K` command palette · `Ctrl+S` save · `Ctrl+Z/Y` undo/redo · `Ctrl+C/V/D` copy/paste/duplicate · `Ctrl+G` group · `Ctrl+Shift+G` ungroup · `Ctrl+L` lock · `Ctrl+Shift+H` hide · `F2` rename · arrows nudge (Shift = ×10).
 
-For free-positioned elements inside the same absolute layout, select two or more and use the right panel to align or match widths and heights. Match-size actions use the first selected element as the source. Flow content is arranged by its container, so coordinate actions are disabled for it.
+For free-positioned elements inside the same absolute layout, select two or more and use the right panel to align or match widths and heights. With three or more, **Space horizontally/vertically** makes the gaps equal while keeping the outer elements in place. Match-size actions use the first selected element as the source. Flow content is arranged by its container, so coordinate actions are disabled for it. A selected element shows its X, Y, width, and height beside the canvas selection.
 
 To arrange a band's contents, select its label in Structure and open **Size and layout**. Choose **Stack vertically**, **Side by side**, **Grid**, or **Free position**. Gap and padding use points; empty fixed height lets the band grow with its contents. Drag a child within a flow layout to reorder it. The inspector shows alignment and distribution controls only for layouts that use them.
 
 For precise alignment, click the top ruler to place a vertical guide or the left ruler to place a horizontal guide. Open **Canvas settings → Guides** to add guides by keyboard, name them, enter exact positions, lock them against changes, or remove them. Positions use the selected ruler unit and zero point; switching to **Inside margins** changes the displayed origin without moving a guide. Guides are saved with the report and can also be dragged or double-clicked on the canvas.
+
+In **Canvas settings → Ruler zero**, choose **Selected band** in Structure view to measure vertically from that band's top. Choose **Selection bounds** to measure from the upper-left corner of the selected element(s) visible on the first page. Clearing the selection temporarily returns the ruler to the page edge; it does not move any report content or guides.
 
 ## 3. Data
 **Data mode** lists datasets: JSON, REST API, database (PostgreSQL/MySQL via server-side connections), or CSV upload. **Test request** shows a Table / Raw JSON / Schema view and hints (row counts, nested lists, dates). For API keys use `{{secrets.NAME}}`; the real value lives on the server as `REPORT_SECRET_NAME` and never enters the report. Add **parameters** (e.g. `invoiceId`) and use them as `{{params.invoiceId}}`.
