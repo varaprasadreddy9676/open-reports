@@ -517,6 +517,10 @@ export function ColumnEditor({ table, col, index }: { table: ops.Comp; col: any;
           <Field label="Header">
             <input aria-label="Column header" value={col.header ?? ""} onChange={(e) => update({ header: e.target.value })} />
           </Field>
+          <label className="check" title="Consecutive rows with the same value print as one merged cell, inside merges of columns to the left. A merge that continues onto the next page prints its value again there.">
+            <input type="checkbox" data-testid={`column-merge-repeated-${index}`} checked={!!col.mergeRepeated} onChange={(e) => update({ mergeRepeated: e.target.checked || undefined })} />
+            Merge repeated values
+          </label>
           <div className="seg small">
             {(["field", "formula"] as const).map((m) => (
               <button key={m} className={mode === m ? "active" : ""} onClick={() => update(m === "field" ? { binding: col.binding ?? col.expression ?? "row.value", expression: undefined } : { expression: col.expression ?? col.binding ?? "row.value", binding: undefined })}>

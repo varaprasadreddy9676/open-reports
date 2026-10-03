@@ -134,6 +134,26 @@ describe("paginate: table row-splitting boundaries", () => {
     const table = makeTable(40, { cellSpans: [{ row: 0, column: 0, rowSpan: 40 }] });
     expect(() => paginate(reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [table] }]))).toThrow(/Merged table rows.*taller than a whole page/);
   });
+  it("splits a merge of repeated values across pages and re-anchors it on each continuation page", () => {
+    const table = makeTable(75, { cellSpans: [{ row: 2, column: 0, rowSpan: 70, splittable: true }, { row: 72, column: 0, rowSpan: 3, splittable: true }] });
+    const result = paginate(reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [table] }]));
+    expect(result.pages).toHaveLength(3);
+    const slices = result.pages.map((page) => page.content[0]!);
+    expect(slices.map((slice) => slice.rowRange)).toEqual([{ start: 0, end: 30 }, { start: 30, end: 60 }, { start: 60, end: 75 }]);
+    expect(slices.map((slice) => (slice.component as ResolvedTableComponent).cellSpans)).toEqual([
+      [{ row: 2, column: 0, rowSpan: 28, splittable: true }],
+      [{ row: 30, column: 0, rowSpan: 30, splittable: true }],
+      [{ row: 60, column: 0, rowSpan: 12, splittable: true }, { row: 72, column: 0, rowSpan: 3, splittable: true }],
+    ]);
+    expect(result.decisions.some((decision) => decision.kind === "merged-cell")).toBe(false);
+  });
+
+  it("does not leave a one-row stub of a split repeated-value merge", () => {
+    const table = makeTable(31, { cellSpans: [{ row: 0, column: 0, rowSpan: 31, splittable: true }] });
+    const result = paginate(reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [table] }]));
+    expect((result.pages[1]!.content[0]!.component as ResolvedTableComponent).cellSpans).toEqual([]);
+  });
+
   it("fits 29 rows on a single page", () => {
     const report = reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [makeTable(29)] }]);
     const result = paginate(report);

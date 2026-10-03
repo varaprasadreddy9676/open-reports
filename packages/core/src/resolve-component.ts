@@ -5,12 +5,13 @@ import { formatValue } from "./format.js";
 import type {
   ResolvedComponent,
   ResolvedGroupInstance,
+  ResolvedTableCellSpan,
   ResolvedTableColumn,
   ResolvedTableRow,
   ResolvedWarning,
 } from "./resolved-report.js";
 import { aggregate } from "./aggregate.js";
-import { tableCellSpanErrors, tableCellSpanGrid } from "./table-cell-spans.js";
+import { combineTableSpans, repeatedValueSpans, tableCellSpanErrors, tableCellSpanGrid, type TableCellSpanDefinition } from "./table-cell-spans.js";
 import { evaluateRowVariables, computeGroupVariables } from "./variables.js";
 import type { VariableDefinition } from "@reporting/schema";
 
@@ -372,16 +373,36 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     return { raw, formatted, style: style && Object.keys(style).length ? style : undefined };
   });
 
-  const configuredSpans = component.cellSpans ?? [];
+  const configuredSpans: TableCellSpanDefinition[] = component.cellSpans ?? [];
   const spanErrors = tableCellSpanErrors(columns.length, configuredSpans);
   if (spanErrors.length) throw new Error(spanErrors.join(" "));
-  const cellSpans = configuredSpans.filter((span: any) => {
-    if (span.row + (span.rowSpan ?? 1) <= resolvedRows.length) return true;
-    env.warnings.push({ code: "TABLE_SPAN_OUT_OF_RANGE", path: env.path, componentId: component.id, message: `Body merge at row ${span.row + 1} extends beyond ${resolvedRows.length} resolved table rows and was skipped.` });
-    return false;
-  });
+  const warnSpan = (code: string, message: string) => env.warnings.push({ code, path: env.path, componentId: component.id, message });
+  // Record-anchored merges are placed at the first output row (after sorting and filtering) whose field matches.
+  const explicitSpans: ResolvedTableCellSpan[] = [];
+  for (const [source, span] of configuredSpans.entries()) {
+    let row = span.row;
+    if (span.match) {
+      const { field, value } = span.match;
+      const index = rows.findIndex((record) => env.engine.evaluate(field, toRowContext(ctx, record)) === value);
+      if (index < 0) {
+        warnSpan("TABLE_SPAN_ANCHOR_NOT_FOUND", `Body merge anchored to ${field} = ${JSON.stringify(value)} was skipped: no output row matches.`);
+        continue;
+      }
+      row = index;
+    }
+    const placed = { row: row!, column: span.column, colSpan: span.colSpan ?? 1, rowSpan: span.rowSpan ?? 1, source };
+    if (placed.row + placed.rowSpan > resolvedRows.length) {
+      warnSpan("TABLE_SPAN_OUT_OF_RANGE", `Body merge at row ${placed.row + 1} extends beyond ${resolvedRows.length} resolved table rows and was skipped.`);
+      continue;
+    }
+    explicitSpans.push(placed);
+  }
+  const mergeColumns = (component.columns ?? []).map((col: any) => Boolean(col.mergeRepeated));
+  const automaticSpans = mergeColumns.some(Boolean) ? repeatedValueSpans(mergeColumns, resolvedRows.map((row) => columns.map((col) => row.formatted[col.id] ?? ""))) : [];
+  const cellSpans = combineTableSpans(explicitSpans, automaticSpans, warnSpan);
   const spanGrid = tableCellSpanGrid(cellSpans);
   for (const span of cellSpans) {
+    if (span.splittable) continue;
     const anchorId = columns[span.column]!.id;
     const anchor = resolvedRows[span.row]!.formatted[anchorId] ?? "";
     let hidesDifferentValue = false;

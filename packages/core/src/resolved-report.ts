@@ -180,6 +180,10 @@ export interface ResolvedTableCellSpan {
   column: number;
   colSpan?: number;
   rowSpan?: number;
+  /** A merge of repeated values: pagination may split it, repeating the value on the next page. */
+  splittable?: boolean;
+  /** Index of the `cellSpans` entry that produced an explicit merge (absent for automatic merges). */
+  source?: number;
 }
 
 export interface ResolvedTableRow {

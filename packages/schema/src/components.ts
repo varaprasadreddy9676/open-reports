@@ -92,6 +92,8 @@ export const tableColumnSchema = z.object({
   width: dimensionSchema.optional(),
   align: z.enum(["left", "center", "right"]).optional(),
   format: z.string().optional(),
+  /** Merge consecutive rows with the same value into one cell, inside the merges of columns to the left; continues across pages. */
+  mergeRepeated: z.boolean().optional(),
   footer: z.object({
     aggregate: z.enum(["sum", "avg", "min", "max", "count", "first", "last"]).optional(),
     expression: z.string().optional(),
@@ -113,8 +115,11 @@ export type TableHeaderCell = z.infer<typeof tableHeaderCellSchema>;
 
 /** Positional merges in the resolved body, after table filtering and sorting.
  * Values in covered cells are suppressed; the top-left cell supplies content. */
+/** A body merge starts at a row position, or at the first output row whose `match.field` equals `match.value`
+ * (so it stays with that record when sorting or filtering changes). Exactly one of `row` / `match` is required. */
 export const tableCellSpanSchema = z.object({
-  row: z.number().int().nonnegative(),
+  row: z.number().int().nonnegative().optional(),
+  match: z.object({ field: z.string().min(1), value: z.union([z.string(), z.number(), z.boolean(), z.null()]) }).optional(),
   column: z.number().int().nonnegative(),
   colSpan: z.number().int().positive().optional().default(1),
   rowSpan: z.number().int().positive().optional().default(1),

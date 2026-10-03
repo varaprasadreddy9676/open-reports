@@ -1,4 +1,5 @@
 import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, ResolvedSection } from "@reporting/core";
+import { sliceTableSpans } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
 import { defaultTextMeasurer, ellipsizeText, wrapTextLines } from "./measure.js";
 import { resolvePageGeometry } from "./units.js";
@@ -705,6 +706,8 @@ function placeTable(
     while (changed) {
       changed = false;
       for (const span of table.cellSpans ?? []) {
+        // Repeated-value merges split instead: the value prints again at the top of the next page.
+        if (span.splittable) continue;
         if (span.row < point && span.row + (span.rowSpan ?? 1) > point) {
           point = span.row;
           changed = true;
@@ -726,7 +729,7 @@ function placeTable(
     if (includeFooter) height += footerHeight;
 
     const node: PositionedNode = {
-      component: { ...table, showHeader: showHeaderOnThisSlice, showFooter: includeFooter },
+      component: { ...table, showHeader: showHeaderOnThisSlice, showFooter: includeFooter, ...(table.cellSpans?.length ? { cellSpans: sliceTableSpans(table.cellSpans, sliceStart, end) } : {}) },
       box: { x: 0, y: 0, width, height },
       rowRange: { start: sliceStart, end },
       tableMetrics: { headerRowHeights, rowHeights },

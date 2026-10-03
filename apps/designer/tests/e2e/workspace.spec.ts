@@ -1022,6 +1022,7 @@ test("table body grid: merge and split rows using resolved sample data", async (
   await expect(page.getByTestId("body-cell-1-0")).toBeVisible();
   await page.getByTestId("body-cell-0-0").click();
   await page.getByTestId("body-cell-1-0").click();
+  await page.getByTestId("merge-anchor").selectOption("position");
   await page.getByTestId("body-merge").click();
   expect(JSON.stringify(await doc(page))).toContain('"cellSpans":[{"row":0,"column":0,"rowSpan":2,"colSpan":1}]');
   await page.getByTestId("table-designer-done").click();

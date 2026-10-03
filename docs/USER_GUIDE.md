@@ -47,6 +47,13 @@ While moving an element in a free-position layout, smart guides compare it with 
 - **Snap to** turns each target on or off: grid, other objects, band and page edges, guides, equal spacing and text baselines.
 - These settings are saved for you and are not stored in the report.
 
+**Merging table cells.** In the Table Designer:
+- **Columns** → open a column and turn on **Merge repeated values** to merge equal consecutive values automatically. This suits category columns such as region or department; long runs split across pages and repeat their value.
+- **Rows & cells** → select two corner cells, choose **Keep this merge**, then **Merge cells**.
+  - The default keeps the merge with its record, using the first column whose value is unique in the sample, so it follows that record when the data is sorted or filtered.
+  - Choose **At row N** to fix it at a row position instead.
+  - Selecting a merged cell shows how it is anchored. Automatic merges are shaded and change only through their column setting.
+
 **Panning.** Hold **Space** and drag, or drag with the middle mouse button, to pan the canvas. A pan never selects or moves anything. Space still types in text fields and activates focused buttons.
 
 In **Canvas settings → Ruler zero**, choose **Selected band** in Structure view to measure vertically from that band's top. Choose **Selection bounds** to measure from the upper-left corner of the selected element(s) visible on the first page. Clearing the selection temporarily returns the ruler to the page edge; it does not move any report content or guides.

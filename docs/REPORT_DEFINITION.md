@@ -39,13 +39,25 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 | Type | Key props |
 |---|---|
 | `text`, `richText`, `field` | `value` \| `binding` \| `expression`, `format` (`currency`, `date:dd MMM yyyy`, `number`, `percent`), `minLinesAtTop/Bottom`; auto-height flow text continues across pages unless `allowSplit: false` or `keepTogether: true` |
-| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, footer:{aggregate}}]`, optional `headerRows[[{column, text, colSpan?, rowSpan?, align?}]]` for a complete multi-level header grid, optional `cellSpans[{row, column, colSpan?, rowSpan?}]` for body merges, `showHeader/Footer`, `repeatHeaderOnPageBreak`, `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
+| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, mergeRepeated?, footer:{aggregate}}]`, optional `headerRows[[{column, text, colSpan?, rowSpan?, align?}]]` for a complete multi-level header grid, optional `cellSpans[{row \| match:{field, value}, column, colSpan?, rowSpan?}]` for body merges (see *Table merges*), `showHeader/Footer`, `repeatHeaderOnPageBreak`, `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
 | `container`, `row`, `column`, `grid` | `children`, `layout` (`flow\|row\|grid\|absolute`), `columns` |
 | `repeater`, `group` | `dataset`, `groupBy`, group header/footer |
 | `image`, `qrcode`, `barcode`, `chart`, `line`, `rectangle`, `spacer`, `pageBreak` | `src`/`value`/`symbology`/`series` … |
 | `labelSheet` | `columns`, `rows`, `labelWidth`, `labelHeight` (mm), `gapX`, `gapY`, `startPosition`, `dataset` \| `copies`, `outlines`, `children` = **one label** |
 | `fragment` | `ref` to `fragments[]` (reusable blocks) |
 | `custom` | `kind`, `props` — provided by a plugin |
+
+### Table merges
+
+- **Merge repeated values.** Set `mergeRepeated: true` on a column. Consecutive rows with the same displayed value print as one merged cell, and blank values never merge.
+  - Merges nest: a column never merges across a boundary of a merging column to its left, so Region > Country > City groups correctly.
+  - These merges are computed from the output rows after sorting and filtering.
+  - When one continues onto another page, it splits at the page break and its value prints again at the top of the new page.
+- **Explicit merges.** `cellSpans` entries merge a rectangle.
+  - `match: { field, value }` anchors the merge to the first output row whose `field` expression equals `value` (strict equality). It follows that record through sorting and filtering. When no row matches, the merge is skipped with `TABLE_SPAN_ANCHOR_NOT_FOUND`.
+  - `row` fixes the merge at a row position, whatever record is there.
+  - Exactly one of `row` or `match` is required. Explicit merges keep their rows on one page.
+  - An explicit merge overrides an overlapping automatic merge, with a `TABLE_AUTO_MERGE_CONFLICT` warning. Explicit merges that collide in the output are reported as `TABLE_SPAN_CONFLICT`.
 
 ### Text overflow and strict output
 

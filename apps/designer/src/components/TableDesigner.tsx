@@ -89,7 +89,7 @@ export function TableDesigner({ id }: { id: string }) {
       <main className="table-designer-canvas" aria-label="Table editing canvas">
         <div className="table-designer-intro"><strong>{TABS.find((item) => item.id === tab)?.label}</strong><span className="muted small">{tab === "columns" ? "Drag a column edge to resize it." : tab === "header" ? "Select header cells, then merge, split or edit their text." : tab === "rows" ? "Select sample cells to merge or split." : "Review changes against the sample table."}</span></div>
         {tab === "header" && <div className="table-designer-direct" data-testid="table-direct-header"><TableHeaderEditor columns={table.columns} headerRows={table.headerRows} onChange={(headerRows) => patch(id, { headerRows })} /></div>}
-        {tab === "rows" && <div className="table-designer-direct" data-testid="table-direct-rows"><TableBodyEditor columns={resolved?.columns ?? []} rows={resolved?.rows ?? []} spans={table.cellSpans ?? []} onChange={(cellSpans) => patch(id, { cellSpans })} /></div>}
+        {tab === "rows" && <div className="table-designer-direct" data-testid="table-direct-rows"><TableBodyEditor columns={resolved?.columns ?? []} configColumns={table.columns ?? []} rows={resolved?.rows ?? []} merges={{ config: table.cellSpans ?? [], resolved: resolved?.cellSpans ?? [] }} onChange={(cellSpans) => patch(id, { cellSpans: cellSpans.length ? cellSpans : undefined })} /></div>}
         <div className="table-designer-preview-label">LIVE SAMPLE</div>
         <div className="table-designer-preview" ref={preview} style={{ gridTemplateColumns: columnTemplate }} data-testid="table-live-preview">
           {table.showHeader !== false && tableHeaderRows(table as any).flatMap((cells, rowIndex) => cells.map((cell) => <div className="table-designer-preview-head" key={`h-${rowIndex}-${cell.column}`} style={{ gridColumn: `${cell.column + 1} / span ${cell.colSpan ?? 1}`, gridRow: `${rowIndex + 1} / span ${cell.rowSpan ?? 1}` }}><span>{cell.text}</span></div>))}
@@ -114,7 +114,7 @@ export function TableDesigner({ id }: { id: string }) {
             </select>
           </label>
           {table.emptyState === "message" && <label className="field"><span className="field-label">Message</span><input aria-label="Empty message" value={table.emptyMessage ?? ""} placeholder="No records found" onChange={(event) => patch(id, { emptyMessage: event.target.value })} /></label>}
-          <p className="muted small">Cell merges use resolved sample row positions. Recheck them if you change sorting or filtering.</p>
+          <p className="muted small">A merge kept with a record follows it through sorting and filtering; a merge at a row position stays at that position.</p>
         </>}
         {tab === "groups" && (group ? <>
           <label className="field"><span className="field-label">Group</span><select aria-label="Table group" value={selectedGroupId} onChange={(event) => setGroupId(event.target.value)}>{(doc.groups ?? []).map((item: any) => <option key={item.id} value={item.id}>{item.name || item.id}</option>)}</select></label>

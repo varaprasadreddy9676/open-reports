@@ -241,6 +241,33 @@ describe("PdfRenderer", () => {
     expect(all).toContain("Row 82");
   });
 
+  it("merges repeated values and prints a continuing merged value again at the top of each page", async () => {
+    const rows = Array.from({ length: 120 }, (_, index) => ({ region: index < 100 ? "REGION-EAST" : "REGION-WEST", n: index + 1 }));
+    const result = await renderPdf({
+      schemaVersion: "1.0", id: "merged-regions", name: "Merged regions",
+      datasets: [{ id: "rows", source: "inline", query: { data: rows } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "rows", columns: [
+        { id: "region", header: "Region", binding: "row.region", mergeRepeated: true },
+        { id: "n", header: "Item", binding: "'Item ' + row.n" },
+      ] }] }],
+    });
+    expect(result.warnings.filter((w) => w.code.startsWith("TABLE_"))).toEqual([]);
+    const pages = await extractPdfPages(result.content as Buffer);
+    expect(pages.length).toBeGreaterThan(2);
+    const count = (text: string, word: string) => text.split(word).length - 1;
+    pages.forEach((text) => {
+      // Each page shows the region of its first row exactly once, plus WEST once on the page where it starts.
+      const east = count(text, "REGION-EAST");
+      const west = count(text, "REGION-WEST");
+      expect(east + west).toBeGreaterThan(0);
+      expect(east).toBeLessThanOrEqual(1);
+      expect(west).toBeLessThanOrEqual(1);
+    });
+    const all = pages.join("\n");
+    expect(count(all, "REGION-WEST")).toBe(1);
+    expect(all).toContain("Item 120");
+  });
+
   it("never reads a local file path itself; linked files are resolved by the server first", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-local-image-"));
     const file = path.join(dir, "secret.png");
