@@ -276,10 +276,16 @@ importers:
       pg:
         specifier: ^8.13.1
         version: 8.23.1
+      pg-cursor:
+        specifier: ^2.22.1
+        version: 2.22.1(pg@8.23.1)
     devDependencies:
       '@types/pg':
         specifier: ^8.11.10
         version: 8.23.1
+      '@types/pg-cursor':
+        specifier: ^2.7.2
+        version: 2.7.2
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
@@ -1264,6 +1270,9 @@ packages:
 
   '@types/pdfkit@0.13.9':
     resolution: {integrity: sha512-RDG8Yb1zT7I01FfpwK7nMSA433XWpblMqSCtA5vJlSyavWZb303HUYPCel6JTiDDFqwGLvtAnYbH8N/e0Cb89g==}
+
+  '@types/pg-cursor@2.7.2':
+    resolution: {integrity: sha512-m3xT8bVFCvx98LuzbvXyuCdT/Hjdd/v8ml4jL4K1QF70Y8clOfCFdgoaEB1FWdcSwcpoFYZTJQaMD9/GQ27efQ==}
 
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
@@ -2336,6 +2345,11 @@ packages:
 
   pg-connection-string@2.14.1:
     resolution: {integrity: sha512-qR3kGNPBLpCNtz0evbKA0Y/MRFXwSSdT+pTJvYp/bXTcReZbvX1kzF0IyTc1QnxqF7AZbOeBhNL8R5mYQZV/MA==}
+
+  pg-cursor@2.22.1:
+    resolution: {integrity: sha512-X10ldv3wwBONQkOSwgWEbaEITMGLd92V2Zd+xsFPhDt3nhhU3hpAT08SERBChnIFmomczLax6lKXLJrHPPXfxA==}
+    peerDependencies:
+      pg: ^8
 
   pg-int8@1.0.1:
     resolution: {integrity: sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==}
@@ -3591,6 +3605,11 @@ snapshots:
     dependencies:
       '@types/node': 22.20.4
 
+  '@types/pg-cursor@2.7.2':
+    dependencies:
+      '@types/node': 22.20.4
+      '@types/pg': 8.23.1
+
   '@types/pg@8.23.1':
     dependencies:
       '@types/node': 22.20.4
@@ -4760,6 +4779,10 @@ snapshots:
     optional: true
 
   pg-connection-string@2.14.1: {}
+
+  pg-cursor@2.22.1(pg@8.23.1):
+    dependencies:
+      pg: 8.23.1
 
   pg-int8@1.0.1: {}
 

@@ -65,7 +65,7 @@ Linked files and URLs are limited to 5 MB and must contain PNG, JPEG, or WebP im
 - `inline`: `{ "data": [...] }`
 - `json`: sandboxed file read.
 - `rest`: `{ url, method, headers, query, body, resultPath }`; `{{params.x}}` and `{{secrets.NAME}}` are substituted; SSRF-guarded.
-- `sql`: `{ connectionId, sql, params: ["{{params.id}}"] }` — parameterised; `connectionId` is registered by the server.
+- `sql`: `{ connectionId, sql, params: ["{{params.id}}"] }` — parameterised; `connectionId` is registered by the server; optional `timeoutMs` and `maxRows`. Each query runs as one statement in a read-only transaction (writes, DDL and multiple statements are refused), is cancelled on the database server at its time limit, and stops reading at `maxRows`. A result cut off at `maxRows` is not yet reported as a warning.
 - Nested lists are addressed with a dotted dataset path, e.g. `"dataset": "invoice.items"`.
 
 An optional dataset `schema` records field names and types for authoring when sample rows are empty or unavailable. For example: `"schema": { "kind": "array", "fields": [{ "path": "patient.name", "kind": "string" }, { "path": "amount", "kind": "number" }] }`. Paths are dot-separated; field kinds are `string`, `number`, `boolean`, `date`, `object`, or `array`. This metadata drives the designer's field tree, binding choices, and generated table/card fields. It does not fabricate runtime records or change source responses. Reports without it continue to infer fields from sample values.
