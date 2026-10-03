@@ -312,6 +312,10 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
   const selected = selection.includes(comp.id);
   const renaming = editingText === comp.id;
   const st = useStore.getState;
+  const openActions = (x: number, y: number) => {
+    if (!st().selection.includes(comp.id)) st().select([comp.id]);
+    st().set({ contextMenu: { x, y, id: comp.id } });
+  };
   return (
     <div>
       <div
@@ -320,11 +324,22 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
         data-depth={depth}
         draggable={!comp.locked}
         data-testid={`layer-${comp.id}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`${ops.layerName(comp)}${comp.locked ? ", locked" : ""}${comp.hidden ? ", hidden" : ""}`}
+        aria-expanded={kids.length || comp.type === "table" ? open : undefined}
         onClick={(e) => st().select([comp.id], e.shiftKey)}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); st().select([comp.id], e.shiftKey); }
+          else if (e.key === "F2") { e.preventDefault(); st().set({ renaming: comp.id }); }
+          else if (e.key === "ArrowRight" && !open) { e.preventDefault(); setOpen(true); }
+          else if (e.key === "ArrowLeft" && open) { e.preventDefault(); setOpen(false); }
+          else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); const rect = e.currentTarget.getBoundingClientRect(); openActions(rect.right, rect.bottom); }
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
-          if (!st().selection.includes(comp.id)) st().select([comp.id]);
-          st().set({ contextMenu: { x: e.clientX, y: e.clientY, id: comp.id } });
+          openActions(e.clientX, e.clientY);
         }}
         onDoubleClick={() => st().set({ renaming: comp.id })}
         onDragStart={(e) => e.dataTransfer.setData("application/x-layer", comp.id)}
@@ -360,15 +375,11 @@ function LayerRow({ comp, depth }: { comp: ops.Comp; depth: number }) {
         ) : (
           <span className="layer-name">{ops.layerName(comp)}</span>
         )}
-        <span className="layer-actions">
-          <button className={`layer-btn ${comp.locked ? "on" : ""}`} aria-label={comp.locked ? "Unlock" : "Lock"} title={comp.locked ? "Unlock" : "Lock"} data-testid={`lock-${comp.id}`} onClick={(e) => (e.stopPropagation(), st().toggleLock(comp.id))}>
-            {comp.locked ? "🔒" : "🔓"}
-          </button>
-          <button className={`layer-btn ${comp.hidden ? "on" : ""}`} aria-label={comp.hidden ? "Show" : "Hide"} title={comp.hidden ? "Show" : "Hide"} data-testid={`hide-${comp.id}`} onClick={(e) => (e.stopPropagation(), st().toggleHide(comp.id))}>
-            {comp.hidden ? "🙈" : "👁"}
-          </button>
+        <span className="layer-actions" aria-hidden="true">
+          {comp.locked && <span title="Layout locked"><Icon name="lock" small /></span>}
+          {comp.hidden && <span title="Hidden from output"><Icon name="hidden" small /></span>}
         </span>
-        <span className="layer-end" aria-hidden="true" />
+        <button className="layer-end explorer-more" type="button" aria-label={`Actions for ${ops.layerName(comp)}`} title="Element actions" data-testid={`layer-actions-${comp.id}`} onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); openActions(rect.right, rect.bottom); }}>⋯</button>
       </div>
       {open && comp.type === "table" && (
         <>
@@ -416,9 +427,12 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
             draggable={!s.locked}
             onClick={() => useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true })}
             onKeyDown={(e) => {
-              if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
-              e.preventDefault();
-              useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true });
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); }
+              else if (e.key === "ArrowRight" && s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: undefined })); }
+              else if (e.key === "ArrowLeft" && !s.collapsed) { e.preventDefault(); useStore.getState().setDoc(ops.updateBand(doc, i, { collapsed: true })); }
+              else if (e.key === "F2") { e.preventDefault(); useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); requestAnimationFrame(() => (document.querySelector('[data-testid="band-name"]') as HTMLInputElement | null)?.focus()); }
+              else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); e.currentTarget.querySelector<HTMLDetailsElement>(".explorer-menu")?.setAttribute("open", ""); }
             }}
             onDragStart={(e) => {
               if (s.locked) { e.preventDefault(); return; }
@@ -462,23 +476,17 @@ function ExplorerBand({ index, depth }: { index: number; depth: number }) {
             }}>{s.collapsed ? "▸" : "▾"}</button>
             <span className="layer-type" title={ops.BAND_TITLES[s.type] ?? s.type}>{ops.BAND_CODES[s.type] ?? ""}</span>
             <span className="layer-name" title={ops.bandDisplayName(doc, s)}>{bandName}</span>
-            <span className="layer-actions">
-              <button className={`layer-btn ${s.locked ? "on" : ""}`} aria-label={s.locked ? "Unlock band layout" : "Lock band layout"} title={s.locked ? "Unlock band layout" : "Lock band layout"} data-testid={`explorer-lock-band-${i}`} onClick={(e) => {
-                e.stopPropagation();
-                const st = useStore.getState();
-                st.setDoc(ops.updateBand(st.doc, i, { locked: !s.locked }));
-              }}>{s.locked ? "🔒" : "🔓"}</button>
-              <button className={`layer-btn ${s.hidden ? "on" : ""}`} aria-label={s.hidden ? "Show band" : "Hide band"} title={s.hidden ? "Show band" : "Hide band"} data-testid={`explorer-hide-band-${i}`} onClick={(e) => {
-                e.stopPropagation();
-                const st = useStore.getState();
-                st.setDoc(ops.updateBand(st.doc, i, { hidden: !s.hidden }));
-              }}>{s.hidden ? "🙈" : "👁"}</button>
+            <span className="layer-actions" aria-hidden="true">
+              {s.locked && <span title="Layout locked"><Icon name="lock" small /></span>}
+              {s.hidden && <span title="Hidden from output"><Icon name="hidden" small /></span>}
             </span>
             <details className="explorer-menu" onClick={(e) => e.stopPropagation()}>
               <summary role="button" aria-label={`Actions for ${bandName}`} title="Band actions">⋯</summary>
-              <div className="explorer-menu-popover">
+              <div className="explorer-menu-popover" onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.parentElement?.removeAttribute("open"); }}>
                 <button onClick={() => { useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); requestAnimationFrame(() => (document.querySelector('[data-testid="band-name"]') as HTMLInputElement | null)?.focus()); }}>Rename</button>
                 <button disabled={!!s.locked} onClick={() => { const st = useStore.getState(); const result = ops.duplicateBand(st.doc, i); st.setDoc(result.doc); st.set({ selectedBand: result.index }); }}>Duplicate</button>
+                <button onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { locked: !s.locked })); }}>{s.locked ? "Unlock layout" : "Lock layout"}</button>
+                <button onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { hidden: !s.hidden })); }}>{s.hidden ? "Show in output" : "Hide from output"}</button>
                 <button disabled={!ops.canMoveBand(doc, i, i - 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i - 1); if (next) st.setDoc(next); }}>Move up</button>
                 <button disabled={!ops.canMoveBand(doc, i, i + 1)} onClick={() => { const st = useStore.getState(); const next = ops.moveBand(st.doc, i, i + 1); if (next) st.setDoc(next); }}>Move down</button>
                 <button onClick={() => { const st = useStore.getState(); st.setDoc(ops.updateBand(st.doc, i, { collapsed: !s.collapsed })); }}>{s.collapsed ? "Expand" : "Collapse"}</button>

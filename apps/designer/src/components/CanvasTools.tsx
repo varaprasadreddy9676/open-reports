@@ -11,6 +11,7 @@ export function ContextMenu() {
   useEffect(() => {
     if (!menu) return;
     const close = () => set({ contextMenu: null });
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="context-menu"] [role="menuitem"]:not(:disabled)')?.focus());
     window.addEventListener("mousedown", close);
     window.addEventListener("wheel", close, { passive: true });
     return () => {
@@ -33,7 +34,14 @@ export function ContextMenu() {
     </button>
   );
   return (
-    <div className="ctx-menu" role="menu" style={{ left: menu.x, top: menu.y }} data-testid="context-menu" onContextMenu={(e) => e.preventDefault()}>
+    <div className="ctx-menu" role="menu" style={{ left: Math.max(8, Math.min(menu.x, window.innerWidth - 236)), top: Math.max(8, Math.min(menu.y, window.innerHeight - 372)) }} data-testid="context-menu" onContextMenu={(e) => e.preventDefault()} onKeyDown={(e) => {
+      if (e.key === "Escape") { e.preventDefault(); set({ contextMenu: null }); return; }
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
+      const current = items.indexOf(document.activeElement as HTMLButtonElement);
+      items[(current + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+    }}>
       {comp && (
         <>
           {item("Copy", () => st().copy(), { hint: "Ctrl+C" })}

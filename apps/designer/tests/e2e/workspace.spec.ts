@@ -300,12 +300,26 @@ test.describe("properties, masters, print, blocks", () => {
     await page.getByTestId("starter-invoice").click();
     await page.getByTestId("left-tab-layers").click();
     await page.getByTestId("layer-company").hover();
-    await page.getByTestId("hide-company").click();
+    await page.getByTestId("layer-actions-company").click();
+    await page.getByTestId("ctx-hide").click();
     expect((await doc(page)).sections[0].children[0].children[0].hidden).toBe(true);
-    await page.getByTestId("layer-company").dblclick();
+    await expect(page.getByTestId("layer-company").locator(".layer-actions svg")).toHaveCount(1);
+    await page.getByTestId("layer-company").focus();
+    await page.getByTestId("layer-company").press("F2");
     await page.getByTestId("layer-rename").fill("Company name");
     await page.getByTestId("layer-rename").press("Enter");
     expect(JSON.stringify(await doc(page))).toContain('"name":"Company name"');
+    await page.getByTestId("layer-actions-company").click();
+    await page.getByTestId("ctx-lock").click();
+    await expect(page.getByTestId("layer-company").locator(".layer-actions svg")).toHaveCount(2);
+    await page.getByTestId("layer-company").focus();
+    await page.getByTestId("layer-company").press("Shift+F10");
+    await expect(page.getByTestId("context-menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("context-menu")).toHaveCount(0);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "46-structure-native-actions.png") });
     await expect(page.getByTestId("layers-tab")).toContainText("H  Header");
   });
 

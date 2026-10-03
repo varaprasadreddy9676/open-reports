@@ -570,9 +570,13 @@ textarea {
   justify-content: flex-end;
   align-items: center;
   width: 38px;
-  gap: 0;
+  gap: 3px;
 }
+.explorer-row > .layer-actions > span { display: inline-flex; color: var(--muted); }
 .explorer-row > .layer-end { width: 22px; }
+.explorer-more { display: grid; place-items: center; height: 24px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); font-size: 18px; line-height: 1; opacity: 0; }
+.explorer-row:hover > .explorer-more, .explorer-row:focus-within > .explorer-more { opacity: 1; }
+.explorer-more:hover, .explorer-more:focus-visible { background: var(--accent-soft); color: var(--accent); }
 .layer:hover {
   background: var(--panel-2);
 }
@@ -2036,7 +2040,7 @@ kbd {
 .ft-size { font-size: 11px; min-width: 18px; text-align: center; }
 .ft-color { width: 24px; height: 24px; padding: 0; border: 0; background: none; }
 .inline-editor { position: absolute; z-index: 25; resize: none; border: 2px solid var(--accent); background: #fff; color: #000; font-family: inherit; padding: 0; outline: none; user-select: text; }
-.ctx-menu { position: fixed; z-index: 60; min-width: 220px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column; }
+.ctx-menu { position: fixed; z-index: 60; min-width: 220px; max-height: calc(100vh - 16px); overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column; }
 .ctx-menu button { display: flex; justify-content: space-between; gap: 24px; background: none; border: 0; text-align: left; padding: 5px 10px; border-radius: 5px; color: var(--text); }
 .ctx-menu button:hover:not(:disabled) { background: var(--accent-soft); }
 .ctx-menu button:disabled { opacity: 0.4; }
@@ -2046,11 +2050,7 @@ kbd {
 
 /* ---------- redesign: layers & blocks */
 .layer { align-items: center; }
-.explorer-row .layer-actions { opacity: 0; }
-.explorer-row:hover .layer-actions,
-.explorer-row:focus-within .layer-actions { opacity: 1; }
-.layer .layer-btn { background: none; border: 0; font-size: 11px; padding: 0 2px; opacity: 0.6; }
-.layer .layer-btn.on { opacity: 1; }
+.explorer-row .layer-actions { opacity: 1; }
 .layer.is-hidden .layer-name { opacity: 0.45; text-decoration: line-through; }
 .layer.pseudo { color: var(--muted); font-size: 12px; cursor: default; }
 .layer-rename { flex: 1; min-width: 0; font-size: 12px; padding: 1px 4px; }

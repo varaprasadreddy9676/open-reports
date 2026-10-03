@@ -766,12 +766,14 @@ test("band visibility changes output while layout lock protects structure", asyn
   await page.getByTestId("left-tab-layers").click();
   const row = page.locator("[data-band-index='0']");
   await row.click();
-  await page.getByTestId("explorer-hide-band-0").click();
+  await row.getByRole("button", { name: /Actions for/ }).click();
+  await row.getByRole("button", { name: "Hide from output" }).click();
   expect((await doc(page)).sections[0].hidden).toBe(true);
   await expect(row).toHaveClass(/is-hidden/);
   await expect(page.getByTestId("band-0").first()).toHaveClass(/hidden-rule/);
 
-  await page.getByTestId("explorer-lock-band-0").click();
+  await row.getByRole("button", { name: /Actions for/ }).click();
+  await row.getByRole("button", { name: "Lock layout" }).click();
   expect((await doc(page)).sections[0].locked).toBe(true);
   await expect(row).toHaveAttribute("draggable", "false");
   await expect(page.getByTestId("band-tab-0").first()).toHaveAttribute("draggable", "false");

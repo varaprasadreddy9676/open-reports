@@ -26,6 +26,7 @@ const P: Record<string, string> = {
   conditional: "M12 3l9 9-9 9-9-9z",
   lock: "M5 11h14v10H5zM8 11V8a4 4 0 0 1 8 0v3M12 15v2",
   unlock: "M5 11h14v10H5zM8 11V8a4 4 0 0 1 7-2M12 15v2",
+  hidden: "M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M7.1 7.1A12 12 0 0 0 2 12s3.6 7 10 7c1.5 0 2.9-.4 4.1-1.1M9.9 5.2A12 12 0 0 1 12 5c6.4 0 10 7 10 7a15 15 0 0 1-2.7 3.4",
   subreport: "M5 5h10v10H5zM9 9h10v10H9z",
   "chart-bar": "M5 19V9M10 19V5M15 19v-8M20 19V12",
   "chart-line": "M4 17l5-6 4 3 7-9",
