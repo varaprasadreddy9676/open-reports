@@ -6,6 +6,12 @@ export interface PageTextCheck {
   text: string;
 }
 
+export interface PageImageCheck {
+  page: number;
+  componentIds: string[];
+  expected: number;
+}
+
 const compact = (value: string) => value.normalize("NFKC").replace(/\s+/g, "").trim();
 
 /** Checks short, ordinary Latin text placed by PDF-measured pagination. */
@@ -39,4 +45,33 @@ export function comparePageTextChecks(pageTexts: string[], checks: PageTextCheck
   const normalizedPages = pageTexts.map(compact);
   const missing = checks.filter((check) => !normalizedPages[check.page - 1]?.includes(compact(check.text)));
   return { found: checks.length - missing.length, total: checks.length, missing };
+}
+
+/** Counts placed image elements; PDF image paint operators may include unrelated raster content. */
+export function planPageImageChecks(paginated: PaginatedReport): PageImageCheck[] {
+  const checks: PageImageCheck[] = [];
+  const visit = (node: PositionedNode, check: PageImageCheck) => {
+    if (node.component.type === "image" && node.component.src) {
+      check.expected++;
+      if (node.component.id) check.componentIds.push(node.component.id);
+    }
+    for (const child of node.children ?? []) visit(child, check);
+  };
+  for (const page of paginated.pages) {
+    const check: PageImageCheck = { page: page.number, componentIds: [], expected: 0 };
+    for (const zone of [page.background, page.header, page.content, page.footer]) {
+      for (const node of zone) visit(node, check);
+    }
+    if (check.expected) checks.push(check);
+  }
+  return checks;
+}
+
+export function comparePageImageChecks(paintCounts: number[], checks: PageImageCheck[]) {
+  const missing = checks.filter((check) => (paintCounts[check.page - 1] ?? 0) < check.expected);
+  return {
+    found: checks.reduce((count, check) => count + Math.min(check.expected, paintCounts[check.page - 1] ?? 0), 0),
+    total: checks.reduce((count, check) => count + check.expected, 0),
+    missing,
+  };
 }
