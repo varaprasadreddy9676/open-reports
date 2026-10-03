@@ -780,6 +780,52 @@ test("row overflow names the item, opens it from Problems, and clears after resi
   await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
 });
 
+test("row wrap and child shrink are editable and reflected on the canvas", async ({ page }) => {
+  for (let i = 0; i < 2; i++) {
+    await page.getByTestId("band-tab-0").first().click();
+    await page.getByTestId("left-tab-insert").click();
+    await page.getByTestId("palette-text").click();
+  }
+  const [firstId, secondId] = (await doc(page)).sections[0].children.map((child: any) => child.id);
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-layout-row").click();
+  await page.getByTestId("band-gap").fill("12");
+  for (const id of [firstId, secondId]) {
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId(`layer-${id}`).click();
+    await page.getByTestId("quick-geometry").getByLabel("Width").fill("400");
+  }
+  await expect(page.getByTestId("problem-counts")).toContainText("1 error");
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-wrap").check();
+  await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
+  await expect.poll(() => page.evaluate(() => {
+    const children = (window as any).__designer.getState().engine.structure.bands.find((band: any) => band.sectionIndex === 0).node.children;
+    return children[1].box.y >= children[0].box.y + children[0].box.height + 11.5 && Math.abs(children[1].box.x - children[0].box.x) < 0.1;
+  })).toBe(true);
+  const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  await page.screenshot({ path: path.join(screenshotDir, "62-row-wrap.png") });
+
+  await page.getByTestId("band-wrap").uncheck();
+  for (const id of [firstId, secondId]) {
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId(`layer-${id}`).click();
+    const layout = page.getByTestId("properties").getByRole("button", { name: "Layout", exact: true });
+    if (await layout.getAttribute("aria-expanded") === "false") await layout.click();
+    await page.getByLabel("Shrink", { exact: true }).fill("1");
+  }
+  await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
+  await expect.poll(() => page.evaluate(() => {
+    const node = (window as any).__designer.getState().engine.structure.bands.find((band: any) => band.sectionIndex === 0).node;
+    return node.children[1].box.x + node.children[1].box.width <= node.box.x + node.box.width + 0.1;
+  })).toBe(true);
+  expect((await doc(page)).sections[0]).toMatchObject({ layout: "row", children: [{ width: 400, shrink: 1 }, { width: 400, shrink: 1 }] });
+  await page.screenshot({ path: path.join(screenshotDir, "63-row-shrink.png") });
+});
+
 test("page band master and band actions are editable", async ({ page }) => {
   await page.getByTestId("band-plus-0").first().click({ force: true });
   await page.getByTestId("add-pageHeader").click();

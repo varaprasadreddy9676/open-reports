@@ -79,6 +79,7 @@ export const sectionSchema = z.object({
   minHeight: z.number().nonnegative().optional(),
   layout: z.enum(["flow", "row", "grid", "absolute"]).optional(),
   gap: z.number().nonnegative().optional(),
+  wrap: z.boolean().optional(),
   alignItems: z.enum(["start", "center", "end", "stretch"]).optional(),
   justifyContent: z.enum(["start", "center", "end", "space-between", "space-around"]).optional(),
   columns: z.number().int().positive().optional(),

@@ -76,6 +76,7 @@ export function layoutStructure(resolved: ResolvedReport, sections: ReportSectio
       height: s.height,
       minHeight: s.minHeight,
       gap: s.gap,
+      wrap: s.wrap,
       alignItems: s.alignItems,
       justifyContent: s.justifyContent,
       columns: s.columns,

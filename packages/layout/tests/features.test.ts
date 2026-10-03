@@ -115,6 +115,44 @@ describe("auto-layout", () => {
     expect(nodes[1]!.box.width).toBeCloseTo(300 - nodes[0]!.box.width - 12, 5);
   });
 
+  it("wraps fixed row children onto a second line when enabled", () => {
+    const children = [text("Left", { width: 200 }), text("Right", { width: 200 })];
+    const result = layoutRow(children, box, defaultTextMeasurer, { gap: 12, wrap: true });
+    expect(result.nodes[0]!.box.x).toBe(0);
+    expect(result.nodes[1]!.box.x).toBe(0);
+    expect(result.nodes[1]!.box.y).toBeCloseTo(result.nodes[0]!.box.height + 12);
+    expect(result.height).toBeCloseTo(result.nodes[0]!.box.height + 12 + result.nodes[1]!.box.height);
+    expect(children[0]!.width).toBe(200);
+  });
+
+  it("shrinks opted-in fixed children without changing their report widths", () => {
+    const children = [text("A long first label that wraps", { width: 200, shrink: 1 }), text("A long second label that wraps", { width: 200, shrink: 1 })];
+    const result = layoutRow(children, box, defaultTextMeasurer, { gap: 10 });
+    expect(result.nodes[0]!.box.width).toBeCloseTo(145);
+    expect(result.nodes[1]!.box.width).toBeCloseTo(145);
+    expect(result.nodes[1]!.box.x + result.nodes[1]!.box.width).toBeCloseTo(300);
+    expect(children.map((child) => child.width)).toEqual([200, 200]);
+  });
+
+  it("respects a shrinking child's minimum width", () => {
+    const result = layoutRow([text("A", { width: 200, shrink: 1, minWidth: 180 }), text("B", { width: 200, shrink: 1 })], box, defaultTextMeasurer, { gap: 10 });
+    expect(result.nodes[0]!.box.width).toBe(180);
+    expect(result.nodes[1]!.box.width).toBeCloseTo(110);
+  });
+
+  it("preserves intrinsic QR size and applies percentage widths to the row", () => {
+    const qr = { type: "qrcode", value: "ABC" } as any;
+    expect(layoutRow([qr], box, defaultTextMeasurer).nodes[0]!.box.width).toBe(80);
+    const percent = layoutRow([text("Left", { width: "50%" }), text("Right", { width: "50%" })], box, defaultTextMeasurer);
+    expect(percent.nodes.map((node) => node.box.width)).toEqual([150, 150]);
+  });
+
+  it("uses capped widths when deciding whether row items need wrapping", () => {
+    const result = layoutRow([text("Left", { width: 250, maxWidth: 100 }), text("Right", { width: 250, maxWidth: 100 })], box, defaultTextMeasurer, { wrap: true, gap: 10 });
+    expect(result.nodes[0]!.box.y).toBe(result.nodes[1]!.box.y);
+    expect(result.nodes[1]!.box.x).toBeCloseTo(110);
+  });
+
   it("row centers children vertically with alignItems", () => {
     const { nodes } = layoutRow([text("a", { width: 50, height: 40 }), text("b", { width: 50, height: 10 })], box, defaultTextMeasurer, { alignItems: "center" });
     expect(nodes[1]!.box.y).toBeCloseTo(15, 5);

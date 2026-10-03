@@ -142,7 +142,10 @@ export function BandProps({ index }: { index: number }) {
           <option value="">Start</option><option value="center">Center</option><option value="end">End</option><option value="space-between">Space between</option><option value="space-around">Space around</option>
         </select></BandField>}
       </div>}
-      {layout === "row" && <p className="field-hint">Children fill available width by default. Select a text child to switch it to Hug or set an exact width.</p>}
+      {layout === "row" && <>
+        <label className="check"><input type="checkbox" data-testid="band-wrap" checked={!!band.wrap} onChange={(e) => update({ wrap: e.target.checked || undefined })} />Wrap items onto another line</label>
+        <p className="field-hint">Children fill available width by default. Select a text child to Hug its text, set an exact width, or allow it to shrink when space is tight.</p>
+      </>}
     </fieldset>
     </InspectorSection>
 

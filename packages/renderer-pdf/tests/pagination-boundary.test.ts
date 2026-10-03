@@ -214,4 +214,22 @@ describe("pagination boundaries (real PDF output)", () => {
     expect(pages[1]).toContain(anchor);
     expect(pages.join("\n")).not.toContain(covered);
   }, 120_000);
+
+  it("renders wrapped and shrunk row items once in the generated PDF", async () => {
+    const children = [
+      { type: "text", id: "left", value: "LEFTMARK", width: 400 },
+      { type: "text", id: "right", value: "RIGHTMARK", width: 400 },
+    ];
+    const doc = (wrap: boolean, shrink: number | undefined) => ({
+      schemaVersion: "1.0", id: "row-layout", name: "Row layout",
+      page: { size: "A4", unit: "pt", margin: { top: 40, right: 40, bottom: 40, left: 40 } },
+      sections: [{ type: "detail", layout: "row", gap: 12, wrap, children: children.map((item) => ({ ...item, shrink })) }],
+    });
+    for (const [wrap, shrink] of [[true, undefined], [false, 1]] as const) {
+      const pages = await render(doc(wrap, shrink));
+      expect(pages).toHaveLength(1);
+      expect(pages[0]!.match(/LEFTMARK/g)).toHaveLength(1);
+      expect(pages[0]!.match(/RIGHTMARK/g)).toHaveLength(1);
+    }
+  });
 });

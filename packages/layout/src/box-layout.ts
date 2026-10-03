@@ -154,6 +154,18 @@ export function layoutFlow(components: ResolvedComponent[], box: Box, measurer: 
 
 export interface RowOptions extends FlowOptions {
   justifyContent?: string;
+  wrap?: boolean;
+}
+
+function rowExplicitWidth(component: ResolvedComponent, available: number, margin: Edges, measurer: TextMeasurer): number | undefined {
+  if (component.width === "auto" && (component.type === "text" || component.type === "field" || component.type === "richText")) {
+    const fontSize = styleFontSize(component);
+    const hint = styleHint(component);
+    const widestLine = (component.text ?? "").split(/\r\n|\r|\n/).reduce((widest, line) => Math.max(widest, measurer.widthOf(line, fontSize, hint)), 0);
+    const pad = edgesOf((component.style as any)?.padding);
+    return Math.max(1, Math.min(available - margin.left - margin.right, widestLine + pad.left + pad.right));
+  }
+  return resolveDimension(component.width, available, DEFAULT_UNIT);
 }
 
 /** Lays children side by side. Fixed-width children keep their width; the rest
@@ -163,17 +175,35 @@ export function layoutRow(components: ResolvedComponent[], box: Box, measurer: T
   const n = components.length;
   if (n === 0) return { nodes: [], height: 0 };
   const gap = opts.gap ?? 0;
-  const margins = components.map(marginOf);
-  const explicit = components.map((c, i) => {
-    if (c.width === "auto" && (c.type === "text" || c.type === "field" || c.type === "richText")) {
-      const fontSize = styleFontSize(c);
-      const hint = styleHint(c);
-      const widestLine = (c.text ?? "").split(/\r\n|\r|\n/).reduce((widest, line) => Math.max(widest, measurer.widthOf(line, fontSize, hint)), 0);
-      const pad = edgesOf((c.style as any)?.padding);
-      return Math.max(1, Math.min(box.width - margins[i]!.left - margins[i]!.right, widestLine + pad.left + pad.right));
+  if (opts.wrap && n > 1) {
+    const lines: ResolvedComponent[][] = [];
+    let line: ResolvedComponent[] = [];
+    let used = 0;
+    for (const component of components) {
+      const m = marginOf(component);
+      const min = resolveDimension(component.minWidth, box.width, DEFAULT_UNIT) ?? 1;
+      const max = resolveDimension(component.maxWidth, box.width, DEFAULT_UNIT);
+      const preferred = clamp(rowExplicitWidth(component, box.width, m, measurer) ?? min, min, max) + m.left + m.right;
+      if (line.length && used + gap + preferred > box.width + 0.5) {
+        lines.push(line);
+        line = [];
+        used = 0;
+      }
+      used += (line.length ? gap : 0) + preferred;
+      line.push(component);
     }
-    return resolveDimension(c.width, box.width, DEFAULT_UNIT);
-  });
+    if (line.length) lines.push(line);
+    const nodes: PositionedNode[] = [];
+    let y = box.y;
+    for (const group of lines) {
+      const result = layoutRow(group, { ...box, y }, measurer, { ...opts, wrap: false });
+      nodes.push(...result.nodes);
+      y += result.height + gap;
+    }
+    return { nodes, height: y - box.y - gap };
+  }
+  const margins = components.map(marginOf);
+  const explicit = components.map((c, i) => rowExplicitWidth(c, box.width, margins[i]!, measurer));
   const weights = components.map((c, i) => (explicit[i] === undefined ? (c.grow ?? 1) : 0));
   const fixed = components.reduce((acc, _c, i) => acc + (explicit[i] ?? 0) + margins[i]!.left + margins[i]!.right, 0);
   const remaining = Math.max(0, box.width - fixed - gap * (n - 1));
@@ -182,6 +212,24 @@ export function layoutRow(components: ResolvedComponent[], box: Box, measurer: T
     const w = explicit[i] ?? (totalWeight > 0 ? (remaining * weights[i]!) / totalWeight : 0);
     return clamp(w, resolveDimension(c.minWidth, box.width, DEFAULT_UNIT), resolveDimension(c.maxWidth, box.width, DEFAULT_UNIT));
   });
+
+  // Shrink is opt-in for fixed/hugged widths. Reallocate any remaining deficit
+  // after a child reaches its minimum so other shrinkable children can help.
+  let deficit = widths.reduce((sum, w, i) => sum + w + margins[i]!.left + margins[i]!.right, gap * (n - 1)) - box.width;
+  for (let pass = 0; pass < n && deficit > 0.5; pass++) {
+    const eligible = components.map((c, i) => ({ index: i, floor: Math.max(1, resolveDimension(c.minWidth, box.width, DEFAULT_UNIT) ?? 1), factor: (c.shrink ?? 0) * widths[i]! }))
+      .filter(({ index, floor, factor }) => factor > 0 && widths[index]! > floor + 0.01);
+    const total = eligible.reduce((sum, item) => sum + item.factor, 0);
+    if (!total) break;
+    let removed = 0;
+    for (const item of eligible) {
+      const amount = Math.min(widths[item.index]! - item.floor, deficit * item.factor / total);
+      widths[item.index] = widths[item.index]! - amount;
+      removed += amount;
+    }
+    deficit -= removed;
+    if (removed < 0.01) break;
+  }
 
   const used = widths.reduce((a, w, i) => a + w + margins[i]!.left + margins[i]!.right, 0) + gap * (n - 1);
   const leftover = Math.max(0, box.width - used);
@@ -202,7 +250,11 @@ export function layoutRow(components: ResolvedComponent[], box: Box, measurer: T
   components.forEach((component, i) => {
     const m = margins[i]!;
     x += m.left;
-    const node = layoutComponent(component, { x, y: box.y + m.top, width: widths[i]!, height: box.height }, measurer);
+    const declaredWidth = resolveDimension(component.width, box.width, DEFAULT_UNIT);
+    const overrideWidth = declaredWidth !== undefined && (Math.abs(declaredWidth - widths[i]!) > 0.01 || typeof component.width === "string" && component.width.endsWith("%"));
+    const child = overrideWidth ? { ...component, width: widths[i]!, minWidth: undefined, maxWidth: undefined } as ResolvedComponent : component;
+    const node = layoutComponent(child, { x, y: box.y + m.top, width: widths[i]!, height: box.height }, measurer);
+    if (overrideWidth) node.component = component;
     x += widths[i]! + m.right + gap + extraGap;
     nodes.push(node);
     rowHeight = Math.max(rowHeight, node.box.height + m.top + m.bottom);
@@ -272,7 +324,7 @@ function layoutContainer(component: ResolvedContainerComponent, box: Box, measur
   if (mode === "absolute") {
     result = layoutAbsolute(component.children, inner, measurer);
   } else if (mode === "row") {
-    result = layoutRow(component.children, inner, measurer, { gap: component.gap, alignItems: component.alignItems, justifyContent: component.justifyContent });
+    result = layoutRow(component.children, inner, measurer, { gap: component.gap, alignItems: component.alignItems, justifyContent: component.justifyContent, wrap: component.wrap });
   } else if (mode === "grid") {
     result = layoutGrid(component.children, component.columns ?? 1, inner, measurer, component.gap ?? 0);
   } else {

@@ -86,10 +86,14 @@ export const componentBaseSchema = z.object({
   hidden: z.boolean().optional(),
   /** Auto-layout (container children): space between children, cross-axis alignment, main-axis distribution. */
   gap: z.number().nonnegative().optional(),
+  /** Move row children to another line when their widths cannot fit together. */
+  wrap: z.boolean().optional(),
   alignItems: z.enum(["start", "center", "end", "stretch"]).optional(),
   justifyContent: z.enum(["start", "center", "end", "space-between", "space-around"]).optional(),
   /** Flex weight among siblings in a row (default 1 for flexible children). */
   grow: z.number().nonnegative().optional(),
+  /** How readily a row child gives up width when the row is crowded (0 keeps its width). */
+  shrink: z.number().nonnegative().optional(),
   minWidth: dimensionSchema.optional(),
   maxWidth: dimensionSchema.optional(),
   minHeight: dimensionSchema.optional(),

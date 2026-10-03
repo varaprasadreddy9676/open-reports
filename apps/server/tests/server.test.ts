@@ -108,6 +108,15 @@ describe("POST /api/v1/render (inline)", () => {
     expect(blocked.json().error.details.warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_EXCEEDS_PRINTABLE_WIDTH", path: "second" }));
     const blockedHtml = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "html" } });
     expect(blockedHtml.statusCode).toBe(422);
+    const wrapped = { ...report, sections: [{ type: "detail", children: [{ ...report.sections[0]!.children[0]!, wrap: true }] }] };
+    const wrappedPdf = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: wrapped, format: "pdf" } });
+    expect(wrappedPdf.statusCode).toBe(200);
+    const wrappedHtml = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: wrapped, format: "html" } });
+    expect(wrappedHtml.statusCode).toBe(200);
+    expect(wrappedHtml.payload).toContain("Second");
+    const shrunk = { ...report, sections: [{ type: "detail", children: [{ ...report.sections[0]!.children[0]!, children: report.sections[0]!.children[0]!.children.map((child) => ({ ...child, shrink: 1 })) }] }] };
+    const shrunkPdf = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: shrunk, format: "pdf" } });
+    expect(shrunkPdf.statusCode).toBe(200);
     const analyzed = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report } });
     expect(analyzed.json().valid).toBe(false);
     expect(analyzed.json().warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_EXCEEDS_PRINTABLE_WIDTH", path: "second" }));

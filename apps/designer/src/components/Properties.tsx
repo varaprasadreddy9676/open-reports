@@ -903,11 +903,14 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
                 </select>
               </Field>}
             </div>
-            {layout === "row" && <Field label="Distribute">
-              <select aria-label="Justify content" value={comp.justifyContent ?? ""} onChange={(e) => patch(comp.id, { justifyContent: e.target.value || undefined })}>
-                <option value="">Start</option><option value="center">Center</option><option value="end">End</option><option value="space-between">Space between</option><option value="space-around">Space around</option>
-              </select>
-            </Field>}
+            {layout === "row" && <>
+              <Field label="Distribute">
+                <select aria-label="Justify content" value={comp.justifyContent ?? ""} onChange={(e) => patch(comp.id, { justifyContent: e.target.value || undefined })}>
+                  <option value="">Start</option><option value="center">Center</option><option value="end">End</option><option value="space-between">Space between</option><option value="space-around">Space around</option>
+                </select>
+              </Field>
+              <label className="check"><input type="checkbox" aria-label="Wrap row items" checked={!!comp.wrap} onChange={(e) => patch(comp.id, { wrap: e.target.checked || undefined })} />Wrap items onto another line</label>
+            </>}
           </>
         )}
         {parentLayout === "row" && <Field label="Width in row">
@@ -918,6 +921,9 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
           </select>
         </Field>}
         {parentLayout === "row" && widthMode === "fixed" && <p className="field-hint">Set the exact width above. Distribution uses space left after fixed and hugged children.</p>}
+        {parentLayout === "row" && widthMode !== "fill" && <Field label="Shrink (when crowded)">
+          <Num label="Shrink" min={0} value={comp.shrink} onChange={(v) => patch(comp.id, { shrink: v })} />
+        </Field>}
         {!absolute && parentLayout === "absolute" && <button className="btn" onClick={() => patch(comp.id, { x: 0, y: 0 })}>Position freely</button>}
         {!absolute && parentLayout === "absolute" ? null : absolute && (
           <button className="btn" onClick={() => patch(comp.id, { x: undefined, y: undefined })}>Return to flow</button>

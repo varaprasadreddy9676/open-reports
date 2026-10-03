@@ -117,6 +117,7 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       height: s.height,
       minHeight: s.minHeight,
       gap: s.gap,
+      wrap: s.wrap,
       alignItems: s.alignItems,
       justifyContent: s.justifyContent,
       columns: s.columns,

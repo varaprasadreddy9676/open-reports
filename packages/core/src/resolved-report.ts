@@ -68,9 +68,11 @@ export interface ResolvedComponentBase {
   keepTogether?: boolean;
   keepWithNext?: boolean;
   gap?: number;
+  wrap?: boolean;
   alignItems?: string;
   justifyContent?: string;
   grow?: number;
+  shrink?: number;
   minWidth?: number | string;
   maxWidth?: number | string;
   minHeight?: number | string;
