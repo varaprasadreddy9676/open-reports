@@ -7,7 +7,7 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 2. Click any text on the page. The right panel shows its content as **Text · Field · Formula** — pick **Field** to bind to data.
 3. In **Data**, search by field name, path, or type. Check the sample value, then drag a field onto the intended report band. Drag a *list* (e.g. `items`) and choose **Table**, **Repeater**, or **Cards**. Leave **Create fields automatically** on to bind columns or card fields from the sample; turn it off to start with a blank editable field.
 4. Changing a total? Choose **fx Formula → Builder**: pick *Quantity × Rate* from dropdowns. Switch to **Formula** for the raw expression; autocomplete and errors appear as you type.
-5. **Preview** shows the real PDF. **Export ▾** gives PDF, HTML, Excel, CSV or a ZPL label. **Save** keeps a version. **Publish** opens a review: run validation and boundary-data checks, inspect the generated PDF, review warnings, and enter version notes. Critical errors block publishing; published versions never change.
+5. **Preview** shows the real PDF. Use **Pages** for thumbnails, enter a page number, choose **Fit page**, **Fit width** or a zoom level, and use **Find** to locate text on a page. Only the current page and nearby thumbnails are drawn in long reports. **Open to print** opens the PDF in the browser's viewer; **Download PDF** saves the same generated file shown in Preview. **Export ▾** also gives HTML, Excel, CSV or a ZPL label. **Save** keeps a version. **Publish** opens a review: run validation and boundary-data checks, inspect the generated PDF, review warnings, and enter version notes. Critical errors block publishing; published versions never change.
 
 ## 2. The workspace
 | Area | What it does |

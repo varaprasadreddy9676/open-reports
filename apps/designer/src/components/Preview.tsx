@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { findComponentsByType } from "@reporting/core";
 import { CsvRenderer } from "@reporting/renderer-csv";
 import { ZplRenderer } from "@reporting/renderer-zpl";
@@ -7,6 +7,10 @@ import { useStore } from "../store";
 import { withSampleData } from "../engine";
 import { api } from "../lib/api";
 import { decodeEscPos } from "../lib/escpos-preview";
+import type { PDFDocumentProxy, PDFDocumentLoadingTask } from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+const PdfDocumentView = React.lazy(() => import("./PdfDocumentView").then((module) => ({ default: module.PdfDocumentView })));
 
 export type PreviewTab = "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos";
 
@@ -36,25 +40,45 @@ export async function exportReport(format: PreviewTab) {
 export function PdfPreview({ compact = false }: { compact?: boolean }) {
   const { doc, sample, parameters } = useStore();
   const [url, setUrl] = useState<string>();
-  const urlRef = useRef<string>();
+  const [pdf, setPdf] = useState<PDFDocumentProxy>();
+  const [blob, setBlob] = useState<Blob>();
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
-  const frame = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     let cancelled = false;
+    let currentUrl: string | undefined;
+    let currentPdf: PDFDocumentProxy | undefined;
+    let loadingTask: PDFDocumentLoadingTask | undefined;
     setBusy(true);
+    setPdf(undefined);
+    setUrl(undefined);
+    setBlob(undefined);
+    setInfo("");
+    setError("");
     const t = setTimeout(async () => {
       try {
-        const { blob, renderId } = await api.render(withSampleData(doc, sample), "pdf", parameters);
+        const rendered = await api.render(withSampleData(doc, sample), "pdf", parameters);
         if (cancelled) return;
-        const text = await blob.text();
-        const pages = (text.match(/\/Type \/Page(?![s\w])/g) ?? []).length;
-        setInfo(`${pages} page${pages === 1 ? "" : "s"} · ${(blob.size / 1024).toFixed(1)} KB · render ${renderId?.slice(0, 8) ?? ""}`);
-        if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-        urlRef.current = URL.createObjectURL(blob);
-        setUrl(urlRef.current);
+        const renderedBlob = rendered.blob;
+        let pages: number;
+        if (compact) {
+          const text = await renderedBlob.text();
+          pages = (text.match(/\/Type \/Page(?![s\w])/g) ?? []).length;
+        } else {
+          const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+          GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+          loadingTask = getDocument({ data: new Uint8Array(await renderedBlob.arrayBuffer()) });
+          currentPdf = await loadingTask.promise;
+          pages = currentPdf.numPages;
+        }
+        if (cancelled) return;
+        currentUrl = URL.createObjectURL(renderedBlob);
+        setUrl(currentUrl);
+        setPdf(currentPdf);
+        setBlob(renderedBlob);
+        setInfo(`${pages} page${pages === 1 ? "" : "s"} · ${(renderedBlob.size / 1024).toFixed(1)} KB · render ${rendered.renderId?.slice(0, 8) ?? ""}`);
         setError("");
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
@@ -65,22 +89,20 @@ export function PdfPreview({ compact = false }: { compact?: boolean }) {
     return () => {
       cancelled = true;
       clearTimeout(t);
+      void loadingTask?.destroy();
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
-  }, [doc, sample, parameters]);
-
-  useEffect(() => () => {
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-  }, []);
+  }, [doc, sample, parameters, compact]);
 
   return (
     <div className={`preview-pane ${compact ? "pdf-compact" : ""}`}>
       <div className="preview-bar">
         <span data-testid={compact ? "structure-pdf-info" : "pdf-info"}>{busy ? "Rendering PDF..." : info}</span>
         <span className="spacer" />
-        {!compact && <><button className="btn" onClick={() => frame.current?.contentWindow?.print()} disabled={!url}>Print</button>
-          <button className="btn" data-testid="download-pdf" onClick={() => exportReport("pdf")}>Download PDF</button></>}
+        {!compact && <><button className="btn" onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")} disabled={!url}>Open to print</button>
+          <button className="btn" data-testid="download-pdf" disabled={!blob} onClick={() => blob && downloadBlob(blob, `${doc.id || "report"}.pdf`)}>Download PDF</button></>}
       </div>
-      {error ? <div className="field-error big" role="alert">{error}</div> : url ? <iframe ref={frame} data-testid={compact ? "structure-pdf-frame" : "pdf-frame"} title="PDF preview" src={url} /> : <div className="muted pad">Rendering...</div>}
+      {error ? <div className="field-error big" role="alert">{error}</div> : compact && url ? <iframe data-testid="structure-pdf-frame" title="PDF preview" src={url} /> : pdf ? <React.Suspense fallback={<div className="muted pad">Loading PDF viewer…</div>}><PdfDocumentView pdf={pdf} /></React.Suspense> : <div className="muted pad">Rendering...</div>}
     </div>
   );
 }

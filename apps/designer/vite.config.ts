@@ -5,6 +5,9 @@ const apiTarget = process.env.API_URL ?? "http://localhost:4000";
 
 export default defineConfig({
   plugins: [react()],
+  // PDF.js 4 uses top-level await in its browser bundle and worker.
+  build: { target: "es2022" },
+  optimizeDeps: { esbuildOptions: { target: "es2022" } },
   server: { proxy: { "/api": apiTarget, "/health": apiTarget } },
   preview: { proxy: { "/api": apiTarget, "/health": apiTarget } },
   test: { environment: "node", include: ["tests/unit/**/*.test.ts"] },
