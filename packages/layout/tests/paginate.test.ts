@@ -60,6 +60,25 @@ describe("page-break explanation coverage", () => {
   });
 });
 
+describe("table minimum rows before a break", () => {
+  it("moves the first table slice when two rows fit on a fresh page but only one fits here", () => {
+    const intro = { type: "text", id: "intro", text: "Intro", height: 55 } as unknown as ResolvedTextComponent;
+    const table = makeTable(4, { id: "items", minRowsBeforeBreak: 2, repeatHeaderOnPageBreak: false } as Partial<ResolvedTableComponent>);
+    const result = paginate(reportWithContentHeight(100, [{ type: "detail", children: [intro, table] }]));
+    expect(result.pages).toHaveLength(2);
+    expect(result.pages[0]!.content.map((node) => (node.component as any).id)).toEqual(["intro"]);
+    expect(result.pages[1]!.content[0]!.rowRange).toEqual({ start: 0, end: 4 });
+    expect((result.pages[1]!.content[0]!.component as ResolvedTableComponent).showHeader).toBe(true);
+    const reason = result.decisions.find((decision) => decision.kind === "orphan-control");
+    expect(reason).toMatchObject({ kind: "orphan-control", page: 2, componentId: "items", required: 53,
+      actions: [expect.objectContaining({ patch: { minRowsBeforeBreak: 1 } })] });
+    expect(reason?.available).toBeCloseTo(45);
+
+    const allowed = paginate(reportWithContentHeight(100, [{ type: "detail", children: [intro, { ...table, minRowsBeforeBreak: 1 } as ResolvedTableComponent] }]));
+    expect(allowed.pages[0]!.content[1]!.rowRange).toEqual({ start: 0, end: 1 });
+  });
+});
+
 function reportWithContentHeight(height: number, sections: ResolvedReport["sections"]): ResolvedReport {
   const r = reportWith(sections);
   r.page = { ...r.page, height, orientation: 300 > height ? "landscape" : "portrait" } as any;
@@ -73,6 +92,8 @@ describe("paginate: table row-splitting boundaries", () => {
     expect(result.pages).toHaveLength(2);
     expect(result.pages[0]!.content[0]!.rowRange).toEqual({ start: 0, end: 29 });
     expect(result.pages[1]!.content[0]!.rowRange).toEqual({ start: 29, end: 33 });
+    expect(result.decisions).toContainEqual(expect.objectContaining({ kind: "merged-cell", page: 2, rowIndex: 29 }));
+    expect(result.decisions.find((decision) => decision.kind === "table-split")?.required).toBeUndefined();
   });
 
   it("fails explicitly when a vertical merge is taller than a whole page", () => {
@@ -137,6 +158,12 @@ describe("paginate: widow control (minRowsAfterBreak)", () => {
     const page2Table = result.pages[1]!.content[0]!;
     expect(page1Table.rowRange).toEqual({ start: 0, end: 28 });
     expect(page2Table.rowRange).toEqual({ start: 28, end: 31 }); // 3 rows, not 1
+    expect(result.decisions).toContainEqual(expect.objectContaining({
+      kind: "widow-control", page: 2,
+      actions: [expect.objectContaining({ patch: { minRowsAfterBreak: 1 } })],
+    }));
+    expect(result.decisions.find((decision) => decision.kind === "table-split")?.message).toMatch(/minimum-row or merged-cell rule/);
+    expect(result.decisions.find((decision) => decision.kind === "table-split")?.required).toBeUndefined();
   });
 });
 

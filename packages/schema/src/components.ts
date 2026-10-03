@@ -147,13 +147,12 @@ export const tableComponentSchema = componentBaseSchema.extend({
    * the minimum number of trailing rows needed (up to minRowsAfterBreak) onto
    * the footer's page instead of stranding it. */
   keepFooterTogether: z.boolean().optional().default(true),
-  /** Orphan control: don't start a new page with fewer than this many table
-   * rows before the next break (pulls earlier rows forward onto the new page
-   * instead of leaving a single stray row at the top). */
+  /** Keep at least this many table rows on the page before a break when they
+   * fit on a fresh page. If too few fit after preceding content, move the
+   * first table slice to the next page. */
   minRowsBeforeBreak: z.number().int().nonnegative().optional().default(0),
-  /** Widow control: don't end a page with fewer than this many rows left over
-   * after a break (pushes a too-small trailing group of rows to the next
-   * page instead of leaving e.g. a single row dangling at the bottom). */
+  /** Avoid starting the final page with fewer than this many table rows when
+   * possible by moving trailing rows from the preceding page with them. */
   minRowsAfterBreak: z.number().int().nonnegative().optional().default(0),
   alternateRowStyle: z.boolean().optional(),
   /** Conditional row styling, e.g. { when: "row.balance < 0", style: { color: "#b91c1c" } }. */

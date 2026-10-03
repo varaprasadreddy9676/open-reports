@@ -200,6 +200,8 @@ export interface ResolvedTableComponent extends ResolvedComponentBase {
   showFooter: boolean;
   repeatHeaderOnPageBreak: boolean;
   keepRowTogether: boolean;
+  minRowsBeforeBreak: number;
+  minRowsAfterBreak: number;
   alternateRowStyle?: boolean;
 }
 

@@ -197,6 +197,35 @@ test.describe("workspace", () => {
     await page.screenshot({ path: path.join(screenshots, "55-pagination-page-explanation.png") });
   });
 
+  test("first table slice explains its minimum-row move and applies the suggested fix", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.evaluate(() => {
+      const state = (window as any).__designer.getState();
+      state.setDoc({
+        ...state.doc,
+        page: { size: "custom", width: 300, height: 100, unit: "pt", orientation: "landscape", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+        datasets: [{ id: "items", source: "inline", query: { data: Array.from({ length: 4 }, (_, index) => ({ name: `Item ${index + 1}` })) } }],
+        sections: [{ type: "detail", children: [
+          { type: "text", id: "intro", value: "Intro", height: 55 },
+          { type: "table", id: "items-table", dataset: "items", minRowsBeforeBreak: 2, repeatHeaderOnPageBreak: false, columns: [{ id: "name", header: "Name", binding: "row.name" }] },
+        ] }],
+      });
+    });
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.decisions.some((decision: any) => decision.kind === "orphan-control" && decision.page === 2))).toBe(true);
+    await page.getByTestId("toggle-pagination").click();
+    await page.getByTestId("pagination-decision").first().click();
+    const fix = page.getByTestId("pagination-panel").getByRole("button", { name: "Allow 1 row here" });
+    await expect(fix).toBeVisible();
+    await expect(page.getByTestId("pagination-panel").getByTestId("page-break-details")).toContainText("minimum of 2");
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "56-table-min-rows-break.png") });
+    await fix.click();
+    expect((await doc(page)).sections[0].children[1].minRowsBeforeBreak).toBe(1);
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.pages[0]?.content.find((node: any) => node.component.id === "items-table")?.rowRange?.end)).toBe(1);
+  });
+
   test("view menu toggles overlays and the target selector changes renderer warnings", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();

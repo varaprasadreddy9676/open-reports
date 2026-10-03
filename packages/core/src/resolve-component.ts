@@ -427,6 +427,8 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     showFooter: component.showFooter ?? false,
     repeatHeaderOnPageBreak: component.repeatHeaderOnPageBreak ?? true,
     keepRowTogether: component.keepRowTogether ?? true,
+    minRowsBeforeBreak: component.minRowsBeforeBreak ?? 0,
+    minRowsAfterBreak: component.minRowsAfterBreak ?? 0,
     alternateRowStyle: component.alternateRowStyle,
   };
 }

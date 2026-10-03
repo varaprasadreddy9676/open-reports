@@ -548,8 +548,8 @@ function placeTable(
   const footerHeight = table.showFooter ? measureFooterHeight(table, measurer) : 0;
   const tid = (table as any).id as string | undefined;
 
-  const minBefore = (table as any).minRowsBeforeBreak ?? 0;
-  const minAfter = (table as any).minRowsAfterBreak ?? 0;
+  const minBefore = table.minRowsBeforeBreak ?? 0;
+  const minAfter = table.minRowsAfterBreak ?? 0;
   const safeBreakBefore = (proposed: number): number => {
     let point = proposed;
     let changed = true;
@@ -603,46 +603,78 @@ function placeTable(
 
     if (wouldOverflow && rowIndex > sliceStart) {
       const roomRows = rowIndex - sliceStart;
-      if (roomRows < minBefore && sliceStart > 0 && !orphanPushAttempted) {
+      const rowsLeft = table.rows.length - sliceStart;
+      const minimumHeight = (isFirstSlice ? (table.showHeader ? headerHeight : 0) : startHeight())
+        + rowHeights.slice(sliceStart, sliceStart + minBefore).reduce((sum, height) => sum + height, 0);
+      if (roomRows < minBefore && rowsLeft >= minBefore && minimumHeight <= placer.freshRoom() && !placer.isFresh() && !orphanPushAttempted) {
         orphanPushAttempted = true;
-        placer.decide({ kind: "orphan-control", componentId: tid, rowIndex: sliceStart, message: `Only ${roomRows} row(s) fit here but "Min rows before break" is ${minBefore}; rows ${sliceStart + 1}-${rowIndex} move to the next page.` });
+        placer.decide({
+          kind: "orphan-control",
+          componentId: tid,
+          rowIndex: sliceStart,
+          required: minimumHeight,
+          available: placer.remaining(),
+          message: `Only ${roomRows} table row${roomRows === 1 ? "" : "s"} fit here. The minimum of ${minBefore} needs ${pt(minimumHeight)}, with ${pt(placer.remaining())} left; rows starting at ${sliceStart + 1} move to the next page.`,
+          actions: roomRows > 0 ? [{ label: `Allow ${roomRows} row${roomRows === 1 ? "" : "s"} here`, target: "component", patch: { minRowsBeforeBreak: roomRows } }] : undefined,
+        });
         placer.newPage();
-        sliceHeight = startHeight();
+        sliceHeight = isFirstSlice ? (table.showHeader ? headerHeight : 0) : startHeight();
         rowIndex = sliceStart;
         continue;
       }
 
       let breakPoint = rowIndex;
       const remainder = table.rows.length - breakPoint;
+      let widowPullback = 0;
       if (remainder > 0 && remainder < minAfter && remainingRowsFitOnFreshPage(breakPoint)) {
         const maxPullback = breakPoint - sliceStart - minBefore;
         const pullback = Math.min(minAfter - remainder, Math.max(0, maxPullback));
         if (pullback > 0) {
           breakPoint -= pullback;
-          placer.decide({ kind: "widow-control", componentId: tid, rowIndex: breakPoint, message: `"Min rows after break" is ${minAfter}: ${pullback} extra row(s) move to the last page so it does not start with a lone row.` });
+          widowPullback = pullback;
         }
       }
 
+      const beforeSpans = breakPoint;
       breakPoint = safeBreakBefore(breakPoint);
+      const spanAdjusted = breakPoint < beforeSpans;
+      if (widowPullback > 0) placer.decide({
+        kind: "widow-control",
+        componentId: tid,
+        rowIndex: breakPoint,
+        message: `The last page would start with ${remainder} table row(s), below the minimum of ${minAfter}. ${widowPullback} row(s) move with them${spanAdjusted ? ", with merged cells moving more" : ""}; the final page now starts with ${table.rows.length - breakPoint}.`,
+        actions: !spanAdjusted && remainder > 0 ? [{ label: `Allow ${remainder} row${remainder === 1 ? "" : "s"} on the last page`, target: "component", patch: { minRowsAfterBreak: remainder } }] : undefined,
+      });
+      if (spanAdjusted) placer.decide({
+        kind: "merged-cell",
+        componentId: tid,
+        rowIndex: breakPoint,
+        message: `A merged cell crosses the proposed break before row ${beforeSpans + 1}. Rows starting at ${breakPoint + 1} move together to the next page.`,
+      });
       if (breakPoint === sliceStart) {
         if (!placer.isFresh()) {
           placer.decide({ kind: "keep-together", componentId: tid, rowIndex: sliceStart, message: `Merged table rows starting at row ${sliceStart + 1} move together to the next page.` });
           placer.newPage();
           rowIndex = sliceStart;
-          sliceHeight = startHeight();
+          sliceHeight = isFirstSlice ? (table.showHeader ? headerHeight : 0) : startHeight();
           continue;
         }
         throw new Error(`Merged table rows starting at row ${sliceStart + 1} are taller than a whole page.`);
       }
 
       flushSlice(breakPoint, false);
+      const ordinarySplit = breakPoint === rowIndex;
+      const available = placer.remaining();
+      const required = rowHeights[breakPoint]!;
       placer.decide({
         kind: "table-split",
         componentId: tid,
         rowIndex: breakPoint,
-        required: rowHeight,
-        available: placer.remaining(),
-        message: `Table ${tid ? `"${tid}" ` : ""}continues on the next page: row ${breakPoint + 1} needs ${pt(rowHeight)} but only ${pt(Math.max(0, placer.remaining()))} is left. Rows are never cut in half.`,
+        required: ordinarySplit ? required : undefined,
+        available: ordinarySplit ? available : undefined,
+        message: ordinarySplit
+          ? `Table ${tid ? `"${tid}" ` : ""}continues on the next page: row ${breakPoint + 1} needs ${pt(required)} but only ${pt(Math.max(0, available))} is left. Rows are never cut in half.`
+          : `Table ${tid ? `"${tid}" ` : ""}continues on the next page at row ${breakPoint + 1} after its minimum-row or merged-cell rule moved the break.`,
       });
       placer.newPage();
       sliceHeight = startHeight();

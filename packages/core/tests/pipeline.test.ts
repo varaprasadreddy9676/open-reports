@@ -57,6 +57,17 @@ const invoiceReport = {
 };
 
 describe("resolveReport (full pipeline)", () => {
+  it("preserves table minimum-row rules for pagination", async () => {
+    const parsed = parseReportDefinition({ ...invoiceReport, sections: [invoiceReport.sections[0], {
+      type: "detail", children: [{ ...invoiceReport.sections[1]!.children[0], minRowsBeforeBreak: 2, minRowsAfterBreak: 3 }],
+    }] });
+    if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
+    const { resolved } = await resolveReport(parsed.report, { registry: registry(), parameters: { invoiceId: 1 } });
+    const table = sectionChildren(resolved, 1)[0] as ResolvedTableComponent;
+    expect(table.minRowsBeforeBreak).toBe(2);
+    expect(table.minRowsAfterBreak).toBe(3);
+  });
+
   it("resolves parameters, datasets, expressions and table totals end to end", async () => {
     const parsed = parseReportDefinition(invoiceReport);
     expect(parsed.valid).toBe(true);
