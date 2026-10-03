@@ -1,9 +1,12 @@
 import type { DatasetDefinition } from "@reporting/schema";
 import type { DataSet, DataSource, ExecutionContext } from "@reporting/core";
-import { assertUrlIsSafe, type SsrfGuardOptions } from "./ssrf-guard.js";
+import type { Response } from "undici";
+import type { SsrfGuardOptions } from "./ssrf-guard.js";
+import { safeFetch } from "./safe-fetch.js";
 import { interpolate, interpolateDeep } from "./interpolate.js";
 
-export { assertUrlIsSafe, SsrfBlockedError } from "./ssrf-guard.js";
+export { assertUrlIsSafe, isDisallowedIp, SsrfBlockedError, type SsrfGuardOptions } from "./ssrf-guard.js";
+export { safeFetch, redirectTarget, MAX_REDIRECTS, type SafeFetchInit } from "./safe-fetch.js";
 
 export interface RestDataSourceOptions extends SsrfGuardOptions {
   /** Hard cap on response body size in bytes, enforced while streaming (not
@@ -42,8 +45,6 @@ export class RestDataSource implements DataSource {
       url.searchParams.set(key, interpolate(value, params, this.options.secrets));
     }
 
-    await assertUrlIsSafe(url.toString(), this.options);
-
     const headers: Record<string, string> = {};
     for (const [key, value] of Object.entries(query.headers ?? {})) {
       headers[key] = interpolate(value, params, this.options.secrets);
@@ -61,7 +62,7 @@ export class RestDataSource implements DataSource {
 
     let response: Response;
     try {
-      response = await fetch(url.toString(), { method, headers, body, signal: controller.signal, redirect: "follow" });
+      response = await safeFetch(url.toString(), { method, headers, body, signal: controller.signal }, this.options);
     } catch (err) {
       if ((err as Error).name === "AbortError") {
         throw new Error(`REST request to "${url.toString()}" timed out after ${timeoutMs}ms.`);

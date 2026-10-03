@@ -18,8 +18,9 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@reporting/core": "workspace:*",
     "@reporting/schema": "workspace:*",
-    "@reporting/core": "workspace:*"
+    "undici": "^7.30.0"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
