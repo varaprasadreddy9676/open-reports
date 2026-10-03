@@ -2,6 +2,7 @@ import type { ReportDefinition } from "@reporting/schema";
 import { Parser } from "@reporting/expressions";
 import type { Component } from "./resolve-component.js";
 import { tableHeaderGridErrors } from "./table-header.js";
+import { PAGE_BAND_TYPES, validateRules } from "./rule-validation.js";
 import { tableCellSpanErrors } from "./table-cell-spans.js";
 
 export interface ValidationIssue {
@@ -54,6 +55,7 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
       issues.push(missingDataset(section.dataset, sectionPath, Array.from(datasetIds)));
     }
     walkComponents(section.children as Component[], sectionPath, {
+      pageBand: PAGE_BAND_TYPES.has(section.type),
       fragmentIds,
       datasetIds,
       issues,
@@ -112,6 +114,8 @@ function closest(target: string, candidates: string[]): string | undefined {
 }
 
 interface WalkCtx {
+  /** Inside a page header, footer or background (page-dependent rules allowed). */
+  pageBand?: boolean;
   fragmentIds: Set<string>;
   datasetIds: Set<string>;
   issues: ValidationIssue[];
@@ -127,6 +131,7 @@ function walkComponents(components: Component[] | undefined, path: string, ctx: 
 }
 
 function validateComponent(component: Component, path: string, ctx: WalkCtx): void {
+  validateRules(component.rules, path, { kind: "component", type: component.type }, ctx.pageBand ?? false, ctx.issues, component.id);
   if (component.id) {
     if (ctx.seenComponentIds.has(component.id)) {
       ctx.issues.push({ severity: "error", code: "DUPLICATE_ID", path, message: `Duplicate component id "${component.id}".`, componentId: component.id });
@@ -283,6 +288,7 @@ function validateBands(report: ReportDefinition, issues: ValidationIssue[]): voi
     }
     if (s.groupBy) parse(s.groupBy, `${path}.groupBy`);
     if (s.visibleWhen) parse(s.visibleWhen, `${path}.visibleWhen`);
+    validateRules(s.rules, path, { kind: "band" }, PAGE_BAND_TYPES.has(s.type), issues);
     if ((s.type === "groupHeader" || s.type === "groupFooter") && s.groupId && !groupIds.has(s.groupId)) {
       issues.push({ severity: "error", code: "UNKNOWN_GROUP", path, message: `Band refers to group "${s.groupId}", which is not declared in "groups".` });
     }

@@ -1,3 +1,4 @@
+import { applyLegacyStyleWhen, applyOwnRules, type RuleDecision } from "./rules.js";
 import { ExpressionEngine } from "@reporting/expressions";
 import type { ResolveContext } from "./context.js";
 import { formatValue } from "./format.js";
@@ -31,6 +32,8 @@ export interface ResolveEnv {
   fragments?: Map<string, Component[]>;
   fragmentStack?: string[];
   customComponents?: Map<string, CustomComponentExpander>;
+  /** Rule decisions are collected here when rule tracing is on. */
+  decisions?: RuleDecision[];
 }
 
 /** Plugin hook: turns a `custom` component's props into ordinary components. Must be pure and deterministic. */
@@ -46,20 +49,6 @@ function resolveValueLike(component: Component, ctx: ResolveContext, env: Resolv
   return component.value;
 }
 
-function isVisible(component: Component, ctx: ResolveContext, env: ResolveEnv): boolean {
-  if (component.hidden) return false;
-  if (!component.visibleWhen) return true;
-  try {
-    return Boolean(env.engine.evaluate(component.visibleWhen, ctx));
-  } catch (err) {
-    env.warnings.push({
-      code: "VISIBILITY_EXPRESSION_FAILED",
-      path: env.path,
-      message: err instanceof Error ? err.message : String(err),
-    });
-    return true;
-  }
-}
 
 /** Resolves a dataset reference: an exact dataset id, or a dotted path into a
  * dataset's value (e.g. "invoice.items" for an array nested in an object
@@ -110,7 +99,8 @@ export function resolveComponents(components: Component[], ctx: ResolveContext, 
       resolved = resolveComponent(component, ctx, env);
     }
     if (resolved && !Array.isArray(resolved) && component.styleWhen) {
-      resolved = { ...resolved, style: applyStyleWhen(component.styleWhen, resolved.style, ctx, env) } as ResolvedComponent;
+      const target = { kind: "component" as const, id: component.id, path: env.path };
+      resolved = { ...resolved, style: applyLegacyStyleWhen(component.styleWhen, resolved.style, ctx, { engine: env.engine, warnings: env.warnings, decisions: env.decisions, target }) } as ResolvedComponent;
     }
     if (resolved) out.push(...(Array.isArray(resolved) ? resolved : [resolved]));
   }
@@ -146,8 +136,14 @@ function base(component: Component) {
   };
 }
 
-function resolveComponent(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | ResolvedComponent[] | null {
-  if (!isVisible(component, ctx, env)) return null;
+function resolveComponent(definition: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | ResolvedComponent[] | null {
+  if (definition.hidden) return null;
+  const component = applyOwnRules(definition, ctx, {
+    engine: env.engine, warnings: env.warnings, decisions: env.decisions,
+    target: { kind: "component", id: definition.id, path: env.path },
+    visibleWhenErrors: "show",
+  });
+  if (component.hidden) return null;
 
   switch (component.type) {
     case "text":

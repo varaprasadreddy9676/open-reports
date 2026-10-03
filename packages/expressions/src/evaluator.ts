@@ -9,7 +9,7 @@ export interface ExpressionContext {
   row?: Record<string, unknown>;
   parent?: Record<string, unknown>;
   vars?: Record<string, unknown>;
-  page?: { number?: number; total?: number };
+  page?: { number?: number; total?: number; isFirst?: boolean; isLast?: boolean; isOdd?: boolean; isEven?: boolean };
   report?: Record<string, unknown>;
 }
 

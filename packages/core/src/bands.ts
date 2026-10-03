@@ -1,3 +1,4 @@
+import { applyOwnRules } from "./rules.js";
 import type { GroupDefinition, ReportDefinition, ReportSection } from "@reporting/schema";
 import { DATA_BAND_TYPES, PAGE_BAND_TYPES } from "@reporting/schema";
 import type { ExpressionEngine } from "@reporting/expressions";
@@ -92,22 +93,17 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
   const standalone = body.filter((e) => !attached.has(e));
 
   const band = (entry: Entry, ctx: ResolveContext, meta: Partial<BandMeta> = {}): ResolvedComponent[] => {
-    const { s, index } = entry;
-    if (s.hidden && !deps.design) return [];
+    const { index } = entry;
+    if (entry.s.hidden && !deps.design) return [];
     const env = deps.makeEnv(`sections[${index}]`);
-    let hiddenByRule = Boolean(s.hidden);
-    if (s.visibleWhen && !s.hidden) {
-      let visible = true;
-      try {
-        visible = truthy(engine.evaluate(s.visibleWhen, ctx));
-      } catch (err) {
-        if (!deps.design) throw err;
-      }
-      if (!visible) {
-        if (!deps.design) return [];
-        hiddenByRule = true;
-      }
-    }
+    // The band's own conditions (legacy visibleWhen, then rules) give the effective band for this instance.
+    const s = applyOwnRules(entry.s, ctx, {
+      engine, warnings: env.warnings, decisions: env.decisions,
+      target: { kind: "band", id: entry.s.id, path: `sections[${index}]` },
+      visibleWhenErrors: deps.design ? "show" : "throw",
+    });
+    if (s.hidden && !deps.design) return [];
+    const hiddenByRule = Boolean(s.hidden);
     const children = resolveComponents(s.children as any, ctx, env);
     if (s.suppressWhenBlank && isBlank(children) && !deps.design) return [];
     const node: any = {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rulesSchema } from "./rules.js";
 import { componentSchema } from "./components.js";
 import { styleSchema } from "./common.js";
 
@@ -89,6 +90,8 @@ export const sectionSchema = z.object({
   /** Omit this band from rendered output; the designer keeps it in the structure for editing. */
   hidden: z.boolean().optional(),
   visibleWhen: z.string().optional(),
+  /** Conditional overrides of this band's own properties (visibility, pagination, style, size…), evaluated per band instance. */
+  rules: rulesSchema.optional(),
   /** Drop the band when everything in it resolved to nothing. */
   suppressWhenBlank: z.boolean().optional(),
 

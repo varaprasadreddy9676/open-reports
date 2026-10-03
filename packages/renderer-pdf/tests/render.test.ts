@@ -7,7 +7,7 @@ import path from "node:path";
 import { parseReportDefinition } from "@reporting/schema";
 import { DataSourceRegistry, InlineDataSource, resolveReport } from "@reporting/core";
 import { PdfRenderer } from "../src/render.js";
-import { extractPdfText } from "./pdf-helpers.js";
+import { extractPdfPages, extractPdfText } from "./pdf-helpers.js";
 
 function registry() {
   const r = new DataSourceRegistry();
@@ -209,6 +209,36 @@ describe("PdfRenderer", () => {
     };
     const result = await renderPdf(withImage);
     expect(result.warnings.some((w) => w.code === "IMAGE_NOT_EMBEDDED")).toBe(true);
+  });
+
+  it("applies conditional rules through pagination: per-row style and content, and page-phase footer rules per page", async () => {
+    const rows = Array.from({ length: 200 }, (_, index) => ({ n: index + 1, flag: index % 80 === 0 ? "H" : "N" }));
+    const result = await renderPdf({
+      schemaVersion: "1.0", id: "rules-pdf", name: "Rules",
+      datasets: [{ id: "rows", source: "inline", query: { data: rows } }],
+      sections: [
+        { type: "pageFooter", children: [
+          { type: "text", id: "signature", value: "SIGNED-BY-DOCTOR", rules: [{ when: "!page.isLast", set: { visible: false } }] },
+          { type: "text", id: "pager", value: "x", rules: [{ when: "true", set: { value: { expr: "'Page ' + page.number + (page.isFirst ? ' FIRST' : '')" } } }] },
+        ] },
+        { type: "detail", children: [{ type: "repeater", dataset: "rows", children: [
+          { type: "text", binding: "'Row ' + row.n", rules: [{ when: { field: "row.flag", op: "==", value: "H" }, set: { value: { expr: "'HIGH ' + row.n" } } }] },
+        ] }] },
+      ],
+    });
+    const pages = await extractPdfPages(result.content as Buffer);
+    expect(pages.length).toBeGreaterThan(2);
+    pages.forEach((text, index) => {
+      const last = index === pages.length - 1;
+      expect(text.includes("SIGNED-BY-DOCTOR")).toBe(last);
+      expect(text).toContain(`Page ${index + 1}${index === 0 ? " FIRST" : ""}`);
+    });
+    const all = pages.join("\n");
+    expect(all).toContain("HIGH 1");
+    expect(all).toContain("HIGH 81");
+    expect(all).toContain("HIGH 161");
+    expect(all).not.toContain("Row 81");
+    expect(all).toContain("Row 82");
   });
 
   it("never reads a local file path itself; linked files are resolved by the server first", async () => {

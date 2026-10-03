@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rulesSchema } from "./rules.js";
 
 export const unitSchema = z.enum(["px", "pt", "mm", "cm", "in"]);
 export type Unit = z.infer<typeof unitSchema>;
@@ -106,6 +107,8 @@ export const componentBaseSchema = z.object({
   style: styleSchema.optional(),
   styleWhen: styleWhenSchema.optional(),
   visibleWhen: z.string().optional(),
+  /** Conditional property overrides, evaluated in order (see rules.ts). */
+  rules: rulesSchema.optional(),
   pageBreakBefore: z.boolean().optional(),
   pageBreakAfter: z.boolean().optional(),
   keepTogether: z.boolean().optional(),

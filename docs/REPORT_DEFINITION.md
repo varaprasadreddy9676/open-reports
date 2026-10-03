@@ -34,7 +34,7 @@ A band with no `height` hugs its content; `height` fixes the band's height in po
 Reference data as `data.<dataset>.<path>`, `params.x`, `vars.x`, `row.x` (inside tables/repeaters), `parent.x`, `page.number`, `page.total`, `report.name`. Operators: `+ - * / %`, comparison, `&& || !`, `a ? b : c`. Functions include `upper lower trim concat substring replace contains startsWith endsWith round ceil floor abs min max formatDate addDays difference now formatCurrency formatNumber formatPercent sum avg count first last sumBy avgBy minBy maxBy sumProduct`. Unknown names fail with a suggestion. No assignment, no statements, no arbitrary calls.
 
 ## Components
-Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`, `visibleWhen`, `hidden`, `locked`, `keepTogether`, `keepWithNext`, `pageBreakBefore/After`, `grow`, `gap`, `alignItems`, `justifyContent`, `minWidth/maxWidth/minHeight/maxHeight`. Spacing lives in `style.margin` / `style.padding`.
+Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`, `rules`, `visibleWhen`, `hidden`, `locked`, `keepTogether`, `keepWithNext`, `pageBreakBefore/After`, `grow`, `gap`, `alignItems`, `justifyContent`, `minWidth/maxWidth/minHeight/maxHeight`. Spacing lives in `style.margin` / `style.padding`.
 
 | Type | Key props |
 |---|---|
@@ -76,6 +76,41 @@ See `examples/` for complete, working definitions of each feature.
 
 Table merge coordinates are zero-based. Body `row` positions refer to resolved rows **after** filtering and sorting. The top-left cell supplies the merged value; covered values are suppressed and a warning is emitted when they differ. Vertical body merges move as a unit at page breaks; a merge taller than one printable page fails explicitly.
 
-## Conditional appearance
+## Conditional rules
 
-Any component may use `styleWhen: [{ "when": "data.patient.flag == \"H\"", "style": { "color": "#b91c1c", "fontWeight": "bold" } }]`. A table may use `rowStyleWhen` with the same rule shape; its expressions can read `row.<field>` and style each matching row. Rules run in array order, with later matching styles overriding earlier values for the same property. The designer provides visual field/operator/value controls, a formula editor for complex expressions, and ordered rule controls. Invalid rule formulas are reported by validation at their rule path. These are appearance rules evaluated while resolving data; the broader conditional layout, pagination, output, and print rule model is not yet implemented.
+Any component and any band may declare `rules`. A rule changes properties of the object it is declared on when its condition holds. Rules run in order; when two rules set the same property, the later one wins.
+
+```json
+"rules": [
+  { "name": "Flag colour",
+    "cases": [
+      { "when": { "field": "row.flag", "op": "==", "value": "H" }, "set": { "style.color": "#b91c1c", "style.bold": true } },
+      { "when": { "field": "row.flag", "op": "==", "value": "L" }, "set": { "style.color": "#1d4ed8" } }
+    ],
+    "else": { "style.color": "#111827" } },
+  { "when": "params.patientType != 'IP'", "set": { "visible": false } },
+  { "when": { "all": [{ "field": "row.note", "op": "isNotEmpty" }, "params.showNotes"] }, "set": { "value": { "expr": "'Note: ' + row.note" } } }
+]
+```
+
+- **Shape.** `{ when, set, else? }` is IF/THEN/ELSE. `{ cases: [{ when, set }…], else? }` is IF / ELSE IF / ELSE: the first case whose condition holds applies. Optional fields are `id`, `name`, `disabled` and `phase`.
+- **Conditions.** A condition is either a safe expression string or a structured tree. The tree uses `{ "all": […] }`, `{ "any": […] }`, `{ "not": … }` and comparisons `{ "field", "op", "value" }`. `field` is an expression, usually a path. The operators are `==`, `!=`, `>`, `>=`, `<`, `<=`, `contains`, `notContains`, `startsWith`, `endsWith`, `in` and `notIn` (with an array `value`), plus `isEmpty` and `isNotEmpty`. Equality is strict, and `>`/`<` compare only two numbers or two strings.
+- **Targets.** `set` and `else` map property paths to values, relative to the object: `"style.color"`, `"keepTogether"`, `"pageBreakBefore"` or `"width"` on a component, and `"newPageBefore"`, `"keepTogether"` or `"height"` on a band. Any property the schema allows on that object may be set.
+  - `"visible": false` hides the object.
+  - Setting `value`, `binding` or `expression` replaces the content and clears the other two.
+  - A value is used literally unless it is `{ "expr": "…" }`, which is computed.
+  - Rules cannot change identity or structure (`id`, `type`, `children`, `dataset`, group links). A component or band with `hidden: true` stays hidden.
+  - Validation reports unknown targets, invalid literal values and syntax errors at the exact rule path.
+- **Phases.** The phase is inferred from what the rule reads and may be pinned with `phase`.
+  - Rules on parameters, data, rows, groups and variables are decided while the report resolves, before layout.
+  - Rules that read `page.*` (`number`, `total`, `isFirst`, `isLast`, `isOdd`, `isEven`) are decided per page after pagination. This currently works only inside page headers, footers and backgrounds. Elsewhere validation reports `RULE_PHASE_UNSUPPORTED`.
+  - Layout, output (`renderer.*`) and print (`print.*`) phases are reserved and not supported yet.
+- **Errors.** A rule whose condition or computed value fails is skipped, and the render gets a `RULE_CONDITION_FAILED` warning with the component id.
+- **Explanations.** `resolveReport(…, { traceRules: true })` returns `ruleDecisions`. Each decision records every condition clause, the value it saw, the case that matched and the values applied, including for objects that ended up hidden.
+
+**Legacy fields.** These remain supported and are evaluated by the same engine:
+- `visibleWhen` hides the object when its expression is false. A failing expression shows a component (with a warning) and fails the render for a band.
+- `styleWhen: [{ when, style }]` merges styles into the resolved style.
+- `rowStyleWhen` on tables styles matching rows; it is not part of `rules` yet.
+
+A `visibleWhen` or `rules` on a page header, footer or background band is now evaluated; previously it was ignored. The designer's visual condition controls currently edit `styleWhen` and `rowStyleWhen`.

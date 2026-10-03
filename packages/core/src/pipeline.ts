@@ -1,3 +1,4 @@
+import { applyOwnRules, type RuleDecision } from "./rules.js";
 import type { ReportDefinition } from "@reporting/schema";
 import { ExpressionEngine } from "@reporting/expressions";
 import { DataSourceRegistry } from "./datasource.js";
@@ -31,12 +32,21 @@ export interface RenderPipelineOptions {
   customComponents?: Map<string, CustomComponentExpander>;
   /** Design view: expand each band once instead of per record/group (used by the designer's structure canvas). */
   design?: { ghosts: number };
+  /** Record every rule decision (conditions, current values, what applied) in `ruleDecisions`, for the condition debugger. */
+  traceRules?: boolean;
 }
 
 export interface RenderPipelineResult {
   resolved: ResolvedReport;
   issues: (ParameterIssue | DatasetExecutionIssue)[];
   resolvePageSection: PageSectionResolver;
+  /** Rule decisions when `traceRules` is on (empty otherwise). Per-page decisions are appended as `resolvePageSection` runs. */
+  ruleDecisions: RuleDecision[];
+}
+
+/** Page facts available to postLayout rules and expressions in page headers, footers and backgrounds. */
+export function pageFacts(page: { number: number; total: number }) {
+  return { ...page, isFirst: page.number === 1, isLast: page.number === page.total, isOdd: page.number % 2 === 1, isEven: page.number % 2 === 0 };
 }
 
 /**
@@ -82,6 +92,8 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
   const fragments = new Map<string, any[]>(report.fragments.map((f) => [f.id, f.children as any[]]));
   const warnings: ResolvedWarning[] = [];
   const rowVarAccumulator: Record<string, unknown> = {};
+  const ruleDecisions: RuleDecision[] = [];
+  const decisions = options.traceRules ? ruleDecisions : undefined;
 
   const makeEnv = (path: string): ResolveEnv => ({
     engine,
@@ -94,7 +106,19 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     tolerant: options.tolerant,
     fragments,
     customComponents: options.customComponents,
+    decisions,
   });
+
+  /** A page band's own rules decide whether it prints; in the per-page pass they also see `page.*`. */
+  const pageBandChildren = (index: number, ctx: ResolveContext, env: ResolveEnv) => {
+    const raw = report.sections[index]!;
+    const band = applyOwnRules(raw, ctx, {
+      engine, warnings: env.warnings, decisions: env.decisions,
+      target: { kind: "band", id: raw.id, path: `sections[${index}]` },
+      visibleWhenErrors: "show",
+    });
+    return band.hidden && !options.design ? [] : resolveComponents(band.children as any, ctx, env);
+  };
 
   // Page-level bands (page header/footer masters, backgrounds) keep their own resolved section so they can be
   // re-resolved per page; every other band is expanded into printed band instances (see bands.ts).
@@ -108,7 +132,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       sourceIndex: index,
       appliesTo: section.appliesTo,
       style: section.style,
-      children: resolveComponents(section.children as any, baseCtx, makeEnv(`sections[${index}]`)),
+      children: pageBandChildren(index, baseCtx, makeEnv(`sections[${index}]`)),
     });
   });
   const bodyChildren = expandBodyBands({ report, engine, baseCtx, datasets, rowVarAccumulator, makeEnv, design: options.design });
@@ -149,9 +173,10 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       tolerant: options.tolerant,
       fragments,
       customComponents: options.customComponents,
+      decisions,
     };
-    return resolveComponents(raw.children as any, { ...baseCtx, page }, env);
+    return pageBandChildren(section.sourceIndex, { ...baseCtx, page: pageFacts(page) }, env);
   };
 
-  return { resolved, issues: [...parameterIssues, ...datasetIssues], resolvePageSection };
+  return { resolved, issues: [...parameterIssues, ...datasetIssues], resolvePageSection, ruleDecisions };
 }
