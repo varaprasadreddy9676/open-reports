@@ -82,6 +82,14 @@ Linked files and URLs are limited to 5 MB and must contain PNG, JPEG, or WebP im
 
 An optional dataset `schema` records field names and types for authoring when sample rows are empty or unavailable. For example: `"schema": { "kind": "array", "fields": [{ "path": "patient.name", "kind": "string" }, { "path": "amount", "kind": "number" }] }`. Paths are dot-separated; field kinds are `string`, `number`, `boolean`, `date`, `object`, or `array`. This metadata drives the designer's field tree, binding choices, and generated table/card fields. It does not fabricate runtime records or change source responses. Reports without it continue to infer fields from sample values.
 
+The declared fields are also a **data contract**.
+- Every render checks the full response against them: every row and every nested list item, up to a budget of 5 million values. A check stopped by the budget is reported as `DATASET_SHAPE_PARTIALLY_CHECKED`.
+- Mismatches are grouped by field and type, with counts and example locations such as `row 5000 lines[2]`.
+- By default a mismatch is a `DATASET_SHAPE_MISMATCH` warning, and its details are available from `/api/v1/analyze`.
+- With `"onMismatch": "error"` the render fails with HTTP 422 instead of printing data that does not match.
+- Null and empty values are counted as unchecked, not as mismatches.
+- The designer runs the same check on its sample data.
+
 The designer compares declared fields with a bounded preview sample and reports shape, missing-field, and type mismatches. Null values and empty nested lists are counted as unchecked. The comparison does not change source data or reject rendering; absence of warnings only covers the values actually checked.
 
 See `examples/` for complete, working definitions of each feature.

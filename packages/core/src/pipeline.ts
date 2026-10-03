@@ -1,4 +1,5 @@
 import { applyOwnRules, type RuleDecision } from "./rules.js";
+import { checkDatasetShape, shapeCheckSummary } from "./dataset-shape.js";
 import type { ReportDefinition } from "@reporting/schema";
 import { ExpressionEngine } from "@reporting/expressions";
 import { DataSourceRegistry } from "./datasource.js";
@@ -67,6 +68,21 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     timeoutMs: options.datasetTimeoutMs,
   });
 
+  // Declared dataset contracts are checked against the full response, not a preview sample.
+  const contractWarnings: ResolvedWarning[] = [];
+  for (const definition of report.datasets) {
+    if (!definition.schema || !(definition.id in datasets) || datasets[definition.id] === null) continue;
+    const check = checkDatasetShape(definition.schema, datasets[definition.id]);
+    const path = `datasets.${definition.id}`;
+    if (check.issues.length) {
+      const message = shapeCheckSummary(definition.id, check);
+      if (definition.schema.onMismatch === "error") datasetIssues.push({ severity: "error", code: "DATASET_SHAPE_MISMATCH", path, message });
+      else contractWarnings.push({ code: "DATASET_SHAPE_MISMATCH", path, message });
+    } else if (!check.complete) {
+      contractWarnings.push({ code: "DATASET_SHAPE_PARTIALLY_CHECKED", path, message: `${definition.id}: only ${check.checkedRows} of ${check.totalRows} rows were checked against the declared fields before the check limit; no problems were found in them.` });
+    }
+  }
+
   const engine = new ExpressionEngine({ locale, currency, functions: options.functions });
 
   const baseCtx: ResolveContext = {
@@ -90,7 +106,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
   baseCtx.vars = reportVars;
 
   const fragments = new Map<string, any[]>(report.fragments.map((f) => [f.id, f.children as any[]]));
-  const warnings: ResolvedWarning[] = [];
+  const warnings: ResolvedWarning[] = [...contractWarnings];
   const rowVarAccumulator: Record<string, unknown> = {};
   const ruleDecisions: RuleDecision[] = [];
   const decisions = options.traceRules ? ruleDecisions : undefined;

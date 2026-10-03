@@ -120,12 +120,13 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     }
     if (ds.schema) {
       const check = checkSchemaPreview(ds.schema, datasetValue(doc, sample, ds.id));
+      const severity = ds.schema.onMismatch === "error" ? "error" as const : "warning" as const;
       for (const issue of check.issues.slice(0, 12)) problems.push({
-        severity: "warning", code: "DATASET_SCHEMA_MISMATCH", datasetId: ds.id,
+        severity, code: "DATASET_SCHEMA_MISMATCH", datasetId: ds.id,
         path: `datasets[${index}].schema`, message: `${ds.id}: ${schemaIssueMessage(issue)}`,
       });
       const hidden = Math.max(0, check.issues.length - 12) + check.omittedIssues;
-      if (hidden) problems.push({ severity: "warning", code: "DATASET_SCHEMA_MISMATCH", datasetId: ds.id, path: `datasets[${index}].schema`, message: `${ds.id}: ${hidden} more sampled mismatches; open the dataset to inspect its fields.` });
+      if (hidden) problems.push({ severity, code: "DATASET_SCHEMA_MISMATCH", datasetId: ds.id, path: `datasets[${index}].schema`, message: `${ds.id}: ${hidden} more mismatches; open the dataset to inspect its fields.` });
     }
   }
 
@@ -159,8 +160,11 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
 
   try {
     const pipeline = await resolveReport(reparsed.report, { registry, parameters, tolerant: true });
-    for (const issue of pipeline.issues) problems.push({ severity: "error", code: issue.code, message: issue.message, path: issue.path });
+    // Dataset contract results are already listed above, one navigable problem per mismatch.
+    const contractCodes = new Set(["DATASET_SHAPE_MISMATCH", "DATASET_SHAPE_PARTIALLY_CHECKED"]);
+    for (const issue of pipeline.issues) if (!contractCodes.has(issue.code)) problems.push({ severity: "error", code: issue.code, message: issue.message, path: issue.path });
     for (const w of pipeline.resolved.warnings) {
+      if (contractCodes.has(w.code)) continue;
       problems.push({ severity: w.code === "COMPONENT_ERROR" ? "error" : w.code === "UNKNOWN_CUSTOM_COMPONENT" ? "suggestion" : "warning", code: w.code, message: w.message, path: w.path, componentId: w.componentId });
     }
     let paginated = paginate(pipeline.resolved, { resolvePageDependentSection: pipeline.resolvePageSection });

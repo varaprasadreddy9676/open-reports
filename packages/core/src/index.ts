@@ -14,5 +14,6 @@ export * from "./renderer.js";
 export * from "./walk.js";
 export * from "./bands.js";
 export * from "./rules.js";
+export * from "./dataset-shape.js";
 export * from "./table-header.js";
 export * from "./table-cell-spans.js";

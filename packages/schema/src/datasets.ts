@@ -32,6 +32,8 @@ export const datasetFieldSchema = z.object({
 export const datasetShapeSchema = z.object({
   kind: z.enum(["object", "array"]),
   fields: z.array(datasetFieldSchema).default([]),
+  /** What a render does when the full response does not match: warn (default) or fail with an error. */
+  onMismatch: z.enum(["warn", "error"]).optional(),
 }).superRefine((shape, ctx) => {
   const seen = new Set<string>();
   for (const [index, field] of shape.fields.entries()) {

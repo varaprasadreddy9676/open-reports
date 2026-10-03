@@ -33,7 +33,7 @@ function ResultPreview({ value, shape }: { value: unknown; shape?: DatasetShape 
       </div>
       {check && <div className={`schema-check ${check.issues.length ? "has-issues" : ""}`} data-testid="dataset-schema-check" role="status">
         <strong>{check.state === "no-rows" ? "No rows to compare" : check.issues.length ? `${check.issues.length}${check.omittedIssues ? "+" : ""} schema mismatch${check.issues.length === 1 && !check.omittedIssues ? "" : "es"}` : shape?.fields.length ? "No mismatches in checked sample" : "No fields declared yet"}</strong>
-        <span>{check.state === "no-rows" ? "Declared fields remain available for binding. Add test data to check their values." : check.issues.some((issue) => issue.code === "ROOT_KIND") ? "The preview shape differs from the declaration, so field values were not checked." : `Checked ${check.checkedRows} of ${check.totalRows} preview record${check.totalRows === 1 ? "" : "s"}.${check.uncheckedValues ? ` ${check.uncheckedValues} null, empty, or unsampled nested value${check.uncheckedValues === 1 ? "" : "s"} could not be checked.` : ""}`}</span>
+        <span>{check.state === "no-rows" ? "Declared fields remain available for binding. Add test data to check their values." : check.issues.some((issue) => issue.code === "ROOT_KIND") ? "The preview shape differs from the declaration, so field values were not checked." : `Checked ${check.checkedRows} of ${check.totalRows} preview record${check.totalRows === 1 ? "" : "s"}.${check.uncheckedValues ? ` ${check.uncheckedValues} null or empty value${check.uncheckedValues === 1 ? "" : "s"} could not be checked.` : ""}`}</span>
         {check.issues.length > 0 && <ul>{check.issues.slice(0, 8).map((issue, index) => <li key={index}>{schemaIssueMessage(issue)}</li>)}{check.issues.length > 8 && <li>+{check.issues.length - 8} more mismatch groups</li>}{check.omittedIssues > 0 && <li>+{check.omittedIssues} additional sampled mismatches</li>}</ul>}
       </div>}
       {hints.length > 0 && (
@@ -95,6 +95,7 @@ export function DatasetEditor() {
   const [shape, setShape] = useState<DatasetShape["kind"]>(existing?.schema?.kind ?? (Array.isArray(sample[id] ?? q.data) || !existing || existing.source !== "inline" ? "array" : "object"));
   const [fields, setFields] = useState<DatasetShape["fields"]>(existing?.schema?.fields ?? []);
   const [hasSchema, setHasSchema] = useState(Boolean(existing?.schema));
+  const [onMismatch, setOnMismatch] = useState<"warn" | "error">(existing?.schema?.onMismatch ?? "warn");
   const parsedShape = hasSchema ? datasetShapeSchema.safeParse({ kind: shape, fields }) : undefined;
   const previewShape = parsedShape?.success ? parsedShape.data : undefined;
   const [error, setError] = useState<string>("");
@@ -110,7 +111,7 @@ export function DatasetEditor() {
   };
 
   function definition() {
-    const metadata = hasSchema ? { schema: { kind: shape, fields } } : {};
+    const metadata = hasSchema ? { schema: { kind: shape, fields, ...(onMismatch === "error" ? { onMismatch } : {}) } } : {};
     if (kind === "inline") return { id, source: "inline", query: { data: parseJson(data, "Data") }, ...metadata };
     if (kind === "csv") {
       const rows = parseCsv(csv);
@@ -280,6 +281,7 @@ export function DatasetEditor() {
           <button className="mini" data-testid="schema-add-field" onClick={() => { setHasSchema(true); setFields([...fields, { path: "", kind: "string" }]); }}>+ Add field</button>
         </div>
         <label className="dataset-shape"><span>Data shape</span><select aria-label="Data shape" data-testid="dataset-shape" value={shape} onChange={(event) => { setShape(event.target.value as DatasetShape["kind"]); setHasSchema(true); }}><option value="array">List of records</option><option value="object">Single object</option></select></label>
+        <label className="dataset-shape" title="Every render checks the full response against these fields. A strict contract stops the report instead of printing data that does not match."><span>When live data does not match</span><select aria-label="When live data does not match" data-testid="dataset-on-mismatch" value={onMismatch} onChange={(event) => { setOnMismatch(event.target.value as "warn" | "error"); setHasSchema(true); }}><option value="warn">Warn and render</option><option value="error">Fail the render</option></select></label>
         {fields.map((field, index) => <div className="dataset-schema-row" key={index} data-testid={`schema-field-${index}`}>
           <input aria-label={`Field ${index + 1} path`} placeholder="patient.name" value={field.path} onChange={(event) => { setHasSchema(true); setFields(fields.map((item, i) => i === index ? { ...item, path: event.target.value } : item)); }} />
           <select aria-label={`Field ${index + 1} type`} value={field.kind} onChange={(event) => { setHasSchema(true); setFields(fields.map((item, i) => i === index ? { ...item, kind: event.target.value as DatasetShape["fields"][number]["kind"] } : item)); }}>

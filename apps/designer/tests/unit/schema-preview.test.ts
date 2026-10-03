@@ -35,12 +35,12 @@ describe("declared field checks against a preview", () => {
     expect(checkSchemaPreview(shape, ["invalid"]).issues[0]).toMatchObject({ code: "ROW_KIND", actual: "string", examples: ["row 1"] });
   });
 
-  it("checks nested records while bounding rows and nested items", () => {
+  it("checks every record and every nested item, matching the render-time contract check", () => {
     const nested: DatasetShape = { kind: "object", fields: [{ path: "items", kind: "array" }, { path: "items.amount", kind: "number" }] };
     const check = checkSchemaPreview(nested, { items: [{ amount: 12 }, { amount: "13" }] });
-    expect(check.issues).toMatchObject([{ code: "FIELD_KIND", path: "items.amount", examples: ["object[2]"] }]);
+    expect(check.issues).toMatchObject([{ code: "FIELD_KIND", path: "items.amount", examples: ["object items[2]"] }]);
     const many = checkSchemaPreview(shape, Array.from({ length: 25 }, (_, i) => ({ name: "N", quantity: i === 24 ? "bad" : i, date: "2026-10-02" })));
-    expect(many).toMatchObject({ totalRows: 25, checkedRows: 20, issues: [] });
+    expect(many).toMatchObject({ totalRows: 25, checkedRows: 25, complete: true, issues: [{ code: "FIELD_KIND", path: "quantity", examples: ["row 25"] }] });
     expect(checkSchemaPreview({ kind: "object", fields: [{ path: "patient.name", kind: "string" }] }, { patient: null })).toMatchObject({ uncheckedValues: 1, issues: [] });
   });
 
