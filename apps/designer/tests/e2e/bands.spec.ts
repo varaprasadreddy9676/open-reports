@@ -826,6 +826,40 @@ test("row wrap and child shrink are editable and reflected on the canvas", async
   await page.screenshot({ path: path.join(screenshotDir, "63-row-shrink.png") });
 });
 
+test("tall side-by-side text continues on real pages with an explained row break", async ({ page }) => {
+  for (let i = 0; i < 2; i++) {
+    await page.getByTestId("band-tab-0").first().click();
+    await page.getByTestId("left-tab-insert").click();
+    await page.getByTestId("palette-text").click();
+  }
+  const [leftId, rightId] = (await doc(page)).sections[0].children.map((child: any) => child.id);
+  for (const [id, prefix, count] of [[leftId, "LEFT", 95], [rightId, "RIGHT", 75]] as const) {
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId(`layer-${id}`).click();
+    await page.getByTestId("value-text").fill(Array.from({ length: count }, (_, index) => `${prefix}${String(index + 1).padStart(3, "0")}`).join("\n"));
+    await page.getByTestId("quick-geometry").getByLabel("Width").fill("240");
+  }
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-layout-row").click();
+  await page.getByTestId("band-gap").fill("12");
+  await expect.poll(() => page.evaluate(() => {
+    const paginated = (window as any).__designer.getState().engine.paginated;
+    return paginated?.pages.length > 1 && paginated.decisions.some((decision: any) => decision.kind === "row-split");
+  })).toBe(true);
+  await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
+  await page.getByTestId("view-pages").click();
+  await expect(page.getByTestId("page-2")).toBeVisible();
+  await page.getByTestId("toggle-pagination").click();
+  await page.getByTestId("pagination-decision").first().click();
+  await expect(page.getByTestId("page-break-details")).toContainText("row split");
+  await expect(page.getByTestId("page-break-details")).toContainText("text columns");
+  await expect(page.getByTestId("page-break-details")).toContainText('Row "Detail"');
+  const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  await page.screenshot({ path: path.join(screenshotDir, "64-row-text-continuation.png") });
+});
+
 test("page band master and band actions are editable", async ({ page }) => {
   await page.getByTestId("band-plus-0").first().click({ force: true });
   await page.getByTestId("add-pageHeader").click();

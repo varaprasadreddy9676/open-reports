@@ -30,6 +30,8 @@ To arrange a band's contents, select its label in Structure and open **Size and 
 
 If fixed widths and gaps push an item beyond its row, **Problems** names that item. An item beyond the printable page edge is an error and blocks PDF/HTML output until you narrow the widths or gaps, or set a child to fill the remaining space. A row overflow still inside the page is a warning because it may overlap nearby content.
 
+If an auto-height row's text columns exceed a page, they continue side by side on later pages. Open **Pagination** and select a **row split** to see why the continuation page starts there. A fixed-height child that cannot fit remains an error; increase the available page space or change its layout.
+
 For precise alignment, click the top ruler to place a vertical guide or the left ruler to place a horizontal guide. Open **Canvas settings → Guides** to add guides by keyboard, name them, enter exact positions, lock them against changes, or remove them. Positions use the selected ruler unit and zero point; switching to **Inside margins** changes the displayed origin without moving a guide. Guides are saved with the report and can also be dragged or double-clicked on the canvas.
 
 While moving an element in a free-position layout, smart guides compare it with sibling edges and centres. Matching gaps between neighbours appear as blue paired measurements. Resizing from a handle snaps the active edge to nearby sibling edges, centres, page bounds, or saved guides, and shows the remaining gap. Grid snapping still applies on an axis without a nearby smart-guide match. Hold **Alt/Option** during the drag or resize to place freely; hold **Shift+Alt/Option** while dragging to make a copy.

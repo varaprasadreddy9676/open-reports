@@ -25,4 +25,19 @@ describe("hidden report bands", () => {
     const designBody = design.resolved.sections.find((section) => section.type === "body")!;
     expect(designBody.children.find((component: any) => component.band?.sectionIndex === 1)?.band?.hiddenByRule).toBe(true);
   });
+
+  it("preserves an explicit do-not-split band setting over the static-band default", async () => {
+    const parsed = parseReportDefinition({
+      schemaVersion: "1.0", id: "unsplit", name: "Unsplit",
+      sections: [
+        { type: "reportHeader", id: "fixed", allowSplit: false, children: [{ type: "text", value: "Fixed" }] },
+        { type: "reportFooter", id: "default", children: [{ type: "text", value: "Default" }] },
+      ],
+    });
+    if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
+    const output = await resolveReport(parsed.report, { registry: new DataSourceRegistry() });
+    const body = output.resolved.sections.find((section) => section.type === "body")!;
+    expect((body.children.find((component: any) => component.id === "fixed") as any).band.allowSplit).toBe(false);
+    expect((body.children.find((component: any) => component.id === "default") as any).band.allowSplit).toBe(true);
+  });
 });

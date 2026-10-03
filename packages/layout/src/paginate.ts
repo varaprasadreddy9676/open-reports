@@ -226,6 +226,86 @@ interface ContentRun {
 const pt = (n: number) => `${Math.round(n * 10) / 10}pt`;
 const label = (c: ResolvedComponent) => `"${(c as any).id ?? c.type}"`;
 
+interface RowSplitChild {
+  node: PositionedNode;
+  x: number;
+  y: number;
+  lines?: string[];
+  lineHeight?: number;
+  padding?: ReturnType<typeof edgesOf>;
+}
+
+interface RowSlice {
+  take: number[];
+  height: number;
+}
+
+/** Plan every page before placing any fragment, so an unsplittable child can
+ * fall back to the existing strict overflow warning without duplicating data. */
+function planTallRow(
+  component: ResolvedComponent,
+  probe: PositionedNode,
+  measurer: TextMeasurer,
+  outer: ReturnType<typeof marginOf>,
+  availableAt: (pageOffset: number) => number,
+): { children: RowSplitChild[]; slices: RowSlice[]; startOnNext: boolean } | undefined {
+  const row = component as any;
+  if (!(row.layout === "row" || row.type === "row" && !row.layout) || row.wrap || row.alignItems && row.alignItems !== "start"
+      || row.height !== undefined || row.minHeight !== undefined || row.maxHeight !== undefined || row.keepTogether || row.allowSplit === false || row.band?.allowSplit === false) return undefined;
+  const pad = edgesOf(row.style?.padding);
+  const children: RowSplitChild[] = [];
+  for (const node of probe.children ?? []) {
+    const child = node.component as any;
+    const part: RowSplitChild = { node, x: node.box.x - probe.box.x, y: node.box.y - probe.box.y };
+    if (["text", "richText", "field"].includes(child.type)) {
+      const style = child.style ?? {};
+      if (child.height !== undefined || child.minHeight !== undefined || child.maxHeight !== undefined || child.keepTogether
+          || child.allowSplit === false || ["clip", "hidden", "ellipsis"].includes(style.overflow)
+          || (child.minLinesAtTop ?? 1) > 1 || (child.minLinesAtBottom ?? 1) > 1) return undefined;
+      const hint = { family: style.fontFamily, bold: style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700), italic: Boolean(style.italic), lineHeight: style.lineHeight };
+      const padding = edgesOf(style.padding);
+      part.lines = wrapTextLines(child.text ?? "", Math.max(1, node.box.width - padding.left - padding.right), style.fontSize ?? 10, measurer, hint);
+      part.lineHeight = measurer.lineHeight(style.fontSize ?? 10, hint);
+      part.padding = padding;
+    }
+    children.push(part);
+  }
+  if (!children.some((child) => child.lines)) return undefined;
+
+  const starts = children.map(() => 0);
+  const slices: RowSlice[] = [];
+  let startOnNext = false;
+  let pageOffset = 0;
+  const maxPages = children.reduce((sum, child) => sum + (child.lines?.length ?? 0), 0) + 2;
+  while (slices.length < maxPages) {
+    const room = availableAt(pageOffset) - outer.top - outer.bottom;
+    const take = children.map((child, index) => {
+      if (!child.lines) return slices.length === 0 ? 1 : 0;
+      const left = child.lines.length - starts[index]!;
+      if (left <= 0) return 0;
+      const inner = room - pad.bottom - child.y - child.padding!.top - child.padding!.bottom;
+      return Math.min(left, Math.max(0, Math.floor((inner + 0.01) / child.lineHeight!)));
+    });
+    const canPlace = children.every((child, index) => child.lines
+      ? starts[index]! >= child.lines.length || take[index]! > 0
+      : slices.length > 0 || child.y + child.node.box.height + pad.bottom <= room + 0.01);
+    if (!canPlace) {
+      if (pageOffset === 0) { startOnNext = true; pageOffset++; continue; }
+      return undefined;
+    }
+    const bottom = Math.max(pad.top, ...children.map((child, index) => {
+      if (!take[index]) return 0;
+      const height = child.lines ? take[index]! * child.lineHeight! + child.padding!.top + child.padding!.bottom : child.node.box.height;
+      return child.y + height;
+    }));
+    slices.push({ take, height: bottom + pad.bottom });
+    children.forEach((child, index) => { if (child.lines) starts[index] = starts[index]! + take[index]!; });
+    if (children.every((child, index) => !child.lines || starts[index]! >= child.lines.length)) return { children, slices, startOnNext };
+    pageOffset++;
+  }
+  return undefined;
+}
+
 /** The core pagination loop: walks components in order, placing each on the
  * current page if it fits, honoring pageBreakBefore/After, keepTogether and
  * keepWithNext, margins, and splitting tables row-by-row across pages
@@ -312,7 +392,7 @@ function layoutContentIntoPages(
       const needed = probe.box.height + m.top + m.bottom;
       const tooTall = needed > pageHeightAt(pages.length) - repeatHeight();
       const bandInfo = anyC.band as { allowSplit?: boolean } | undefined;
-      const splitNow = tooTall || (bandInfo?.allowSplit === true && !anyC.keepTogether && needed > remaining());
+      const splitNow = bandInfo?.allowSplit !== false && (tooTall || (bandInfo?.allowSplit === true && !anyC.keepTogether && needed > remaining()));
       if (splitNow && parts.length > 0) {
         const first = parts[0] as any;
         const last = parts[parts.length - 1] as any;
@@ -453,47 +533,93 @@ function layoutContentIntoPages(
       const needed = probe.box.height + m.top + m.bottom;
       const fitsCurrent = needed <= remaining();
       const fitsFresh = needed <= pageHeightAt(pages.length) - repeatHeight();
-      let moved = false;
+      const repeatRoomAt = (offset: number) => {
+        if (offset === 0) return remaining();
+        const height = pageHeightAt(pages.length - 1 + offset);
+        const repeated = repeatStack.length ? repeatMeasure().total : 0;
+        return height - (repeated > height * 0.4 ? 0 : repeated);
+      };
+      const rowPlan = !fitsFresh ? planTallRow(component, probe, measurer, m, repeatRoomAt) : undefined;
 
-      if (!fitsCurrent && y > 0) {
-        if (fitsFresh) {
-          const keep = Boolean(anyC.keepTogether);
-          decide({
-            kind: keep ? "keep-together" : "cannot-split",
-            componentId: anyC.id,
-            ...source,
-            message: keep
-              ? `${label(component)} is set to keep together: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`
-              : `${label(component)} cannot be split across pages: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`,
-            required: needed,
-            available: remaining(),
-            actions: keep ? [{ label: "Allow split", target: actionTarget, patch: { keepTogether: false } }] : undefined,
-          });
+      if (rowPlan) {
+        const bandType = band?.type ? band.type[0]!.toUpperCase() + band.type.slice(1).replace(/([A-Z])/g, " $1") : undefined;
+        const rowName = (component as any).band?.name ?? bandType ?? anyC.id ?? component.type;
+        const minimumSpace = (slice: RowSlice) => m.top + m.bottom + edgesOf(anyC.style?.padding).bottom + Math.max(0, ...rowPlan.children.map((child, index) => {
+          if (!slice.take[index]) return 0;
+          return child.y + (child.lines ? child.lineHeight! + child.padding!.top + child.padding!.bottom : child.node.box.height);
+        }));
+        if (rowPlan.startOnNext) {
+          decide({ kind: "row-split", componentId: anyC.id, ...source, required: minimumSpace(rowPlan.slices[0]!), available: remaining(), message: `Row "${rowName}" starts on the next page so its side-by-side content has room for at least one line.` });
           newPage();
-          moved = true;
-        } else {
-          decide({ kind: "overflow", componentId: anyC.id, message: `${label(component)} (${pt(needed)}) is taller than a whole page and will overflow.`, required: needed, available: pageHeight() });
+        }
+        const starts = rowPlan.children.map(() => 0);
+        rowPlan.slices.forEach((slice, index) => {
+          if (index > 0) {
+            decide({ kind: "row-split", componentId: anyC.id, ...source, required: minimumSpace(slice), available: remaining(), message: `Row "${rowName}" continues on page ${pages.length + 1}; its text columns have more lines than fit on the previous page.` });
+            newPage();
+          }
+          const rowX = m.left;
+          const rowY = y + m.top;
+          const children: PositionedNode[] = [];
+          rowPlan.children.forEach((child, childIndex) => {
+            const count = slice.take[childIndex]!;
+            if (!count) return;
+            if (child.lines) {
+              const start = starts[childIndex]!;
+              const end = start + count;
+              children.push({ ...child.node, box: { ...child.node.box, x: rowX + child.x, y: rowY + child.y, height: count * child.lineHeight! + child.padding!.top + child.padding!.bottom }, textFragment: { text: child.lines.slice(start, end).join("\n"), startLine: start, endLine: end, totalLines: child.lines.length } });
+              starts[childIndex] = end;
+            } else {
+              children.push(offsetNodes([child.node], rowX + child.x - child.node.box.x, rowY + child.y - child.node.box.y)[0]!);
+            }
+          });
+          const fragment: PositionedNode = { component, box: { x: rowX, y: rowY, width: probe.box.width, height: slice.height }, children };
+          place(fragment);
+          y = fragment.box.y + fragment.box.height + m.bottom;
+        });
+      } else {
+        let moved = false;
+
+        if (!fitsCurrent && y > 0) {
+          if (fitsFresh) {
+            const keep = Boolean(anyC.keepTogether);
+            decide({
+              kind: keep ? "keep-together" : "cannot-split",
+              componentId: anyC.id,
+              ...source,
+              message: keep
+                ? `${label(component)} is set to keep together: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`
+                : `${label(component)} cannot be split across pages: it needs ${pt(needed)} but only ${pt(remaining())} is left, so it moves to the next page.`,
+              required: needed,
+              available: remaining(),
+              actions: keep ? [{ label: "Allow split", target: actionTarget, patch: { keepTogether: false } }] : undefined,
+            });
+            newPage();
+            moved = true;
+          } else {
+            decide({ kind: "overflow", componentId: anyC.id, message: `${label(component)} (${pt(needed)}) is taller than a whole page and will overflow.`, required: needed, available: pageHeight() });
+            warnings.push({
+              code: "CONTENT_OVERFLOWS_PAGE",
+              path: anyC.id ?? component.type,
+              message: `Component ${label(component)} is taller than a full page and will overflow; manual splitting of this component type is not yet supported.`,
+            });
+            newPage();
+            moved = true;
+          }
+        } else if (!fitsFresh) {
           warnings.push({
             code: "CONTENT_OVERFLOWS_PAGE",
             path: anyC.id ?? component.type,
             message: `Component ${label(component)} is taller than a full page and will overflow; manual splitting of this component type is not yet supported.`,
           });
-          newPage();
-          moved = true;
         }
-      } else if (!fitsFresh) {
-        warnings.push({
-          code: "CONTENT_OVERFLOWS_PAGE",
-          path: anyC.id ?? component.type,
-          message: `Component ${label(component)} is taller than a full page and will overflow; manual splitting of this component type is not yet supported.`,
-        });
-      }
 
-      const placed = moved ? layoutComponent(component, { x: m.left, y: y + m.top, width: innerWidth, height: 0 }, measurer) : probe;
-      if (!moved) shiftNode(placed, m.left, 0);
-      if (component.type === "table") (placed as PositionedNode).rowRange = { start: 0, end: (component as ResolvedTableComponent).rows.length };
-      place(placed);
-      y = placed.box.y + placed.box.height + m.bottom;
+        const placed = moved ? layoutComponent(component, { x: m.left, y: y + m.top, width: innerWidth, height: 0 }, measurer) : probe;
+        if (!moved) shiftNode(placed, m.left, 0);
+        if (component.type === "table") (placed as PositionedNode).rowRange = { start: 0, end: (component as ResolvedTableComponent).rows.length };
+        place(placed);
+        y = placed.box.y + placed.box.height + m.bottom;
+      }
     }
 
     if (band?.type === "groupHeader" && band.repeatEveryPage) {

@@ -127,7 +127,7 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       keepTogether: s.keepTogether,
       keepWithNext: s.keepWithNext,
       children,
-      band: { sectionIndex: index, sectionId: s.id, type: s.type, name: s.name, allowSplit: s.allowSplit ?? meta.allowSplit, ...(hiddenByRule ? { hiddenByRule } : {}), ...meta } as BandMeta,
+      band: { ...meta, sectionIndex: index, sectionId: s.id, type: s.type, name: s.name, allowSplit: s.allowSplit ?? meta.allowSplit, ...(hiddenByRule ? { hiddenByRule } : {}) } as BandMeta,
     };
     const result: ResolvedComponent[] = [node];
     for (const child of childrenOf.get(s.id ?? "") ?? []) {

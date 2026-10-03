@@ -88,6 +88,18 @@ describe("groups", () => {
 });
 
 describe("other bands", () => {
+  it("honors do-not-split on an oversized flow band", async () => {
+    const narrative = Array.from({ length: 30 }, (_, i) => `LINE${i}`).join("\n");
+    const { pag, r } = await run({
+      height: 120,
+      sections: [{ type: "reportHeader", id: "whole", allowSplit: false, children: [T(narrative)] }],
+    });
+    const body = r.resolved.sections.find((section) => section.type === "body")!;
+    expect((body.children[0] as any).band.allowSplit).toBe(false);
+    expect(pag.warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_OVERFLOWS_PAGE", path: "whole" }));
+    expect(pag.decisions.some((decision) => decision.kind === "text-split" || decision.kind === "row-split")).toBe(false);
+  });
+
   it("noData replaces an empty region; dataHeader/dataFooter print once around records", async () => {
     const secs = [
       { type: "dataHeader", dataset: "d", children: [T("TABLE HEAD")] },

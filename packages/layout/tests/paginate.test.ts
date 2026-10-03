@@ -309,6 +309,70 @@ describe("paginate: long flow text", () => {
     const fitting = paginate(reportWith([{ type: "detail", children: [row(300, 100)] }]));
     expect(fitting.warnings.some((warning) => warning.code.includes("WIDTH"))).toBe(false);
   });
+
+  it("continues side-by-side text columns across pages without losing a line", () => {
+    const left = Array.from({ length: 32 }, (_, i) => `LEFT${String(i + 1).padStart(3, "0")}`);
+    const right = Array.from({ length: 25 }, (_, i) => `RIGHT${String(i + 1).padStart(3, "0")}`);
+    const row = { type: "container", id: "columns", layout: "row", gap: 10, style: { padding: 4 }, children: [
+      { type: "text", id: "left", text: left.join("\n"), width: 130 },
+      { type: "text", id: "right", text: right.join("\n"), width: 130 },
+    ] } as any;
+    const result = paginate(reportWithContentHeight(160, [
+      { type: "pageHeader", children: [{ type: "text", text: "HEADER" } as any] },
+      { type: "detail", children: [row] },
+      { type: "pageFooter", children: [{ type: "text", text: "FOOTER" } as any] },
+    ]));
+    expect(result.pages.length).toBeGreaterThan(2);
+    expect(result.warnings.some((warning) => warning.code === "CONTENT_OVERFLOWS_PAGE")).toBe(false);
+    expect(result.decisions.filter((decision) => decision.kind === "row-split")).toHaveLength(result.pages.length - 1);
+    expect(result.decisions.filter((decision) => decision.kind === "row-split").every((decision) => decision.required! > decision.available!)).toBe(true);
+    const fragments = result.pages.map((page) => page.content[0]!);
+    expect(fragments.every((node) => node.children?.every((child) => child.box.y + child.box.height <= result.pageSize.height - result.margin.bottom + 0.01))).toBe(true);
+    expect(fragments.map((node) => node.children![0]!.box.x)).toEqual(Array(fragments.length).fill(fragments[0]!.children![0]!.box.x));
+    expect(fragments.flatMap((node) => node.children ?? []).filter((node) => (node.component as any).id === "left").flatMap((node) => node.textFragment!.text.split("\n"))).toEqual(left);
+    expect(fragments.flatMap((node) => node.children ?? []).filter((node) => (node.component as any).id === "right").flatMap((node) => node.textFragment!.text.split("\n"))).toEqual(right);
+  });
+
+  it("uses remaining space on the first page before continuing a tall row", () => {
+    const lines = Array.from({ length: 32 }, (_, i) => `ITEM${String(i + 1).padStart(3, "0")}`);
+    const row = { type: "row", id: "details", children: [{ type: "text", id: "items", width: 130, text: lines.join("\n") }] } as any;
+    const result = paginate(reportWithContentHeight(160, [{ type: "detail", children: [
+      { type: "spacer", id: "intro", height: 65 } as any,
+      row,
+    ] }]));
+    expect(result.pages.length).toBeGreaterThan(2);
+    expect(result.pages[0]!.content.map((node) => (node.component as any).id)).toEqual(["intro", "details"]);
+    expect(result.pages[0]!.content[1]!.children![0]!.textFragment!.startLine).toBe(0);
+    expect(result.pages.flatMap((page) => page.content.flatMap((node) => node.children ?? [])).flatMap((node) => node.textFragment?.text.split("\n") ?? [])).toEqual(lines);
+    expect(result.decisions.filter((decision) => decision.kind === "row-split")).toHaveLength(result.pages.length - 1);
+  });
+
+  it("prints a short atomic row child only beside the first text fragment", () => {
+    const row = { type: "row", id: "mixed", children: [
+      { type: "rectangle", id: "mark", width: 60, height: 40 },
+      { type: "text", id: "long", width: 200, text: Array.from({ length: 30 }, (_, i) => `LINE${i}`).join("\n") },
+    ] } as any;
+    const result = paginate(reportWithContentHeight(160, [{ type: "detail", children: [row] }]));
+    expect(result.pages.length).toBeGreaterThan(1);
+    expect(result.pages.flatMap((page) => page.content[0]!.children ?? []).filter((node) => (node.component as any).id === "mark")).toHaveLength(1);
+    expect(result.pages.flatMap((page) => page.content[0]!.children ?? []).filter((node) => (node.component as any).id === "long").flatMap((node) => node.textFragment!.text.split("\n"))).toHaveLength(30);
+  });
+
+  it("retains strict overflow diagnostics for a row with an unsplittable tall child", () => {
+    const row = { type: "row", id: "fixed-row", children: [{ type: "text", id: "fixed", text: "Cannot split", width: 120, height: 240 }] } as any;
+    const result = paginate(reportWithContentHeight(160, [{ type: "detail", children: [row] }]));
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_OVERFLOWS_PAGE", path: "fixed-row" }));
+  });
+
+  it("does not split a tall row when its band or row requests that it stay whole", () => {
+    const text = { type: "text", id: "narrative", width: 130, text: Array.from({ length: 30 }, (_, i) => `LINE${i}`).join("\n") };
+    for (const setting of [{ band: { allowSplit: false } }, { keepTogether: true }]) {
+      const row = { type: "row", id: "whole-row", children: [text], ...setting } as any;
+      const result = paginate(reportWithContentHeight(160, [{ type: "detail", children: [row] }]));
+      expect(result.warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_OVERFLOWS_PAGE", path: "whole-row" }));
+      expect(result.decisions.some((decision) => decision.kind === "row-split")).toBe(false);
+    }
+  });
 });
 
 describe("paginate: forced breaks and keepTogether", () => {

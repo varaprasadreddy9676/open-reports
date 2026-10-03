@@ -17,7 +17,8 @@ export function PageBreakDetails({ paginated, pageNumber }: { paginated: Paginat
   const remaining = previous ? Math.max(0, previous.zones.body.height - used) : 0;
   const first = current?.content.find((node) => !(node.component as any).band?.repeated) ?? current?.content[0];
   const firstSource = first?.component as any;
-  const firstName = firstSource?.band?.name ?? (firstSource?.id ? ops.find(doc, firstSource.id)?.comp?.name ?? firstSource.id : firstSource?.type);
+  const firstBand = firstSource?.band?.sectionIndex === undefined ? undefined : doc.sections?.[firstSource.band.sectionIndex];
+  const firstName = firstSource?.band?.name ?? (firstBand ? ops.bandDisplayName(doc, firstBand) : firstSource?.id ? ops.find(doc, firstSource.id)?.comp?.name ?? firstSource.id : firstSource?.type);
   const tableDecision = decisions.find((decision) => decision.kind === "table-split" && decision.componentId);
   const table = tableDecision?.componentId ? ops.find(doc, tableDecision.componentId)?.comp : undefined;
   return <div className="page-break-details" data-testid="page-break-details">

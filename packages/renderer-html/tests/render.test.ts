@@ -60,6 +60,22 @@ describe("HtmlRenderer", () => {
     expect([...html.matchAll(/NARRATIVE\d{3}/g)].map((match) => match[0])).toEqual(markers);
   });
 
+  it("keeps both columns of a tall row in paginated HTML", async () => {
+    const left = Array.from({ length: 45 }, (_, index) => `LEFTCOL${String(index + 1).padStart(3, "0")}`);
+    const right = Array.from({ length: 35 }, (_, index) => `RIGHTCOL${String(index + 1).padStart(3, "0")}`);
+    const html = String((await renderReport({
+      schemaVersion: "1.0", id: "tall-row", name: "Tall row",
+      page: { size: "custom", unit: "pt", width: 320, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [{ type: "detail", layout: "row", gap: 12, children: [
+        { type: "text", value: left.join("\n"), width: 145 },
+        { type: "text", value: right.join("\n"), width: 145 },
+      ] }],
+    })).content);
+    expect((html.match(/class="page"/g) ?? []).length).toBeGreaterThan(1);
+    expect([...html.matchAll(/LEFTCOL\d{3}/g)].map((match) => match[0])).toEqual(left);
+    expect([...html.matchAll(/RIGHTCOL\d{3}/g)].map((match) => match[0])).toEqual(right);
+  });
+
   it("renders basic report structure as a single page with correct mime type", async () => {
     const result = await renderReport(invoiceReport);
     expect(result.mimeType).toBe("text/html");

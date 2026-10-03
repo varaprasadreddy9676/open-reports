@@ -99,6 +99,30 @@ describe("pagination boundaries (real PDF output)", () => {
     });
   });
 
+  it("prints both columns of a tall row once with repeated page furniture", async () => {
+    const left = Array.from({ length: 55 }, (_, index) => `LEFTCOL${String(index + 1).padStart(3, "0")}`);
+    const right = Array.from({ length: 45 }, (_, index) => `RIGHTCOL${String(index + 1).padStart(3, "0")}`);
+    const pages = await render({
+      schemaVersion: "1.0", id: "tall-row", name: "Tall row",
+      page: { size: "custom", unit: "pt", width: 320, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [
+        { type: "pageHeader", children: [{ type: "text", value: "HEADERMARK" }] },
+        { type: "detail", layout: "row", gap: 12, children: [
+          { type: "text", id: "left", value: left.join("\n"), width: 145 },
+          { type: "text", id: "right", value: right.join("\n"), width: 145 },
+        ] },
+        { type: "pageFooter", children: [{ type: "text", expression: '"FOOT " + page.number + "/" + page.total' }] },
+      ],
+    });
+    expect(pages.length).toBeGreaterThan(2);
+    expect(pages.flatMap((page) => [...page.matchAll(/LEFTCOL\d{3}/g)].map((match) => match[0]))).toEqual(left);
+    expect(pages.flatMap((page) => [...page.matchAll(/RIGHTCOL\d{3}/g)].map((match) => match[0]))).toEqual(right);
+    pages.forEach((page, index) => {
+      expect(page).toContain("HEADERMARK");
+      expect(page).toContain(`FOOT ${index + 1}/${pages.length}`);
+    });
+  });
+
   it("keeps a 100-page narrative complete and page-controlled", async () => {
     const markers = Array.from({ length: 2700 }, (_, index) => `LONG${String(index + 1).padStart(4, "0")}`);
     const pages = await render({

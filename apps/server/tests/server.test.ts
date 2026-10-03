@@ -125,6 +125,37 @@ describe("POST /api/v1/render (inline)", () => {
     expect(Number(allowed.headers["x-render-warnings"])).toBeGreaterThan(0);
   });
 
+  it("analyzes and strictly renders a tall side-by-side text row across pages", async () => {
+    const values = Array.from({ length: 55 }, (_, i) => `ROWLINE${String(i + 1).padStart(3, "0")}`).join("\n");
+    const report = { schemaVersion: "1.0", id: "long-columns", name: "Long columns",
+      page: { size: "custom", unit: "pt", width: 320, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [{ type: "detail", id: "columns", layout: "row", gap: 12, children: [
+        { type: "text", id: "left", value: values, width: 145 },
+        { type: "text", id: "right", value: "Patient notes", width: 145 },
+      ] }],
+    };
+    const analyzed = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report } });
+    expect(analyzed.statusCode).toBe(200);
+    expect(analyzed.json().valid).toBe(true);
+    expect(analyzed.json().pageCount).toBeGreaterThan(1);
+    expect(analyzed.json().decisions).toContainEqual(expect.objectContaining({ kind: "row-split", sectionId: "columns" }));
+    const rendered = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "pdf" } });
+    expect(rendered.statusCode).toBe(200);
+    expect(rendered.rawPayload.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("still rejects a tall row containing fixed-height content", async () => {
+    const report = { schemaVersion: "1.0", id: "fixed-row", name: "Fixed row",
+      page: { size: "custom", unit: "pt", width: 320, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [{ type: "detail", id: "details", layout: "row", children: [
+        { type: "text", id: "fixed", value: "Fixed content", width: 145, height: 400 },
+      ] }],
+    };
+    const rendered = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "pdf" } });
+    expect(rendered.statusCode).toBe(422);
+    expect(rendered.json().error.details.warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_OVERFLOWS_PAGE" }));
+  });
+
   it("renders HTML", async () => {
     const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: invoiceReport, format: "html" } });
     expect(res.statusCode).toBe(200);
