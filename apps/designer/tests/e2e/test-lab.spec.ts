@@ -82,6 +82,43 @@ test("test data workspace can render a 1,000-row scenario", async ({ page }) => 
   await expect(page.getByTestId("stress-result-1000").getByTestId("pdf-row-coverage")).toHaveText("Rows 1000/1000");
 });
 
+test("a missing PDF row names the record and opens its table in Design", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.setDoc({
+      ...store.doc,
+      datasets: [{ id: "clinical", source: "inline", query: { data: { investigations: [{ testName: "Glucose" }] } } }],
+      sections: [{ type: "detail", children: [{ id: "investigation-table", type: "table", dataset: "clinical.investigations", columns: [{ id: "test", header: "Test", binding: "row.testName" }] }] }],
+    });
+  });
+  await page.route("**/api/v1/render", async (route) => {
+    const body = route.request().postDataJSON();
+    const rows = body.report?.datasets?.find((dataset: any) => dataset.id === "clinical")?.query?.data?.investigations;
+    if (body.format !== "pdf" || !Array.isArray(rows) || rows.length !== 10) return route.continue();
+    rows.pop(); // Fault injection: the PDF receives one fewer row than the designer laid out.
+    await route.fulfill({ response: await route.fetch({ postData: JSON.stringify(body) }) });
+  });
+  await page.getByTestId("mode-data").click();
+  await page.getByTestId("data-workspace-tests").click();
+  const counts = page.getByRole("group", { name: "Record counts" });
+  for (const count of [0, 1, 31, 32, 100]) await counts.getByLabel(String(count), { exact: true }).uncheck();
+  await counts.getByLabel("10", { exact: true }).check();
+  await page.getByTestId("run-stress-tests").click();
+  const result = page.getByTestId("stress-result-10");
+  await expect(result.getByTestId("pdf-row-coverage")).toHaveText("Rows 9/10");
+  await result.locator("summary").click();
+  await expect(result).toContainText("record 10");
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "79-test-lab-row-coverage-warning.png") });
+  await result.getByTestId("stress-reveal-table").click();
+  await expect(page.getByTestId("mode-design")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("properties")).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__designer.getState().selection)).toEqual(["investigation-table"]);
+});
+
 test("Data parameter value reaches the real PDF preview", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("starter-blank").click();

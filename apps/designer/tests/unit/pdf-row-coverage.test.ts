@@ -4,14 +4,14 @@ import { makeScenarioSample } from "../../src/lib/test-scenarios";
 
 const doc = {
   datasets: [{ id: "clinical", source: "inline", query: { data: { investigations: [{ testName: "Glucose", result: 92 }] } } }],
-  sections: [{ type: "detail", children: [{ type: "table", dataset: "clinical.investigations", columns: [{ binding: "row.testName" }, { binding: "row.result" }] }] }],
+  sections: [{ type: "detail", children: [{ id: "investigation-table", type: "table", dataset: "clinical.investigations", columns: [{ binding: "row.testName" }, { binding: "row.result" }] }] }],
 };
 
 describe("PDF row coverage", () => {
   it("marks every string row in a disposable nested scenario and detects absent PDF text", () => {
     const scenario = makeScenarioSample(doc, {}, "clinical.investigations", 3);
     const plan = markTableRows(doc, scenario, "clinical.investigations");
-    expect(plan).toEqual({ field: "testName", markers: ["ORROW00001", "ORROW00002", "ORROW00003"] });
+    expect(plan).toEqual({ field: "testName", markers: ["ORROW00001", "ORROW00002", "ORROW00003"], componentId: "investigation-table", bandIndex: 0 });
     expect((scenario.clinical as any).investigations.map((row: any) => row.testName)).toEqual([
       "Glucose ORROW00001", "Glucose ORROW00002", "Glucose ORROW00003",
     ]);

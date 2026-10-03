@@ -21,7 +21,7 @@ interface Result {
   status: "pass" | "warning" | "fail";
   pages: number;
   pdfPages?: number;
-  rowCoverage?: { found: number; total: number; field: string };
+  rowCoverage?: { found: number; total: number; field: string; componentId?: string; bandIndex: number };
   coverageNote?: string;
   problems: Problem[];
   error?: string;
@@ -39,6 +39,13 @@ export function TestLab() {
   const [results, setResults] = useState<Result[]>([]);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState("");
+  const reveal = (componentId?: string, bandIndex?: number) => {
+    const store = useStore.getState();
+    if (componentId) store.select([componentId]);
+    else if (bandIndex !== undefined) store.set({ selection: [], selectedBand: bandIndex });
+    store.set({ mode: "design", leftTab: "layers", leftOpen: true, rightOpen: true });
+    if (componentId) requestAnimationFrame(() => document.querySelector(`[data-cid="${CSS.escape(componentId)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
+  };
 
   const run = async () => {
     if (!ref || !counts.length || running) return;
@@ -72,8 +79,11 @@ export function TestLab() {
                   pageTexts.push(content.items.map((item) => "str" in item ? item.str : "").join(""));
                 }
                 const coverage = compareRowMarkers(pageTexts, coveragePlan);
-                rowCoverage = { found: coverage.found, total: coverage.total, field: coveragePlan.field };
-                if (coverage.missing.length) problems.push({ severity: "warning", code: "PDF_ROW_COVERAGE", message: `${coverage.missing.length} of ${coverage.total} marked table rows were not found in PDF text. Check conditions and inspect the PDF before publishing.` });
+                rowCoverage = { found: coverage.found, total: coverage.total, field: coveragePlan.field, componentId: coveragePlan.componentId, bandIndex: coveragePlan.bandIndex };
+                if (coverage.missing.length) {
+                  const rows = coverage.missing.slice(0, 5).map((marker) => Number(marker.slice(5))).join(", ");
+                  problems.push({ severity: "warning", code: "PDF_ROW_COVERAGE", componentId: coveragePlan.componentId, message: `${coverage.missing.length} of ${coverage.total} marked table rows were not found in PDF text (record${coverage.missing.length === 1 ? "" : "s"} ${rows}${coverage.missing.length > 5 ? ", …" : ""}). Check conditions and inspect the table before publishing.` });
+                }
               } else coverageNote = count ? "Row text check unavailable: use a visible, unfiltered table with a simple text field." : "No rows to check in this scenario.";
             } finally {
               await loading.destroy();
@@ -109,7 +119,13 @@ export function TestLab() {
       {!results.length && !running && <p className="muted">Choose scenarios and run them to see pagination, errors and warnings.</p>}
       {results.map((result) => <details key={result.count} className="test-lab-result" data-testid={`stress-result-${result.count}`}>
         <summary><span className={`test-lab-status ${result.status}`}>{result.status}</span><strong>{result.count.toLocaleString()} records</strong><span>{result.pages ? `${result.pages} page${result.pages === 1 ? "" : "s"}` : "No pages"}{result.pdfPages !== undefined ? ` · PDF ${result.pdfPages}` : ""}</span>{result.rowCoverage && <span data-testid="pdf-row-coverage">Rows {result.rowCoverage.found}/{result.rowCoverage.total}</span>}<span className="muted">{result.problems.filter((problem) => problem.severity !== "suggestion").length} issues</span></summary>
-        <div className="test-lab-issues">{result.error && <p role="alert">{result.error}</p>}{result.rowCoverage && <p>PDF text check: {result.rowCoverage.found} of {result.rowCoverage.total} marked rows found using “{result.rowCoverage.field}”. Temporary row IDs were added only to this test run.{result.rowCoverage.total < result.count ? ` ${result.count - result.rowCoverage.total} rows had no text in this column and could not be checked.` : ""}</p>}{result.coverageNote && <p>{result.coverageNote}</p>}{result.problems.length ? result.problems.slice(0, 12).map((problem, index) => <p key={`${problem.code}-${index}`}><b>{problem.severity}</b> · {problem.message}</p>) : !result.error && <p>No engine problems for this scenario.</p>}{result.problems.length > 12 && <p>{result.problems.length - 12} more issues.</p>}</div>
+        <div className="test-lab-issues">
+          {result.error && <p role="alert">{result.error}</p>}
+          {result.rowCoverage && <p>PDF text check: {result.rowCoverage.found} of {result.rowCoverage.total} marked rows found using “{result.rowCoverage.field}”. Temporary row IDs were added only to this test run.{result.rowCoverage.total < result.count ? ` ${result.count - result.rowCoverage.total} rows had no text in this column and could not be checked.` : ""} <button type="button" className="btn" data-testid="stress-reveal-table" onClick={() => reveal(result.rowCoverage?.componentId, result.rowCoverage?.bandIndex)}>Show table</button></p>}
+          {result.coverageNote && <p>{result.coverageNote}</p>}
+          {result.problems.length ? result.problems.slice(0, 12).map((problem, index) => <p key={`${problem.code}-${index}`}><b>{problem.severity}</b> · {problem.message}{problem.componentId && problem.code !== "PDF_ROW_COVERAGE" && <button type="button" className="btn" onClick={() => reveal(problem.componentId)}>Show component</button>}</p>) : !result.error && <p>No engine problems for this scenario.</p>}
+          {result.problems.length > 12 && <p>{result.problems.length - 12} more issues.</p>}
+        </div>
       </details>)}
     </section>
   </div>;
