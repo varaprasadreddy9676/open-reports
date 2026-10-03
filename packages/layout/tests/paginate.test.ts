@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ResolvedReport, ResolvedTableComponent, ResolvedTextComponent } from "@reporting/core";
-import { paginate } from "../src/paginate.js";
+import type { PaginationDecision, PositionedNode } from "../src/types.js";
+import { fillMissingPageBreakDecisions, paginate } from "../src/paginate.js";
 
 function makeTable(rowCount: number, overrides: Partial<ResolvedTableComponent> = {}): ResolvedTableComponent {
   return {
@@ -36,6 +37,28 @@ function reportWith(sections: ResolvedReport["sections"]): ResolvedReport {
 // With the default heuristic measurer: lineHeight(10) = 13, row height = 13 + 4 = 17,
 // header height = 13 + 6 = 19. A content area of 19 + 17*30 = 529pt fits exactly 30 rows.
 const EXACT_30_ROWS_HEIGHT = 529;
+
+describe("page-break explanation coverage", () => {
+  it("records measured space when a page starts without a named rule, without duplicating known reasons", () => {
+    const node = (id: string, height: number): PositionedNode => ({ component: { type: "text", id, text: id } as ResolvedTextComponent, box: { x: 0, y: 0, width: 100, height } });
+    const pages = [[node("previous", 82)], [node("continued", 30)], [node("final", 20)]];
+    const decisions: PaginationDecision[] = [{ kind: "forced-break", page: 3, message: "Explicit break" }];
+    fillMissingPageBreakDecisions(pages, decisions, () => 100);
+    expect(decisions).toHaveLength(2);
+    expect(decisions[1]).toMatchObject({ kind: "flow-break", page: 2, componentId: "continued", required: 30, available: 18 });
+    expect(decisions[1]!.message).toMatch(/needs 30pt, with 18pt left/);
+    fillMissingPageBreakDecisions(pages, decisions, () => 100);
+    expect(decisions).toHaveLength(2);
+  });
+
+  it("gives every real table continuation page a specific reason", () => {
+    const result = paginate(reportWithContentHeight(EXACT_30_ROWS_HEIGHT, [{ type: "detail", children: [makeTable(75)] }]));
+    expect(result.pages.length).toBeGreaterThan(2);
+    for (const page of result.pages.slice(1)) {
+      expect(result.decisions.some((decision) => decision.page === page.number && decision.kind === "table-split")).toBe(true);
+    }
+  });
+});
 
 function reportWithContentHeight(height: number, sections: ResolvedReport["sections"]): ResolvedReport {
   const r = reportWith(sections);

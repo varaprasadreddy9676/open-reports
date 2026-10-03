@@ -11,10 +11,21 @@ export function PageBreakDetails({ paginated, pageNumber }: { paginated: Paginat
   const decisions = paginated.decisions
     .filter((decision) => decision.page === pageNumber)
     .sort((a, b) => Number(a.kind === "group-header-repeated") - Number(b.kind === "group-header-repeated"));
+  const previous = paginated.pages[pageNumber - 2];
+  const current = paginated.pages[pageNumber - 1];
+  const used = previous ? Math.max(0, ...previous.content.map((node) => node.box.y + node.box.height - previous.zones.body.y)) : 0;
+  const remaining = previous ? Math.max(0, previous.zones.body.height - used) : 0;
+  const first = current?.content.find((node) => !(node.component as any).band?.repeated) ?? current?.content[0];
+  const firstSource = first?.component as any;
+  const firstName = firstSource?.band?.name ?? (firstSource?.id ? ops.find(doc, firstSource.id)?.comp?.name ?? firstSource.id : firstSource?.type);
   const tableDecision = decisions.find((decision) => decision.kind === "table-split" && decision.componentId);
   const table = tableDecision?.componentId ? ops.find(doc, tableDecision.componentId)?.comp : undefined;
   return <div className="page-break-details" data-testid="page-break-details">
     <strong>Why page {pageNumber} starts here</strong>
+    {previous && <div className="page-break-context" data-testid="page-break-space">
+      <span>Previous page body</span><b>{mm(Math.min(used, previous.zones.body.height))} used · {mm(remaining)} left</b>
+      {firstName && <small>Page {pageNumber} continues with {firstName}{first?.rowRange ? `, row ${first.rowRange.start + 1}` : ""}.</small>}
+    </div>}
     {decisions.length ? decisions.map((decision, index) => <div className="page-break-reason" key={`${decision.kind}-${index}`}>
       <b>{decision.kind.replace(/-/g, " ")}{decision.rowIndex !== undefined ? ` · row ${decision.rowIndex + 1}` : ""}</b>
       <p>{decision.message}</p>

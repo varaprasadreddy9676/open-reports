@@ -7,6 +7,7 @@ import { insertFromPalette, PALETTE_ITEMS } from "./LeftPanel";
 import { exportReport } from "./Preview";
 import { DatasetEditor } from "./DatasetEditor";
 import { GroupWizard } from "./GroupWizard";
+import { PageBreakDetails } from "./PageBreakDetails";
 import { SaveBlockDialogBody } from "./CanvasTools";
 import { CompareDialogBody } from "./CompareDialog";
 import { PublishDialogBody } from "./PublishDialog";
@@ -326,6 +327,7 @@ export function ProblemsPanel() {
 
 function PaginationPanel() {
   const { engine } = useStore();
+  const [openPage, setOpenPage] = useState<number | null>(null);
   const pag = engine.paginated;
   if (!pag) return <div className="muted pad">Nothing paginated yet.</div>;
   const mm = (pt: number) => `${(pt * 25.4 / 72).toFixed(1)} mm`;
@@ -336,34 +338,25 @@ function PaginationPanel() {
         <span className="muted" data-testid="pagination-source">{engine.paginationSource === "pdf" ? "PDF font layout" : "Estimated font layout"}</span>
         <span className="muted">Printable area {mm(pag.pageSize.width - pag.margin.left - pag.margin.right)} × {mm(pag.pageSize.height - pag.margin.top - pag.margin.bottom)}</span>
       </div>
-      {pag.decisions.length === 0 && <div className="muted pad">The layout engine made no break decisions - everything fits.</div>}
-      {pag.decisions.map((d, i) => (
-        <div key={i} className="decision-row">
-        <button
-          className={`decision ${d.kind}`}
-          data-testid="pagination-decision"
-          onClick={() => {
+      {pag.pages.length <= 1 && <div className="muted pad">Everything fits on one page.</div>}
+      {pag.pages.slice(1).map((page) => {
+        const causes = pag.decisions.filter((decision) => decision.page === page.number && decision.kind !== "group-header-repeated");
+        const primary = causes[0] ?? pag.decisions.find((decision) => decision.page === page.number);
+        return <div key={page.number} className="decision-row">
+          <button className={`decision ${primary?.kind ?? "flow-break"}`} data-testid="pagination-decision" aria-expanded={openPage === page.number} onClick={() => {
+            setOpenPage(openPage === page.number ? null : page.number);
             const st = useStore.getState();
-            if (d.componentId) st.select([d.componentId]);
+            if (primary?.componentId) st.select([primary.componentId]);
             st.set({ mode: "design" });
-            requestAnimationFrame(() => document.querySelector(`[data-page="${d.page - 1}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
-          }}
-        >
-          <span className="dk">p.{d.page}</span>
-          <span className="dm">
-            <strong>{d.kind.replace(/-/g, " ")}</strong> {d.message}
-            {d.required !== undefined && d.available !== undefined && (
-              <em> needs {mm(d.required)}, {mm(d.available)} available</em>
-            )}
-          </span>
-        </button>
-        {d.componentId && d.actions?.map((a) => (
-          <button key={a.label} className="btn small fix" data-testid="decision-action" onClick={() => useStore.getState().patch(d.componentId!, a.patch as any, `dec:${a.label}`)}>
-            {a.label}
+            requestAnimationFrame(() => document.querySelector(`[data-page="${page.number - 1}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
+          }}>
+            <span className="dk">p.{page.number}</span>
+            <span className="dm"><strong>{primary?.kind.replace(/-/g, " ") ?? "Page start"}</strong> {primary?.message ?? "Inspect this page's start."}</span>
+            <span className="decision-chevron" aria-hidden="true">{openPage === page.number ? "▾" : "▸"}</span>
           </button>
-        ))}
-        </div>
-      ))}
+          {openPage === page.number && <div className="pagination-page-details"><PageBreakDetails paginated={pag} pageNumber={page.number} /></div>}
+        </div>;
+      })}
     </div>
   );
 }

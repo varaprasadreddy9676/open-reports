@@ -1837,7 +1837,7 @@ kbd {
 }
 .decision-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   border-bottom: 1px solid var(--border);
 }
 .decision {
@@ -1848,7 +1848,12 @@ kbd {
   border: 0;
   text-align: left;
   padding: 5px 12px;
+  width: 100%;
+  align-items: baseline;
 }
+.decision .dm { flex: 1; min-width: 0; }
+.decision-chevron { color: var(--muted); }
+.pagination-page-details { padding: 6px 12px 12px 56px; max-width: 600px; }
 .decision:hover,
 .history-row:hover {
   background: var(--panel-2);
@@ -2064,15 +2069,13 @@ kbd {
 .diag-badge { position: absolute; z-index: 13; width: 16px; height: 16px; border-radius: 50%; border: 0; color: #fff; font-size: 11px; font-weight: 700; line-height: 16px; padding: 0; cursor: pointer; }
 .diag-badge.error { background: var(--danger); }
 .diag-badge.warning { background: #d97706; }
-.pg-marker { position: absolute; left: 0; right: 0; border-top: 2px dashed #f59e0b; z-index: 9; pointer-events: none; }
-.pg-marker span { position: absolute; right: 6px; top: -9px; background: #f59e0b; color: #fff; font-size: 9px; padding: 1px 6px; border-radius: 8px; }
-.pg-marker.overflow { border-color: var(--danger); }
-.pg-marker.overflow span { background: var(--danger); }
 .page-break-anchor { position: absolute; top: -19px; right: 0; z-index: 16; }
 .page-break-button { padding: 3px 10px; border: 1px solid #d97706; border-radius: 4px 4px 0 0; background: #fffbeb; color: #92400e; font-size: 11px; font-weight: 650; }
 .page-break-button:hover { background: #fef3c7; }
 .page-break-popover { position: absolute; top: 100%; right: 0; width: min(340px, 80vw); max-height: 360px; overflow: auto; padding: 14px; border: 1px solid var(--border); border-radius: 0 0 6px 6px; background: var(--panel); box-shadow: var(--shadow); }
 .page-break-details > strong { display: block; margin-bottom: 10px; }
+.page-break-context { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 3px 8px; padding: 8px 10px; border-radius: 6px; background: var(--panel-2); font-size: 11px; }
+.page-break-context small { flex-basis: 100%; color: var(--muted); font-size: 11px; }
 .page-break-reason { padding: 8px 0; border-top: 1px solid var(--border); font-size: 12px; }
 .page-break-reason > b { display: block; color: var(--text); text-transform: capitalize; }
 .page-break-reason p { margin: 3px 0 7px; color: var(--muted); }

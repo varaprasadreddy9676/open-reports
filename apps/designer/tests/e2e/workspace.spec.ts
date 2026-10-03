@@ -188,7 +188,13 @@ test.describe("workspace", () => {
     await page.getByTestId("toggle-pagination").click();
     await expect(page.getByTestId("pagination-panel")).toBeVisible();
     await expect(page.getByTestId("pagination-decision").first()).toBeVisible();
-    await expect(page.getByTestId("pg-marker").first()).toBeVisible();
+    await expect(page.getByTestId("page-break-2")).toBeVisible();
+    expect(await page.getByTestId("pagination-decision").count()).toBe((await page.evaluate(() => (window as any).__designer.getState().engine.paginated.pages.length)) - 1);
+    await page.getByTestId("pagination-decision").first().click();
+    await expect(page.getByTestId("pagination-panel").getByTestId("page-break-details")).toContainText("Previous page body");
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "55-pagination-page-explanation.png") });
   });
 
   test("view menu toggles overlays and the target selector changes renderer warnings", async ({ page }) => {

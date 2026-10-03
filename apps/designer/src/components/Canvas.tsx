@@ -589,7 +589,7 @@ export function Canvas() {
           const showHandles = single && ["text", "image", "qrcode", "barcode", "chart", "rectangle", "container", "row", "column", "grid", "spacer", "line", "table"].includes(single.component.type);
           return (
             <div key={pi} className="page-wrap" data-page={pi}>
-              {!structure && showPagination && pi > 0 && <div className="page-break-anchor" data-testid={`page-break-${pi + 1}`}>
+              {!structure && (showPagination || bottom === "pagination") && pi > 0 && <div className="page-break-anchor" data-testid={`page-break-${pi + 1}`}>
                 <button className="page-break-button" aria-expanded={explainedPage === pi + 1} onClick={() => setExplainedPage(explainedPage === pi + 1 ? null : pi + 1)}>Page {pi + 1} starts · Why?</button>
                 {explainedPage === pi + 1 && <div className="page-break-popover"><PageBreakDetails paginated={paginated} pageNumber={pi + 1} /></div>}
               </div>}
@@ -666,7 +666,6 @@ export function Canvas() {
                 })()}
                 {view.diagnostics && <Diagnostics nodes={allNodes} k={k} />}
                 {structure && showPagination && engine.paginated && <StructureBreakLayer structure={structure} paginated={engine.paginated} k={k} />}
-                {bottom === "pagination" && !structure && <PaginationMarkers page={pi} nodes={allNodes} k={k} />}
                 {guides && guides.page === pi && <SmartGuides g={guides} k={k} />}
                 {marquee && marquee.page === pi && (
                   <div className="marquee" style={{ left: Math.min(marquee.x0, marquee.x1) * k, top: Math.min(marquee.y0, marquee.y1) * k, width: Math.abs(marquee.x1 - marquee.x0) * k, height: Math.abs(marquee.y1 - marquee.y0) * k }} />
@@ -778,25 +777,6 @@ function Diagnostics({ nodes, k }: { nodes: PositionedNode[]; k: number }) {
             !
           </button>
         ))}
-    </>
-  );
-}
-
-function PaginationMarkers({ page, nodes, k }: { page: number; nodes: PositionedNode[]; k: number }) {
-  const decisions = useStore((s) => s.engine.paginated?.decisions ?? []);
-  return (
-    <>
-      {decisions
-        .filter((d) => d.page === page + 1)
-        .map((d, i) => {
-          const n = nodes.find((x) => (x.component as any).id === d.componentId);
-          const top = n ? n.box.y * k : 0;
-          return (
-            <div key={i} className={`pg-marker ${d.kind}`} style={{ top }} data-testid="pg-marker" onPointerDown={(e) => e.stopPropagation()}>
-              <span>{d.kind.replace(/-/g, " ")}</span>
-            </div>
-          );
-        })}
     </>
   );
 }

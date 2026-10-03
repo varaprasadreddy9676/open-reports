@@ -488,7 +488,42 @@ function layoutContentIntoPages(
 
   // Drop a trailing empty page created by a forced break with nothing after it.
   if (pages.length > 1 && pages[pages.length - 1]!.length === 0) pages.pop();
+  fillMissingPageBreakDecisions(pages, decisions, pageHeightAt);
   return { pages, decisions: decisions.filter((d) => d.page <= pages.length), warnings };
+}
+
+/** Guard the page-level debugger against a new pagination path with no log entry. */
+export function fillMissingPageBreakDecisions(
+  pages: PositionedNode[][],
+  decisions: PaginationDecision[],
+  pageHeightAt: (pageIndex: number) => number,
+): void {
+  // Every actual page start needs a reason, even when an unusual component
+  // path created a boundary without going through one of the named rules.
+  for (let pageIndex = 1; pageIndex < pages.length; pageIndex++) {
+    const pageNumber = pageIndex + 1;
+    if (decisions.some((d) => d.page === pageNumber && d.kind !== "group-header-repeated")) continue;
+    const first = pages[pageIndex]!.find((node) => !(node.component as any).band?.repeated);
+    if (!first) continue;
+    const previous = pages[pageIndex - 1]!;
+    const used = Math.max(0, ...previous.map((node) => node.box.y + node.box.height));
+    const available = Math.max(0, pageHeightAt(pageIndex - 1) - used);
+    const m = marginOf(first.component);
+    const required = first.box.height + m.top + m.bottom;
+    const band = (first.component as any).band;
+    decisions.push({
+      kind: "flow-break",
+      page: pageNumber,
+      componentId: (first.component as any).id,
+      sectionIndex: band?.sectionIndex,
+      sectionId: band?.sectionId,
+      required,
+      available,
+      message: required > available + 0.5
+        ? `${label(first.component)} starts on page ${pageNumber}: its measured box needs ${pt(required)}, with ${pt(available)} left in the previous page's body.`
+        : `${label(first.component)} starts on page ${pageNumber} after content flow. The engine did not record a more specific rule for this boundary.`,
+    });
+  }
 }
 
 interface TablePlacer {
