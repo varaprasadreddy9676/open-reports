@@ -29,6 +29,16 @@ export const exportsConfigSchema = z.object({
 });
 export type ExportsConfig = z.infer<typeof exportsConfigSchema>;
 
+export const printCalibrationSchema = z.object({
+  /** Multiply horizontal/vertical ZPL element geometry after measuring a raw test print. */
+  scaleX: z.number().min(0.9).max(1.1).default(1),
+  scaleY: z.number().min(0.9).max(1.1).default(1),
+  /** Shift ZPL content on the media, in millimetres. */
+  offsetXmm: z.number().min(-25).max(25).default(0),
+  offsetYmm: z.number().min(-25).max(25).default(0),
+});
+export type PrintCalibration = z.infer<typeof printCalibrationSchema>;
+
 export const printProfileSchema = z.object({
   name: z.string().optional(),
   dpi: z.number().positive().optional(),
@@ -36,6 +46,7 @@ export const printProfileSchema = z.object({
   language: z.enum(["pdf", "zpl", "escpos"]).optional(),
   /** Printable margin the printer cannot reach, in mm. */
   safeMargin: z.number().nonnegative().optional(),
+  calibration: printCalibrationSchema.optional(),
 });
 export type PrintProfile = z.infer<typeof printProfileSchema>;
 

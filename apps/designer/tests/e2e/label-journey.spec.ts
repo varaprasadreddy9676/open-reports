@@ -146,3 +146,53 @@ test("save and reapply a named printer profile to a label", async ({ page }) => 
   await expect(page.getByTestId("saved-print-profile").getByRole("option", { name: "Lab Zebra 40 × 25" })).toHaveCount(0);
   expect((await page.evaluate(() => (window as any).__designer.getState().doc)).print.dpi).toBe(203);
 });
+
+test("calibrate a ZPL label from a measured test box and reuse its printer profile", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("blank-size").selectOption({ label: "Label 40 × 25 mm" });
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("page-1").click();
+  const props = page.getByTestId("properties");
+  await props.getByRole("button", { name: "Print & labels" }).click();
+  await props.getByTestId("print-preset").selectOption({ label: "Label 40 × 25 mm (ZPL 203 dpi)" });
+  const calibration = props.getByTestId("calibration-panel");
+  await calibration.locator("summary").click();
+  const expected = (await calibration.getByTestId("calibration-expected").innerText()).match(/([\d.]+) × ([\d.]+) mm/);
+  expect(expected).not.toBeNull();
+  const [testDownload] = await Promise.all([page.waitForEvent("download"), calibration.getByTestId("calibration-download").click()]);
+  const testFile = path.join(os.tmpdir(), `label-calibration-${Date.now()}.zpl`);
+  await testDownload.saveAs(testFile);
+  const pattern = fs.readFileSync(testFile, "utf8");
+  expect(pattern).toContain("^PW320\n^LL200");
+  expect(pattern).toMatch(/\^FO\d+,\d+\^GB\d+,\d+,1\^FS/);
+  await calibration.getByTestId("calibration-width").fill((Number(expected![1]) / 1.008).toFixed(2));
+  await calibration.getByTestId("calibration-height").fill(Number(expected![2]).toFixed(2));
+  await calibration.getByLabel("Calibration X offset").fill("0.5");
+  await expect(calibration.getByTestId("calibration-result")).toContainText("Correction: X 100.8");
+  await calibration.getByTestId("calibration-apply").click();
+  await expect(calibration.getByTestId("calibration-current")).toContainText("right 0.5 mm");
+  expect((await page.evaluate(() => (window as any).__designer.getState().doc)).print.calibration.scaleX).toBeGreaterThan(1);
+
+  await props.getByTestId("save-printer-profile").click();
+  await props.getByLabel("New printer profile name").fill("Calibrated Lab Zebra");
+  await props.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(props.getByTestId("saved-print-profile").getByRole("option", { name: "Calibrated Lab Zebra" })).toBeAttached();
+  const savedId = await props.getByTestId("saved-print-profile").inputValue();
+  expect(savedId).toMatch(/^printer-/);
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "52-zpl-calibration.png") });
+
+  await props.getByTestId("print-preset").selectOption({ label: "Label 50 × 30 mm (ZPL 203 dpi)" });
+  expect((await page.evaluate(() => (window as any).__designer.getState().doc)).print.calibration).toBeUndefined();
+  await props.getByTestId("saved-print-profile").selectOption(savedId);
+  const report = await page.evaluate(() => (window as any).__designer.getState().doc);
+  expect(report.page).toMatchObject({ width: 40, height: 25 });
+  expect(report.print.calibration).toMatchObject({ offsetXmm: 0.5 });
+  await page.getByTestId("left-tab-insert").click();
+  await page.getByTestId("palette-text").click();
+  await page.getByTestId("mode-preview").click();
+  await page.getByTestId("preview-tab-zpl").click();
+  await expect(page.getByTestId("zpl-text")).toContainText("^PW320");
+  await expect(page.getByTestId("zpl-text")).toContainText("^FDNew text^FS");
+});

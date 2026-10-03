@@ -12,7 +12,7 @@ it("saves, lists and deletes authenticated printer profiles across a server rest
   directories.push(directory);
   const dbPath = path.join(directory, "reports.sqlite");
   const headers = { "x-api-key": "test-key" };
-  const payload = { name: "Lab Zebra", print: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } };
+  const payload = { name: "Lab Zebra", print: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5, calibration: { scaleX: 1.008, scaleY: 1, offsetXmm: 0.5, offsetYmm: 0 } }, page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } };
   const first = buildApp({ dbPath, apiKeys: ["test-key"] });
   try {
     await first.app.ready();
@@ -23,6 +23,8 @@ it("saves, lists and deletes authenticated printer profiles across a server rest
     const invalid = await first.app.inject({ method: "PUT", url: "/api/v1/printer-profiles/bad", headers, payload: { ...payload, page: { ...payload.page, width: -1 } } });
     expect(invalid.statusCode).toBe(400);
     expect(invalid.json().error.code).toBe("INVALID_PRINTER_PROFILE");
+    const invalidCalibration = await first.app.inject({ method: "PUT", url: "/api/v1/printer-profiles/bad-calibration", headers, payload: { ...payload, print: { ...payload.print, calibration: { ...payload.print.calibration, scaleX: 1.5 } } } });
+    expect(invalidCalibration.statusCode).toBe(400);
   } finally { await first.app.close(); }
 
   const second = buildApp({ dbPath, apiKeys: ["test-key"] });

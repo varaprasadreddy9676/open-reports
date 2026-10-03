@@ -21,6 +21,8 @@ Units are **points** for component sizes (1 pt = 1/72 in) and `page.unit` for th
 
 `watermark` stamps diagonal text on every page (PDF, HTML). Any component can set `bookmark: true` (use its own text) or a string, plus `bookmarkLevel` 1–4, to create PDF outline entries.
 
+For ZPL labels, `print.calibration` can contain `{ "scaleX": 1.008, "scaleY": 1, "offsetXmm": 0.5, "offsetYmm": 0 }`. Scale factors multiply ZPL element positions and dimensions; offsets move the content in millimetres. The declared media width/length and the PDF output stay unchanged. The designer's **Print & labels → Calibrate ZPL printer** control downloads an uncorrected measurement box and derives scale from the measured length. A saved printer profile copies these values into reports when selected.
+
 ## Sections
 `reportHeader`, `pageHeader`, `groupHeader`, `detail`, `groupFooter`, `pageFooter`, `reportFooter`. Headers/footers take `appliesTo`: `first | last | odd | even | standard | all` (page masters).
 

@@ -52,6 +52,27 @@ describe("ZplRenderer", () => {
     expect(text).toContain("^PW472");
   });
 
+  it("applies measured ZPL scale and position without changing the media size", async () => {
+    const report = { ...label, sections: [{ type: "detail", children: [{ type: "rectangle", width: 50, height: 20 }] }] };
+    const base = (await zpl(report)).content as string;
+    const correction = { scaleX: 1.05, scaleY: 0.95, offsetXmm: 1, offsetYmm: 0.5 };
+    const calibrated = (await zpl({ ...report, print: { ...label.print, calibration: correction } })).content as string;
+    const box = (text: string) => text.match(/\^FO(\d+),(\d+)\^GB(\d+),(\d+),1\^FS/)!.slice(1).map(Number);
+    const [x, y, width, height] = box(base);
+    const [cx, cy, correctedWidth, correctedHeight] = box(calibrated);
+    expect(calibrated).toContain("^PW320\n^LL200");
+    expect(cx).toBeGreaterThan(x!);
+    expect(cy).toBeGreaterThan(y!);
+    expect(correctedWidth).toBeGreaterThan(width!);
+    expect(correctedHeight).toBeLessThan(height!);
+  });
+
+  it("warns when a calibration moves printed content beyond the media", async () => {
+    const report = { ...label, print: { ...label.print, calibration: { scaleX: 1, scaleY: 1, offsetXmm: 25, offsetYmm: 0 } }, sections: [{ type: "detail", children: [{ type: "rectangle", width: 60, height: 20 }] }] };
+    const result = await zpl(report);
+    expect(result.warnings.some((warning) => warning.code === "ZPL_CALIBRATION_OUTSIDE_MEDIA")).toBe(true);
+  });
+
   it("warns instead of silently dropping unsupported content", async () => {
     const r = await zpl({ ...label, sections: [{ type: "detail", children: [{ type: "image", src: "x.png" }, { type: "text", value: "తెలుగు" }] }] });
     expect(r.warnings.some((w) => w.code === "ZPL_UNSUPPORTED_COMPONENT")).toBe(true);

@@ -31,6 +31,15 @@ export class ZplRenderer implements ReportRenderer {
 
   async render(input: RenderInput): Promise<RenderResult> {
     const dpi = input.resolved.print?.dpi ?? DEFAULT_DPI;
+    const calibration = input.resolved.print?.calibration;
+    const scaleX = calibration?.scaleX ?? 1;
+    const scaleY = calibration?.scaleY ?? 1;
+    const offsetX = Math.round(((calibration?.offsetXmm ?? 0) / 25.4) * dpi);
+    const offsetY = Math.round(((calibration?.offsetYmm ?? 0) / 25.4) * dpi);
+    const dimensionX = (pt: number) => Math.max(1, Math.round((pt / 72) * dpi * scaleX));
+    const dimensionY = (pt: number) => Math.max(1, Math.round((pt / 72) * dpi * scaleY));
+    const positionX = (pt: number) => Math.round((pt / 72) * dpi * scaleX) + offsetX;
+    const positionY = (pt: number) => Math.round((pt / 72) * dpi * scaleY) + offsetY;
     const paginated = paginate(input.resolved, { resolvePageDependentSection: input.resolvePageSection });
     const warnings = [...paginated.warnings];
     const out: string[] = [];
@@ -41,11 +50,19 @@ export class ZplRenderer implements ReportRenderer {
       out.push("^XA", `^PW${W}`, `^LL${H}`, "^LH0,0", "^CI28");
       for (const node of flat([...page.header, ...page.content, ...page.footer])) {
         const c = node.component as any;
-        const x = ptToDots(node.box.x, dpi);
-        const y = ptToDots(node.box.y, dpi);
-        const w = ptToDots(node.box.width, dpi);
-        const h = ptToDots(node.box.height, dpi);
-        const fs = ptToDots((c.style?.fontSize as number | undefined) ?? 10, dpi);
+        const rawX = positionX(node.box.x);
+        const rawY = positionY(node.box.y);
+        const x = Math.max(0, rawX);
+        const y = Math.max(0, rawY);
+        const w = dimensionX(node.box.width);
+        const h = dimensionY(node.box.height);
+        const fontSize = (c.style?.fontSize as number | undefined) ?? 10;
+        const fsX = dimensionX(fontSize);
+        const fsY = dimensionY(fontSize);
+        if (calibration && ["text", "richText", "field", "barcode", "qrcode", "line", "rectangle", "table"].includes(c.type)
+          && (rawX < 0 || rawY < 0 || rawX + w > W || rawY + h > H)) {
+          warnings.push({ code: "ZPL_CALIBRATION_OUTSIDE_MEDIA", path: c.id ?? c.type, message: `Calibrated ${c.type} extends beyond the ${W} × ${H} dot media. Check scale, offsets, and safe area before printing.` });
+        }
 
         switch (c.type) {
           case "text":
@@ -57,8 +74,8 @@ export class ZplRenderer implements ReportRenderer {
               warnings.push({ code: "ZPL_NON_LATIN_TEXT", path: c.id ?? "text", message: `"${text.slice(0, 24)}" contains non-Latin characters; Zebra's built-in fonts cannot draw them. Use a downloaded TrueType font or print this label as PDF/image.` });
             }
             const align = c.style?.align === "center" ? "C" : c.style?.align === "right" ? "R" : "L";
-            const lines = Math.max(1, Math.round(h / Math.max(1, Math.round(fs * 1.2))));
-            out.push(`^FO${x},${y}^A0N,${fs},${fs}^FB${w},${lines},0,${align},0^FD${fieldData(text)}^FS`);
+            const lines = Math.max(1, Math.round(h / Math.max(1, Math.round(fsY * 1.2))));
+            out.push(`^FO${x},${y}^A0N,${fsY},${fsX}^FB${w},${lines},0,${align},0^FD${fieldData(text)}^FS`);
             break;
           }
           case "barcode": {
@@ -82,24 +99,24 @@ export class ZplRenderer implements ReportRenderer {
           }
           case "line": {
             const vertical = c.orientation === "vertical";
-            out.push(`^FO${x},${y}^GB${vertical ? 1 : Math.max(1, w)},${vertical ? Math.max(1, h) : 1},1^FS`);
+            out.push(`^FO${x},${y}^GB${vertical ? 1 : w},${vertical ? h : 1},1^FS`);
             break;
           }
           case "rectangle":
-            out.push(`^FO${x},${y}^GB${Math.max(1, w)},${Math.max(1, h)},${c.style?.border?.width ? ptToDots(c.style.border.width, dpi) || 1 : 1}^FS`);
+            out.push(`^FO${x},${y}^GB${w},${h},${c.style?.border?.width ? dimensionX(c.style.border.width) : 1}^FS`);
             break;
           case "table": {
             const widths = resolveColumnWidths(c, node.box.width);
             const start = node.rowRange?.start ?? 0;
             const end = node.rowRange?.end ?? c.rows.length;
-            const rowH = c.rows.length ? Math.max(fs + 4, Math.round(h / (end - start + (c.showHeader ? 1 : 0) + (c.showFooter ? 1 : 0)))) : fs + 4;
+            const rowH = c.rows.length ? Math.max(fsY + 4, Math.round(h / (end - start + (c.showHeader ? 1 : 0) + (c.showFooter ? 1 : 0)))) : fsY + 4;
             let ry = y;
             const cell = (text: string, cx: number, cw: number, align: string) =>
-              out.push(`^FO${cx},${ry}^A0N,${fs},${fs}^FB${cw},1,0,${align},0^FD${fieldData(text)}^FS`);
+              out.push(`^FO${cx},${ry}^A0N,${fsY},${fsX}^FB${cw},1,0,${align},0^FD${fieldData(text)}^FS`);
             const row = (texts: string[]) => {
               let cx = x;
               widths.forEach((cw, i) => {
-                const wd = ptToDots(cw.width, dpi);
+                const wd = dimensionX(cw.width);
                 const a = c.columns[i]?.align === "right" ? "R" : c.columns[i]?.align === "center" ? "C" : "L";
                 cell(texts[i] ?? "", cx, wd, a);
                 cx += wd;

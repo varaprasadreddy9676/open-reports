@@ -14,6 +14,7 @@ import { fitZoom } from "../lib/zoom";
 import { SpacingFields } from "./SpacingFields";
 import { InspectorActions } from "./InspectorActions";
 import { api, type SavedPrinterProfile } from "../lib/api";
+import { PrintCalibration } from "./PrintCalibration";
 
 // ------------------------------------------------------------------ small controls
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -1066,7 +1067,8 @@ function PrintProfilePanel() {
   }, []);
   const samePage = (page: Record<string, any>) => ["size", "width", "height", "unit", "orientation"].every((key) => page[key] === doc.page?.[key])
     && ["top", "right", "bottom", "left"].every((side) => page.margin?.[side] === doc.page?.margin?.[side]);
-  const selectedProfile = profiles.find((profile) => print && ["printerType", "language", "dpi", "safeMargin"].every((key) => profile.print[key as keyof typeof profile.print] === print[key]) && samePage(profile.page));
+  const selectedProfile = profiles.find((profile) => print && ["printerType", "language", "dpi", "safeMargin"].every((key) => profile.print[key as keyof typeof profile.print] === print[key])
+    && JSON.stringify(profile.print.calibration ?? null) === JSON.stringify(print.calibration ?? null) && samePage(profile.page));
   const applySavedProfile = (profile: SavedPrinterProfile) => {
     setDoc({ ...doc, print: { ...profile.print }, page: structuredClone(profile.page) });
     useStore.getState().set({ target: profile.print.printerType === "receipt" ? "escpos" : "pdf" });
@@ -1180,6 +1182,8 @@ function PrintProfilePanel() {
           {print?.safeMargin ? <div>Keep content {print.safeMargin} mm from the edge (shown on the canvas)</div> : null}
         </div>
       )}
+      {print?.language === "zpl" && <PrintCalibration />}
+      {print?.calibration && print.language !== "zpl" && <p className="field-hint">Saved calibration is applied only to ZPL output.</p>}
       {print && (
         <button className="btn" onClick={() => setDoc({ ...doc, print: undefined })}>
           Remove print profile
