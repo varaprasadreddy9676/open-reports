@@ -62,3 +62,38 @@ test("PDF preview navigates, searches, zooms, and renders only nearby thumbnails
   fs.mkdirSync(screenshots, { recursive: true });
   await page.screenshot({ path: path.join(screenshots, "53-native-pdf-preview.png") });
 });
+
+test("long PDF pages draw in bounded tiles as they enter view", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.loadDoc({
+      ...store.doc,
+      id: "long-pdf-page",
+      page: { size: "custom", unit: "pt", width: 250, height: 9000, margin: { top: 10, right: 10, bottom: 10, left: 10 } },
+      sections: [{ type: "detail", layout: "absolute", height: 8950, children: [
+        { type: "text", id: "start", value: "LONG PAGE START", width: 200 },
+        { type: "text", id: "end", value: "LONG PAGE END", x: 0, y: 8900, width: 200, height: 20 },
+      ] }],
+    });
+  });
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-info")).toContainText("1 page");
+  await page.getByTestId("pdf-zoom").selectOption("200");
+  const tiles = page.getByTestId("pdf-frame").locator(".pdf-canvas-tile");
+  await expect.poll(() => tiles.count()).toBeGreaterThan(2);
+  expect(await tiles.first().locator("canvas").evaluate((canvas: HTMLCanvasElement) => canvas.width * canvas.height)).toBeLessThanOrEqual(2048 * 2048);
+  await expect(tiles.first().locator("canvas.pdf-rendered")).toBeVisible();
+  const last = tiles.last();
+  await page.getByTestId("pdf-frame").evaluate((stage) => { stage.scrollTop = stage.scrollHeight; });
+  await expect(last.locator("canvas.pdf-rendered")).toBeVisible();
+  const lastHasInk = await last.locator("canvas").evaluate((canvas: HTMLCanvasElement) => {
+    const context = canvas.getContext("2d")!;
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i]! < 180 && pixels[i + 1]! < 180 && pixels[i + 2]! < 180) return true;
+    return false;
+  });
+  expect(lastHasInk).toBe(true);
+});

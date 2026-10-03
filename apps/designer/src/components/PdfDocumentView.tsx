@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { renderTextLayer, type PDFDocumentProxy, type PDFPageProxy, type RenderTask, type TextLayerRenderTask } from "pdfjs-dist";
 import { findPageTextMatch } from "../lib/pdf-text-search";
+import { canvasTiles, type CanvasTile } from "../lib/pdf-canvas";
 
 type Zoom = "page" | "width" | number;
 type Match = { page: number; excerpt: string };
@@ -21,29 +22,58 @@ function useElementSize(ref: RefObject<HTMLElement>, enabled = true) {
   return size;
 }
 
-function PdfCanvas({ page, scale, thumbnail = false }: { page: PDFPageProxy; scale: number; thumbnail?: boolean }) {
+function PdfCanvasTile({ page, scale, pixelRatio, tile, lazy, thumbnail = false }: {
+  page: PDFPageProxy; scale: number; pixelRatio: number; tile: CanvasTile; lazy: boolean; thumbnail?: boolean;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
+  const [visible, setVisible] = useState(!lazy);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!lazy) return;
+    const target = canvas.current;
+    if (!target || !('IntersectionObserver' in window)) { setVisible(true); return; }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) { setVisible(true); observer.disconnect(); }
+    }, { rootMargin: "600px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [lazy]);
   useEffect(() => {
     const target = canvas.current;
-    if (!target) return;
+    if (!target || !visible) return;
+    let active = true;
     setReady(false);
+    setError("");
     const viewport = page.getViewport({ scale });
-    const pixelRatio = thumbnail ? 1 : Math.min(window.devicePixelRatio || 1, 2);
-    target.width = Math.ceil(viewport.width * pixelRatio);
-    target.height = Math.ceil(viewport.height * pixelRatio);
-    target.style.width = `${viewport.width}px`;
-    target.style.height = `${viewport.height}px`;
+    target.width = Math.ceil(tile.width * pixelRatio);
+    target.height = Math.ceil(tile.height * pixelRatio);
     const context = target.getContext("2d");
-    if (!context) return;
+    if (!context) { setError("Canvas is unavailable."); return; }
     let task: RenderTask | undefined;
-    task = page.render({ canvasContext: context, viewport, transform: pixelRatio === 1 ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0] });
-    void task.promise.then(() => setReady(true)).catch((reason: Error) => {
-      if (reason.name !== "RenderingCancelledException") setReady(false);
-    });
-    return () => { task?.cancel(); };
-  }, [page, scale, thumbnail]);
-  return <canvas ref={canvas} className={ready ? "pdf-rendered" : ""} aria-label={thumbnail ? "Page thumbnail" : `Rendered page ${page.pageNumber}`} />;
+    try {
+      task = page.render({ canvasContext: context, viewport, transform: [pixelRatio, 0, 0, pixelRatio, -tile.x * pixelRatio, -tile.y * pixelRatio] });
+      void task.promise.then(() => { if (active) setReady(true); }).catch((reason: Error) => {
+        if (active && reason.name !== "RenderingCancelledException") setError(reason.message || "Could not draw this page.");
+      });
+    } catch (reason) { setError((reason as Error).message || "Could not draw this page."); }
+    return () => { active = false; task?.cancel(); };
+  }, [page, scale, pixelRatio, tile.x, tile.y, tile.width, tile.height, visible, attempt]);
+  return <div className={`pdf-canvas-tile${lazy ? " tiled" : ""}`} style={{ left: tile.x, top: tile.y, width: tile.width, height: tile.height }}>
+    <canvas ref={canvas} className={ready ? "pdf-rendered" : ""} style={{ width: tile.width, height: tile.height }} aria-label={thumbnail ? "Page thumbnail" : `Rendered page ${page.pageNumber}`} />
+    {error && !thumbnail && <div className="pdf-canvas-error" role="alert">Could not draw page {page.pageNumber}. <button className="btn" type="button" onClick={() => setAttempt((value) => value + 1)}>Retry drawing</button></div>}
+  </div>;
+}
+
+function PdfCanvas({ page, scale, thumbnail = false }: { page: PDFPageProxy; scale: number; thumbnail?: boolean }) {
+  const viewport = page.getViewport({ scale });
+  const pixelRatio = thumbnail ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+  const tiles = canvasTiles(viewport.width, viewport.height, pixelRatio);
+  const tiled = tiles.length > 1;
+  return <div className="pdf-canvas-surface" style={{ width: viewport.width, height: viewport.height }}>
+    {tiles.map((tile) => <PdfCanvasTile key={`${tile.x}-${tile.y}`} page={page} scale={scale} pixelRatio={pixelRatio} tile={tile} lazy={tiled} thumbnail={thumbnail} />)}
+  </div>;
 }
 
 function PdfTextLayer({ page, scale, term }: { page: PDFPageProxy; scale: number; term: string }) {

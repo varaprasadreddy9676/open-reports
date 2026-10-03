@@ -1276,6 +1276,9 @@ textarea {
 .pdf-page-stage { flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: 32px; text-align: center; background: var(--canvas); }
 .pdf-page-paper { position: relative; display: inline-block; overflow: hidden; vertical-align: top; text-align: left; background: #fff; box-shadow: 0 3px 16px #102a4326; }
 .pdf-page-paper canvas { display: block; }
+.pdf-canvas-surface { position: relative; }
+.pdf-canvas-tile { position: absolute; overflow: hidden; }
+.pdf-canvas-error { position: absolute; z-index: 4; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: #ffffffed; color: #9b1c1c; font-size: 12px; }
 .pdf-text-layer { position: absolute; inset: 0; z-index: 2; overflow: hidden; line-height: 1; text-align: initial; user-select: text; transform-origin: 0 0; }
 .pdf-text-layer :is(span, br) { position: absolute; color: transparent; white-space: pre; cursor: text; transform-origin: 0 0; }
 .pdf-text-layer span.markedContent { top: 0; height: 0; }
