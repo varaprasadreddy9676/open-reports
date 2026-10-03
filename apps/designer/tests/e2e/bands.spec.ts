@@ -749,6 +749,37 @@ test("row layout lets text hug its content and distributes fixed children", asyn
   await page.screenshot({ path: path.join(screenshotDir, "60-band-row-hug-and-distribute.png") });
 });
 
+test("row overflow names the item, opens it from Problems, and clears after resizing", async ({ page }) => {
+  for (let i = 0; i < 2; i++) {
+    await page.getByTestId("band-tab-0").first().click();
+    await page.getByTestId("left-tab-insert").click();
+    await page.getByTestId("palette-text").click();
+  }
+  const [firstId, secondId] = (await doc(page)).sections[0].children.map((child: any) => child.id);
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-layout-row").click();
+  await page.getByTestId("band-gap").fill("12");
+  for (const id of [firstId, secondId]) {
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId(`layer-${id}`).click();
+    await page.getByTestId("quick-geometry").getByLabel("Width").fill("400");
+  }
+  await expect(page.getByTestId("problem-counts")).toContainText("1 error");
+  const pageBox = (await page.getByTestId("page-1").boundingBox())!;
+  const badgeBox = (await page.getByTestId("diag-badge").last().boundingBox())!;
+  expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(pageBox.x + pageBox.width);
+  await page.getByTestId("diag-badge").last().click();
+  await expect(page.getByTestId("problems")).toContainText("beyond the printable page edge");
+  await page.getByTestId("problem-error").getByRole("button").first().click();
+  await expect(page.getByTestId(`layer-${secondId}`)).toHaveClass(/selected/);
+  const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  await page.screenshot({ path: path.join(screenshotDir, "61-row-printable-width-problem.png") });
+  await page.getByTestId("quick-geometry").getByLabel("Width").fill("80");
+  await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
+});
+
 test("page band master and band actions are editable", async ({ page }) => {
   await page.getByTestId("band-plus-0").first().click({ force: true });
   await page.getByTestId("add-pageHeader").click();

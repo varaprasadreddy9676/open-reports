@@ -96,6 +96,26 @@ describe("POST /api/v1/render (inline)", () => {
     expect(intentional.statusCode).toBe(200);
   });
 
+  it("rejects a row item past the printable edge and reports the item through analyze", async () => {
+    const report = { schemaVersion: "1.0", id: "wide-row", name: "Wide row", sections: [
+      { type: "detail", children: [{ type: "container", id: "line", layout: "row", gap: 10, children: [
+        { type: "text", id: "first", value: "First", width: 400 },
+        { type: "text", id: "second", value: "Second", width: 400 },
+      ] }] },
+    ] };
+    const blocked = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "pdf" } });
+    expect(blocked.statusCode).toBe(422);
+    expect(blocked.json().error.details.warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_EXCEEDS_PRINTABLE_WIDTH", path: "second" }));
+    const blockedHtml = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "html" } });
+    expect(blockedHtml.statusCode).toBe(422);
+    const analyzed = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report } });
+    expect(analyzed.json().valid).toBe(false);
+    expect(analyzed.json().warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_EXCEEDS_PRINTABLE_WIDTH", path: "second" }));
+    const allowed = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "pdf", strict: false } });
+    expect(allowed.statusCode).toBe(200);
+    expect(Number(allowed.headers["x-render-warnings"])).toBeGreaterThan(0);
+  });
+
   it("renders HTML", async () => {
     const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: invoiceReport, format: "html" } });
     expect(res.statusCode).toBe(200);

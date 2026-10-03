@@ -15,7 +15,7 @@ export interface PaginateOptions {
 
 /** Warnings that mean a generated document may omit or misplace report data. */
 export const isDataLossWarningCode = (code: string): boolean =>
-  code === "CONTENT_OVERFLOWS_PAGE" || code === "TEXT_EXCEEDS_HEIGHT" || code === "CONTAINER_CONTENT_EXCEEDS_HEIGHT";
+  code === "CONTENT_OVERFLOWS_PAGE" || code === "CONTENT_EXCEEDS_PRINTABLE_WIDTH" || code === "TEXT_EXCEEDS_HEIGHT" || code === "CONTAINER_CONTENT_EXCEEDS_HEIGHT";
 
 /**
  * Page masters: a report may declare several pageHeader / pageFooter sections,
@@ -157,6 +157,29 @@ export function paginate(report: ResolvedReport, options: PaginateOptions = {}):
         if (excess > 0.5 && !seenOverflows.has(key)) {
           seenOverflows.add(key);
           warnings.push({ code: "CONTAINER_CONTENT_EXCEEDS_HEIGHT", path: c.id ?? c.type, message: `Container ${label(node.component)} has content extending ${pt(excess)} below its fixed height; it may overlap or be clipped.` });
+        }
+      }
+      if (node.children?.length && (c.layout === "row" || c.type === "row" && !c.layout)) {
+        const pad = edgesOf(c.style?.padding);
+        const rowRight = node.box.x + node.box.width - pad.right;
+        const printableRight = geometry.width - geometry.margin.right;
+        for (const child of node.children) {
+          const right = child.box.x + child.box.width;
+          const overflow = right - rowRight;
+          if (overflow <= 0.5) continue;
+          const id = (child.component as any).id ?? c.id ?? child.component.type;
+          const beyondPage = right > printableRight + 0.5;
+          const code = beyondPage ? "CONTENT_EXCEEDS_PRINTABLE_WIDTH" : "ROW_CONTENT_EXCEEDS_WIDTH";
+          const key = `${code}:${id}`;
+          if (seenOverflows.has(key)) continue;
+          seenOverflows.add(key);
+          warnings.push({
+            code,
+            path: id,
+            message: beyondPage
+              ? `Row item ${label(child.component)} extends ${pt(right - printableRight)} beyond the printable page edge. Reduce fixed widths or gaps, or let an item fill the remaining width.`
+              : `Row item ${label(child.component)} extends ${pt(overflow)} beyond its row. Reduce fixed widths or gaps, or let an item fill the remaining width.`,
+          });
         }
       }
       if (node.children) inspect(node.children);

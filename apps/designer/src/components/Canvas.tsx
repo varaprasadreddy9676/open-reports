@@ -664,7 +664,7 @@ export function Canvas() {
                   const target = allNodes.find((n) => (n.component as any).id === editingText);
                   return target ? <InlineEditor id={editingText} box={target.box} k={k} /> : null;
                 })()}
-                {view.diagnostics && <Diagnostics nodes={allNodes} k={k} />}
+                {view.diagnostics && <Diagnostics nodes={allNodes} k={k} pageWidth={paginated.pageSize.width} />}
                 {structure && showPagination && engine.paginated && <StructureBreakLayer structure={structure} paginated={engine.paginated} k={k} />}
                 {guides && guides.page === pi && <SmartGuides g={guides} k={k} />}
                 {marquee && marquee.page === pi && (
@@ -750,7 +750,7 @@ function SmartGuides({ g, k }: { g: { guides: Guide[]; distances: Distance[] }; 
   );
 }
 
-function Diagnostics({ nodes, k }: { nodes: PositionedNode[]; k: number }) {
+function Diagnostics({ nodes, k, pageWidth }: { nodes: PositionedNode[]; k: number; pageWidth: number }) {
   const problems = useStore((s) => s.engine.problems);
   const byId = new Map<string, "error" | "warning">();
   for (const p of problems) {
@@ -766,7 +766,7 @@ function Diagnostics({ nodes, k }: { nodes: PositionedNode[]; k: number }) {
             key={i}
             className={`diag-badge ${byId.get((n.component as any).id)}`}
             data-testid="diag-badge"
-            style={{ left: (n.box.x + n.box.width) * k - 8, top: n.box.y * k - 8 }}
+            style={{ left: Math.max(0, Math.min((n.box.x + n.box.width) * k - 8, pageWidth * k - 20)), top: n.box.y * k - 8 }}
             title="Show in Problems"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ResolvedReport, ResolvedTableComponent, ResolvedTextComponent } from "@reporting/core";
 import type { PaginationDecision, PositionedNode } from "../src/types.js";
-import { fillMissingPageBreakDecisions, paginate } from "../src/paginate.js";
+import { fillMissingPageBreakDecisions, isDataLossWarningCode, paginate } from "../src/paginate.js";
 
 function makeTable(rowCount: number, overrides: Partial<ResolvedTableComponent> = {}): ResolvedTableComponent {
   return {
@@ -292,6 +292,22 @@ describe("paginate: long flow text", () => {
     const container = { type: "container", id: "fixed-panel", height: 25, children: [{ type: "container", children: [{ ...paragraph, text: lines.slice(0, 5).join("\n") }] }] } as any;
     const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [container] }]));
     expect(result.warnings).toContainEqual(expect.objectContaining({ code: "CONTAINER_CONTENT_EXCEEDS_HEIGHT", path: "fixed-panel" }));
+  });
+
+  it("explains row width overflow and blocks output only when an item passes the printable edge", () => {
+    const item = (id: string, width: number) => ({ type: "text", id, text: id, width }) as ResolvedTextComponent;
+    const row = (width: number, secondWidth: number) => ({ type: "container", id: "line", layout: "row", width, gap: 10, children: [item("first", 150), item("second", secondWidth)] }) as any;
+    const insidePage = paginate(reportWith([{ type: "detail", children: [row(200, 90)] }]));
+    expect(insidePage.warnings).toContainEqual(expect.objectContaining({ code: "ROW_CONTENT_EXCEEDS_WIDTH", path: "second" }));
+    expect(isDataLossWarningCode("ROW_CONTENT_EXCEEDS_WIDTH")).toBe(false);
+
+    const beyondPage = paginate(reportWith([{ type: "detail", children: [row(300, 180)] }]));
+    expect(beyondPage.warnings).toContainEqual(expect.objectContaining({ code: "CONTENT_EXCEEDS_PRINTABLE_WIDTH", path: "second" }));
+    expect(beyondPage.warnings.some((warning) => warning.code === "ROW_CONTENT_EXCEEDS_WIDTH")).toBe(false);
+    expect(isDataLossWarningCode("CONTENT_EXCEEDS_PRINTABLE_WIDTH")).toBe(true);
+
+    const fitting = paginate(reportWith([{ type: "detail", children: [row(300, 100)] }]));
+    expect(fitting.warnings.some((warning) => warning.code.includes("WIDTH"))).toBe(false);
   });
 });
 
