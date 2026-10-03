@@ -15,6 +15,39 @@ async function absoluteForm(page: Page) {
 }
 
 test.describe("workspace", () => {
+  test("selected elements and bands show only the relevant inspector view", async ({ page }) => {
+    await page.setViewportSize({ width: 1536, height: 900 });
+    await absoluteForm(page);
+    await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId("layer-title").click();
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await expect(page.getByTestId("element-tab-content")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("value-text")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "72-element-content-inspector.png") });
+    await page.getByTestId("element-tab-style").click();
+    await expect(page.getByLabel("Font size")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "73-element-style-inspector.png") });
+    await page.getByTestId("element-tab-layout").click();
+    await expect(page.getByRole("button", { name: "Layout", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await page.screenshot({ path: path.join(screenshots, "74-element-layout-inspector.png") });
+    await page.getByTestId("element-tab-rules").click();
+    await expect(page.getByTestId("visible-when-toggle")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "75-element-rules-inspector.png") });
+
+    await page.getByTestId("section-detail").first().click();
+    await expect(page.getByTestId("band-tab-general")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("band-name")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "76-band-general-inspector.png") });
+    await page.getByTestId("band-tab-layout").click();
+    await expect(page.getByTestId("band-layout")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "77-band-layout-inspector.png") });
+    await page.getByTestId("band-tab-rules").click();
+    await expect(page.getByTestId("band-hidden")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "78-band-rules-inspector.png") });
+    expect(await page.evaluate(() => (window as any).__designer.getState().meta.dirty)).toBe(false);
+  });
+
   test("global header stays calm while canvas tools remain available at desktop and laptop widths", async ({ page }) => {
     await page.setViewportSize({ width: 1536, height: 900 });
     await page.addInitScript(() => localStorage.setItem("designer.canvasView", "structure"));
@@ -242,6 +275,8 @@ test.describe("workspace", () => {
     fs.mkdirSync(screenshots, { recursive: true });
     await page.screenshot({ path: path.join(screenshots, "48-structure-search.png") });
     await search.press("Escape");
+    await expect(page.getByTestId("layer-course")).toBeVisible();
+    await page.getByTestId("explorer-collapse-0").click();
     await expect(page.getByTestId("layer-course")).toHaveCount(0);
     expect((await doc(page)).sections[0].collapsed).toBeUndefined();
   });
@@ -550,13 +585,14 @@ test.describe("properties, masters, print, blocks", () => {
     await page.goto("/");
     await page.getByTestId("starter-blank").click();
     await page.getByTestId("palette-text").click();
-    await page.getByRole("button", { name: "Layout", exact: true }).click();
+    await page.getByTestId("element-tab-layout").click();
     await page.getByLabel("Margin top").fill("6");
     await page.getByLabel("Padding left").fill("4");
     const d = JSON.stringify(await doc(page));
     expect(d).toContain('"margin":{"top":6');
     expect(d).toContain('"padding":{"top":0,"right":0,"bottom":0,"left":4}');
 
+    await page.getByTestId("element-tab-content").click();
     await page.getByTestId("value-mode-formula").click();
     await page.getByTestId("formula-input").fill("params.a * params.b");
     await page.getByTestId("calc-view-builder").click();
@@ -840,6 +876,7 @@ test("watermark and bookmark settings write to the report", async ({ page }) => 
   await page.getByTestId("watermark-text").fill("CONFIDENTIAL");
   await expect.poll(async () => (await doc(page)).watermark?.text).toBe("CONFIDENTIAL");
   await page.getByTestId("palette-text").click();
+  await page.getByTestId("element-tab-rules").click();
   await page.getByRole("button", { name: /Advanced/ }).click();
   await page.getByTestId("flag-bookmark").check();
   expect(JSON.stringify(await page.evaluate(() => (window as any).__designer.getState().doc))).toContain('"bookmark":true');
@@ -884,7 +921,7 @@ test("a text element can use the same visual conditional style editor", async ({
   await page.getByTestId("dataset-id").fill("patient");
   await page.getByTestId("dataset-json").fill(JSON.stringify({ flag: "H" }));
   await page.getByTestId("dataset-save").click();
-  await page.getByRole("button", { name: /Conditions/ }).click();
+  await page.getByTestId("element-tab-rules").click();
   await page.getByTestId("component-style-rules-add").click();
   await page.getByLabel("Rule 1 field").selectOption("data.patient.flag");
   await page.getByLabel("Rule 1 value").fill("H");
@@ -912,14 +949,15 @@ test("text inspector keeps geometry visible and secondary settings collapsed", a
   await expect(page.getByTestId("quick-geometry")).toBeVisible();
   await page.getByLabel("Width", { exact: true }).fill("180");
   await page.getByLabel("Height", { exact: true }).fill("24");
-  await expect(page.getByRole("button", { name: "Layout", exact: true })).toHaveAttribute("aria-expanded", "false");
-  await expect(page.getByRole("button", { name: /Conditions/ })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByTestId("element-tab-content")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("element-tab-layout")).toBeVisible();
+  await expect(page.getByTestId("element-tab-rules")).toBeVisible();
   await expect(page.getByTestId("page-1")).toBeVisible();
   await page.getByTestId("left-tab-layers").click();
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
   fs.mkdirSync(screenshots, { recursive: true });
   await page.screenshot({ path: path.join(screenshots, "47-contextual-text-inspector.png") });
-  await page.getByRole("button", { name: /Conditions/ }).click();
+  await page.getByTestId("element-tab-rules").click();
   await expect(page.getByTestId("visible-when-toggle")).toBeVisible();
   await expect(page.getByTestId("component-style-rules-add")).toBeVisible();
 });
@@ -933,6 +971,7 @@ test("fixed-height text shows an error until the author chooses an overflow poli
   await expect(page.getByTestId("problem-counts")).toContainText("1 errors");
   await page.getByTestId("toggle-problems").click();
   await expect(page.getByTestId("problems")).toContainText("height is limited");
+  await page.getByTestId("element-tab-rules").click();
   await page.getByRole("button", { name: /Advanced/ }).click();
   await page.getByLabel("Overflow").selectOption("ellipsis");
   await expect(page.getByTestId("problem-counts")).toContainText("0 errors");

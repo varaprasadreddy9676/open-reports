@@ -69,6 +69,7 @@ test.describe("complete journey: create, bind, style, preview, save, reload, exp
     // 6. change styling of the title
     await page.getByTestId("left-tab-layers").click();
     await page.getByTestId(`layer-${first}`).click();
+    await page.getByTestId("element-tab-style").click();
     await page.getByLabel("Font size").fill("24");
     await page.getByRole("button", { name: "Italic", exact: true }).click();
     expect((await doc(page)).sections[0].children[0].style).toMatchObject({ fontSize: 24, italic: true });
@@ -455,7 +456,7 @@ test.describe("editing", () => {
     await page.getByTestId("starter-conditional").click();
     await expect(page.getByTestId("page-1")).toBeVisible();
     await page.evaluate(() => (window as any).__designer.getState().select(["attention"]));
-    await page.getByRole("button", { name: /Conditions/ }).click();
+    await page.getByTestId("element-tab-rules").click();
     await page.getByTestId("visible-when-toggle").check();
     await page.getByTestId("cond-field").selectOption({ index: 0 });
     await page.getByTestId("cond-op").selectOption("gt");

@@ -8,6 +8,7 @@ import { FormulaInput } from "./FormulaInput";
 import { InspectorSection } from "./InspectorSection";
 import { SpacingFields, type SpacingValue } from "./SpacingFields";
 import { InspectorActions } from "./InspectorActions";
+import { InspectorTabs } from "./InspectorTabs";
 
 const PAGE_TYPES: readonly string[] = PAGE_BAND_TYPES;
 const DATA_TYPES = ["dataHeader", "groupHeader", "detail", "child", "groupFooter", "dataFooter", "noData"];
@@ -21,6 +22,7 @@ export function BandProps({ index }: { index: number }) {
   const band = doc.sections?.[index];
   const group = (doc.groups ?? []).find((g: any) => g.id === band?.groupId);
   const [conditionView, setConditionView] = useState<"builder" | "code">("builder");
+  const [tab, setTab] = useState<"general" | "layout" | "rules">("general");
   const rowDataset = band?.dataset ?? group?.dataset ?? doc.sections?.find((section: any) => section.type === "detail")?.dataset;
   const candidates = useMemo(() => candidatesFor(doc, sample, undefined, rowDataset), [doc, sample, rowDataset]);
   if (!band) return null;
@@ -88,7 +90,8 @@ export function BandProps({ index }: { index: number }) {
       </InspectorActions>
     </div>
 
-    <InspectorSection title="General">
+    <InspectorTabs label="Band properties" tabs={[{ id: "general", label: "General" }, { id: "layout", label: "Layout" }, { id: "rules", label: "Rules" }]} active={tab} onChange={setTab} testIdPrefix="band-tab">
+    {tab === "general" && <InspectorSection title="General">
       <BandField label="Name"><input aria-label="Band name" data-testid="band-name" value={band.name ?? ""} placeholder={ops.bandDisplayName(doc, { ...band, name: undefined })} onChange={(e) => update({ name: e.target.value })} /></BandField>
       {dataBand && <BandField label="Dataset">
         <select aria-label="Band dataset" data-testid="band-dataset" value={band.dataset ?? ""} onChange={(e) => update({ dataset: e.target.value || undefined })}>
@@ -113,9 +116,9 @@ export function BandProps({ index }: { index: number }) {
           {(["all", "first", "last", "odd", "even", "standard"] as const).map((v) => <option key={v} value={v}>{v === "all" ? "All pages" : v[0]!.toUpperCase() + v.slice(1) + " pages"}</option>)}
         </select>
       </BandField>}
-    </InspectorSection>
+    </InspectorSection>}
 
-    <InspectorSection title="Size and layout" open={false} summary={`${({ flow: "Stack", row: "Row", grid: "Grid", absolute: "Free" } as Record<string, string>)[layout]} · ${band.height === undefined ? "Hug content" : `${band.height} pt`}`}>
+    {tab === "layout" && <InspectorSection title="Size and layout" summary={`${({ flow: "Stack", row: "Row", grid: "Grid", absolute: "Free" } as Record<string, string>)[layout]} · ${band.height === undefined ? "Hug content" : `${band.height} pt`}`}>
     <fieldset className="band-props-fields" disabled={!!band.locked}>
       <div className="field">
         <span className="field-label">Band height</span>
@@ -147,9 +150,10 @@ export function BandProps({ index }: { index: number }) {
         <p className="field-hint">Children fill available width by default. Select a text child to Hug its text, set an exact width, or allow it to shrink when space is tight.</p>
       </>}
     </fieldset>
-    </InspectorSection>
+    </InspectorSection>}
 
-    <InspectorSection title="Visibility" open={false} summary={band.hidden ? "Hidden" : band.visibleWhen ? "Conditional" : "Visible"}>
+    {tab === "rules" && <>
+    <InspectorSection title="Visibility" summary={band.hidden ? "Hidden" : band.visibleWhen ? "Conditional" : "Visible"}>
       {flag("hidden", "Hide band from output")}
       {flag("suppressWhenBlank", "Hide when empty")}
       <label className="check"><input type="checkbox" data-testid="band-visibleWhen-toggle" checked={!!expression} onChange={(e) => update({ visibleWhen: e.target.checked ? conditionToExpression(current) : undefined })} />Show only when...</label>
@@ -185,8 +189,9 @@ export function BandProps({ index }: { index: number }) {
       {flag("printAtBottom", "Print at bottom")}
       {band.type === "groupHeader" && <label className="check"><input type="checkbox" data-testid="band-repeatEveryPage" checked={band.repeatEveryPage ?? group?.repeatHeader ?? false} onChange={(e) => update({ repeatEveryPage: e.target.checked })} />Repeat on continuation pages</label>}
     </InspectorSection>
+    </>}
 
-    {group && <InspectorSection title={`Group: ${group.name ?? group.id}`}>
+    {tab === "general" && group && <InspectorSection title={`Group: ${group.name ?? group.id}`}>
       <BandField label="Group name"><input aria-label="Group name" data-testid="group-name" value={group.name ?? ""} onChange={(e) => updateGroup({ name: e.target.value || undefined })} /></BandField>
       <BandField label="Group dataset"><select aria-label="Group dataset" data-testid="group-dataset" value={group.dataset ?? ""} onChange={(e) => updateGroup({ dataset: e.target.value || undefined })}>
         <option value="">Inherit from detail band</option>
@@ -204,9 +209,10 @@ export function BandProps({ index }: { index: number }) {
       <BandField label="Min detail rows after header"><input type="number" min={0} aria-label="Min detail rows after header" data-testid="group-minDetailRows" value={group.minDetailRows ?? 1} onChange={(e) => updateGroup({ minDetailRows: Number(e.target.value) })} /></BandField>
     </InspectorSection>}
 
-    <InspectorSection title="Actions" open={false}><div className="btn-grid">
+    {tab === "general" && <InspectorSection title="Actions" open={false}><div className="btn-grid">
       <button className="btn" data-testid="move-band-up" disabled={!ops.canMoveBand(doc, index, index - 1)} onClick={() => move(index - 1)}>Move up</button>
       <button className="btn" data-testid="move-band-down" disabled={!ops.canMoveBand(doc, index, index + 1)} onClick={() => move(index + 1)}>Move down</button>
-    </div></InspectorSection>
+    </div></InspectorSection>}
+    </InspectorTabs>
   </>;
 }

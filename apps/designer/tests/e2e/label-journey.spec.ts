@@ -6,8 +6,7 @@ import path from "node:path";
 
 async function placeSelected(page: Page, x: number, y: number, width: number, height: number) {
   const props = page.getByTestId("properties");
-  const layout = props.getByRole("button", { name: "Layout", exact: true });
-  if (await layout.getAttribute("aria-expanded") === "false") await layout.click();
+  await props.getByTestId("element-tab-layout").click();
   const positionFreely = props.getByRole("button", { name: "Position freely" });
   if (await positionFreely.count()) await positionFreely.click();
   await props.getByLabel("Width", { exact: true }).fill(String(width));
@@ -24,7 +23,7 @@ test("build a 40 × 25 mm patient label through the UI, validate it, and preview
 
   await page.getByTestId("left-tab-layers").click();
   await page.getByTestId("section-detail").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-layout-absolute").click();
   await page.getByTestId("page-1").click();
   await page.getByTestId("report-tab-print").click();
@@ -47,12 +46,14 @@ test("build a 40 × 25 mm patient label through the UI, validate it, and preview
   await page.getByTestId("value-mode-field").click();
   await page.getByTestId("value-field").selectOption("data.patient.name");
   await placeSelected(page, 0, 0, 68, 10);
+  await page.getByTestId("element-tab-style").click();
   await page.getByLabel("Font size").fill("7");
 
   await page.getByTestId("palette-text").click();
   await page.getByTestId("value-mode-field").click();
   await page.getByTestId("value-field").selectOption("data.patient.uhid");
   await placeSelected(page, 0, 13, 68, 8);
+  await page.getByTestId("element-tab-style").click();
   await page.getByLabel("Font size").fill("6");
 
   await page.getByTestId("palette-barcode").click();

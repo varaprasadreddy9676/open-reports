@@ -22,7 +22,7 @@ export function InspectorTabs<Id extends string>({ label, tabs, active, onChange
     requestAnimationFrame(() => tablist?.querySelectorAll<HTMLButtonElement>("[role=tab]")[next]?.focus());
   };
   return <>
-    <div className="inspector-tabs" role="tablist" aria-label={label}>
+    <div className="inspector-tabs" role="tablist" aria-label={label} style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
       {tabs.map((tab, index) => <button key={tab.id} type="button" role="tab" id={`${base}-${tab.id}`} aria-controls={`${base}-panel`} aria-selected={active === tab.id} tabIndex={active === tab.id ? 0 : -1} data-testid={testIdPrefix ? `${testIdPrefix}-${tab.id}` : undefined} onClick={() => onChange(tab.id)} onKeyDown={(event) => move(event, index)}>{tab.label}</button>)}
     </div>
     <div className="inspector-tab-panel" id={`${base}-panel`} role="tabpanel" aria-labelledby={`${base}-${active}`}>{children}</div>

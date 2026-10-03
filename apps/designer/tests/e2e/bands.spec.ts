@@ -123,7 +123,8 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await page.getByTestId("left-tab-layers").click();
   await page.getByTestId(`layer-${table.id}`).click();
   await expect(page.getByTestId("table-summary")).toContainText("4 columns");
-  await expect(page.getByTestId("properties").getByRole("button", { name: "Layout", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByTestId("element-tab-content")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("element-tab-layout")).toBeVisible();
   const inspectorScreenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
   fs.mkdirSync(inspectorScreenshots, { recursive: true });
   await page.screenshot({ path: path.join(inspectorScreenshots, "35-table-inspector.png") });
@@ -634,16 +635,17 @@ test("selecting a band opens its editor and persists layout and pagination rules
   await page.getByTestId("band-tab-0").first().click();
   await expect(page.getByTestId("band-name")).toBeVisible();
   await page.getByTestId("band-name").fill("Line items");
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByRole("button", { name: "Fixed", exact: true }).click();
   await page.getByTestId("band-height").fill("72");
   await page.getByTestId("band-layout-grid").click();
   await page.getByTestId("band-columns").fill("2");
-  await page.getByTestId("properties").getByRole("button", { name: /Pagination/ }).click();
+  await page.getByTestId("band-tab-rules").click();
+  await page.getByTestId("properties").getByRole("button", { name: "Pagination" }).click();
   await page.getByTestId("band-allowSplit").selectOption("false");
   await page.getByTestId("band-newPageBefore").check();
   expect((await doc(page)).sections[0]).toMatchObject({ name: "Line items", height: 72, layout: "grid", columns: 2, allowSplit: false, newPageBefore: true });
-  await page.getByTestId("properties").getByRole("button", { name: /Visibility/ }).click();
+  await page.getByTestId("band-tab-rules").click();
   await page.getByTestId("band-visibleWhen-toggle").check();
   await page.getByTestId("band-condition-code").click();
   await page.getByTestId("band-visibleWhen").fill("row.quantity > 0");
@@ -662,7 +664,7 @@ test("band layout controls reflow children with gap and padding", async ({ page 
   }
   expect((await doc(page)).sections[0].children).toHaveLength(2);
   await page.getByTestId("band-tab-0").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-layout-row").click();
   await page.getByTestId("band-gap").fill("12");
   await page.getByTestId("band-padding-top").fill("8");
@@ -707,7 +709,7 @@ test("row layout lets text hug its content and distributes fixed children", asyn
   await page.getByTestId("value-text").fill("Patient:");
 
   await page.getByTestId("band-tab-0").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-layout-row").click();
   await page.getByTestId("band-gap").fill("12");
   await page.getByTestId("band-justifyContent").selectOption("space-between");
@@ -717,8 +719,7 @@ test("row layout lets text hug its content and distributes fixed children", asyn
 
   await page.getByTestId(`layer-${labelId}`).click();
   const openLayout = async () => {
-    const title = page.getByTestId("properties").getByRole("button", { name: "Layout", exact: true });
-    if (await title.getAttribute("aria-expanded") === "false") await title.click();
+    await page.getByTestId("element-tab-layout").click();
   };
   await openLayout();
   await page.getByTestId("row-width-mode").selectOption("hug");
@@ -744,7 +745,7 @@ test("row layout lets text hug its content and distributes fixed children", asyn
   const secondBox = await page.locator(`.page .cn-text[data-cid="${valueId}"]`).first().boundingBox();
   expect(firstBox && secondBox && secondBox.x - firstBox.x - firstBox.width).toBeGreaterThan(100);
   await page.getByTestId("band-tab-0").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
   fs.mkdirSync(screenshotDir, { recursive: true });
   await page.screenshot({ path: path.join(screenshotDir, "60-band-row-hug-and-distribute.png") });
@@ -758,7 +759,7 @@ test("row overflow names the item, opens it from Problems, and clears after resi
   }
   const [firstId, secondId] = (await doc(page)).sections[0].children.map((child: any) => child.id);
   await page.getByTestId("band-tab-0").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-layout-row").click();
   await page.getByTestId("band-gap").fill("12");
   for (const id of [firstId, secondId]) {
@@ -789,7 +790,7 @@ test("row wrap and child shrink are editable and reflected on the canvas", async
   }
   const [firstId, secondId] = (await doc(page)).sections[0].children.map((child: any) => child.id);
   await page.getByTestId("band-tab-0").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-layout-row").click();
   await page.getByTestId("band-gap").fill("12");
   for (const id of [firstId, secondId]) {
@@ -799,7 +800,7 @@ test("row wrap and child shrink are editable and reflected on the canvas", async
   }
   await expect(page.getByTestId("problem-counts")).toContainText("1 error");
   await page.getByTestId("band-tab-0").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-wrap").check();
   await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
   await expect.poll(() => page.evaluate(() => {
@@ -814,8 +815,7 @@ test("row wrap and child shrink are editable and reflected on the canvas", async
   for (const id of [firstId, secondId]) {
     await page.getByTestId("left-tab-layers").click();
     await page.getByTestId(`layer-${id}`).click();
-    const layout = page.getByTestId("properties").getByRole("button", { name: "Layout", exact: true });
-    if (await layout.getAttribute("aria-expanded") === "false") await layout.click();
+    await page.getByTestId("element-tab-layout").click();
     await page.getByLabel("Shrink", { exact: true }).fill("1");
   }
   await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
@@ -841,7 +841,7 @@ test("tall side-by-side text continues on real pages with an explained row break
     await page.getByTestId("quick-geometry").getByLabel("Width").fill("240");
   }
   await page.getByTestId("band-tab-0").first().click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-layout-row").click();
   await page.getByTestId("band-gap").fill("12");
   await expect.poll(() => page.evaluate(() => {
@@ -895,10 +895,11 @@ test("group band exposes the owning group's print rules", async ({ page }) => {
   await page.getByTestId("group-by").press("Tab");
   await page.getByTestId("group-sort").selectOption("desc");
   await page.getByTestId("group-repeatHeader").check();
-  await page.getByTestId("properties").getByRole("button", { name: /Pagination/ }).click();
-  await page.getByTestId("band-repeatEveryPage").uncheck();
   await page.getByTestId("group-newPage").selectOption("before");
   await page.getByTestId("group-minDetailRows").fill("2");
+  await page.getByTestId("band-tab-rules").click();
+  await page.getByTestId("properties").getByRole("button", { name: "Pagination" }).click();
+  await page.getByTestId("band-repeatEveryPage").uncheck();
   expect((await doc(page)).groups[0]).toMatchObject({ by: "row.department", sort: "desc", repeatHeader: true, newPage: "before", minDetailRows: 2 });
   expect((await doc(page)).sections[0].repeatEveryPage).toBe(false);
 });
@@ -951,19 +952,20 @@ test("band visibility changes output while layout lock protects structure", asyn
   await expect(row.getByRole("button", { name: /Remove .* band/ })).toBeDisabled();
 
   await row.click();
-  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
-  await expect(page.getByTestId("band-height")).toBeDisabled();
+  await page.getByTestId("band-tab-layout").click();
+  await expect(page.getByTestId("band-minHeight")).toBeDisabled();
   await page.getByRole("button", { name: "Band actions" }).click();
   await expect(page.getByTestId("delete-band")).toBeDisabled();
   await page.getByRole("button", { name: "Band actions" }).click();
-  await page.getByTestId("properties").getByRole("button", { name: /Visibility/ }).click();
+  await page.getByTestId("band-tab-rules").click();
   await page.getByTestId("band-hidden").uncheck();
   await expect(row).not.toHaveClass(/is-hidden/);
   expect((await doc(page)).sections[0].hidden).toBeUndefined();
 
   await page.getByRole("button", { name: "Band actions" }).click();
   await page.getByTestId("band-lock").click();
-  await expect(page.getByTestId("band-height")).toBeEnabled();
+  await page.getByTestId("band-tab-layout").click();
+  await expect(page.getByTestId("band-minHeight")).toBeEnabled();
   await expect(page.getByTestId("band-edge-0")).toHaveCount(1);
   expect((await doc(page)).sections[0].locked).toBeUndefined();
 });

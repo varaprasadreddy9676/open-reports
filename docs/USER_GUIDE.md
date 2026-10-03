@@ -24,6 +24,8 @@ A blank report opens **Components** so you can start adding content. A report wi
 
 With nothing selected, the right inspector offers **Page** (size, margins, headers, footers, watermark), **Print** (printer and media settings), and **Details** (report identity and locale). Page opens first for documents; Print opens first for reports with a receipt, label, card, or wristband printer profile. Selecting a band or element replaces these with its own controls. You can switch inspector tabs with the arrow keys.
 
+For a text element, **Content** changes the text, field binding, or formula; **Style** changes typography and appearance; **Layout** arranges and sizes it; **Rules** holds conditions, pagination, and advanced output choices. The width and height controls stay visible above those tabs. A selected band has **General**, **Layout**, and **Rules** views. A table keeps its dataset and **Edit table** action in Content; detailed column and cell work happens in Table Designer.
+
 On a laptop, the properties panel starts closed and opens over the canvas when requested. Below 980 px the left workspace panel also starts closed; use the side arrows to open it and the close button in its header to return to the canvas. The canvas **Fit** control scales a full page into the available width.
 
 Shortcuts: `Ctrl+K` command palette · `Ctrl+S` save · `Ctrl+Z/Y` undo/redo · `Ctrl+C/V/D` copy/paste/duplicate · `Ctrl+G` group · `Ctrl+Shift+G` ungroup · `Ctrl+L` lock · `Ctrl+Shift+H` hide · `F2` rename · arrows nudge (Shift = ×10).

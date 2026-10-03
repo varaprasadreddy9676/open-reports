@@ -478,17 +478,12 @@ function Advanced({ comp }: { comp: ops.Comp }) {
 function TextProps({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
   return (
-    <>
-      <Section title="Content">
-        <ValueEditor comp={comp} />
-        <Field label="Format as" wide>
-          <FormatPicker comp={comp} patchTarget={(p) => patch(comp.id, p)} />
-        </Field>
-      </Section>
-      <Section title="Typography">
-        <Typography comp={comp} />
-      </Section>
-    </>
+    <Section title="Content">
+      <ValueEditor comp={comp} />
+      <Field label="Format as" wide>
+        <FormatPicker comp={comp} patchTarget={(p) => patch(comp.id, p)} />
+      </Field>
+    </Section>
   );
 }
 
@@ -865,7 +860,7 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
     : absolute ? "Free position" : parentLayout === "row" ? ({ hug: "Hug text", fill: "Fill width", fixed: "Fixed width" } as Record<string, string>)[widthMode] : "Flow";
   return (
     <>
-      <Section title="Layout" open={isContainer} summary={summary}>
+      <Section title="Layout" summary={summary}>
         {isContainer && (
           <Field label="Arrange children">
             <select aria-label="Layout" value={layout} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
@@ -1323,12 +1318,29 @@ function MultiProps({ ids }: { ids: string[] }) {
   );
 }
 
+const CONTENT_TYPES = new Set(["text", "richText", "field", "table", "chart", "labelSheet", "qrcode", "barcode", "image", "group", "pageBreak", "line"]);
+
 function ComponentProps({ id }: { id: string }) {
   const { doc } = useStore();
   const loc = ops.find(doc, id);
+  const type = loc?.comp.type;
+  const [tab, setTab] = useState<"content" | "style" | "layout" | "rules">(
+    type === "rectangle" ? "style" : type && !CONTENT_TYPES.has(type) ? "layout" : "content"
+  );
   if (!loc) return <PageProps />;
   const comp = loc.comp;
   const t = comp.type;
+  const hasContent = CONTENT_TYPES.has(t);
+  const textLike = ["text", "richText", "field"].includes(t);
+  const hasStyle = textLike || ["rectangle", "container", "row", "column", "grid"].includes(t);
+  const hasLayout = !["pageBreak", "line", "labelSheet"].includes(t);
+  const hasRules = t !== "pageBreak";
+  const tabs = [
+    ...(hasContent ? [{ id: "content", label: "Content" }] : []),
+    ...(hasStyle ? [{ id: "style", label: "Style" }] : []),
+    ...(hasLayout ? [{ id: "layout", label: "Layout" }] : []),
+    ...(hasRules ? [{ id: "rules", label: "Rules" }] : []),
+  ] as { id: typeof tab; label: string }[];
   return (
     <>
       <div className="prop-head">
@@ -1342,35 +1354,40 @@ function ComponentProps({ id }: { id: string }) {
         </InspectorActions>
       </div>
       {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <QuickGeometry comp={comp} />}
-      {(t === "text" || t === "richText" || t === "field") && <TextProps comp={comp} />}
-      {t === "table" && <TableProps comp={comp} />}
-      {t === "chart" && <ChartProps comp={comp} />}
-      {t === "labelSheet" && <LabelSheetProps comp={comp} />}
-      {(t === "qrcode" || t === "barcode") && <CodeProps comp={comp} />}
-      {t === "image" && <ImageProps comp={comp} />}
-      {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <LayoutProps comp={comp} />}
-      {(["text", "richText", "field", "rectangle", "container", "row", "column", "grid"].includes(t)) && (
-        <Section title="Style" open={t === "rectangle"} summary={comp.style?.color || comp.style?.background || comp.style?.border ? "Customized" : "Default"}>
+      <InspectorTabs label="Element properties" tabs={tabs} active={tab} onChange={setTab} testIdPrefix="element-tab">
+      {tab === "content" && textLike && <TextProps comp={comp} />}
+      {tab === "content" && t === "table" && <TableProps comp={comp} />}
+      {tab === "content" && t === "chart" && <ChartProps comp={comp} />}
+      {tab === "content" && t === "labelSheet" && <LabelSheetProps comp={comp} />}
+      {tab === "content" && (t === "qrcode" || t === "barcode") && <CodeProps comp={comp} />}
+      {tab === "content" && t === "image" && <ImageProps comp={comp} />}
+      {tab === "content" && t === "pageBreak" && <p className="inspector-empty">Content after this element starts on a new page.</p>}
+      {tab === "content" && t === "line" && <p className="inspector-empty">Drag the line on the canvas to place it.</p>}
+      {tab === "layout" && hasLayout && <LayoutProps comp={comp} />}
+      {tab === "style" && textLike && <Section title="Typography"><Typography comp={comp} /></Section>}
+      {tab === "style" && hasStyle && (
+        <Section title="Appearance" summary={comp.style?.color || comp.style?.background || comp.style?.border ? "Customized" : "Default"}>
           <Appearance comp={comp} />
         </Section>
       )}
-      {t === "group" && (
+      {tab === "content" && t === "group" && (
         <Section title="Grouping">
           <Field label="Group by (expression)">
             <FormulaInput value={comp.groupBy ?? ""} candidates={candidatesFor(doc, useStore.getState().sample, comp.id, comp.dataset)} onChange={(v) => useStore.getState().patch(comp.id, { groupBy: v })} />
           </Field>
         </Section>
       )}
-      {t !== "pageBreak" && (
-        <Section title="Conditions" open={!!comp.visibleWhen || !!comp.styleWhen?.length} summary={comp.visibleWhen || comp.styleWhen?.length ? "Active" : "None"}>
+      {tab === "rules" && hasRules && (
+        <Section title="Conditions" summary={comp.visibleWhen || comp.styleWhen?.length ? "Active" : "None"}>
           <div className="inspector-subtitle">Visibility</div>
           <ConditionBuilder comp={comp} />
           {t !== "table" && <><div className="inspector-subtitle">Appearance</div><StyleRulesEditor comp={comp} property="styleWhen" testId="component-style-rules" /></>}
           {t === "table" && <p className="field-hint">Edit row appearance rules in Table Designer.</p>}
         </Section>
       )}
-      {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <PaginationProps comp={comp} />}
-      {t !== "pageBreak" && <Advanced comp={comp} />}
+      {tab === "rules" && t !== "line" && t !== "labelSheet" && <PaginationProps comp={comp} />}
+      {tab === "rules" && <Advanced comp={comp} />}
+      </InspectorTabs>
     </>
   );
 }
