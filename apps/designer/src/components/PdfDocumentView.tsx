@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Util, type PDFDocumentProxy, type PDFPageProxy, type RenderTask } from "pdfjs-dist";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { renderTextLayer, type PDFDocumentProxy, type PDFPageProxy, type RenderTask, type TextLayerRenderTask } from "pdfjs-dist";
+import { findPageTextMatch } from "../lib/pdf-text-search";
 
 type Zoom = "page" | "width" | number;
 type Match = { page: number; excerpt: string };
@@ -45,29 +46,50 @@ function PdfCanvas({ page, scale, thumbnail = false }: { page: PDFPageProxy; sca
   return <canvas ref={canvas} className={ready ? "pdf-rendered" : ""} aria-label={thumbnail ? "Page thumbnail" : `Rendered page ${page.pageNumber}`} />;
 }
 
-function PdfHighlights({ page, scale, term }: { page: PDFPageProxy; scale: number; term: string }) {
+function PdfTextLayer({ page, scale, term }: { page: PDFPageProxy; scale: number; term: string }) {
+  const layer = useRef<HTMLDivElement>(null);
+  const [text, setText] = useState<{ divs: HTMLElement[]; items: string[] }>();
   const [rectangles, setRectangles] = useState<{ left: number; top: number; width: number; height: number }[]>([]);
   useEffect(() => {
     let active = true;
-    const viewport = page.getViewport({ scale });
-    void page.getTextContent().then((content) => {
+    let task: TextLayerRenderTask | undefined;
+    const container = layer.current;
+    if (!container) return;
+    container.replaceChildren();
+    setText(undefined);
+    setRectangles([]);
+    void page.getTextContent().then(async (content) => {
       if (!active) return;
-      const needle = term.toLocaleLowerCase();
-      const found = content.items.flatMap((item) => {
-        if (!("str" in item) || !item.str.toLocaleLowerCase().includes(needle)) return [];
-        const matrix = Util.transform(viewport.transform, item.transform);
-        const fontHeight = Math.hypot(matrix[2], matrix[3]);
-        const style = content.styles[item.fontName];
-        const ascent = style?.ascent ?? (style?.descent ? 1 + style.descent : 1);
-        return [{ left: matrix[4], top: matrix[5] - fontHeight * ascent, width: item.width * scale, height: fontHeight }];
-      });
-      setRectangles(found);
-    }).catch(() => { if (active) setRectangles([]); });
-    return () => { active = false; };
-  }, [page, scale, term]);
-  return <div className="pdf-highlights" aria-hidden="true">
-    {rectangles.map((rectangle, index) => <span key={index} data-testid="pdf-search-highlight" style={rectangle} />)}
-  </div>;
+      const divs: HTMLElement[] = [];
+      const items: string[] = [];
+      task = renderTextLayer({ textContentSource: content, container, viewport: page.getViewport({ scale }), textDivs: divs, textContentItemsStr: items });
+      await task.promise;
+      if (active) setText({ divs, items });
+    }).catch(() => { if (active) setText(undefined); });
+    return () => { active = false; task?.cancel(); container.replaceChildren(); };
+  }, [page, scale]);
+  useEffect(() => {
+    const container = layer.current;
+    if (!container || !text || !term.trim()) { setRectangles([]); return; }
+    const match = findPageTextMatch(text.items, term);
+    if (!match) { setRectangles([]); return; }
+    const origin = container.getBoundingClientRect();
+    const found = match.segments.flatMap(({ item, start, end }) => {
+      const node = text.divs[item]?.firstChild;
+      if (!node || node.nodeType !== Node.TEXT_NODE) return [];
+      const range = document.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, end);
+      return [...range.getClientRects()].map((rect) => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
+    });
+    setRectangles(found);
+  }, [text, term]);
+  return <>
+    <div ref={layer} className="pdf-text-layer" data-testid="pdf-text-layer" style={{ "--scale-factor": scale } as CSSProperties} />
+    {rectangles.length > 0 && <div className="pdf-highlights" aria-hidden="true">
+      {rectangles.map((rectangle, index) => <span key={index} data-testid="pdf-search-highlight" style={rectangle} />)}
+    </div>}
+  </>;
 }
 
 function Thumbnail({ pdf, number, selected, select }: { pdf: PDFDocumentProxy; number: number; selected: boolean; select: (number: number) => void }) {
@@ -96,7 +118,7 @@ export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
   const [searchError, setSearchError] = useState("");
   const [searchProgress, setSearchProgress] = useState(0);
   const searchRun = useRef(0);
-  const textCache = useRef(new Map<number, string>());
+  const textCache = useRef(new Map<number, string[]>());
   const stage = useRef<HTMLDivElement>(null);
   const thumbRail = useRef<HTMLDivElement>(null);
   const stageSize = useElementSize(stage);
@@ -158,15 +180,15 @@ export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
     const needle = term.trim().toLocaleLowerCase();
     try {
       for (let i = 1; i <= pdf.numPages; i++) {
-        let text = textCache.current.get(i);
-        if (text === undefined) {
+        let items = textCache.current.get(i);
+        if (items === undefined) {
           const content = await (await pdf.getPage(i)).getTextContent();
-          text = content.items.map((item) => "str" in item ? item.str : "").join(" ").replace(/\s+/g, " ");
-          textCache.current.set(i, text);
+          items = content.items.flatMap((item) => "str" in item ? [item.str] : []);
+          textCache.current.set(i, items);
         }
         if (run !== searchRun.current) return;
-        const at = text.toLocaleLowerCase().indexOf(needle);
-        if (at >= 0) found.push({ page: i, excerpt: text.slice(Math.max(0, at - 36), Math.min(text.length, at + term.length + 36)) });
+        const match = findPageTextMatch(items, needle);
+        if (match) found.push({ page: i, excerpt: match.excerpt });
         if (i % 5 === 0 || i === pdf.numPages) setSearchProgress(i);
       }
       if (run !== searchRun.current) return;
@@ -211,7 +233,7 @@ export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
         </div>
       </aside>}
       <div className="pdf-page-stage" ref={stage} data-testid="pdf-frame" aria-label={`PDF page ${number} of ${pdf.numPages}`}>
-        {page ? <div className="pdf-page-paper" style={{ width: viewport!.width * scale, height: viewport!.height * scale }}><PdfCanvas key={`${number}-${scale}`} page={page} scale={scale} />{matches[matchIndex]?.page === number && query.trim() && <PdfHighlights page={page} scale={scale} term={query.trim()} />}</div> : <div className="muted pad" role="status">Loading page {number}…</div>}
+        {page ? <div className="pdf-page-paper" style={{ width: viewport!.width * scale, height: viewport!.height * scale }}><PdfCanvas key={`${number}-${scale}`} page={page} scale={scale} /><PdfTextLayer page={page} scale={scale} term={matches[matchIndex]?.page === number ? query.trim() : ""} /></div> : <div className="muted pad" role="status">Loading page {number}…</div>}
       </div>
     </div>
   </div>;

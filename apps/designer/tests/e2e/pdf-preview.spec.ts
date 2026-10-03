@@ -13,7 +13,10 @@ test("PDF preview navigates, searches, zooms, and renders only nearby thumbnails
       id: "preview-navigation",
       sections: Array.from({ length: 30 }, (_, index) => ({
         type: "detail", name: `Page ${index + 1}`, newPageBefore: index > 0,
-        children: [{ type: "text", id: `marker-${index + 1}`, value: `PREVIEW MARKER${index + 1}`, width: 240 }],
+        children: index === 26 ? [
+          { type: "text", id: "marker-prefix", value: "PREVIEW", width: 240 },
+          { type: "text", id: "marker-27", value: "MARKER27", width: 240 },
+        ] : [{ type: "text", id: `marker-${index + 1}`, value: `PREVIEW MARKER${index + 1}`, width: 240 }],
       })),
     });
   });
@@ -32,13 +35,28 @@ test("PDF preview navigates, searches, zooms, and renders only nearby thumbnails
   await page.getByTestId("pdf-zoom").selectOption("100");
   await expect(page.locator(".pdf-zoom-readout")).toHaveText("100%");
   await page.getByTestId("pdf-zoom").selectOption("width");
-  await page.getByRole("searchbox", { name: "Search PDF text" }).fill("MARKER27");
+  await page.getByRole("searchbox", { name: "Search PDF text" }).fill("PREVIEW MARKER27");
   await page.getByRole("button", { name: "Find", exact: true }).click();
   await expect(page.getByTestId("pdf-match-excerpt")).toContainText("MARKER27");
   await expect(page.getByTestId("pdf-page-number")).toHaveValue("27");
-  await expect(page.getByTestId("pdf-search-highlight")).toBeVisible();
+  await expect(page.getByTestId("pdf-search-highlight")).toHaveCount(2);
+  const selectedText = await page.getByTestId("pdf-text-layer").evaluate((layer) => {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(layer);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    return selection?.toString() ?? "";
+  });
+  expect(selectedText).toContain("PREVIEW");
+  expect(selectedText).toContain("MARKER27");
   expect(await page.locator(".pdf-thumb").count()).toBeLessThan(20);
   await page.getByTestId("pdf-zoom").selectOption("page");
+  await expect(page.getByTestId("pdf-search-highlight")).toHaveCount(2);
+  const paperBox = (await page.locator(".pdf-page-paper").boundingBox())!;
+  const textBox = (await page.getByTestId("pdf-text-layer").boundingBox())!;
+  expect(Math.abs(paperBox.width - textBox.width)).toBeLessThan(1);
+  expect(Math.abs(paperBox.height - textBox.height)).toBeLessThan(1);
 
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
   fs.mkdirSync(screenshots, { recursive: true });
