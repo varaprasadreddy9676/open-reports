@@ -109,6 +109,8 @@ function Thumbnail({ pdf, number, selected, select }: { pdf: PDFDocumentProxy; n
 export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
   const [number, setNumber] = useState(1);
   const [page, setPage] = useState<PDFPageProxy>();
+  const [pageError, setPageError] = useState("");
+  const [pageAttempt, setPageAttempt] = useState(0);
   const [zoom, setZoom] = useState<Zoom>("page");
   const [showThumbnails, setShowThumbnails] = useState(true);
   const [query, setQuery] = useState("");
@@ -141,9 +143,12 @@ export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
   useEffect(() => {
     let active = true;
     setPage(undefined);
-    void pdf.getPage(number).then((loaded) => { if (active) setPage(loaded); }).catch(() => {});
+    setPageError("");
+    void pdf.getPage(number).then((loaded) => { if (active) setPage(loaded); }).catch((reason: Error) => {
+      if (active) setPageError(reason.message || `Page ${number} could not be loaded.`);
+    });
     return () => { active = false; };
-  }, [pdf, number]);
+  }, [pdf, number, pageAttempt]);
 
   const viewport = page?.getViewport({ scale: 1 });
   const scale = useMemo(() => {
@@ -233,7 +238,7 @@ export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
         </div>
       </aside>}
       <div className="pdf-page-stage" ref={stage} data-testid="pdf-frame" aria-label={`PDF page ${number} of ${pdf.numPages}`}>
-        {page ? <div className="pdf-page-paper" style={{ width: viewport!.width * scale, height: viewport!.height * scale }}><PdfCanvas key={`${number}-${scale}`} page={page} scale={scale} /><PdfTextLayer page={page} scale={scale} term={matches[matchIndex]?.page === number ? query.trim() : ""} /></div> : <div className="muted pad" role="status">Loading page {number}…</div>}
+        {page ? <div className="pdf-page-paper" style={{ width: viewport!.width * scale, height: viewport!.height * scale }}><PdfCanvas key={`${number}-${scale}`} page={page} scale={scale} /><PdfTextLayer page={page} scale={scale} term={matches[matchIndex]?.page === number ? query.trim() : ""} /></div> : pageError ? <div className="pad" role="alert">Could not load page {number}: {pageError} <button className="btn" type="button" onClick={() => setPageAttempt((attempt) => attempt + 1)}>Retry page</button></div> : <div className="muted pad" role="status">Loading page {number}…</div>}
       </div>
     </div>
   </div>;

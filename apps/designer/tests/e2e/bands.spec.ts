@@ -1052,7 +1052,7 @@ test("structure view locates real page starts and opens their pagination reasons
   await expect(page.getByTestId("structure-preview-pane")).toBeVisible();
   await expect(page.getByTestId("structure-pdf-frame")).toHaveAttribute("src", /^blob:/);
   expect(await page.getByTestId("structure-pdf-frame").evaluate(async (frame) => (await (await fetch((frame as HTMLIFrameElement).src)).blob()).slice(0, 5).text())).toBe("%PDF-");
-  await expect(page.getByTestId("structure-pdf-info")).toContainText("page");
+  await expect(page.getByTestId("structure-pdf-info")).toContainText(`${await page.getByTestId("structure-page-thumb").count()} pages`);
   await page.getByTestId("structure-page-thumb").nth(1).click();
   await expect(page.getByTestId("view-pages")).toHaveClass(/on/);
   await expect(page.getByTestId("page-2")).toBeVisible();

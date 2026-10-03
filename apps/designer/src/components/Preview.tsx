@@ -62,17 +62,19 @@ export function PdfPreview({ compact = false }: { compact?: boolean }) {
         const rendered = await api.render(withSampleData(doc, sample), "pdf", parameters);
         if (cancelled) return;
         const renderedBlob = rendered.blob;
-        let pages: number;
+        const bytes = await renderedBlob.arrayBuffer();
+        if (cancelled) return;
+        const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+        if (cancelled) return;
+        GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        loadingTask = getDocument({ data: new Uint8Array(bytes) });
+        const loadedPdf = await loadingTask.promise;
+        if (cancelled) return;
+        const pages = loadedPdf.numPages;
         if (compact) {
-          const text = await renderedBlob.text();
-          pages = (text.match(/\/Type \/Page(?![s\w])/g) ?? []).length;
-        } else {
-          const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
-          GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-          loadingTask = getDocument({ data: new Uint8Array(await renderedBlob.arrayBuffer()) });
-          currentPdf = await loadingTask.promise;
-          pages = currentPdf.numPages;
-        }
+          await loadingTask.destroy();
+          loadingTask = undefined;
+        } else currentPdf = loadedPdf;
         if (cancelled) return;
         currentUrl = URL.createObjectURL(renderedBlob);
         setUrl(currentUrl);
