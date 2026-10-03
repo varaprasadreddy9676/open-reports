@@ -79,6 +79,40 @@ describe("table minimum rows before a break", () => {
   });
 });
 
+describe("table totals at a page break", () => {
+  const footerTable = (overrides: Partial<ResolvedTableComponent> = {}) => makeTable(4, {
+    id: "totals-table", showFooter: true, ...overrides,
+  });
+
+  it("keeps the last data row with totals by default and explains the move", () => {
+    const result = paginate(reportWithContentHeight(100, [{ type: "detail", children: [footerTable()] }]));
+    expect(result.pages).toHaveLength(2);
+    expect(result.pages[0]!.content[0]!.rowRange).toEqual({ start: 0, end: 3 });
+    expect((result.pages[0]!.content[0]!.component as ResolvedTableComponent).showFooter).toBe(false);
+    expect(result.pages[1]!.content[0]!.rowRange).toEqual({ start: 3, end: 4 });
+    expect((result.pages[1]!.content[0]!.component as ResolvedTableComponent).showFooter).toBe(true);
+    expect(result.decisions).toContainEqual(expect.objectContaining({
+      kind: "keep-together", page: 2, rowIndex: 3,
+      actions: [expect.objectContaining({ patch: { keepFooterTogether: false } })],
+    }));
+  });
+
+  it("allows totals on a page without data rows when explicitly configured", () => {
+    const result = paginate(reportWithContentHeight(100, [{ type: "detail", children: [footerTable({ keepFooterTogether: false })] }]));
+    expect(result.pages[0]!.content[0]!.rowRange).toEqual({ start: 0, end: 4 });
+    expect((result.pages[0]!.content[0]!.component as ResolvedTableComponent).showFooter).toBe(false);
+    expect(result.pages[1]!.content[0]!.rowRange).toEqual({ start: 4, end: 4 });
+    expect((result.pages[1]!.content[0]!.component as ResolvedTableComponent).showFooter).toBe(true);
+  });
+
+  it("moves more rows with totals when the final-page minimum is feasible", () => {
+    const result = paginate(reportWithContentHeight(100, [{ type: "detail", children: [footerTable({ minRowsAfterBreak: 3 })] }]));
+    expect(result.pages[0]!.content[0]!.rowRange).toEqual({ start: 0, end: 1 });
+    expect(result.pages[1]!.content[0]!.rowRange).toEqual({ start: 1, end: 4 });
+    expect((result.pages[1]!.content[0]!.component as ResolvedTableComponent).showFooter).toBe(true);
+  });
+});
+
 function reportWithContentHeight(height: number, sections: ResolvedReport["sections"]): ResolvedReport {
   const r = reportWith(sections);
   r.page = { ...r.page, height, orientation: 300 > height ? "landscape" : "portrait" } as any;

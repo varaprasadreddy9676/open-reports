@@ -226,6 +226,42 @@ test.describe("workspace", () => {
     await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.pages[0]?.content.find((node: any) => node.component.id === "items-table")?.rowRange?.end)).toBe(1);
   });
 
+  test("Table Designer keeps totals with a row and can allow totals alone", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.evaluate(() => {
+      const state = (window as any).__designer.getState();
+      state.setDoc({ ...state.doc,
+        page: { size: "custom", width: 300, height: 90, unit: "pt", orientation: "landscape", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+        datasets: [{ id: "items", source: "inline", query: { data: Array.from({ length: 4 }, (_, index) => ({ name: `Item ${index + 1}` })) } }],
+        sections: [{ type: "detail", children: [{ type: "table", id: "totals-table", dataset: "items", showFooter: true, columns: [{ id: "name", header: "Name", binding: "row.name", footer: { expression: '"TOTAL"' } }] }] }],
+      });
+      state.select(["totals-table"]);
+    });
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.pages[1]?.content[0]?.rowRange?.start)).toBe(3);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "57-table-totals-with-row.png") });
+    await page.getByTestId("toggle-pagination").click();
+    await page.getByTestId("pagination-decision").first().click();
+    await expect(page.getByTestId("page-break-details").getByRole("button", { name: "Allow totals on their own page" })).toBeVisible();
+    await page.getByTestId("toggle-pagination").click();
+    await page.getByTestId("open-table-designer").click();
+    await page.getByTestId("table-tab-totals").click();
+    const keep = page.getByLabel("Keep totals with a data row");
+    await expect(keep).toBeChecked();
+    await page.screenshot({ path: path.join(screenshots, "58-table-totals-designer.png") });
+    await keep.uncheck();
+    await page.getByTestId("table-designer-done").click();
+    expect((await doc(page)).sections[0].children[0].keepFooterTogether).toBe(false);
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.pages[0]?.content[0]?.rowRange?.end)).toBe(4);
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.pages[1]?.content[0]?.rowRange?.start)).toBe(4);
+    await page.getByTestId("toggle-pagination").click();
+    await page.getByTestId("pagination-decision").first().click();
+    await expect(page.getByTestId("page-break-details")).toContainText("on its own as allowed");
+    await page.screenshot({ path: path.join(screenshots, "59-table-totals-alone.png") });
+  });
+
   test("view menu toggles overlays and the target selector changes renderer warnings", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();

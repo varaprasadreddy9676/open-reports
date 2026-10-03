@@ -129,6 +129,23 @@ describe("pagination boundaries (real PDF output)", () => {
     expect(pages.flatMap((page) => [...page.matchAll(/WORD\d{3}/g)].map((match) => match[0]))).toEqual(words);
   });
 
+  it("keeps the totals row with a data row in the generated PDF", async () => {
+    const pages = await render({
+      schemaVersion: "1.0", id: "totals-boundary", name: "Totals boundary",
+      page: { size: "custom", unit: "pt", width: 300, height: 90, orientation: "landscape", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      datasets: [{ id: "d", source: "inline", query: { data: Array.from({ length: 4 }, (_, index) => ({ code: `ROW${String(index + 1).padStart(5, "0")}` })) } }],
+      sections: [{ type: "detail", children: [{
+        type: "table", id: "totals-table", dataset: "d", showFooter: true,
+        columns: [{ id: "code", header: "Code", binding: "row.code", footer: { expression: '"TOTALMARK"' } }],
+      }] }],
+    });
+    expect(pages).toHaveLength(2);
+    expect(rowsOn(pages[0]!)).toEqual(["ROW00001", "ROW00002", "ROW00003"]);
+    expect(rowsOn(pages[1]!)).toEqual(["ROW00004"]);
+    expect(pages[0]).not.toContain("TOTALMARK");
+    expect(pages[1]).toContain("TOTALMARK");
+  });
+
   it("N-1, N and N+1 rows around the page capacity keep every row once, in order, with header/footer on each page", async () => {
     const cap = await capacity();
     expect(cap).toBeGreaterThan(20);

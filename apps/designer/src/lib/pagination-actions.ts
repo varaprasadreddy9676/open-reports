@@ -15,6 +15,7 @@ export function canApplyPaginationAction(doc: ops.Doc, decision: PaginationDecis
       const group = (doc.groups ?? []).find((entry: { id: string }) => entry.id === source.groupId);
       return source.repeatEveryPage !== false && (source.repeatEveryPage === true || group?.repeatHeader === true);
     }
+    if (key === "keepFooterTogether" && source.type === "table" && value === false) return source.keepFooterTogether !== false;
     // Derived group rules cannot be disabled by writing a flag on the band.
     if (value === false && source[key] !== true) return false;
     return source[key] !== value;

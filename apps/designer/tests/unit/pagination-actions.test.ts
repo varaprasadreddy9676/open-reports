@@ -35,4 +35,15 @@ describe("pagination suggestions", () => {
     const action = { label: "Remove page break", target: "component" as const, patch: { pageBreakAfter: false } };
     expect(applyPaginationAction(doc(), decision, action)!.sections[1].children[0].pageBreakAfter).toBe(false);
   });
+
+  it("can release the table totals rule when its true default is implicit", () => {
+    const report = doc();
+    report.sections[1]!.children.push({ id: "totals", type: "table", dataset: "items", columns: [] } as any);
+    const decision: PaginationDecision = { kind: "keep-together", page: 2, componentId: "totals", message: "Totals moved" };
+    const action = { label: "Allow totals on their own page", target: "component" as const, patch: { keepFooterTogether: false } };
+    expect(canApplyPaginationAction(report, decision, action)).toBe(true);
+    const after = applyPaginationAction(report, decision, action)!;
+    expect((after.sections[1].children[1] as any).keepFooterTogether).toBe(false);
+    expect(canApplyPaginationAction(after, decision, action)).toBe(false);
+  });
 });

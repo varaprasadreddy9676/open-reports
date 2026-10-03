@@ -76,6 +76,21 @@ describe("HtmlRenderer", () => {
     expect(html).toContain("$1,000.00"); // 2 * 500
   });
 
+  it("prints totals with the last data row on the next HTML page", async () => {
+    const html = String((await renderReport({
+      schemaVersion: "1.0", id: "totals-boundary", name: "Totals boundary",
+      page: { size: "custom", unit: "pt", width: 300, height: 90, orientation: "landscape", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      datasets: [{ id: "items", source: "inline", query: { data: Array.from({ length: 4 }, (_, index) => ({ code: `ROW${String(index + 1).padStart(5, "0")}` })) } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "items", showFooter: true, columns: [{ id: "code", header: "Code", binding: "row.code", footer: { expression: '"TOTALMARK"' } }] }] }],
+    })).content);
+    const pages = [...html.matchAll(/<section class="page"[^>]*>(.*?)<\/section>/gs)].map((match) => match[1]!);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]).toContain("ROW00003");
+    expect(pages[0]).not.toContain("ROW00004");
+    expect(pages[1]).toContain("ROW00004");
+    expect(pages[1]).toContain("TOTALMARK");
+  });
+
   it("embeds the QR code as a self-contained PNG data URL image", async () => {
     const html = (await renderReport(invoiceReport)).content as string;
     expect(html).toMatch(/<img src="data:image\/png;base64,[^"]+"/);

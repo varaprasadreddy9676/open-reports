@@ -425,6 +425,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     rows: resolvedRows,
     showHeader: component.showHeader ?? true,
     showFooter: component.showFooter ?? false,
+    keepFooterTogether: component.keepFooterTogether ?? true,
     repeatHeaderOnPageBreak: component.repeatHeaderOnPageBreak ?? true,
     keepRowTogether: component.keepRowTogether ?? true,
     minRowsBeforeBreak: component.minRowsBeforeBreak ?? 0,

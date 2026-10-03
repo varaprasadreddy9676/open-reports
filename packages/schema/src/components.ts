@@ -142,10 +142,8 @@ export const tableComponentSchema = componentBaseSchema.extend({
    * is accepted by the schema for forward compatibility but is not yet
    * implemented by the layout engine (a row is still kept atomic). */
   allowRowSplit: z.boolean().optional().default(false),
-  /** Never leave the footer row alone on a page with none of the table's own
-   * rows above it -- if the footer doesn't fit after the last data row, pull
-   * the minimum number of trailing rows needed (up to minRowsAfterBreak) onto
-   * the footer's page instead of stranding it. */
+  /** Keep at least one data row with totals when both fit on a fresh page.
+   * If minRowsAfterBreak is higher, move that many rows when they fit. */
   keepFooterTogether: z.boolean().optional().default(true),
   /** Keep at least this many table rows on the page before a break when they
    * fit on a fresh page. If too few fit after preceding content, move the

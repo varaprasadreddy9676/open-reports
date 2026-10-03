@@ -698,10 +698,41 @@ function placeTable(
 
   const footerFits = sliceHeight + footerHeight <= placer.remaining();
   if (!footerFits && table.showFooter) {
-    flushSlice(rowIndex, false);
-    placer.decide({ kind: "keep-together", componentId: tid, required: footerHeight, available: placer.remaining(), message: `The totals row of ${tid ? `"${tid}" ` : "the table "}needs ${pt(footerHeight)} but only ${pt(Math.max(0, placer.remaining()))} is left; it moves to the next page.` });
-    placer.newPage();
-    flushSlice(rowIndex, true);
+    const headerOnNext = (from: number) => table.showHeader && (from === sliceStart ? isFirstSlice || table.repeatHeaderOnPageBreak : table.repeatHeaderOnPageBreak) ? headerHeight : 0;
+    const heightWithFooter = (from: number) => headerOnNext(from) + footerHeight + rowHeights.slice(from, rowIndex).reduce((sum, height) => sum + height, 0);
+    let candidate: number | undefined;
+    if (table.keepFooterTogether !== false) {
+      const desiredRows = Math.min(rowIndex - sliceStart, Math.max(1, minAfter));
+      for (let count = desiredRows; count >= 1; count--) {
+        const start = safeBreakBefore(rowIndex - count);
+        if (start < sliceStart || (start === sliceStart && placer.isFresh())) continue;
+        if (heightWithFooter(start) <= placer.freshRoom()) { candidate = start; break; }
+      }
+    }
+    if (candidate !== undefined) {
+      const trailingRows = rowIndex - candidate;
+      const neededTogether = heightWithFooter(candidate);
+      if (candidate > sliceStart) flushSlice(candidate, false);
+      placer.decide({
+        kind: "keep-together", componentId: tid, rowIndex: candidate,
+        required: neededTogether, available: placer.remaining(),
+        message: `The totals row stays with ${trailingRows} table row${trailingRows === 1 ? "" : "s"} on the next page. Together they need ${pt(neededTogether)}, with ${pt(Math.max(0, placer.remaining()))} left here.`,
+        actions: [{ label: "Allow totals on their own page", target: "component", patch: { keepFooterTogether: false } }],
+      });
+      placer.newPage();
+      flushSlice(rowIndex, true);
+    } else {
+      const minimumTogether = rowIndex > sliceStart ? heightWithFooter(rowIndex - 1) : footerHeight;
+      flushSlice(rowIndex, false);
+      placer.decide({
+        kind: "keep-together", componentId: tid, required: footerHeight, available: placer.remaining(),
+        message: table.keepFooterTogether !== false
+          ? `The totals row moves to the next page alone: the last data row and totals need ${pt(minimumTogether)}, or no data row can move without leaving an empty page.`
+          : `The totals row needs ${pt(footerHeight)} but only ${pt(Math.max(0, placer.remaining()))} is left. It moves to the next page on its own as allowed.`,
+      });
+      placer.newPage();
+      flushSlice(rowIndex, true);
+    }
   } else {
     flushSlice(rowIndex, table.showFooter);
   }

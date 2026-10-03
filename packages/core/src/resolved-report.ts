@@ -198,6 +198,7 @@ export interface ResolvedTableComponent extends ResolvedComponentBase {
   rows: ResolvedTableRow[];
   showHeader: boolean;
   showFooter: boolean;
+  keepFooterTogether: boolean;
   repeatHeaderOnPageBreak: boolean;
   keepRowTogether: boolean;
   minRowsBeforeBreak: number;
