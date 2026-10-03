@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { renderTextLayer, type PDFDocumentProxy, type PDFPageProxy, type RenderTask, type TextLayerRenderTask } from "pdfjs-dist";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
+import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
+import "pdfjs-dist/web/pdf_viewer.css";
 import { findPageTextMatch } from "../lib/pdf-text-search";
-import { canvasTiles, type CanvasTile } from "../lib/pdf-canvas";
+import { loadPdfViewer } from "../lib/pdf-viewer";
 
 type Zoom = "page" | "width" | number;
-type Match = { page: number; excerpt: string };
+type FindStatus = { state: "idle" | "pending" | "found" | "not-found"; current: number; total: number };
 const THUMB_HEIGHT = 174;
-const ACTUAL_SCALE = 96 / 72;
+const FIND_STATE = { FOUND: 0, NOT_FOUND: 1, WRAPPED: 2, PENDING: 3 } as const;
+const IDLE_FIND: FindStatus = { state: "idle", current: 0, total: 0 };
+/** Present in the 5.x runtime but missing from its type declarations; it tears down the viewer's observers. */
+type ViewerOptions = ConstructorParameters<typeof PDFViewer>[0] & { abortSignal: AbortSignal };
 
 function useElementSize(ref: RefObject<HTMLElement>, enabled = true) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -22,176 +27,164 @@ function useElementSize(ref: RefObject<HTMLElement>, enabled = true) {
   return size;
 }
 
-function PdfCanvasTile({ page, scale, pixelRatio, tile, lazy, thumbnail = false }: {
-  page: PDFPageProxy; scale: number; pixelRatio: number; tile: CanvasTile; lazy: boolean; thumbnail?: boolean;
-}) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const [ready, setReady] = useState(false);
-  const [visible, setVisible] = useState(!lazy);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    if (!lazy) return;
-    const target = canvas.current;
-    if (!target || !('IntersectionObserver' in window)) { setVisible(true); return; }
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) { setVisible(true); observer.disconnect(); }
-    }, { rootMargin: "600px" });
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [lazy]);
-  useEffect(() => {
-    const target = canvas.current;
-    if (!target || !visible) return;
-    let active = true;
-    setReady(false);
-    setError("");
-    const viewport = page.getViewport({ scale });
-    target.width = Math.ceil(tile.width * pixelRatio);
-    target.height = Math.ceil(tile.height * pixelRatio);
-    const context = target.getContext("2d");
-    if (!context) { setError("Canvas is unavailable."); return; }
-    let task: RenderTask | undefined;
-    try {
-      task = page.render({ canvasContext: context, viewport, transform: [pixelRatio, 0, 0, pixelRatio, -tile.x * pixelRatio, -tile.y * pixelRatio] });
-      void task.promise.then(() => { if (active) setReady(true); }).catch((reason: Error) => {
-        if (active && reason.name !== "RenderingCancelledException") setError(reason.message || "Could not draw this page.");
-      });
-    } catch (reason) { setError((reason as Error).message || "Could not draw this page."); }
-    return () => { active = false; task?.cancel(); };
-  }, [page, scale, pixelRatio, tile.x, tile.y, tile.width, tile.height, visible, attempt]);
-  return <div className={`pdf-canvas-tile${lazy ? " tiled" : ""}`} style={{ left: tile.x, top: tile.y, width: tile.width, height: tile.height }}>
-    <canvas ref={canvas} className={ready ? "pdf-rendered" : ""} style={{ width: tile.width, height: tile.height }} aria-label={thumbnail ? "Page thumbnail" : `Rendered page ${page.pageNumber}`} />
-    {error && !thumbnail && <div className="pdf-canvas-error" role="alert">Could not draw page {page.pageNumber}. <button className="btn" type="button" onClick={() => setAttempt((value) => value + 1)}>Retry drawing</button></div>}
-  </div>;
+function zoomValue(zoom: Zoom) {
+  return zoom === "page" ? "page-fit" : zoom === "width" ? "page-width" : String(zoom / 100);
 }
 
-function PdfCanvas({ page, scale, thumbnail = false }: { page: PDFPageProxy; scale: number; thumbnail?: boolean }) {
-  const viewport = page.getViewport({ scale });
-  const pixelRatio = thumbnail ? 1 : Math.min(window.devicePixelRatio || 1, 2);
-  const tiles = canvasTiles(viewport.width, viewport.height, pixelRatio);
-  const tiled = tiles.length > 1;
-  return <div className="pdf-canvas-surface" style={{ width: viewport.width, height: viewport.height }}>
-    {tiles.map((tile) => <PdfCanvasTile key={`${tile.x}-${tile.y}`} page={page} scale={scale} pixelRatio={pixelRatio} tile={tile} lazy={tiled} thumbnail={thumbnail} />)}
-  </div>;
-}
-
-function PdfTextLayer({ page, scale, term }: { page: PDFPageProxy; scale: number; term: string }) {
-  const layer = useRef<HTMLDivElement>(null);
-  const [text, setText] = useState<{ divs: HTMLElement[]; items: string[] }>();
-  const [rectangles, setRectangles] = useState<{ left: number; top: number; width: number; height: number }[]>([]);
-  useEffect(() => {
-    let active = true;
-    let task: TextLayerRenderTask | undefined;
-    const container = layer.current;
-    if (!container) return;
-    container.replaceChildren();
-    setText(undefined);
-    setRectangles([]);
-    void page.getTextContent().then(async (content) => {
-      if (!active) return;
-      const divs: HTMLElement[] = [];
-      const items: string[] = [];
-      task = renderTextLayer({ textContentSource: content, container, viewport: page.getViewport({ scale }), textDivs: divs, textContentItemsStr: items });
-      await task.promise;
-      if (active) setText({ divs, items });
-    }).catch(() => { if (active) setText(undefined); });
-    return () => { active = false; task?.cancel(); container.replaceChildren(); };
-  }, [page, scale]);
-  useEffect(() => {
-    const container = layer.current;
-    if (!container || !text || !term.trim()) { setRectangles([]); return; }
-    const match = findPageTextMatch(text.items, term);
-    if (!match) { setRectangles([]); return; }
-    const origin = container.getBoundingClientRect();
-    const found = match.segments.flatMap(({ item, start, end }) => {
-      const node = text.divs[item]?.firstChild;
-      if (!node || node.nodeType !== Node.TEXT_NODE) return [];
-      const range = document.createRange();
-      range.setStart(node, start);
-      range.setEnd(node, end);
-      return [...range.getClientRects()].map((rect) => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
-    });
-    setRectangles(found);
-  }, [text, term]);
-  return <>
-    <div ref={layer} className="pdf-text-layer" data-testid="pdf-text-layer" style={{ "--scale-factor": scale } as CSSProperties} />
-    {rectangles.length > 0 && <div className="pdf-highlights" aria-hidden="true">
-      {rectangles.map((rectangle, index) => <span key={index} data-testid="pdf-search-highlight" style={rectangle} />)}
-    </div>}
-  </>;
-}
-
+/** Thumbnails are at most ~110 × 132 px, so a single canvas each is always within browser limits. */
 function Thumbnail({ pdf, number, selected, select }: { pdf: PDFDocumentProxy; number: number; selected: boolean; select: (number: number) => void }) {
-  const [page, setPage] = useState<PDFPageProxy>();
+  const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let active = true;
-    void pdf.getPage(number).then((loaded) => { if (active) setPage(loaded); }).catch(() => {});
-    return () => { active = false; };
+    let task: RenderTask | undefined;
+    void pdf.getPage(number).then((page: PDFPageProxy) => {
+      const target = canvas.current;
+      if (!active || !target) return;
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(104 / base.width, 132 / base.height) });
+      target.width = Math.ceil(viewport.width);
+      target.height = Math.ceil(viewport.height);
+      task = page.render({ canvas: target, viewport });
+      return task.promise;
+    }).catch(() => {});
+    return () => { active = false; task?.cancel(); };
   }, [pdf, number]);
-  const scale = page ? Math.min(104 / page.getViewport({ scale: 1 }).width, 132 / page.getViewport({ scale: 1 }).height) : 1;
   return <button type="button" className={`pdf-thumb ${selected ? "selected" : ""}`} aria-label={`Go to page ${number}`} aria-current={selected ? "page" : undefined} onClick={() => select(number)}>
-    <span className="pdf-thumb-paper">{page && <PdfCanvas page={page} scale={scale} thumbnail />}</span>
+    <span className="pdf-thumb-paper"><canvas ref={canvas} aria-label="Page thumbnail" /></span>
     <span>Page {number}</span>
   </button>;
 }
 
 export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
   const [number, setNumber] = useState(1);
-  const [page, setPage] = useState<PDFPageProxy>();
-  const [pageError, setPageError] = useState("");
-  const [pageAttempt, setPageAttempt] = useState(0);
+  const [pageInput, setPageInput] = useState("1");
   const [zoom, setZoom] = useState<Zoom>("page");
+  const [scale, setScale] = useState(1);
   const [showThumbnails, setShowThumbnails] = useState(true);
   const [query, setQuery] = useState("");
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [matchIndex, setMatchIndex] = useState(0);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState("");
-  const [searchProgress, setSearchProgress] = useState(0);
-  const searchRun = useRef(0);
+  const [find, setFind] = useState<FindStatus>(IDLE_FIND);
+  const [excerpt, setExcerpt] = useState<{ page: number; text: string }>();
+  const [renderErrors, setRenderErrors] = useState<ReadonlyMap<number, string>>(new Map());
+  const [viewerError, setViewerError] = useState("");
+  const viewerRef = useRef<{ viewer: PDFViewer; eventBus: EventBus }>();
+  const zoomRef = useRef(zoom);
+  const findQuery = useRef("");
   const textCache = useRef(new Map<number, string[]>());
-  const stage = useRef<HTMLDivElement>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const viewerElement = useRef<HTMLDivElement>(null);
   const thumbRail = useRef<HTMLDivElement>(null);
-  const stageSize = useElementSize(stage);
   const thumbSize = useElementSize(thumbRail, showThumbnails && pdf.numPages > 1);
   const [thumbScroll, setThumbScroll] = useState(0);
-  const [pageInput, setPageInput] = useState("1");
 
   useEffect(() => {
+    const host = container.current;
+    const viewerHost = viewerElement.current;
+    if (!host || !viewerHost) return;
+    const abort = new AbortController();
+    let viewer: PDFViewer | undefined;
     setNumber(1);
-    setPage(undefined);
-    setQuery("");
-    setMatches([]);
-    setMatchIndex(0);
-    setSearching(false);
-    setSearchError("");
     setPageInput("1");
+    setQuery("");
+    setFind(IDLE_FIND);
+    setExcerpt(undefined);
+    setRenderErrors(new Map());
+    setViewerError("");
     textCache.current.clear();
-    searchRun.current++;
-  }, [pdf]);
-  useEffect(() => {
-    let active = true;
-    setPage(undefined);
-    setPageError("");
-    void pdf.getPage(number).then((loaded) => { if (active) setPage(loaded); }).catch((reason: Error) => {
-      if (active) setPageError(reason.message || `Page ${number} could not be loaded.`);
+    void loadPdfViewer().then(({ EventBus, PDFFindController, PDFLinkService, PDFViewer, ScrollMode }) => {
+      if (abort.signal.aborted) return;
+      const eventBus = new EventBus();
+      const linkService = new PDFLinkService({ eventBus });
+      const findController = new PDFFindController({ eventBus, linkService });
+      viewer = new PDFViewer({ container: host, viewer: viewerHost, eventBus, linkService, findController, abortSignal: abort.signal } as ViewerOptions);
+      linkService.setViewer(viewer);
+      const on = (name: string, listener: (event: never) => void) => eventBus.on(name, listener, { signal: abort.signal });
+      on("pagesinit", () => {
+        viewer!.scrollMode = ScrollMode.PAGE;
+        viewer!.currentScaleValue = zoomValue(zoomRef.current);
+      });
+      on("pagechanging", ({ pageNumber }: { pageNumber: number }) => {
+        setNumber(pageNumber);
+        setPageInput(String(pageNumber));
+      });
+      on("scalechanging", ({ scale: next }: { scale: number }) => setScale(next));
+      on("pagerendered", ({ pageNumber, error }: { pageNumber: number; error: Error | null }) => {
+        setRenderErrors((current) => {
+          if (!error && !current.has(pageNumber)) return current;
+          const next = new Map(current);
+          if (error) next.set(pageNumber, error.message || "The page could not be drawn.");
+          else next.delete(pageNumber);
+          return next;
+        });
+      });
+      const onFindUpdate = ({ state, matchesCount }: { state?: number; matchesCount: { current: number; total: number } }) => {
+        setFind((current) => {
+          const status = state === undefined ? current.state
+            : state === FIND_STATE.PENDING ? "pending" : state === FIND_STATE.NOT_FOUND ? "not-found" : "found";
+          return { state: status, current: matchesCount.current, total: matchesCount.total };
+        });
+        const selected = findController.selected as { pageIdx: number; matchIdx: number } | undefined;
+        if (selected && selected.pageIdx >= 0 && selected.matchIdx >= 0) void showExcerpt(selected.pageIdx + 1, findQuery.current).catch(() => setExcerpt(undefined));
+      };
+      on("updatefindcontrolstate", onFindUpdate);
+      on("updatefindmatchescount", onFindUpdate);
+      viewer.setDocument(pdf);
+      linkService.setDocument(pdf);
+      viewerRef.current = { viewer, eventBus };
+    }).catch((reason: Error) => {
+      if (!abort.signal.aborted) setViewerError(reason.message || "The PDF viewer could not be loaded.");
     });
-    return () => { active = false; };
-  }, [pdf, number, pageAttempt]);
+    return () => {
+      abort.abort();
+      viewer?.setDocument(null as unknown as PDFDocumentProxy);
+      viewerRef.current = undefined;
+    };
+  }, [pdf]);
 
-  const viewport = page?.getViewport({ scale: 1 });
-  const scale = useMemo(() => {
-    if (!viewport) return 1;
-    if (typeof zoom === "number") return ACTUAL_SCALE * zoom / 100;
-    const widthScale = Math.max(0.1, (stageSize.width - 64) / viewport.width);
-    return zoom === "width" ? widthScale : Math.min(widthScale, Math.max(0.1, (stageSize.height - 64) / viewport.height));
-  }, [viewport?.width, viewport?.height, stageSize.width, stageSize.height, zoom]);
-  const displayedZoom = Math.round(scale / ACTUAL_SCALE * 100);
+  const showExcerpt = async (page: number, term: string) => {
+    if (!term) return;
+    let items = textCache.current.get(page);
+    if (!items) {
+      const content = await (await pdf.getPage(page)).getTextContent();
+      items = content.items.flatMap((item) => "str" in item ? [item.str] : []);
+      textCache.current.set(page, items);
+    }
+    const match = findPageTextMatch(items, term.toLocaleLowerCase());
+    setExcerpt(match ? { page, text: match.excerpt } : undefined);
+  };
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+    const current = viewerRef.current?.viewer;
+    if (current?.pagesCount) current.currentScaleValue = zoomValue(zoom);
+  }, [zoom]);
+
   const goTo = (target: number) => {
     const next = Math.max(1, Math.min(pdf.numPages, target));
-    setNumber(next);
     setPageInput(String(next));
+    const current = viewerRef.current?.viewer;
+    if (current?.pagesCount) current.currentPageNumber = next;
+  };
+
+  const dispatchFind = (type: "" | "again", findPrevious = false) => {
+    findQuery.current = query.trim();
+    viewerRef.current?.eventBus.dispatch("find", {
+      source: null, type, query: findQuery.current, caseSensitive: false, entireWord: false,
+      highlightAll: true, findPrevious, matchDiacritics: false,
+    });
+  };
+  const clearFind = () => {
+    setFind(IDLE_FIND);
+    setExcerpt(undefined);
+    viewerRef.current?.eventBus.dispatch("findbarclose", { source: null });
+  };
+
+  const retryPage = (page: number) => {
+    const current = viewerRef.current?.viewer;
+    const pageView = current?.getPageView(page - 1);
+    if (!current || !pageView) return;
+    setRenderErrors((errors) => { const next = new Map(errors); next.delete(page); return next; });
+    pageView.reset();
+    current.update();
   };
 
   useEffect(() => {
@@ -202,43 +195,7 @@ export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
   }, [number, showThumbnails, pdf.numPages]);
   const start = Math.max(0, Math.floor(thumbScroll / THUMB_HEIGHT) - 3);
   const end = Math.min(pdf.numPages, Math.ceil((thumbScroll + thumbSize.height) / THUMB_HEIGHT) + 3);
-
-  const search = async (term: string) => {
-    const run = ++searchRun.current;
-    setMatches([]);
-    setMatchIndex(0);
-    setSearchProgress(0);
-    setSearchError("");
-    if (!term.trim()) { setSearching(false); return; }
-    setSearching(true);
-    const found: Match[] = [];
-    const needle = term.trim().toLocaleLowerCase();
-    try {
-      for (let i = 1; i <= pdf.numPages; i++) {
-        let items = textCache.current.get(i);
-        if (items === undefined) {
-          const content = await (await pdf.getPage(i)).getTextContent();
-          items = content.items.flatMap((item) => "str" in item ? [item.str] : []);
-          textCache.current.set(i, items);
-        }
-        if (run !== searchRun.current) return;
-        const match = findPageTextMatch(items, needle);
-        if (match) found.push({ page: i, excerpt: match.excerpt });
-        if (i % 5 === 0 || i === pdf.numPages) setSearchProgress(i);
-      }
-      if (run !== searchRun.current) return;
-      setMatches(found);
-      if (found.length) goTo(found[0]!.page);
-    } catch (reason) {
-      if (run === searchRun.current) setSearchError((reason as Error).message);
-    } finally { if (run === searchRun.current) setSearching(false); }
-  };
-  const stepMatch = (direction: number) => {
-    if (!matches.length) return;
-    const next = (matchIndex + direction + matches.length) % matches.length;
-    setMatchIndex(next);
-    goTo(matches[next]!.page);
-  };
+  const failed = [...renderErrors.entries()].sort(([a], [b]) => a - b);
 
   return <div className="pdf-document-view" data-testid="pdf-document-view">
     <div className="pdf-tools">
@@ -251,24 +208,33 @@ export function PdfDocumentView({ pdf }: { pdf: PDFDocumentProxy }) {
       </div>
       <select aria-label="PDF zoom" data-testid="pdf-zoom" value={zoom} onChange={(event) => setZoom(event.target.value === "page" || event.target.value === "width" ? event.target.value : Number(event.target.value))}>
         <option value="page">Fit page</option><option value="width">Fit width</option>
-        {[50, 75, 100, 125, 150, 200].map((value) => <option key={value} value={value}>{value}%</option>)}
+        {[50, 75, 100, 125, 150, 200, 400].map((value) => <option key={value} value={value}>{value}%</option>)}
       </select>
-      <span className="pdf-zoom-readout">{displayedZoom}%</span>
-      <form className="pdf-search" onSubmit={(event) => { event.preventDefault(); void search(query); }}>
-        <input type="search" aria-label="Search PDF text" placeholder="Find in PDF" value={query} onChange={(event) => { setQuery(event.target.value); searchRun.current++; setSearching(false); setMatches([]); setSearchProgress(0); setSearchError(""); }} />
+      <span className="pdf-zoom-readout">{Math.round(scale * 100)}%</span>
+      <form className="pdf-search" onSubmit={(event) => { event.preventDefault(); if (query.trim()) dispatchFind(""); else clearFind(); }}>
+        <input type="search" aria-label="Search PDF text" placeholder="Find in PDF" value={query} onChange={(event) => { setQuery(event.target.value); clearFind(); }} />
         <button className="btn" type="submit">Find</button>
       </form>
-      {searching ? <span className="pdf-search-status" role="status">Searching {searchProgress}/{pdf.numPages}</span> : searchError ? <span className="field-error" role="alert">{searchError}</span> : matches.length ? <div className="pdf-match-control" role="status"><button className="btn" aria-label="Previous match" onClick={() => stepMatch(-1)}>‹</button><span>{matchIndex + 1}/{matches.length} pages</span><button className="btn" aria-label="Next match" onClick={() => stepMatch(1)}>›</button></div> : query.trim() && searchProgress === pdf.numPages ? <span className="pdf-search-status" role="status">No matches</span> : null}
+      {find.state === "pending" ? <span className="pdf-search-status" role="status">Searching…</span>
+        : find.state === "not-found" ? <span className="pdf-search-status" role="status">No matches</span>
+        : find.state === "found" && find.total > 0 ? <div className="pdf-match-control" role="status"><button className="btn" aria-label="Previous match" onClick={() => dispatchFind("again", true)}>‹</button><span>{find.current}/{find.total} matches</span><button className="btn" aria-label="Next match" onClick={() => dispatchFind("again")}>›</button></div>
+        : null}
     </div>
-    {matches.length > 0 && <div className="pdf-match-excerpt" data-testid="pdf-match-excerpt">Page {matches[matchIndex]?.page}: …{matches[matchIndex]?.excerpt}…</div>}
+    {excerpt && find.state === "found" && <div className="pdf-match-excerpt" data-testid="pdf-match-excerpt">Page {excerpt.page}: …{excerpt.text}…</div>}
     <div className="pdf-document-body">
       {showThumbnails && pdf.numPages > 1 && <aside className="pdf-thumbnails" ref={thumbRail} aria-label="Page thumbnails" onScroll={(event) => setThumbScroll(event.currentTarget.scrollTop)}>
         <div style={{ height: pdf.numPages * THUMB_HEIGHT, position: "relative" }}>
           {Array.from({ length: Math.max(0, end - start) }, (_, index) => start + index + 1).map((item) => <div key={item} className="pdf-thumb-slot" style={{ top: (item - 1) * THUMB_HEIGHT }}><Thumbnail pdf={pdf} number={item} selected={number === item} select={goTo} /></div>)}
         </div>
       </aside>}
-      <div className="pdf-page-stage" ref={stage} data-testid="pdf-frame" aria-label={`PDF page ${number} of ${pdf.numPages}`}>
-        {page ? <div className="pdf-page-paper" style={{ width: viewport!.width * scale, height: viewport!.height * scale }}><PdfCanvas key={`${number}-${scale}`} page={page} scale={scale} /><PdfTextLayer page={page} scale={scale} term={matches[matchIndex]?.page === number ? query.trim() : ""} /></div> : pageError ? <div className="pad" role="alert">Could not load page {number}: {pageError} <button className="btn" type="button" onClick={() => setPageAttempt((attempt) => attempt + 1)}>Retry page</button></div> : <div className="muted pad" role="status">Loading page {number}…</div>}
+      <div className="pdf-page-stage-frame">
+        <div className="pdf-page-stage" ref={container} data-testid="pdf-frame" aria-label={`PDF page ${number} of ${pdf.numPages}`}>
+          <div className="pdfViewer" ref={viewerElement} />
+        </div>
+        {viewerError && <div className="pdf-canvas-error" role="alert">Could not open the PDF viewer: {viewerError}</div>}
+        {failed.length > 0 && <div className="pdf-render-errors" role="alert" data-testid="pdf-render-error">
+          {failed.map(([page, message]) => <div key={page}>Could not draw page {page}: {message} <button className="btn" type="button" onClick={() => retryPage(page)}>Retry drawing</button></div>)}
+        </div>}
       </div>
     </div>
   </div>;

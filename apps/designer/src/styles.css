@@ -1273,18 +1273,15 @@ textarea {
 .pdf-thumb.selected { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
 .pdf-thumb-paper { display: flex; align-items: center; justify-content: center; width: 110px; height: 132px; background: #fff; box-shadow: 0 1px 4px #102a4330; }
 .pdf-thumb-paper canvas { max-width: 100%; max-height: 100%; }
-.pdf-page-stage { flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: 32px; text-align: center; background: var(--canvas); }
-.pdf-page-paper { position: relative; display: inline-block; overflow: hidden; vertical-align: top; text-align: left; background: #fff; box-shadow: 0 3px 16px #102a4326; }
-.pdf-page-paper canvas { display: block; }
-.pdf-canvas-surface { position: relative; }
-.pdf-canvas-tile { position: absolute; overflow: hidden; }
-.pdf-canvas-error { position: absolute; z-index: 4; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: #ffffffed; color: #9b1c1c; font-size: 12px; }
-.pdf-text-layer { position: absolute; inset: 0; z-index: 2; overflow: hidden; line-height: 1; text-align: initial; user-select: text; transform-origin: 0 0; }
-.pdf-text-layer :is(span, br) { position: absolute; color: transparent; white-space: pre; cursor: text; transform-origin: 0 0; }
-.pdf-text-layer span.markedContent { top: 0; height: 0; }
-.pdf-text-layer ::selection { background: rgba(37, 99, 235, 0.35); }
-.pdf-highlights { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
-.pdf-highlights span { position: absolute; background: #facc1580; outline: 1px solid #a16207; mix-blend-mode: multiply; }
+.pdf-page-stage-frame { position: relative; flex: 1; min-width: 0; min-height: 0; }
+.pdf-page-stage { position: absolute; inset: 0; overflow: auto; background: var(--canvas); }
+.pdf-page-stage .pdfViewer { padding: 24px 0; }
+/* PDF.js sizes pages and overlays for the browser default box model; the app-wide border-box reset would shrink canvases inside page borders. */
+:where(.pdf-page-stage .pdfViewer, .pdf-page-stage .pdfViewer *) { box-sizing: content-box; }
+/* The designer canvas also uses `.page`; undo its editing-only rules inside the PDF viewer. */
+.pdf-page-stage .pdfViewer .page { box-shadow: 0 3px 16px #102a4326; user-select: text; touch-action: auto; }
+.pdf-canvas-error, .pdf-render-errors { position: absolute; z-index: 4; right: 16px; bottom: 16px; left: 16px; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid #f3c4c4; border-radius: var(--radius-sm); background: #fffffff2; color: #9b1c1c; font-size: 12px; box-shadow: 0 3px 12px #102a4326; }
+.pdf-render-errors > div { display: flex; align-items: center; gap: 8px; }
 @media (max-width: 800px) {
   .pdf-thumbnails { flex-basis: 116px; }
   .pdf-search { margin-left: 0; }
