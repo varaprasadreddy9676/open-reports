@@ -458,14 +458,15 @@ function Advanced({ comp }: { comp: ops.Comp }) {
         <input type="checkbox" data-testid="flag-bookmark" checked={!!comp.bookmark} onChange={(e) => patch(comp.id, { bookmark: e.target.checked ? true : undefined })} />
         PDF bookmark (shows in the PDF outline / navigation pane)
       </label>
-      <div className="group-title small">Overflow</div>
-      <Field label="When text is too long">
-        <select aria-label="Overflow" value={comp.style?.overflow ?? ""} onChange={(e) => useStore.getState().patchStyle(comp.id, { overflow: e.target.value || undefined })}>
-          <option value="">Wrap onto more lines</option>
-          <option value="ellipsis">Truncate with ...</option>
-          <option value="hidden">Clip</option>
-        </select>
-      </Field>
+      {["text", "richText", "field"].includes(comp.type) && <><div className="group-title small">Overflow</div>
+        <Field label="When text is too long">
+          <select aria-label="Overflow" value={comp.style?.overflow ?? ""} onChange={(e) => useStore.getState().patchStyle(comp.id, { overflow: e.target.value || undefined })}>
+            <option value="">Auto (continue when height is unset)</option>
+            <option value="ellipsis">Single line with ellipsis</option>
+            <option value="clip">Clip at box edge</option>
+          </select>
+        </Field>
+        <p className="field-hint">Fixed-height text that exceeds its box blocks a strict render unless clipping is chosen.</p></>}
     </Section>
   );
 }

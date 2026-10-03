@@ -9,7 +9,7 @@ import {
   type PageSectionResolver,
   type ResolvedReport,
 } from "@reporting/core";
-import { layoutStructure, paginate, type PaginatedReport, type PositionedNode, type StructureLayout } from "@reporting/layout";
+import { isDataLossWarningCode, layoutStructure, paginate, type PaginatedReport, type PositionedNode, type StructureLayout } from "@reporting/layout";
 import { findByPath, type Doc } from "./model/ops";
 import { datasetValue } from "./lib/fields";
 import { checkSchemaPreview, schemaIssueMessage } from "./lib/schema-preview";
@@ -178,7 +178,7 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     }
     for (const w of paginated.warnings) {
       if (!pipeline.resolved.warnings.some((x) => x.code === w.code && x.message === w.message)) {
-        problems.push({ severity: "warning", code: w.code, message: w.message, path: w.path, componentId: w.path });
+        problems.push({ severity: isDataLossWarningCode(w.code) ? "error" : "warning", code: w.code, message: w.message, path: w.path, componentId: w.path });
       }
     }
     if (truncated) {

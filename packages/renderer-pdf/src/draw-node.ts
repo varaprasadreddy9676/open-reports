@@ -89,17 +89,29 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
     case "text":
     case "richText":
     case "field": {
-      const text = node.textFragment?.text ?? component.text ?? "";
+      const text = node.renderText ?? node.textFragment?.text ?? component.text ?? "";
       drawBoxDecoration(ctx, node.box, style);
       const pad = spacing(style.padding);
       const isBold = style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700);
       doc.fontSize(style.fontSize ?? 10).fillColor(style.color ?? "#000000");
-      drawRuns(ctx, text, node.box.x + pad.left, node.box.y + pad.top, {
-        width: node.box.width - pad.left - pad.right,
+      const innerX = node.box.x + pad.left;
+      const innerY = node.box.y + pad.top;
+      const innerWidth = Math.max(0, node.box.width - pad.left - pad.right);
+      const innerHeight = Math.max(0, node.box.height - pad.top - pad.bottom);
+      const constrained = component.height !== undefined || component.maxHeight !== undefined || ["clip", "hidden", "ellipsis"].includes(style.overflow);
+      const options: Record<string, any> = {
+        width: innerWidth,
         align: style.align ?? (startsRtl(text) ? "right" : "left"),
         underline: Boolean(style.underline),
         strike: Boolean(style.strikethrough),
-      }, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight);
+        ...(constrained ? { height: innerHeight } : {}),
+      };
+      if (constrained) {
+        doc.save();
+        doc.rect(innerX, innerY, innerWidth, innerHeight).clip();
+      }
+      if (innerWidth > 0 && innerHeight > 0) drawRuns(ctx, text, innerX, innerY, options, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight);
+      if (constrained) doc.restore();
       break;
     }
 

@@ -67,3 +67,18 @@ export function wrapTextLines(text: string, maxWidth: number, fontSize: number, 
 export function wrapLineCount(text: string, maxWidth: number, fontSize: number, measurer: TextMeasurer, hint?: TextStyleHint): number {
   return wrapTextLines(text, maxWidth, fontSize, measurer, hint).length;
 }
+
+/** The one-line text shown by an explicit ellipsis policy. All renderers use
+ * this measured value rather than making independent truncation decisions. */
+export function ellipsizeText(text: string, maxWidth: number, fontSize: number, measurer: TextMeasurer, hint?: TextStyleHint): { text: string; truncated: boolean } {
+  const singleLine = text.replace(/\s+/gu, " ").trim();
+  if (measurer.widthOf(singleLine, fontSize, hint) <= maxWidth) return { text: singleLine, truncated: singleLine !== text };
+  const suffix = "…";
+  if (measurer.widthOf(suffix, fontSize, hint) > maxWidth) return { text: "", truncated: true };
+  let kept = "";
+  for (const { segment } of graphemes.segment(singleLine)) {
+    if (measurer.widthOf(kept + segment + suffix, fontSize, hint) > maxWidth) break;
+    kept += segment;
+  }
+  return { text: kept.trimEnd() + suffix, truncated: true };
+}

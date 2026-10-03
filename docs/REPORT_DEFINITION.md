@@ -43,6 +43,12 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 | `fragment` | `ref` to `fragments[]` (reusable blocks) |
 | `custom` | `kind`, `props` — provided by a plugin |
 
+### Text overflow and strict output
+
+Auto-height text in a flow band continues onto later pages. A fixed `height` or `maxHeight` prevents that split. If the measured text exceeds the box, the designer shows `TEXT_EXCEEDS_HEIGHT` as an error and the render API returns HTTP 422 with the affected component in `error.details.warnings`. Set a larger height, remove the height, or choose `style.overflow: "clip"` or `"ellipsis"` when shortening is intentional. `ellipsis` fits one measured line; `clip` keeps the box height. Intentional shortening appears as the warning `TEXT_TRUNCATED_BY_POLICY` in analysis. Fixed-height containers whose descendants extend past the box raise `CONTAINER_CONTENT_EXCEEDS_HEIGHT`.
+
+The render API applies this strict check by default to inline renders, template renders and jobs. Existing callers that explicitly accept the risk can send `"strict": false`; the renderer still constrains fixed-height PDF text and reports warnings. `/api/v1/analyze` sets `valid: false` for data-loss warnings and returns the full warning list.
+
 ### Image sources
 
 An image `src` can be an embedded PNG/JPEG/WebP data URL, a file path readable by the reporting server, a `file://` URL, or an HTTP(S) image URL. The designer's **Embed image from file** action stores a copy in the report. Entering a path or URL stores only that reference; the server reads it again on every render, so replacing the image at the same location updates later output without editing the report. A path on a designer user's computer works only if the reporting server can access that same path. Relative paths are relative to the server's working directory; `~/` uses the server user's home directory.

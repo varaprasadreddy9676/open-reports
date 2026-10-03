@@ -1,6 +1,6 @@
 import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, ResolvedSection } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
-import { defaultTextMeasurer, wrapTextLines } from "./measure.js";
+import { defaultTextMeasurer, ellipsizeText, wrapTextLines } from "./measure.js";
 import { resolvePageGeometry } from "./units.js";
 import { edgesOf, layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
 import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
@@ -12,6 +12,10 @@ export interface PaginateOptions {
    * section's already-resolved (page-number-less) content is repeated verbatim. */
   resolvePageDependentSection?: (section: ResolvedSection, page: { number: number; total: number }) => ResolvedComponent[];
 }
+
+/** Warnings that mean a generated document may omit or misplace report data. */
+export const isDataLossWarningCode = (code: string): boolean =>
+  code === "CONTENT_OVERFLOWS_PAGE" || code === "TEXT_EXCEEDS_HEIGHT" || code === "CONTAINER_CONTENT_EXCEEDS_HEIGHT";
 
 /**
  * Page masters: a report may declare several pageHeader / pageFooter sections,
@@ -109,6 +113,56 @@ export function paginate(report: ResolvedReport, options: PaginateOptions = {}):
   });
 
   warnings.push(...run.warnings);
+  const seenOverflows = new Set<string>();
+  const deepestBottom = (node: PositionedNode): number => Math.max(node.box.y + node.box.height, ...(node.children ?? []).map(deepestBottom));
+  const inspect = (nodes: PositionedNode[]) => {
+    for (const node of nodes) {
+      const c = node.component as any;
+      if (["text", "richText", "field"].includes(c.type) && !node.textFragment) {
+        const style = c.style ?? {};
+        const pad = edgesOf(style.padding);
+        const fontSize = style.fontSize ?? 10;
+        const hint = { family: style.fontFamily, bold: style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700), italic: Boolean(style.italic), lineHeight: style.lineHeight };
+        const width = Math.max(1, node.box.width - pad.left - pad.right);
+        const lineHeight = measurer.lineHeight(fontSize, hint);
+        const actualHeight = wrapTextLines(c.text ?? "", width, fontSize, measurer, hint).length * lineHeight + pad.top + pad.bottom;
+        let code: string | undefined;
+        let message = "";
+        if (style.overflow === "ellipsis") {
+          const display = ellipsizeText(c.text ?? "", width, fontSize, measurer, hint);
+          node.renderText = display.text;
+          if (node.box.height + 0.5 < lineHeight + pad.top + pad.bottom) {
+            code = "TEXT_EXCEEDS_HEIGHT";
+            message = `Text ${label(node.component)} is too short to show even one ellipsis line.`;
+          } else if (display.truncated) {
+            code = "TEXT_TRUNCATED_BY_POLICY";
+            message = `Text ${label(node.component)} was shortened with an ellipsis as requested by its overflow setting.`;
+          }
+        } else if ((c.height !== undefined || c.maxHeight !== undefined) && actualHeight > node.box.height + 0.5) {
+          const intentional = style.overflow === "clip" || style.overflow === "hidden";
+          code = intentional ? "TEXT_TRUNCATED_BY_POLICY" : "TEXT_EXCEEDS_HEIGHT";
+          message = intentional
+            ? `Text ${label(node.component)} is clipped to its fixed height as requested by its overflow setting.`
+            : `Text ${label(node.component)} needs ${pt(actualHeight)} but its height is limited to ${pt(node.box.height)}; output may clip or flow unexpectedly.`;
+        }
+        const key = `${code}:${c.id ?? `${c.type}:${node.box.x}:${node.box.y}`}`;
+        if (code && !seenOverflows.has(key)) {
+          seenOverflows.add(key);
+          warnings.push({ code, path: c.id ?? c.type, message });
+        }
+      }
+      if (node.children?.length && (c.height !== undefined || c.maxHeight !== undefined)) {
+        const excess = Math.max(0, ...node.children.map((child) => deepestBottom(child) - node.box.y - node.box.height));
+        const key = c.id ?? `${c.type}:${node.box.x}:${node.box.y}`;
+        if (excess > 0.5 && !seenOverflows.has(key)) {
+          seenOverflows.add(key);
+          warnings.push({ code: "CONTAINER_CONTENT_EXCEEDS_HEIGHT", path: c.id ?? c.type, message: `Container ${label(node.component)} has content extending ${pt(excess)} below its fixed height; it may overlap or be clipped.` });
+        }
+      }
+      if (node.children) inspect(node.children);
+    }
+  };
+  for (const page of pages) inspect([...page.header, ...page.content, ...page.footer]);
   return {
     pageSize: { width: geometry.width, height: geometry.height },
     margin: geometry.margin,
@@ -301,7 +355,7 @@ function layoutContentIntoPages(
     const textLines = textComponent ? wrapTextLines(anyC.text ?? "", Math.max(1, textProbe!.box.width - textPad.left - textPad.right), textFontSize, measurer, textHint) : [];
     const lineHeight = textComponent ? measurer.lineHeight(textFontSize, textHint) : 0;
     const textHeight = textLines.length * lineHeight + textPad.top + textPad.bottom;
-    const canSplitText = textComponent && lineHeight > 0 && anyC.height === undefined && anyC.minHeight === undefined && anyC.maxHeight === undefined && !anyC.keepTogether && anyC.allowSplit !== false;
+    const canSplitText = textComponent && textStyle.overflow !== "ellipsis" && lineHeight > 0 && anyC.height === undefined && anyC.minHeight === undefined && anyC.maxHeight === undefined && !anyC.keepTogether && anyC.allowSplit !== false;
     const splitText = canSplitText && textHeight + m.top + m.bottom > remaining() && (anyC.allowSplit === true || textHeight + m.top + m.bottom > pageHeightAt(pages.length) - repeatHeight());
 
     if (splitText) {
@@ -408,9 +462,6 @@ function layoutContentIntoPages(
 
       const placed = moved ? layoutComponent(component, { x: m.left, y: y + m.top, width: innerWidth, height: 0 }, measurer) : probe;
       if (!moved) shiftNode(placed, m.left, 0);
-      if (textComponent && (anyC.height !== undefined || anyC.maxHeight !== undefined) && textHeight > placed.box.height + 0.5) {
-        warnings.push({ code: "TEXT_EXCEEDS_HEIGHT", path: anyC.id ?? component.type, message: `Text ${label(component)} needs ${pt(textHeight)} but its height is limited to ${pt(placed.box.height)}; output may clip or flow unexpectedly.` });
-      }
       if (component.type === "table") (placed as PositionedNode).rowRange = { start: 0, end: (component as ResolvedTableComponent).rows.length };
       place(placed);
       y = placed.box.y + placed.box.height + m.bottom;

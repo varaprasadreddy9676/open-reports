@@ -5,6 +5,7 @@ import type { RenderResult } from "@reporting/core";
 import { createDefaultDataSourceRegistry } from "./datasources.js";
 import type { ReportRenderer } from "@reporting/core";
 import type { PluginRegistry } from "@reporting/plugin-sdk";
+import { isDataLossWarningCode } from "@reporting/layout";
 import { createRendererRegistry } from "./renderers.js";
 import { materializeChildren, materializeLinkedImages } from "./linked-images.js";
 import { RenderPipelineError } from "./render-error.js";
@@ -20,6 +21,8 @@ export interface RunRenderInput {
    * it, so `reporter.render({report, data})` works without pre-wiring
    * datasource config for ad-hoc/local usage. */
   data?: Record<string, unknown>;
+  /** Reject PDF/HTML output with pagination warnings that can lose content. Defaults to true. */
+  strict?: boolean;
 }
 
 export interface RunRenderOutput {
@@ -108,6 +111,11 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
     result = await renderer.render({ resolved: pipeline.resolved, resolvePageSection });
   } catch (err) {
     throw new RenderPipelineError(describeError(err), "REPORT_RENDER_FAILED", 422, { renderId });
+  }
+
+  const dataLossWarnings = result.warnings.filter((warning) => isDataLossWarningCode(warning.code));
+  if (input.strict !== false && dataLossWarnings.length > 0) {
+    throw new RenderPipelineError("Report content exceeds its layout. Adjust the named component or choose an explicit clipping policy before rendering.", "REPORT_RENDER_FAILED", 422, { renderId, warnings: dataLossWarnings });
   }
 
   return { renderId, result, durationMs: Date.now() - start };

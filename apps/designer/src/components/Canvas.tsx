@@ -93,8 +93,8 @@ function ImageView({ component, style }: { component: any; style: React.CSSPrope
 
 function TextNodeView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
   const c = node.component as any;
-  return <div data-cid={c.id} className="cn cn-text" style={{ ...boxStyle(node, k), ...cssFrom(c.style, k, capabilities), lineHeight: node.textMetrics ? `${node.textMetrics.lineHeight * k}px` : undefined, whiteSpace: "pre-wrap", overflow: "hidden" }}>
-    <span className="text-content"><span className="text-baseline-probe" aria-hidden="true" />{node.textFragment?.text ?? c.text}</span>
+  return <div data-cid={c.id} className="cn cn-text" style={{ ...boxStyle(node, k), ...cssFrom(c.style, k, capabilities), lineHeight: node.textMetrics ? `${node.textMetrics.lineHeight * k}px` : undefined, whiteSpace: c.style?.overflow === "ellipsis" ? "nowrap" : "pre-wrap", overflow: "hidden" }}>
+    <span className="text-content"><span className="text-baseline-probe" aria-hidden="true" />{node.renderText ?? node.textFragment?.text ?? c.text}</span>
   </div>;
 }
 

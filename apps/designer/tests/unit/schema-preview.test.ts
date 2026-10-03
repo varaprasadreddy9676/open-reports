@@ -53,4 +53,14 @@ describe("declared field checks against a preview", () => {
     const result = await runEngine(doc, {}, {});
     expect(result.problems).toContainEqual(expect.objectContaining({ code: "DATASET_SCHEMA_MISMATCH", datasetId: "items", severity: "warning", message: expect.stringContaining("quantity") }));
   });
+
+  it("treats accidental fixed-height text overflow as an error and deliberate clipping as a warning", async () => {
+    const text = { type: "text", id: "short-note", value: Array.from({ length: 20 }, (_, index) => `Line ${index}`).join("\n"), height: 20, width: 120 };
+    const doc = { schemaVersion: "1.0", id: "overflow", name: "Overflow", sections: [{ type: "detail", children: [text] }] };
+    const blocked = await runEngine(doc, {}, {});
+    expect(blocked.problems).toContainEqual(expect.objectContaining({ code: "TEXT_EXCEEDS_HEIGHT", componentId: "short-note", severity: "error" }));
+    const clipped = await runEngine({ ...doc, sections: [{ type: "detail", children: [{ ...text, style: { overflow: "clip" } }] }] }, {}, {});
+    expect(clipped.problems).toContainEqual(expect.objectContaining({ code: "TEXT_TRUNCATED_BY_POLICY", componentId: "short-note", severity: "warning" }));
+    expect(clipped.problems.some((problem) => problem.code === "TEXT_EXCEEDS_HEIGHT")).toBe(false);
+  });
 });

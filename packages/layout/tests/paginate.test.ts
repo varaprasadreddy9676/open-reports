@@ -186,6 +186,29 @@ describe("paginate: long flow text", () => {
     const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, height: 20 }] }]));
     expect(result.warnings.some((warning) => warning.code === "TEXT_EXCEEDS_HEIGHT")).toBe(true);
   });
+
+  it("uses one measured ellipsis line when truncation is explicitly requested", () => {
+    const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, height: 20, width: 65, style: { overflow: "ellipsis" } }] }]));
+    const node = result.pages[0]!.content[0]!;
+    expect(node.renderText).toMatch(/^LINE001.*…$/u);
+    expect(node.renderText).not.toContain("LINE070");
+    expect(result.warnings.some((warning) => warning.code === "TEXT_TRUNCATED_BY_POLICY")).toBe(true);
+    expect(result.warnings.some((warning) => warning.code === "TEXT_EXCEEDS_HEIGHT")).toBe(false);
+  });
+
+  it("treats an explicit clipping policy as intentional while flagging a box too short for even one line", () => {
+    const clipped = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, height: 20, style: { overflow: "clip" } }] }]));
+    expect(clipped.warnings.some((warning) => warning.code === "TEXT_TRUNCATED_BY_POLICY")).toBe(true);
+    expect(clipped.warnings.some((warning) => warning.code === "TEXT_EXCEEDS_HEIGHT")).toBe(false);
+    const tooShort = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, height: 2, style: { overflow: "ellipsis" } }] }]));
+    expect(tooShort.warnings.some((warning) => warning.code === "TEXT_EXCEEDS_HEIGHT")).toBe(true);
+  });
+
+  it("flags descendants that extend outside a fixed-height container", () => {
+    const container = { type: "container", id: "fixed-panel", height: 25, children: [{ type: "container", children: [{ ...paragraph, text: lines.slice(0, 5).join("\n") }] }] } as any;
+    const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [container] }]));
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: "CONTAINER_CONTENT_EXCEEDS_HEIGHT", path: "fixed-panel" }));
+  });
 });
 
 describe("paginate: forced breaks and keepTogether", () => {

@@ -19,6 +19,8 @@ export interface PositionedNode {
   textMetrics?: { lineHeight: number };
   /** A page fragment of a long flow text component. The source component stays intact. */
   textFragment?: { text: string; startLine: number; endLine: number; totalLines: number };
+  /** Measured display value for explicit one-line ellipsis; source text remains intact. */
+  renderText?: string;
 }
 
 export interface PageZones {

@@ -77,7 +77,7 @@ function layoutIntrinsic(component: ResolvedComponent, box: Box, measurer: TextM
       const fontSize = styleFontSize(component);
       const hint = styleHint(component);
       const pad = edgesOf((component.style as any)?.padding);
-      const lines = wrapLineCount((component as any).text, Math.max(1, width - pad.left - pad.right), fontSize, measurer, hint);
+      const lines = (component.style as any)?.overflow === "ellipsis" ? 1 : wrapLineCount((component as any).text, Math.max(1, width - pad.left - pad.right), fontSize, measurer, hint);
       const lineHeight = measurer.lineHeight(fontSize, hint);
       const height = resolveDimension(component.height, box.height, DEFAULT_UNIT) ?? lines * lineHeight + pad.top + pad.bottom;
       return { component, box: { x: box.x, y: box.y, width, height }, textMetrics: { lineHeight } };

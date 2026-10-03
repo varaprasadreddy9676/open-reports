@@ -15,7 +15,7 @@ export async function renderNode(node: PositionedNode): Promise<string> {
     case "text":
     case "richText":
     case "field":
-      return `<div style="${boxStyle}white-space:pre-wrap;line-height:${ptToPx(node.textMetrics?.lineHeight ?? 13).toFixed(2)}px;${style}">${escapeHtml(node.textFragment?.text ?? component.text ?? "")}</div>`;
+      return `<div style="${boxStyle}white-space:pre-wrap;line-height:${ptToPx(node.textMetrics?.lineHeight ?? 13).toFixed(2)}px;${style}">${escapeHtml(node.renderText ?? node.textFragment?.text ?? component.text ?? "")}</div>`;
 
     case "image":
       return component.src

@@ -92,6 +92,24 @@ describe("PdfRenderer", () => {
     }
   });
 
+  it("keeps fixed-height text inside its box instead of adding PDFKit pages", async () => {
+    const longText = Array.from({ length: 90 }, (_, index) => `MARKER${String(index).padStart(3, "0")}`).join("\n");
+    for (const overflow of ["clip", "ellipsis"] as const) {
+      const report = { schemaVersion: "1.0", id: `overflow-${overflow}`, name: "Overflow", sections: [
+        { type: "detail", children: [
+          { type: "text", id: "limited", value: longText, width: 150, height: 35, style: { fontSize: 10, overflow } },
+          { type: "text", id: "after", value: "AFTER-BOX", height: 18 },
+        ] },
+      ] };
+      const result = await renderPdf(report);
+      const extracted = await extractPdfText(result.content as Buffer);
+      expect(extracted.numPages).toBe(1);
+      expect(extracted.text).toContain("AFTER-BOX");
+      expect(extracted.text).not.toContain("MARKER089");
+      expect(result.warnings.some((warning) => warning.code === "TEXT_TRUNCATED_BY_POLICY")).toBe(true);
+    }
+  });
+
   it("produces the correct number of pages for a report that spans multiple pages", async () => {
     const manyRows = {
       ...invoiceReport,

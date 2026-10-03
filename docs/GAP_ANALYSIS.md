@@ -11,7 +11,7 @@
 |---|---|---|---|
 | Count | 7 | 15 | 14 |
 
-**Correction to earlier statements at the time of the audit.** Table span/rowSpan/colSpan support was absent in the original audit; header and body spans were subsequently implemented on 2026-10-02. Auto-height flow text now splits at measured lines and honours `minLinesAtTop/Bottom` where feasible; table row orphan/widow control also works. Fixed-height and decorated/absolute container overflow still needs a policy.
+**Correction to earlier statements at the time of the audit.** Table span/rowSpan/colSpan support was absent in the original audit; header and body spans were subsequently implemented on 2026-10-02. Auto-height flow text now splits at measured lines and honours `minLinesAtTop/Bottom` where feasible; table row orphan/widow control also works. Fixed-height text and container overflow is now detected and strict render fails with 422; splitting decorated/absolute containers remains open.
 
 ---
 
@@ -31,11 +31,11 @@
 4. `keepTogether` that cannot fit a fresh page must degrade to "allow split" with a decision-log entry.
 **Acceptance tests.** Extend `renderer-pdf/tests/pagination-boundary.test.ts`: the five shapes above × (N−1, N, N+1, 2N+1 rows) — every row exactly once, header repeated, footer `Page x/y` correct. Add the same for HTML.
 
-### P0-2 · Overflow is only a warning — the API returns `200` with clipped output
-**Evidence.** All the cases above return HTTP 200; the only trace is a `CONTENT_OVERFLOWS_PAGE` warning that the server reduces to a count (`x-render-warnings: 1`). HTML pages have `overflow:hidden`, so the rows exist in the DOM but are invisible when printed.
+### P0-2 · Overflow was only a warning — strict render now rejects it
+**Historical evidence.** The original probes returned HTTP 200 with only `x-render-warnings: 1`. The current PDF/HTML render pipeline rejects `CONTENT_OVERFLOWS_PAGE`, `TEXT_EXCEEDS_HEIGHT`, and `CONTAINER_CONTENT_EXCEEDS_HEIGHT` by default with HTTP 422 and warning details. `strict:false` remains an explicit opt-out. Other omissions, including unknown glyphs and dropped label-sheet items, still need classification.
 **Where.** `apps/server/src/render-pipeline.ts` → `runRender`; `apps/server/src/app.ts` l.166–172 (render route headers); `packages/layout/src/paginate.ts` (`warnings.push(CONTENT_OVERFLOWS_PAGE)`); `apps/designer/src/engine.ts` (shows it as a *warning*).
-**Fix.** Add `strict` (default **true**) to render options: layout warnings with `severity:"data-loss"` (`CONTENT_OVERFLOWS_PAGE`, unknown glyphs, dropped label-sheet items) fail with `422 REPORT_RENDER_FAILED` and the component id. Return warnings as JSON (`x-render-warnings` → also `?warnings=body` envelope or a `/render/analyze` call). Designer: surface as **error** with a jump-to link.
-**Test.** `security`-style suite entry: strict render of the P0-1 shapes while unfixed → 422; after P0-1 → 200.
+**Remaining.** Classify every warning that can omit data, expose full warnings consistently to render callers, and add a matrix for all P0-1 shapes. The designer now shows these three codes as errors with the component ID, and `/api/v1/analyze` returns full warnings.
+**Test.** Focused layout, PDF, API, designer unit and browser tests cover fixed text, explicit clipping/ellipsis, nested containers and strict render. Extend to every P0-1 shape and output format.
 
 ### P0-3 · Dates depend on the server's time zone → wrong calendar day
 **Evidence.** `formatDate('2025-01-15','dd MMM yyyy')` prints **14 Jan** under `TZ=America/Los_Angeles`, 15 Jan under UTC/Kolkata. `formatDate('2025-01-15T23:30:00Z','dd/MM/yyyy HH:mm')` yields four different results across four zones. Invoices would show a different date depending on where the server runs — which breaks the "deterministic" claim.
@@ -71,7 +71,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 | Field | Promised in | Reality |
 |---|---|---|
 | `minLinesAtTop` / `minLinesAtBottom` | designer *Page breaks* section, `docs/USER_GUIDE.md`, `docs/USE_CASES.md` (“stops one stray line”) | **Addressed for auto-height flow text:** line fragments honour both minima when feasible; fixed-height and decorated/absolute containers remain unsplittable |
-| `style.overflow: "ellipsis"/"clip"` | designer *Advanced → Overflow* | HTML only; **PDF ignores** |
+| `style.overflow: "ellipsis"/"clip"` | designer *Advanced → Overflow* | PDF, HTML and canvas now apply the explicit policy to text; mixed-script and very narrow-box parity remain unverified |
 | `colSpan` / `rowSpan` | task #17 “completed” | **Addressed 2026-10-02:** explicit `headerRows` and positional body `cellSpans`; see current schema and tests. |
 | `table.groupBy` | schema, `docs/REPORT_DEFINITION.md` | ignored — no group rows/subtotals |
 | `richText` component | palette, docs | renders markup literally (`**bold**` shown as text) |
@@ -102,7 +102,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 | P1-9 | **AI review can hide dangerous edits** | `summarizeChanges` reports datasets/print/etc. only as `changed report datasets`; the exact patch is behind a collapsed checkbox. An AI/MCP patch could add a REST dataset to an attacker URL or an external image and the user sees one vague line | `packages/ai-tools/src/patch.ts` → `summarizeChanges`; `apps/designer/src/lib/ai.ts` → `makeProposal`; `components/AiBar.tsx` | Classify **risky** ops (datasets, `source`, URLs, secrets, plugin `custom`, `image.src`, `print`); always show them expanded with the literal values; require an extra confirm; MCP `patch_report` returns `riskyChanges[]` |
 | P1-10 | **Designer can destroy unsaved work** | *New → starter*, *From sample JSON*, *Open* replace the current report with no confirm; a single localStorage draft slot | `apps/designer/src/components/Shell.tsx` (`create` ≈ l.421; `GenerateDialog` ≈ l.504); `store.ts` → `loadDoc`, `openTemplate` | Confirm when `meta.dirty`; keep N recent drafts; `beforeunload` guard; two-tab conflict detection |
 | P1-11 | **XLSX is data-only** | no column alignment/number alignment, wrap, header fill, freeze panes, autofilter; widths from header length | `packages/renderer-xlsx/src/render.ts` l.71–117 | Header style, freeze first row, autofilter, widths from column spec, wrap, align numbers right, honour `style` (bold/colour) |
-| P1-12 | **PDF style parity** | Text `lineHeight` is now measured and drawn with PDFKit `lineGap` for explicit positive multipliers; mixed-script parity is not yet established. `letterSpacing`, `verticalAlign`, `overflow`, `borderRadius`, `direction`, `justify` remain incomplete or ignored | `renderer-pdf/src/draw-node.ts` → `drawRuns`, `drawBoxDecoration`; `render.ts` measurer | Verify mixed-script spacing and implement or remove the remaining inert style fields (ties to P0-7) |
+| P1-12 | **PDF style parity** | Text `lineHeight` and explicit clip/ellipsis are now measured and drawn; mixed-script parity is not yet established. `letterSpacing`, `verticalAlign`, `borderRadius`, `direction`, `justify` remain incomplete or ignored | `renderer-pdf/src/draw-node.ts` → `drawRuns`, `drawBoxDecoration`; `render.ts` measurer | Verify mixed-script spacing and implement or remove the remaining inert style fields (ties to P0-7) |
 | P1-13 | **Dependency advisories** | `pnpm audit --prod`: **1 high + 3 moderate in `@fastify/static`** (route-guard bypass / path traversal), 1 moderate `uuid` via `exceljs` | `apps/server/package.json` | Upgrade `@fastify/static` ≥ 10.1.2; add `pnpm audit --prod` to CI (non-blocking → blocking at 1.0); renovate/dependabot |
 | P1-14 | **Docker image and CI workflow were never executed** | no Docker daemon in the build environment; workflow YAML never run on GitHub | `Dockerfile`, `.github/workflows/ci.yml`, `docker/nginx.conf` | Run them once; add a `make verify` (build image, boot, render a Hindi PDF, fonts present) and fix whatever breaks |
 | P1-15 | **No asset management** | logos must be pasted as base64; remote images unsupported | designer `ImageProps` (`Properties.tsx`), server | `POST /api/v1/assets` (size/type limits, content-addressed), `asset:<id>` refs, designer upload (pairs with P0-6) |
@@ -155,6 +155,6 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 *Schema-field consumer check* (fields declared in `packages/schema/src/*.ts` and not referenced by `core`, `layout` or any renderer):
 Historical v0.1 list: `allowRowSplit, allowSplit, borderRadius, colors, fontSizes, itemLayout, keepFooterTogether, minLinesAtBottom, minLinesAtTop, repeatOn, resetOn, showOn, timezone, verticalAlign`. `allowSplit` and both `minLinesAt*` fields now have flow-text consumers; the others require individual verification. (`connectionId, method, resultPath, url, language, printerType, safeMargin, locked` are consumed by data sources / the designer and are not gaps.)
 
-*Style-key × renderer matrix* — keys with no PDF consumer: `verticalAlign, letterSpacing, borderRadius, wrap, overflow, direction`; no XLSX consumer: all except borders and header bold.
+*Style-key × renderer matrix* — keys with no PDF consumer: `verticalAlign, letterSpacing, borderRadius, wrap, direction`; text `overflow` now has a PDF consumer. No XLSX consumer: all except borders and header bold.
 
 *Probe summary* (all against built packages): REST redirect (two local servers on `127.0.0.1`/`127.0.0.2`); PostgreSQL `DELETE … RETURNING` and a 300 000-row `SELECT`; `POST /api/v1/render` with `image.src` = real PNG / missing path / `/etc/hostname`; layout of nine nested shapes with 300 rows; `TZ=…` matrix for `formatDate`; designer-vs-PDF page counts for all 23 examples; 8 parallel `PUT`s; 300 queued jobs; template ids `""`, `"../x"`, `"a b"`, 300×`x`, `"<script>"`; `pnpm audit --prod`.

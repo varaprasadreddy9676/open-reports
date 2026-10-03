@@ -8,6 +8,7 @@ import { discoverFonts } from "@reporting/renderer-pdf";
 import { randomUUID } from "node:crypto";
 import { getReportJsonSchema, parseReportDefinition } from "@reporting/schema";
 import { resolveReport, validateReport } from "@reporting/core";
+import { isDataLossWarningCode } from "@reporting/layout";
 import { createAuthHook } from "./auth.js";
 import { SqliteStorage } from "./storage/sqlite-storage.js";
 import { assertStorageProvider, TemplateNotFoundError, VersionImmutableError, VersionNotFoundError, type StorageProvider } from "./storage/types.js";
@@ -187,7 +188,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
       const pdf = runtime.renderers.pdf as { paginateOnly?: (i: unknown) => import("@reporting/layout").PaginatedReport };
       const paginated = pdf.paginateOnly?.({ resolved: pipeline.resolved, resolvePageSection });
       reply.send({
-        valid: validation.valid && pipeline.issues.length === 0,
+        valid: validation.valid && pipeline.issues.length === 0 && !(paginated?.warnings.some((warning) => isDataLossWarningCode(warning.code)) ?? false),
         stage: "analyzed",
         issues: [...validation.issues, ...pipeline.issues],
         warnings: [...pipeline.resolved.warnings, ...(paginated?.warnings ?? [])],
@@ -204,9 +205,9 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   // --- Inline render ---
   app.post("/api/v1/render", async (request, reply) => {
-    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown> };
+    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; strict?: boolean };
     try {
-      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data }, runtime);
+      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data, strict: body.strict }, runtime);
       reply
         .header("content-type", result.mimeType)
         .header("x-render-id", renderId)
@@ -312,7 +313,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   // --- Template render ---
   app.post("/api/v1/templates/:id/render", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; version?: number };
+    const body = request.body as { format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; version?: number; strict?: boolean };
 
     const version = body.version !== undefined ? await storage.getVersion(id, body.version) : await storage.getLatestPublishedVersion(id);
     if (!version) {
@@ -322,7 +323,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     }
 
     try {
-      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters, data: body.data }, runtime);
+      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters, data: body.data, strict: body.strict }, runtime);
       reply.header("content-type", result.mimeType).header("x-render-id", renderId).send(result.content);
     } catch (err) {
       sendRenderError(reply, err);
@@ -331,8 +332,8 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   // --- Async render jobs ---
   app.post("/api/v1/render/jobs", async (request, reply) => {
-    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown> };
-    const job = jobs.enqueue({ report: body.report, format: body.format, parameters: body.parameters, data: body.data });
+    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; strict?: boolean };
+    const job = jobs.enqueue({ report: body.report, format: body.format, parameters: body.parameters, data: body.data, strict: body.strict });
     reply.code(202).send({ jobId: job.id, status: job.status });
   });
 

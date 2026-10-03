@@ -665,6 +665,23 @@ test("a text element can use the same visual conditional style editor", async ({
   await expect(body.getByText("Priority")).toHaveCSS("color", "rgb(185, 28, 28)");
 });
 
+test("fixed-height text shows an error until the author chooses an overflow policy", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("palette-text").click();
+  await page.getByTestId("value-text").fill(Array.from({ length: 24 }, (_, index) => `Report line ${index + 1}`).join("\n"));
+  await page.getByLabel("Height", { exact: true }).fill("20");
+  await expect(page.getByTestId("problem-counts")).toContainText("1 errors");
+  await page.getByTestId("toggle-problems").click();
+  await expect(page.getByTestId("problems")).toContainText("height is limited");
+  await page.getByRole("button", { name: /Advanced/ }).click();
+  await page.getByLabel("Overflow").selectOption("ellipsis");
+  await expect(page.getByTestId("problem-counts")).toContainText("0 errors");
+  await expect(page.getByTestId("problems")).toContainText("ellipsis");
+  await page.getByTestId("mode-preview").click();
+  await expect(page.getByTestId("pdf-frame")).toBeVisible();
+});
+
 test("table header grid: add a level, split and merge cells, then edit the label", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("starter-lab-report").click();

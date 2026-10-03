@@ -78,6 +78,24 @@ describe("POST /api/v1/render (inline)", () => {
     expect(res.headers["x-render-id"]).toBeTruthy();
   });
 
+  it("rejects silent content loss by default and allows an explicit legacy opt-out", async () => {
+    const overflowing = { schemaVersion: "1.0", id: "fixed-overflow", name: "Fixed overflow", sections: [
+      { type: "detail", children: [{ type: "text", id: "small-box", value: Array.from({ length: 20 }, (_, index) => `Line ${index}`).join("\n"), width: 140, height: 20 }] },
+    ] };
+    const blocked = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: overflowing, format: "pdf" } });
+    expect(blocked.statusCode).toBe(422);
+    expect(blocked.json().error.code).toBe("REPORT_RENDER_FAILED");
+    expect(blocked.json().error.details.warnings).toContainEqual(expect.objectContaining({ code: "TEXT_EXCEEDS_HEIGHT", path: "small-box" }));
+    const analyzed = await app.inject({ method: "POST", url: "/api/v1/analyze", payload: { report: overflowing } });
+    expect(analyzed.json().valid).toBe(false);
+    const allowed = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: overflowing, format: "pdf", strict: false } });
+    expect(allowed.statusCode).toBe(200);
+    expect(Number(allowed.headers["x-render-warnings"])).toBeGreaterThan(0);
+    const clipped = { ...overflowing, sections: [{ type: "detail", children: [{ ...overflowing.sections[0]!.children[0]!, style: { overflow: "clip" } }] }] };
+    const intentional = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: clipped, format: "pdf" } });
+    expect(intentional.statusCode).toBe(200);
+  });
+
   it("renders HTML", async () => {
     const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: invoiceReport, format: "html" } });
     expect(res.statusCode).toBe(200);
