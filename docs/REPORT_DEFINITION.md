@@ -28,6 +28,8 @@ For ZPL labels, `print.calibration` can contain `{ "scaleX": 1.008, "scaleY": 1,
 
 Bands also accept `hidden: true` to omit them from rendered output while keeping them in the designer's structure view. `locked: true` is a designer layout guard: it prevents moving, resizing, duplicating, or deleting a band; its visibility, name, and print rules can still be edited. Both flags default to false.
 
+A band with no `height` hugs its content; `height` fixes the band's height in points. `layout: "flow"` stacks children, `"row"` places them side by side, `"grid"` uses `columns`, and `"absolute"` uses each child's coordinates. `gap`, `style.padding`, `alignItems`, and row `justifyContent` control the space between and around children. In a row, children without a width fill remaining space according to `grow`; text with `width: "auto"` hugs its measured longest line, while an explicit dimension fixes its width. Text that is wider than the available row width wraps within that width.
+
 ## Expressions
 Reference data as `data.<dataset>.<path>`, `params.x`, `vars.x`, `row.x` (inside tables/repeaters), `parent.x`, `page.number`, `page.total`, `report.name`. Operators: `+ - * / %`, comparison, `&& || !`, `a ? b : c`. Functions include `upper lower trim concat substring replace contains startsWith endsWith round ceil floor abs min max formatDate addDays difference now formatCurrency formatNumber formatPercent sum avg count first last sumBy avgBy minBy maxBy sumProduct`. Unknown names fail with a suggestion. No assignment, no statements, no arbitrary calls.
 

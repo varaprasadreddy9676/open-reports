@@ -27,9 +27,14 @@ export function BandProps({ index }: { index: number }) {
 
   const pageBand = PAGE_TYPES.includes(band.type);
   const dataBand = DATA_TYPES.includes(band.type);
+  const layout = band.layout ?? "flow";
   const update = (patch: Record<string, unknown>) => {
     const st = useStore.getState();
     st.setDoc(ops.updateBand(st.doc, index, patch), { coalesce: `band:${index}:${Object.keys(patch).join(",")}` });
+  };
+  const useFixedHeight = () => {
+    const measured = useStore.getState().engine.structure?.bands.find((item) => item.sectionIndex === index)?.height;
+    update({ height: band.height ?? Math.max(24, Math.round(measured ?? 24)) });
   };
   const updatePadding = (padding: SpacingValue) => {
     const style = { ...(band.style ?? {}) };
@@ -110,26 +115,34 @@ export function BandProps({ index }: { index: number }) {
       </BandField>}
     </InspectorSection>
 
-    <InspectorSection title="Size and layout" open={false} summary={`${({ flow: "Stack", row: "Row", grid: "Grid", absolute: "Free" } as Record<string, string>)[band.layout ?? "flow"] ?? "Stack"} · ${band.height === undefined ? "Auto height" : `${band.height} pt`}`}>
+    <InspectorSection title="Size and layout" open={false} summary={`${({ flow: "Stack", row: "Row", grid: "Grid", absolute: "Free" } as Record<string, string>)[layout]} · ${band.height === undefined ? "Hug content" : `${band.height} pt`}`}>
     <fieldset className="band-props-fields" disabled={!!band.locked}>
-      <div className="grid2">{number("height", "Fixed height (pt)")}{number("minHeight", "Min height (pt)")}</div>
-      {band.height !== undefined && <button type="button" className="link" onClick={() => update({ height: undefined })}>Use content height</button>}
-      <BandField label="Arrange children"><select aria-label="Band layout" data-testid="band-layout" value={band.layout ?? "flow"} onChange={(e) => update({ layout: e.target.value === "flow" ? undefined : e.target.value })}>
-        <option value="flow">Stack vertically</option>
-        <option value="row">Side by side</option>
-        <option value="grid">Grid</option>
-        <option value="absolute">Free position</option>
-      </select></BandField>
-      {band.layout !== "absolute" && <div className="grid2">{number("gap", "Gap (pt)")}{band.layout === "grid" && number("columns", "Columns", 1)}</div>}
+      <div className="field">
+        <span className="field-label">Band height</span>
+        <div className="seg band-layout-seg" role="group" aria-label="Band height mode">
+          <button type="button" className={band.height === undefined ? "active" : ""} aria-pressed={band.height === undefined} onClick={() => update({ height: undefined })}>Hug content</button>
+          <button type="button" className={band.height !== undefined ? "active" : ""} aria-pressed={band.height !== undefined} onClick={useFixedHeight}>Fixed</button>
+        </div>
+      </div>
+      <div className="grid2">{band.height !== undefined && number("height", "Height (pt)")}{number("minHeight", "Min height (pt)")}</div>
+      <div className="field">
+        <span className="field-label">Arrange children</span>
+        <div className="seg band-layout-seg" role="group" aria-label="Band layout" data-testid="band-layout">
+          {([ ["flow", "Stack"], ["row", "Row"], ["grid", "Grid"], ["absolute", "Free"] ] as const).map(([mode, label]) =>
+            <button key={mode} type="button" data-testid={`band-layout-${mode}`} aria-pressed={layout === mode} className={layout === mode ? "active" : ""} onClick={() => update({ layout: mode === "flow" ? undefined : mode })}>{label}</button>)}
+        </div>
+      </div>
+      {layout !== "absolute" && <div className="grid2">{number("gap", "Gap (pt)")}{layout === "grid" && number("columns", "Columns", 1)}</div>}
       <SpacingFields label="Padding (pt)" value={band.style?.padding} onChange={updatePadding} testId="band-padding" />
-      {(band.layout === undefined || band.layout === "flow" || band.layout === "row") && <div className="grid2">
+      {(layout === "flow" || layout === "row") && <div className="grid2">
         <BandField label="Align"><select aria-label="Band align" data-testid="band-alignItems" value={band.alignItems ?? ""} onChange={(e) => update({ alignItems: e.target.value || undefined })}>
-          <option value="">Default</option>{["start", "center", "end", "stretch"].map((v) => <option key={v}>{v}</option>)}
+          <option value="">Default</option><option value="start">Start</option><option value="center">Center</option><option value="end">End</option><option value="stretch">Stretch</option>
         </select></BandField>
-        {band.layout === "row" && <BandField label="Distribute"><select aria-label="Band distribute" data-testid="band-justifyContent" value={band.justifyContent ?? ""} onChange={(e) => update({ justifyContent: e.target.value || undefined })}>
-          <option value="">Default</option>{["start", "center", "end", "space-between", "space-around"].map((v) => <option key={v}>{v}</option>)}
+        {layout === "row" && <BandField label="Distribute"><select aria-label="Band distribute" data-testid="band-justifyContent" value={band.justifyContent ?? ""} onChange={(e) => update({ justifyContent: e.target.value || undefined })}>
+          <option value="">Start</option><option value="center">Center</option><option value="end">End</option><option value="space-between">Space between</option><option value="space-around">Space around</option>
         </select></BandField>}
       </div>}
+      {layout === "row" && <p className="field-hint">Children fill available width by default. Select a text child to switch it to Hug or set an exact width.</p>}
     </fieldset>
     </InspectorSection>
 

@@ -857,12 +857,17 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
   const isContainer = ["container", "row", "column", "grid", "repeater", "keepTogether"].includes(comp.type);
   const absolute = typeof comp.x === "number" || typeof comp.y === "number";
   const parentLayout = ops.parentLayout(useStore.getState().doc, comp.id);
+  const layout = comp.layout ?? (comp.type === "row" ? "row" : comp.type === "grid" ? "grid" : "flow");
+  const textChild = ["text", "richText", "field"].includes(comp.type);
+  const widthMode = comp.width === "auto" && textChild ? "hug" : comp.width === undefined || comp.width === "*" || comp.width === "auto" ? "fill" : "fixed";
+  const summary = isContainer ? ({ flow: "Stack", row: "Row", grid: "Grid", absolute: "Free" } as Record<string, string>)[layout]
+    : absolute ? "Free position" : parentLayout === "row" ? ({ hug: "Hug text", fill: "Fill width", fixed: "Fixed width" } as Record<string, string>)[widthMode] : "Flow";
   return (
     <>
-      <Section title="Layout" open={isContainer} summary={comp.layout ? titleCase(comp.layout) : absolute ? "Free position" : "Flow"}>
+      <Section title="Layout" open={isContainer} summary={summary}>
         {isContainer && (
           <Field label="Arrange children">
-            <select aria-label="Layout" value={comp.layout ?? (comp.type === "row" ? "row" : comp.type === "grid" ? "grid" : "flow")} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
+            <select aria-label="Layout" value={layout} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
               <option value="flow">Stacked (flow)</option>
               <option value="row">Side by side (row)</option>
               <option value="grid">Grid</option>
@@ -870,7 +875,7 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
             </select>
           </Field>
         )}
-        {comp.type === "grid" && (
+        {isContainer && layout === "grid" && (
           <Field label="Columns">
             <Num label="Grid columns" min={1} value={comp.columns} onChange={(v) => patch(comp.id, { columns: v ?? 1 })} />
           </Field>
@@ -885,38 +890,41 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
             </select>
           </Field>
         )}
-        {isContainer && (
+        {isContainer && layout !== "absolute" && (
           <>
             <div className="grid2">
               <Field label="Gap">
                 <Num label="Gap between children" min={0} value={comp.gap} onChange={(v) => patch(comp.id, { gap: v })} />
               </Field>
-              <Field label="Align items">
+              {(layout === "row" || layout === "flow") && <Field label="Align items">
                 <select aria-label="Align items" value={comp.alignItems ?? ""} onChange={(e) => patch(comp.id, { alignItems: e.target.value || undefined })}>
                   <option value="">Default</option>
-                  {["start", "center", "end", "stretch"].map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
+                  <option value="start">Start</option><option value="center">Center</option><option value="end">End</option><option value="stretch">Stretch</option>
                 </select>
-              </Field>
+              </Field>}
             </div>
-            <Field label="Distribute">
+            {layout === "row" && <Field label="Distribute">
               <select aria-label="Justify content" value={comp.justifyContent ?? ""} onChange={(e) => patch(comp.id, { justifyContent: e.target.value || undefined })}>
-                <option value="">Default</option>
-                {["start", "center", "end", "space-between", "space-around"].map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
+                <option value="">Start</option><option value="center">Center</option><option value="end">End</option><option value="space-between">Space between</option><option value="space-around">Space around</option>
               </select>
-            </Field>
+            </Field>}
           </>
         )}
+        {parentLayout === "row" && <Field label="Width in row">
+          <select aria-label="Width in row" data-testid="row-width-mode" value={widthMode} onChange={(event) => patch(comp.id, { width: event.target.value === "hug" ? "auto" : event.target.value === "fixed" ? 100 : undefined, grow: undefined })}>
+            <option value="fill">Fill available space</option>
+            {textChild && <option value="hug">Hug text</option>}
+            <option value="fixed">Fixed width</option>
+          </select>
+        </Field>}
+        {parentLayout === "row" && widthMode === "fixed" && <p className="field-hint">Set the exact width above. Distribution uses space left after fixed and hugged children.</p>}
         {!absolute && parentLayout === "absolute" && <button className="btn" onClick={() => patch(comp.id, { x: 0, y: 0 })}>Position freely</button>}
         {!absolute && parentLayout === "absolute" ? null : absolute && (
           <button className="btn" onClick={() => patch(comp.id, { x: undefined, y: undefined })}>Return to flow</button>
         )}
         <SpacingEditor comp={comp} prop="margin" label="Margin" />
         <SpacingEditor comp={comp} prop="padding" label="Padding" />
-        {parentLayout === "row" && (
+        {parentLayout === "row" && widthMode === "fill" && (
           <Field label="Grow (share extra width)">
             <Num label="Grow" min={0} value={comp.grow} onChange={(v) => patch(comp.id, { grow: v })} />
           </Field>

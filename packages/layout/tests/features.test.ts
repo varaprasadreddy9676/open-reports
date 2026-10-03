@@ -105,9 +105,24 @@ describe("auto-layout", () => {
     expect(nodes[1]!.box.x + nodes[1]!.box.width).toBeCloseTo(300, 5);
   });
 
+  it("row hugs measured text while a sibling fills the remaining width", () => {
+    const { nodes } = layoutRow([
+      text("Patient:\nUHID:", { width: "auto", style: { fontSize: 10, padding: { left: 4, right: 4 } } }),
+      text("Asha Rao", { grow: 1 }),
+    ], box, defaultTextMeasurer, { gap: 12 });
+    expect(nodes[0]!.box.width).toBeCloseTo(defaultTextMeasurer.widthOf("Patient:", 10) + 8, 5);
+    expect(nodes[1]!.box.x).toBeCloseTo(nodes[0]!.box.width + 12, 5);
+    expect(nodes[1]!.box.width).toBeCloseTo(300 - nodes[0]!.box.width - 12, 5);
+  });
+
   it("row centers children vertically with alignItems", () => {
     const { nodes } = layoutRow([text("a", { width: 50, height: 40 }), text("b", { width: 50, height: 10 })], box, defaultTextMeasurer, { alignItems: "center" });
     expect(nodes[1]!.box.y).toBeCloseTo(15, 5);
+  });
+
+  it("row stretches an auto-height child to its tallest sibling", () => {
+    const { nodes } = layoutRow([text("a", { width: 50, height: 40 }), text("b", { width: 50 })], box, defaultTextMeasurer, { alignItems: "stretch" });
+    expect(nodes[1]!.box.height).toBe(40);
   });
 
   it("clamps width with maxWidth", () => {

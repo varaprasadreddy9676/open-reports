@@ -164,7 +164,16 @@ export function layoutRow(components: ResolvedComponent[], box: Box, measurer: T
   if (n === 0) return { nodes: [], height: 0 };
   const gap = opts.gap ?? 0;
   const margins = components.map(marginOf);
-  const explicit = components.map((c) => resolveDimension(c.width, box.width, DEFAULT_UNIT));
+  const explicit = components.map((c, i) => {
+    if (c.width === "auto" && (c.type === "text" || c.type === "field" || c.type === "richText")) {
+      const fontSize = styleFontSize(c);
+      const hint = styleHint(c);
+      const widestLine = (c.text ?? "").split(/\r\n|\r|\n/).reduce((widest, line) => Math.max(widest, measurer.widthOf(line, fontSize, hint)), 0);
+      const pad = edgesOf((c.style as any)?.padding);
+      return Math.max(1, Math.min(box.width - margins[i]!.left - margins[i]!.right, widestLine + pad.left + pad.right));
+    }
+    return resolveDimension(c.width, box.width, DEFAULT_UNIT);
+  });
   const weights = components.map((c, i) => (explicit[i] === undefined ? (c.grow ?? 1) : 0));
   const fixed = components.reduce((acc, _c, i) => acc + (explicit[i] ?? 0) + margins[i]!.left + margins[i]!.right, 0);
   const remaining = Math.max(0, box.width - fixed - gap * (n - 1));
@@ -204,6 +213,13 @@ export function layoutRow(components: ResolvedComponent[], box: Box, measurer: T
       const m = margins[i]!;
       const free = rowHeight - (node.box.height + m.top + m.bottom);
       shiftNode(node, 0, opts.alignItems === "center" ? free / 2 : free);
+    });
+  } else if (opts.alignItems === "stretch") {
+    nodes.forEach((node, i) => {
+      if (components[i]!.height === undefined || components[i]!.height === "auto") {
+        const m = margins[i]!;
+        node.box.height = Math.max(node.box.height, rowHeight - m.top - m.bottom);
+      }
     });
   }
   return { nodes, height: rowHeight };

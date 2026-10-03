@@ -92,6 +92,27 @@ describe("PdfRenderer", () => {
     }
   });
 
+  it("prints hugged and fixed text at their distributed row positions", async () => {
+    const report = { schemaVersion: "1.0", id: "row-hug", name: "Row hug", page: {
+      size: "custom", width: 300, height: 300, unit: "pt", orientation: "portrait", margin: { top: 10, right: 10, bottom: 10, left: 10 },
+    }, sections: [{ type: "detail", layout: "row", gap: 12, justifyContent: "space-between", children: [
+      { type: "text", value: "PATIENTLABEL", width: "auto" },
+      { type: "text", value: "ASHA", width: 60 },
+    ] }] };
+    const pdf = (await renderPdf(report)).content as Buffer;
+    const file = path.join(os.tmpdir(), `report-row-hug-${process.pid}-${Date.now()}.pdf`);
+    fs.writeFileSync(file, pdf);
+    try {
+      const boxes = execFileSync("pdftotext", ["-bbox", file, "-"], { encoding: "utf-8" });
+      const words = [...boxes.matchAll(/<word xMin="([\d.]+)" yMin="[\d.]+" xMax="([\d.]+)" yMax="[\d.]+">(PATIENTLABEL|ASHA)<\/word>/g)]
+        .map((match) => ({ text: match[3], left: Number(match[1]), right: Number(match[2]) }));
+      expect(words.map((word) => word.text)).toEqual(["PATIENTLABEL", "ASHA"]);
+      expect(words[1]!.left - words[0]!.right).toBeGreaterThan(100);
+    } finally {
+      fs.rmSync(file, { force: true });
+    }
+  });
+
   it("keeps fixed-height text inside its box instead of adding PDFKit pages", async () => {
     const longText = Array.from({ length: 90 }, (_, index) => `MARKER${String(index).padStart(3, "0")}`).join("\n");
     for (const overflow of ["clip", "ellipsis"] as const) {

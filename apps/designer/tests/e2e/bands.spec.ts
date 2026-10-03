@@ -634,8 +634,9 @@ test("selecting a band opens its editor and persists layout and pagination rules
   await expect(page.getByTestId("band-name")).toBeVisible();
   await page.getByTestId("band-name").fill("Line items");
   await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByRole("button", { name: "Fixed", exact: true }).click();
   await page.getByTestId("band-height").fill("72");
-  await page.getByTestId("band-layout").selectOption("grid");
+  await page.getByTestId("band-layout-grid").click();
   await page.getByTestId("band-columns").fill("2");
   await page.getByTestId("properties").getByRole("button", { name: /Pagination/ }).click();
   await page.getByTestId("band-allowSplit").selectOption("false");
@@ -661,12 +662,13 @@ test("band layout controls reflow children with gap and padding", async ({ page 
   expect((await doc(page)).sections[0].children).toHaveLength(2);
   await page.getByTestId("band-tab-0").first().click();
   await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
-  await page.getByTestId("band-layout").selectOption("row");
+  await page.getByTestId("band-layout-row").click();
   await page.getByTestId("band-gap").fill("12");
   await page.getByTestId("band-padding-top").fill("8");
   await page.getByTestId("band-padding-left").fill("10");
+  await page.getByRole("button", { name: "Fixed", exact: true }).click();
   await page.getByTestId("band-height").fill("90");
-  await page.getByRole("button", { name: "Use content height" }).click();
+  await page.getByRole("button", { name: "Hug content" }).click();
   const band = (await doc(page)).sections[0];
   expect(band).toMatchObject({ layout: "row", gap: 12, style: { padding: { top: 8, right: 0, bottom: 0, left: 10 } } });
   expect(band.height).toBeUndefined();
@@ -683,13 +685,68 @@ test("band layout controls reflow children with gap and padding", async ({ page 
   fs.mkdirSync(screenshotDir, { recursive: true });
   await page.screenshot({ path: path.join(screenshotDir, "33-band-auto-layout.png") });
 
-  await page.getByTestId("band-layout").selectOption("flow");
+  await page.getByTestId("band-layout-flow").click();
   await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.structure?.bands.find((b: any) => b.sectionIndex === 0)?.node?.component.layout)).toBeUndefined();
   const flow = await page.evaluate(() => {
     const node = (window as any).__designer.getState().engine.structure.bands.find((b: any) => b.sectionIndex === 0).node;
     return node.children.map((child: any) => child.box);
   });
   expect(flow[1].y - flow[0].y - flow[0].height).toBeGreaterThanOrEqual(11.5);
+});
+
+test("row layout lets text hug its content and distributes fixed children", async ({ page }) => {
+  for (let i = 0; i < 2; i++) {
+    await page.getByTestId("band-tab-0").first().click();
+    await page.getByTestId("left-tab-insert").click();
+    await page.getByTestId("palette-text").click();
+  }
+  const [labelId, valueId] = (await doc(page)).sections[0].children.map((child: any) => child.id);
+  await page.getByTestId("left-tab-layers").click();
+  await page.getByTestId(`layer-${labelId}`).click();
+  await page.getByTestId("value-text").fill("Patient:");
+
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  await page.getByTestId("band-layout-row").click();
+  await page.getByTestId("band-gap").fill("12");
+  await page.getByTestId("band-justifyContent").selectOption("space-between");
+  await page.getByRole("button", { name: "Fixed", exact: true }).click();
+  expect((await doc(page)).sections[0].height).toBeGreaterThanOrEqual(24);
+  await page.getByRole("button", { name: "Hug content" }).click();
+
+  await page.getByTestId(`layer-${labelId}`).click();
+  const openLayout = async () => {
+    const title = page.getByTestId("properties").getByRole("button", { name: "Layout", exact: true });
+    if (await title.getAttribute("aria-expanded") === "false") await title.click();
+  };
+  await openLayout();
+  await page.getByTestId("row-width-mode").selectOption("hug");
+  await page.getByTestId(`layer-${valueId}`).click();
+  await page.getByTestId("value-text").fill("Asha Rao");
+  await openLayout();
+  await page.getByTestId("row-width-mode").selectOption("fixed");
+  await page.getByTestId("quick-geometry").getByLabel("Width").fill("60");
+  expect((await doc(page)).sections[0]).toMatchObject({ layout: "row", gap: 12, justifyContent: "space-between", children: [{ width: "auto" }, { width: 60 }] });
+
+  await expect.poll(() => page.evaluate(() => {
+    const node = (window as any).__designer.getState().engine.structure?.bands.find((band: any) => band.sectionIndex === 0)?.node;
+    return !!node && node.children.length === 2 && node.children[0].box.width < 100 && Math.abs(node.children[1].box.width - 60) < 0.1
+      && Math.abs(node.children[1].box.x + node.children[1].box.width - node.box.x - node.box.width) < 0.1;
+  })).toBe(true);
+  const geometry = await page.evaluate(() => {
+    const node = (window as any).__designer.getState().engine.structure.bands.find((band: any) => band.sectionIndex === 0).node;
+    return { firstWidth: node.children[0].box.width, lastRight: node.children[1].box.x + node.children[1].box.width, bandRight: node.box.x + node.box.width };
+  });
+  expect(geometry.firstWidth).toBeLessThan(100);
+  expect(geometry.lastRight).toBeCloseTo(geometry.bandRight, 1);
+  const firstBox = await page.locator(`.page .cn-text[data-cid="${labelId}"]`).first().boundingBox();
+  const secondBox = await page.locator(`.page .cn-text[data-cid="${valueId}"]`).first().boundingBox();
+  expect(firstBox && secondBox && secondBox.x - firstBox.x - firstBox.width).toBeGreaterThan(100);
+  await page.getByTestId("band-tab-0").first().click();
+  await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
+  const screenshotDir = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshotDir, { recursive: true });
+  await page.screenshot({ path: path.join(screenshotDir, "60-band-row-hug-and-distribute.png") });
 });
 
 test("page band master and band actions are editable", async ({ page }) => {

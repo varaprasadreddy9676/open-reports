@@ -75,7 +75,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 | `colSpan` / `rowSpan` | task #17 “completed” | **Addressed 2026-10-02:** explicit `headerRows` and positional body `cellSpans`; see current schema and tests. |
 | `table.groupBy` | schema, `docs/REPORT_DEFINITION.md` | ignored — no group rows/subtotals |
 | `richText` component | palette, docs | renders markup literally (`**bold**` shown as text) |
-| `allowRowSplit`, `allowSplit`, `keepFooterTogether` | schema and designer | `allowSplit` now controls auto-height flow text and splittable bands; table rows still stay atomic despite `allowRowSplit`; inspect `keepFooterTogether` in table pagination before claiming it works |
+| `allowRowSplit`, `allowSplit`, `keepFooterTogether` | schema and designer | `allowSplit` controls auto-height flow text and splittable bands; `keepFooterTogether` now keeps totals with trailing rows when feasible. Table rows still stay atomic despite `allowRowSplit`, and the designer hides that inert toggle. |
 | `repeatOn`, `showOn` (section) | schema comments | dead (page masters use `appliesTo`) |
 | `resetOn` (variable) | schema | dead |
 | `style.borderRadius` | `plugin-clinic-pack` statusBadge uses it | no renderer draws it |
@@ -131,7 +131,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 ---
 
 ## What was verified as solid
-- Top-level table pagination: repeated header, row splitting, orphan/widow rows, footer — boundary suite passes on real PDFs (N−1/N/N+1, 2N, 2N+1, other page sizes, wrapped and multi-script cells).
+- Top-level table pagination: repeated header, whole-row page breaks, orphan/widow rows, and footer-together behavior have focused layout and real-PDF coverage. Splitting one tall table row across pages remains unimplemented.
 - Formula sandbox (own-property lookups, blocked prototype paths, depth limit), HTML escaping (script/attr/style/`</style>` injection all neutralised), CSV formula injection, ZPL control-character stripping, API-key checks, template immutability once published, concurrent `PUT` versioning (8 parallel → 8 versions), static-file traversal tests.
 - Performance is **linear**: ≈ 0.1 ms/row paginate; 100 000-row XLSX ≈ 8 s, CSV ≈ 5 s.
 - Missing/unknown fields fail loudly with suggestions rather than printing blanks.
@@ -153,7 +153,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 ## Appendix — reproducing the audit
 
 *Schema-field consumer check* (fields declared in `packages/schema/src/*.ts` and not referenced by `core`, `layout` or any renderer):
-Historical v0.1 list: `allowRowSplit, allowSplit, borderRadius, colors, fontSizes, itemLayout, keepFooterTogether, minLinesAtBottom, minLinesAtTop, repeatOn, resetOn, showOn, timezone, verticalAlign`. `allowSplit` and both `minLinesAt*` fields now have flow-text consumers; the others require individual verification. (`connectionId, method, resultPath, url, language, printerType, safeMargin, locked` are consumed by data sources / the designer and are not gaps.)
+Historical v0.1 list: `allowRowSplit, allowSplit, borderRadius, colors, fontSizes, itemLayout, keepFooterTogether, minLinesAtBottom, minLinesAtTop, repeatOn, resetOn, showOn, timezone, verticalAlign`. `allowSplit`, `keepFooterTogether`, and both `minLinesAt*` fields now have layout consumers; the others require individual verification. (`connectionId, method, resultPath, url, language, printerType, safeMargin, locked` are consumed by data sources / the designer and are not gaps.)
 
 *Style-key × renderer matrix* — keys with no PDF consumer: `verticalAlign, letterSpacing, borderRadius, wrap, direction`; text `overflow` now has a PDF consumer. No XLSX consumer: all except borders and header bold.
 
