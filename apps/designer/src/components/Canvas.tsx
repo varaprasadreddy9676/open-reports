@@ -17,6 +17,7 @@ import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 import { PageBreakDetails } from "./PageBreakDetails";
 import { EscPosPreview, PdfPreview } from "./Preview";
 import { fitZoom } from "../lib/zoom";
+import { useCanvasPan } from "../lib/use-canvas-pan";
 import { pointsPerRulerUnit } from "../lib/ruler";
 import { api } from "../lib/api";
 import { canvasFontStack } from "../lib/fonts";
@@ -248,6 +249,8 @@ export function Canvas() {
   const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number; duplicated?: boolean }>(null);
   const marqueeRef = useRef<typeof marquee>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const panEnabled = useStore((state) => state.mode === "design" && !state.dialog);
+  useCanvasPan(scroller, panEnabled);
   const selSet = useMemo(() => new Set(selection), [selection]);
 
   const pageEls = useRef<(HTMLDivElement | null)[]>([]);

@@ -2322,6 +2322,9 @@ kbd {
 .canvas-unit-hint { color: var(--muted); font-size: 11px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 
 .canvas-scroll.structure { padding-left: 160px; padding-right: 60px; }
+/* Hand tool: hold Space or use the middle mouse button to pan. */
+.canvas-scroll.pan-ready, .canvas-scroll.pan-ready * { cursor: grab !important; }
+.canvas-scroll.panning, .canvas-scroll.panning * { cursor: grabbing !important; user-select: none; }
 .structure-page-strip { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; overflow-x: auto; padding: 0 4px 10px; margin: 0 auto 18px; max-width: 100%; width: fit-content; }
 .structure-page-strip > .muted { white-space: nowrap; padding-top: 6px; }
 .structure-page-entry { display: flex; flex: none; flex-direction: column; align-items: center; gap: 2px; }
