@@ -30,7 +30,7 @@ export default defineConfig({
       command: "node ../server/dist/index.js",
       url: "http://127.0.0.1:4100/health",
       reuseExistingServer: false,
-      env: { PORT: "4100", DB_PATH: path.join(dbDir, "e2e.sqlite"), FONTS_DIR: process.env.FONTS_DIR ?? fixtureFontsDir },
+      env: { PORT: "4100", DB_PATH: path.join(dbDir, "e2e.sqlite"), FONTS_DIR: process.env.FONTS_DIR ?? fixtureFontsDir, REPORT_IMAGE_ROOTS: fileURLToPath(new URL("tests/fixtures/", import.meta.url)) },
     },
     {
       command: "npx vite --host 127.0.0.1 --port 3100 --strictPort",

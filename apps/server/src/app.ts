@@ -28,13 +28,17 @@ export interface BuildAppOptions {
   examplesDir?: string;
   /** Private image URL hosts the rendering server is allowed to fetch. */
   imageAllowedHosts?: string[];
+  /** Server folders whose files linked images may read (defaults to REPORT_IMAGE_ROOTS). */
+  imageRoots?: string[];
 }
 
 export function buildApp(options: BuildAppOptions): { app: FastifyInstance; storage: StorageProvider; jobs: JobStore } {
   const app = Fastify({ logger: false, bodyLimit: 10 * 1024 * 1024 });
   const storage: StorageProvider = options.plugins?.storage !== undefined ? assertStorageProvider(options.plugins.storage) : new SqliteStorage(options.dbPath);
   const runtime = createRuntime(options.plugins);
-  runtime.imageAllowedHosts = options.imageAllowedHosts ?? (process.env.REPORT_IMAGE_ALLOWED_HOSTS ?? "").split(",").map((host) => host.trim()).filter(Boolean);
+  const list = (value: string | undefined) => (value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+  runtime.imageAllowedHosts = options.imageAllowedHosts ?? list(process.env.REPORT_IMAGE_ALLOWED_HOSTS);
+  runtime.imageRoots = options.imageRoots ?? list(process.env.REPORT_IMAGE_ROOTS);
   const jobs = new JobStore(runtime);
   const authHook = createAuthHook(options.apiKeys ?? []);
 
@@ -102,7 +106,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     const { src } = request.query as { src?: string };
     try {
       if (!src) throw new RenderPipelineError("An image path or URL is required.", "INVALID_IMAGE_SOURCE", 400);
-      const dataUrl = await readImageSource(src, runtime.imageAllowedHosts);
+      const dataUrl = await readImageSource(src, { allowedHosts: runtime.imageAllowedHosts, roots: runtime.imageRoots });
       return reply.header("cache-control", "no-store").send({ dataUrl });
     } catch (err) {
       return sendRenderError(reply, err);
@@ -205,7 +209,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     const report = extra.length ? { ...parsed.report, datasets: [...parsed.report.datasets, ...extra] } : parsed.report;
     try {
       const pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: body.parameters ?? {}, tolerant: true, functions: runtime.functions, customComponents: runtime.customComponents });
-      const imageSources = await materializeLinkedImages(pipeline.resolved, runtime.imageAllowedHosts);
+      const imageSources = await materializeLinkedImages(pipeline.resolved, { allowedHosts: runtime.imageAllowedHosts, roots: runtime.imageRoots });
       const resolvePageSection = (section: Parameters<typeof pipeline.resolvePageSection>[0], page: Parameters<typeof pipeline.resolvePageSection>[1]) => {
         const children = pipeline.resolvePageSection(section, page);
         materializeChildren(children, imageSources);

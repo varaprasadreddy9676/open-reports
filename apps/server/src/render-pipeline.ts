@@ -38,6 +38,8 @@ export interface RenderRuntime {
   functions?: Record<string, (...args: unknown[]) => unknown>;
   customComponents?: ReturnType<PluginRegistry["componentExpanders"]>;
   imageAllowedHosts?: string[];
+  /** Server folders whose files linked images may read; empty refuses every local path. */
+  imageRoots?: string[];
 }
 
 export function createRuntime(plugins?: PluginRegistry): RenderRuntime {
@@ -98,7 +100,7 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
     });
   }
 
-  const imageSources = await materializeLinkedImages(pipeline.resolved, runtime.imageAllowedHosts);
+  const imageSources = await materializeLinkedImages(pipeline.resolved, { allowedHosts: runtime.imageAllowedHosts, roots: runtime.imageRoots });
   const resolvePageSection = (section: Parameters<typeof pipeline.resolvePageSection>[0], page: Parameters<typeof pipeline.resolvePageSection>[1]) => {
     const children = pipeline.resolvePageSection(section, page);
     materializeChildren(children, imageSources);

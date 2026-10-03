@@ -211,6 +211,22 @@ describe("PdfRenderer", () => {
     expect(result.warnings.some((w) => w.code === "IMAGE_NOT_EMBEDDED")).toBe(true);
   });
 
+  it("never reads a local file path itself; linked files are resolved by the server first", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-local-image-"));
+    const file = path.join(dir, "secret.png");
+    // A valid 1x1 PNG, so a read would embed it rather than fail.
+    fs.writeFileSync(file, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==", "base64"));
+    try {
+      const withImage = { ...invoiceReport, sections: [{ type: "detail", children: [{ type: "image", id: "logo", src: file }] }] };
+      const result = await renderPdf(withImage);
+      const warning = result.warnings.find((w) => w.code === "IMAGE_NOT_EMBEDDED");
+      expect(warning?.message).toMatch(/server/i);
+      expect((result.content as Buffer).includes(Buffer.from("/Subtype /Image"))).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("surfaces a warning when a merged body cell covers different data", async () => {
     const withMerge = {
       ...invoiceReport,

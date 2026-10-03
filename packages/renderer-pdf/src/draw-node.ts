@@ -122,8 +122,7 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
         ctx.warnings.push({ code: "IMAGE_NOT_EMBEDDED", path: component.id ?? "image", message: resolved.warning });
         break;
       }
-      const source = resolved.buffer ?? resolved.path!;
-      doc.image(source, node.box.x, node.box.y, { fit: [node.box.width, node.box.height] });
+      doc.image(resolved.buffer!, node.box.x, node.box.y, { fit: [node.box.width, node.box.height] });
       break;
     }
 
