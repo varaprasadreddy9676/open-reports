@@ -235,7 +235,8 @@ export function zoomToSelection() {
 
 // ------------------------------------------------------------------ bottom bar + panels
 export function BottomBar() {
-  const { engine, bottom } = useStore();
+  const { engine, bottom, doc } = useStore();
+  const receipt = doc.print?.printerType === "receipt";
   const set = useStore((s) => s.set);
   const errors = engine.problems.filter((p) => p.severity === "error").length;
   const warnings = engine.problems.filter((p) => p.severity === "warning").length;
@@ -249,7 +250,7 @@ export function BottomBar() {
           Problems
         </button>
         <button role="tab" aria-selected={bottom === "pagination"} className={bottom === "pagination" ? "active" : ""} data-testid="toggle-pagination" onClick={() => toggle("pagination")}>
-          Pagination{decisions ? ` (${decisions})` : ""}
+          {receipt ? "PDF pagination" : "Pagination"}{decisions ? ` (${decisions})` : ""}
         </button>
         <button role="tab" aria-selected={bottom === "history"} className={bottom === "history" ? "active" : ""} data-testid="toggle-history" onClick={() => toggle("history")}>
           History
@@ -259,7 +260,7 @@ export function BottomBar() {
         <span className={errors ? "err" : ""}>{errors} errors</span>
         <span className={warnings ? "warn" : ""}>{warnings} warnings</span>
         <span>{suggestions} suggestions</span>
-        {engine.paginated && <span className="muted">{engine.paginated.pages.length} page{engine.paginated.pages.length === 1 ? "" : "s"}</span>}
+        {engine.paginated && <span className="muted">{receipt ? "PDF: " : ""}{engine.paginated.pages.length} page{engine.paginated.pages.length === 1 ? "" : "s"}</span>}
       </div>
     </footer>
   );
@@ -406,13 +407,13 @@ function Modal({ children, onClose, wide }: { children: React.ReactNode; onClose
   );
 }
 
-const DOC_SIZES: { label: string; page: Record<string, unknown> }[] = [
+const DOC_SIZES: { label: string; page: Record<string, unknown>; print?: Record<string, unknown> }[] = [
   { label: "A4", page: { size: "A4", orientation: "portrait" } },
   { label: "A4 landscape", page: { size: "A4", orientation: "landscape" } },
   { label: "A5", page: { size: "A5", orientation: "portrait" } },
   { label: "Letter", page: { size: "Letter", orientation: "portrait" } },
-  { label: "Receipt 80 mm", page: { size: "custom", width: 80, height: 200, unit: "mm", margin: { top: 3, right: 3, bottom: 3, left: 3 } } },
-  { label: "Receipt 58 mm", page: { size: "custom", width: 58, height: 160, unit: "mm", margin: { top: 3, right: 3, bottom: 3, left: 3 } } },
+  { label: "Receipt 80 mm", page: { size: "custom", width: 80, height: 200, unit: "mm", margin: { top: 3, right: 3, bottom: 3, left: 3 } }, print: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 } },
+  { label: "Receipt 58 mm", page: { size: "custom", width: 58, height: 160, unit: "mm", margin: { top: 3, right: 3, bottom: 3, left: 3 } }, print: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 } },
   { label: "Label 40 × 25 mm", page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } },
   { label: "Label 50 × 30 mm", page: { size: "custom", width: 50, height: 30, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } },
   { label: "Label 100 × 50 mm", page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape", margin: { top: 3, right: 4, bottom: 3, left: 4 } } },
@@ -427,12 +428,17 @@ function NewDialog() {
     useStore.getState().loadDoc(doc);
     set({ dialog: null, mode: "design" });
   };
+  const createBlank = () => {
+    const selected = DOC_SIZES[size]!;
+    const blank = blankReport();
+    create({ ...blank, page: { ...blank.page, ...selected.page }, ...(selected.print ? { print: selected.print } : {}) });
+  };
   return (
     <Modal wide onClose={() => set({ dialog: null })}>
       <h2>New report</h2>
       <div className="starter-actions">
         <div className="starter blank">
-          <button className="starter-main" data-testid="starter-blank" onClick={() => create(DOC_SIZES[size]!.label === "A4" ? blankReport() : { ...blankReport(), page: { ...blankReport().page, ...DOC_SIZES[size]!.page } })}>
+          <button className="starter-main" data-testid="starter-blank" onClick={createBlank}>
             <strong>Blank report</strong>
             <span>Start from an empty page</span>
           </button>

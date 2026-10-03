@@ -54,6 +54,18 @@ describe("EscPosRenderer", () => {
     expect(total.length).toBeGreaterThan(40);
   });
 
+  it("keeps a formatted amount together on a narrow 58 mm bill", async () => {
+    const doc = receipt(58, [{ type: "table", dataset: "s.items", showHeader: false, columns: [
+      { id: "n", header: "Item", binding: "row.n", width: "*" },
+      { id: "q", header: "Qty", binding: "row.q", width: 14, align: "right" },
+      { id: "a", header: "Amt", expression: "row.q * row.p", format: "currency", width: 34, align: "right" },
+    ] }]);
+    doc.datasets[0]!.query.data.items = [{ n: "Item0000 Supermarket Flour 10kg", q: 1, p: 10 }];
+    const output = ascii((await render(doc)).content as Buffer);
+    expect(output.split("\n").find((line) => line.includes("Item0000"))).toContain("Rs.10.00");
+    expect(output).not.toContain("Rs.1\n0.00");
+  });
+
   it("prints both levels of an explicit merged table header", async () => {
     const r = await render(receipt(80, [{
       type: "table", dataset: "s.items", columns: [{ id: "n", header: "Name", binding: "row.n", width: "*" }, { id: "q", header: "Qty", binding: "row.q", width: 30 }],

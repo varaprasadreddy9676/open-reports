@@ -141,10 +141,26 @@ export class EscPosRenderer implements ReportRenderer {
             for (const g of c.groups) (walk(g.header), walk(g.children), walk(g.footer));
             break;
           case "table": {
-            const fixed = c.columns.map((col: any) => (typeof col.width === "number" ? Math.max(3, Math.round((col.width / 160) * cols * 0.5)) : undefined));
-            const used = fixed.reduce((a: number, b: number | undefined) => a + (b ?? 0) + (b !== undefined ? 1 : 0), 0);
-            const flex = fixed.filter((f: number | undefined) => f === undefined).length || 1;
-            const widths: number[] = fixed.map((f: number | undefined) => f ?? Math.max(4, Math.floor((cols - used - (c.columns.length - 1 - 0)) / flex)));
+            const available = Math.max(c.columns.length * 3, cols - Math.max(0, c.columns.length - 1));
+            const flexCount = c.columns.filter((column: any) => typeof column.width !== "number").length;
+            const fixed: (number | undefined)[] = c.columns.map((column: any) => {
+              if (typeof column.width !== "number") return undefined;
+              let longestValue = 0;
+              for (const row of c.rows) for (const word of printableCell(row.formatted[column.id]).split(/\s+/)) longestValue = Math.max(longestValue, word.length);
+              return Math.max(3, Math.round((column.width / 160) * cols * 0.5), Math.min(longestValue, Math.floor(available / 2)));
+            });
+            let fixedTotal = fixed.reduce((sum: number, width: number | undefined) => sum + (width ?? 0), 0);
+            const fixedLimit = available - flexCount * 4;
+            while (fixedTotal > fixedLimit) {
+              const widest = fixed.findIndex((width) => width !== undefined && width > 3 && width === Math.max(...fixed.map((value) => value ?? 0)));
+              if (widest < 0) break;
+              fixed[widest] = fixed[widest]! - 1;
+              fixedTotal--;
+            }
+            const flexWidth = flexCount ? Math.max(4, Math.floor((available - fixedTotal) / flexCount)) : 0;
+            const widths: number[] = fixed.map((width) => width ?? flexWidth);
+            if (flexCount) widths[fixed.findIndex((width) => width === undefined)]! += available - widths.reduce((sum, width) => sum + width, 0);
+            else if (widths.length) widths[widths.length - 1]! += Math.max(0, available - fixedTotal);
             const fmt = (cells: string[]) => cells.map((cell, i) => pad(cell, widths[i]!, c.columns[i].align ?? "left")).join(" ").slice(0, cols);
             const spanGrid = tableCellSpanGrid(c.cellSpans ?? []);
             const tableLine = (cells: { start: number; width: number; align: "left" | "right" | "center"; text: string }[]) => {

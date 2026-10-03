@@ -1028,8 +1028,8 @@ function PageMasters() {
 
 const PRINT_PRESETS: { label: string; profile: Record<string, unknown>; page?: Record<string, unknown> }[] = [
   { label: "Office printer (A4)", profile: { printerType: "document", language: "pdf", dpi: 300, safeMargin: 5 } },
-  { label: "Thermal receipt 80 mm", profile: { printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 80, height: 200, unit: "mm", orientation: "portrait" } },
-  { label: "Thermal receipt 58 mm", profile: { printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 58, height: 200, unit: "mm", orientation: "portrait" } },
+  { label: "Thermal receipt 80 mm", profile: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 80, height: 200, unit: "mm", orientation: "portrait" } },
+  { label: "Thermal receipt 58 mm", profile: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 58, height: 200, unit: "mm", orientation: "portrait" } },
   { label: "Label 40 × 25 mm (ZPL 203 dpi)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } },
   { label: "Label 50 × 30 mm (ZPL 203 dpi)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 50, height: 30, unit: "mm", orientation: "landscape" } },
   { label: "Label 100 × 50 mm (ZPL 300 dpi)", profile: { printerType: "label", language: "zpl", dpi: 300, safeMargin: 2 }, page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape" } },
@@ -1069,6 +1069,7 @@ function PrintProfilePanel() {
   const selectedProfile = profiles.find((profile) => print && ["printerType", "language", "dpi", "safeMargin"].every((key) => profile.print[key as keyof typeof profile.print] === print[key]) && samePage(profile.page));
   const applySavedProfile = (profile: SavedPrinterProfile) => {
     setDoc({ ...doc, print: { ...profile.print }, page: structuredClone(profile.page) });
+    useStore.getState().set({ target: profile.print.printerType === "receipt" ? "escpos" : "pdf" });
     if (profile.page.unit === "mm" && profile.page.size === "custom" && profile.page.width) useStore.getState().set({ zoom: fitZoom(profile.page.width * 72 / 25.4), fitToWidth: true });
   };
   const saveCurrentProfile = async () => {
@@ -1126,6 +1127,7 @@ function PrintProfilePanel() {
             const preset = PRINT_PRESETS[Number(e.target.value)];
             if (!preset) return;
             setDoc({ ...doc, print: { ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: preset.page.margin ?? { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
+            useStore.getState().set({ target: preset.profile.printerType === "receipt" ? "escpos" : "pdf" });
             if (preset.page?.unit === "mm" && typeof preset.page.width === "number") {
               useStore.getState().set({ zoom: fitZoom(preset.page.width * 72 / 25.4), fitToWidth: true });
             }
@@ -1147,7 +1149,7 @@ function PrintProfilePanel() {
           </select>
         </Field>
         <Field label="Language">
-          <select aria-label="Printer language" value={print?.language ?? ""} onChange={(e) => set({ language: e.target.value || undefined })}>
+          <select aria-label="Printer language" value={print?.language ?? ""} onChange={(e) => { set({ language: e.target.value || undefined }); useStore.getState().set({ target: e.target.value || "pdf" }); }}>
             <option value="">PDF</option>
             <option value="zpl">ZPL</option>
             <option value="escpos">ESC/POS</option>
@@ -1167,10 +1169,14 @@ function PrintProfilePanel() {
       </div>
       {pag && (
         <div className="print-facts" data-testid="print-facts">
-          <div>Physical size <strong>{mm(pag.pageSize.width).toFixed(1)} × {mm(pag.pageSize.height).toFixed(1)} mm</strong></div>
-          <div>
-            At {dpi} dpi <strong>{Math.round((mm(pag.pageSize.width) / 25.4) * dpi)} × {Math.round((mm(pag.pageSize.height) / 25.4) * dpi)} dots</strong>
-          </div>
+          {print?.printerType === "receipt" ? <>
+            <div>Roll width <strong>{mm(pag.pageSize.width).toFixed(1)} mm · continuous to final cut</strong></div>
+            <div>Printable width at {dpi} dpi <strong>{Math.max(16, Math.floor(((pag.pageSize.width - pag.margin.left - pag.margin.right) / 72 * dpi) / 12))} printer columns</strong></div>
+            <div>PDF page height <strong>{mm(pag.pageSize.height).toFixed(1)} mm</strong> · does not limit ESC/POS roll length</div>
+          </> : <>
+            <div>Physical size <strong>{mm(pag.pageSize.width).toFixed(1)} × {mm(pag.pageSize.height).toFixed(1)} mm</strong></div>
+            <div>At {dpi} dpi <strong>{Math.round((mm(pag.pageSize.width) / 25.4) * dpi)} × {Math.round((mm(pag.pageSize.height) / 25.4) * dpi)} dots</strong></div>
+          </>}
           {print?.safeMargin ? <div>Keep content {print.safeMargin} mm from the edge (shown on the canvas)</div> : null}
         </div>
       )}

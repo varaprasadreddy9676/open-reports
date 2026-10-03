@@ -590,6 +590,19 @@ test.describe("preview and export formats", () => {
     await page.getByRole("button", { name: "Edit sale" }).click();
     await page.getByTestId("dataset-json").fill(JSON.stringify(sale));
     await page.getByTestId("dataset-save").click();
+    await page.getByTestId("left-tab-layers").click();
+    await expect(page.getByTestId("target-select")).toHaveValue("escpos");
+    await page.getByTestId("view-pages").click();
+    await expect(page.getByTestId("view-pages")).toHaveText("Roll");
+    await expect(page.getByTestId("design-roll-preview").getByTestId("escpos-text")).toContainText("Item0000");
+    await expect(page.getByTestId("design-roll-preview").getByTestId("escpos-text")).toContainText("Item0499");
+    await expect(page.getByTestId("design-roll-preview").getByTestId("escpos-text")).toContainText(/Item0000[^\n]*Rs\.10\.00/);
+    await expect(page.getByTestId("design-roll-preview").getByTestId("escpos-info")).toContainText("1 cut");
+    await expect(page.getByTestId("page-2")).toHaveCount(0);
+    await expect(page.getByTestId("problem-counts")).toContainText("PDF:");
+    const designScreenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(designScreenshots, { recursive: true });
+    await page.screenshot({ path: path.join(designScreenshots, "51-continuous-receipt-design.png") });
     await page.getByTestId("target-select").selectOption("escpos");
     await page.getByTestId("mode-preview").click();
     await expect(page.getByTestId("preview-tab-escpos")).toHaveAttribute("aria-selected", "true");
@@ -606,6 +619,20 @@ test.describe("preview and export formats", () => {
     await download.saveAs(file);
     const bytes = fs.readFileSync(file);
     expect(bytes.subarray(-4)).toEqual(Buffer.from([0x1d, 0x56, 0x42, 0x00]));
+  });
+
+  test("a blank 80 mm receipt starts with an editable structure and a live roll", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("blank-size").selectOption({ label: "Receipt 80 mm" });
+    await page.getByTestId("starter-blank").click();
+    expect((await doc(page)).print).toMatchObject({ printerType: "receipt", language: "escpos", dpi: 203 });
+    await expect(page.getByTestId("target-select")).toHaveValue("escpos");
+    await expect(page.getByTestId("view-structure")).toBeVisible();
+    await page.getByTestId("view-pages").click();
+    await expect(page.getByTestId("design-roll-preview")).toContainText("80 mm");
+    await expect(page.getByTestId("design-roll-preview")).toContainText("Page height only affects PDF");
+    await page.getByTestId("view-structure").click();
+    await expect(page.getByTestId("page-1")).toBeVisible();
   });
 });
 

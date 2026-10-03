@@ -15,7 +15,7 @@ import { Rulers } from "./Rulers";
 import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
 import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 import { PageBreakDetails } from "./PageBreakDetails";
-import { PdfPreview } from "./Preview";
+import { EscPosPreview, PdfPreview } from "./Preview";
 import { fitZoom } from "../lib/zoom";
 import { pointsPerRulerUnit } from "../lib/ruler";
 import { api } from "../lib/api";
@@ -566,6 +566,15 @@ export function Canvas() {
 
   const pw = paginated.pageSize.width * k;
   const ph = paginated.pageSize.height * k;
+
+  if (doc.print?.printerType === "receipt" && canvasView === "pages") {
+    return (
+      <div className="canvas-scroll receipt-canvas" ref={scroller} data-testid="canvas">
+        <BandBar />
+        <EscPosPreview design />
+      </div>
+    );
+  }
 
   return (
     <div className={`canvas-scroll ${structure ? "structure" : ""}`} ref={scroller} data-testid="canvas">

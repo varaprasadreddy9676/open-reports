@@ -58,6 +58,12 @@
       "left": 4
     }
   },
+  "print": {
+    "printerType": "receipt",
+    "language": "escpos",
+    "dpi": 203,
+    "safeMargin": 2
+  },
   "sections": [
     {
       "type": "detail",

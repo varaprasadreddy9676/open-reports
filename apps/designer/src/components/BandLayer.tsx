@@ -24,6 +24,8 @@ const ADDABLE: { type: string; hint: string }[] = [
 /** Compact canvas controls; detailed setup and pagination appear when requested. */
 export function BandBar() {
   const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, rulerOrigin, gridMode, showGrid, doc, engine, selection, selectedBand } = useStore();
+  const receipt = doc.print?.printerType === "receipt";
+  const rollView = receipt && canvasView === "pages";
   const set = useStore((s) => s.set);
   const originContext = { canvasView, doc, engine, selection, selectedBand };
   const sectionOrigin = rulerAnchor("section", originContext);
@@ -35,20 +37,20 @@ export function BandBar() {
         <button className={canvasView === "structure" ? "on" : ""} data-testid="view-structure" onClick={() => (savePref("canvasView", "structure"), set({ canvasView: "structure" }))} title="Edit the report's structure: every band once">
           Structure
         </button>
-        <button className={canvasView === "pages" ? "on" : ""} data-testid="view-pages" onClick={() => (savePref("canvasView", "pages"), set({ canvasView: "pages" }))} title="See the paginated result">
-          Pages
+        <button className={canvasView === "pages" ? "on" : ""} data-testid="view-pages" onClick={() => (savePref("canvasView", "pages"), set({ canvasView: "pages" }))} title={receipt ? "See the continuous ESC/POS roll" : "See the paginated result"}>
+          {receipt ? "Roll" : "Pages"}
         </button>
       </div>
-      <button className="compact-fit" type="button" aria-label="Fit page to canvas" data-testid="canvas-fit" onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>Fit</button>
-      <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title="Show page starts and explain pagination decisions">
-          Pagination
-      </button>
+      {!rollView && <button className="compact-fit" type="button" aria-label="Fit page to canvas" data-testid="canvas-fit" onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>Fit</button>}
+      {(!receipt || canvasView === "structure") && <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title={receipt ? "Show page starts for PDF output; the ESC/POS roll does not paginate" : "Show page starts and explain pagination decisions"}>
+          {receipt ? "PDF pagination" : "Pagination"}
+      </button>}
       {canvasView === "structure" && (
         <button className={previewSplit ? "on" : ""} data-testid="toggle-preview-split" aria-pressed={previewSplit} onClick={() => set({ previewSplit: !previewSplit })} title="Show the paginated sample beside the structure">
-          Split preview
+          {receipt ? "PDF split preview" : "Split preview"}
         </button>
       )}
-      <details className="canvas-options" data-testid="canvas-options">
+      {!rollView && <details className="canvas-options" data-testid="canvas-options">
         <summary>Canvas settings</summary>
         <div className="canvas-options-panel">
         {canvasView === "structure" && <label title="Show extra example records in each detail band">
@@ -97,7 +99,7 @@ export function BandBar() {
         </label>
         <GuideControls />
         </div>
-      </details>
+      </details>}
     </div>
   );
 }

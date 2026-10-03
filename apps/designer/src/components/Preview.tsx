@@ -254,7 +254,7 @@ function ZplPreview() {
   );
 }
 
-function EscPosPreview() {
+export function EscPosPreview({ design = false }: { design?: boolean }) {
   const { doc, sample, parameters } = useStore();
   const [rendered, setRendered] = useState<{ blob: Blob; text: string; lines: number; cuts: number; warningCount: number }>();
   const [error, setError] = useState("");
@@ -284,13 +284,15 @@ function EscPosPreview() {
   }, [doc, sample, parameters]);
 
   return (
-    <div className="preview-pane escpos-preview" data-testid="escpos-preview">
+    <div className="preview-pane escpos-preview" data-testid={design ? "design-roll-preview" : "escpos-preview"}>
       <div className="preview-bar">
         <span data-testid="escpos-info">{busy ? "Rendering receipt…" : rendered ? `${widthMm.toFixed(0)} mm · ${columns} columns · ${rendered.lines} lines · ${rendered.cuts} cut · ${(rendered.blob.size / 1024).toFixed(1)} KB${rendered.warningCount ? ` · ${rendered.warningCount} warning${rendered.warningCount === 1 ? "" : "s"}` : ""}` : ""}</span>
         <span className="spacer" />
         <button className="btn" data-testid="download-escpos" disabled={!rendered || busy} onClick={() => rendered && downloadBlob(rendered.blob, `${doc.id || "receipt"}.bin`)}>Download .bin</button>
       </div>
-      <p className="escpos-note">Decoded from the generated ESC/POS bytes. Verify paper feed, character set, and cutting on the target printer.</p>
+      <p className="escpos-note">{design
+        ? "Live output from the generated printer bytes. Edit in Structure; the roll continues to one final cut. Page height only affects PDF. ESC/POS uses printer columns and may skip unsupported visual elements."
+        : "Decoded from the generated ESC/POS bytes. Verify paper feed, character set, and cutting on the target printer."}</p>
       {error ? <div className="field-error big" role="alert">{error}</div> : rendered ? (
         <div className="receipt-scroll">
           <div className="receipt-paper" style={{ width: `${columns + 2}ch` }}>

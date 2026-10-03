@@ -955,6 +955,10 @@ textarea {
   font-size: 11px;
   color: var(--muted);
 }
+.receipt-canvas { display: flex; flex-direction: column; overflow: hidden; padding: 12px 24px 0; }
+.receipt-canvas .band-bar { flex: none; position: relative; top: auto; margin: 0 auto 12px; }
+.receipt-canvas .escpos-preview { width: min(100%, 860px); align-self: center; overflow: hidden; background: var(--canvas); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
+.receipt-canvas .receipt-scroll { padding-top: 28px; }
 .cn {
   cursor: default;
 }

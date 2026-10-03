@@ -294,7 +294,7 @@ export const useStore = create<State>((set, get) => ({
 
   loadDoc(doc, meta = {}, sample = {}) {
     const d = ops.ensureIds(doc);
-    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
+    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
     persistDraft(d, sample);
     get().refresh();
   },

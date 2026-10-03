@@ -60,7 +60,7 @@
   "print": {
     "name": "58mm thermal",
     "printerType": "receipt",
-    "language": "pdf",
+    "language": "escpos",
     "dpi": 203,
     "safeMargin": 2
   },
