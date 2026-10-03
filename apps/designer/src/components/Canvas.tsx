@@ -568,7 +568,13 @@ export function Canvas() {
         store.insertComponent({ type: "repeater", dataset: payload.rowDataset, children: [comp] }, targetId, position, bandIndex);
       } else store.insertComponent(comp, targetId, position, bandIndex);
     } else if (payload.kind === "array") {
-      store.set({ dropPrompt: { x: e.clientX, y: e.clientY, dataset: payload.ref, targetId, position, bandIndex } });
+      if (payload.rowRef) {
+        // A record's own list: inside a row of its parent list it becomes row.<list>; elsewhere it is wrapped in a repeater over the parent.
+        const target = targetId ? ops.find(store.doc, targetId) : undefined;
+        const contextId = target && position !== "inside" && ["repeater", "group"].includes(target.comp.type) ? (target.parent.startsWith("section:") ? undefined : target.parent) : targetId;
+        const here = ops.absoluteSource(ops.rowContextChain(store.doc, contextId, bandIndex));
+        store.set({ dropPrompt: { x: e.clientX, y: e.clientY, dataset: payload.rowRef, fieldsFrom: payload.ref, ...(here === payload.rowDataset ? {} : { wrapIn: payload.rowDataset }), targetId, position, bandIndex } });
+      } else store.set({ dropPrompt: { x: e.clientX, y: e.clientY, dataset: payload.ref, targetId, position, bandIndex } });
     }
   }
 
@@ -808,8 +814,8 @@ function DropPromptChoice({ prompt }: { prompt: NonNullable<ReturnType<typeof us
   const [createFields, setCreateFields] = useState(true);
   const firstChoice = useRef<HTMLInputElement>(null);
   const close = () => useStore.getState().set({ dropPrompt: null });
-  const rows = datasetValue(doc, sample, prompt.dataset);
-  const fields = scalarFields(datasetFields(doc, sample, prompt.dataset));
+  const rows = datasetValue(doc, sample, prompt.fieldsFrom ?? prompt.dataset);
+  const fields = scalarFields(datasetFields(doc, sample, prompt.fieldsFrom ?? prompt.dataset));
   const title = titleCase(prompt.dataset.split(".").pop()!);
   const canvasBounds = document.querySelector(".center")?.getBoundingClientRect();
   const dialogWidth = Math.min(360, window.innerWidth - 24);
@@ -826,7 +832,8 @@ function DropPromptChoice({ prompt }: { prompt: NonNullable<ReturnType<typeof us
   }, []);
   const create = () => {
     const s = useStore.getState();
-    s.insertComponent(listFor(prompt.dataset, title, rows, display, createFields, fields), prompt.targetId, prompt.position, prompt.bandIndex);
+    const list = listFor(prompt.dataset, title, rows, display, createFields, fields);
+    s.insertComponent(prompt.wrapIn ? { type: "repeater", dataset: prompt.wrapIn, children: [list] } : list, prompt.targetId, prompt.position, prompt.bandIndex);
     s.set({ rightOpen: true });
     close();
   };
@@ -834,6 +841,7 @@ function DropPromptChoice({ prompt }: { prompt: NonNullable<ReturnType<typeof us
     <div className="drop-prompt" style={{ left: Math.max(leftEdge, Math.min(prompt.x, rightEdge)), top: Math.max(56, Math.min(prompt.y, window.innerHeight - 430)) }} role="dialog" aria-label={`Add ${title} to report`} onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } }} data-testid="drop-prompt">
       <div className="drop-prompt-title">Add {title} to report</div>
       <p className="drop-prompt-subtitle">Choose how each record should appear.</p>
+      {prompt.dataset.startsWith("row.") && <p className="drop-prompt-subtitle" data-testid="drop-prompt-nesting">{prompt.wrapIn ? `Each ${titleCase(prompt.wrapIn.split(".").pop()!)} record will list its own ${title.toLowerCase()}.` : `Shows the ${title.toLowerCase()} of each record in this list.`}</p>}
       <fieldset className="drop-prompt-options">
         <legend>Display as</legend>
         {([

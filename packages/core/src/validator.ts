@@ -1,6 +1,6 @@
 import type { ReportDefinition } from "@reporting/schema";
 import { Parser } from "@reporting/expressions";
-import type { Component } from "./resolve-component.js";
+import { ROW_RELATIVE_SOURCE, type Component } from "./resolve-component.js";
 import { tableHeaderGridErrors } from "./table-header.js";
 import { PAGE_BAND_TYPES, validateRules } from "./rule-validation.js";
 import { tableCellSpanErrors } from "./table-cell-spans.js";
@@ -144,7 +144,13 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
   }
 
   const datasetRef: string | undefined = component.dataset;
-  if (datasetRef && !ctx.datasetIds.has(datasetRef.split(".")[0]!)) {
+  if (datasetRef && ROW_RELATIVE_SOURCE.test(datasetRef)) {
+    try {
+      Parser.parse(datasetRef);
+    } catch (err) {
+      ctx.issues.push({ severity: "error", code: "INVALID_EXPRESSION", path: `${path}.dataset`, message: err instanceof Error ? err.message : String(err), componentId: component.id });
+    }
+  } else if (datasetRef && !ctx.datasetIds.has(datasetRef.split(".")[0]!)) {
     ctx.issues.push(missingDataset(datasetRef, path, Array.from(ctx.datasetIds)));
   }
 

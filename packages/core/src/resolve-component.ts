@@ -62,6 +62,20 @@ export function lookupDataset(data: Record<string, unknown>, ref: string): unkno
   }, data);
 }
 
+/** Sources rooted at the current record (`row.lines`, `parent.items`, `group.rows`) are that record's nested list. */
+export const ROW_RELATIVE_SOURCE = /^(row|parent|group)(\.|$)/;
+
+/** Rows for a table, repeater, list, chart or group: a report dataset (or dotted path into one), or a nested list of the current record. */
+export function sourceRows(ref: string, ctx: ResolveContext, env: ResolveEnv): unknown {
+  if (!ROW_RELATIVE_SOURCE.test(ref)) return lookupDataset(ctx.data, ref);
+  try {
+    return env.engine.evaluate(ref, ctx);
+  } catch (err) {
+    env.warnings.push({ code: "NESTED_LIST_UNAVAILABLE", path: env.path, message: `"${ref}" could not be read: ${err instanceof Error ? err.message : String(err)}` });
+    return undefined;
+  }
+}
+
 function toArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (value === null || value === undefined) return [];
@@ -178,7 +192,7 @@ function resolveComponent(definition: Component, ctx: ResolveContext, env: Resol
       return { ...base(component), type: "barcode", value, symbology: component.symbology ?? "code128" };
     }
     case "chart": {
-      const dataset = component.dataset ? lookupDataset(ctx.data, component.dataset) : undefined;
+      const dataset = component.dataset ? sourceRows(component.dataset, ctx, env) : undefined;
       const rows = toArray(dataset);
       const categories = component.categoryBinding
         ? rows.map((row) => String(env.engine.evaluate(component.categoryBinding, toRowContext(ctx, row))))
@@ -206,7 +220,7 @@ function resolveComponent(definition: Component, ctx: ResolveContext, env: Resol
       return { ...base(component), type: component.type, columns: component.columns, children };
     }
     case "repeater": {
-      const rows = toArray(lookupDataset(ctx.data, component.dataset));
+      const rows = toArray(sourceRows(component.dataset, ctx, env));
       const children = rows.flatMap((row) => resolveComponents(component.children ?? [], toRowContext(ctx, row), env));
       return { ...base(component), type: "repeater", children };
     }
@@ -280,7 +294,7 @@ function resolveLabelSheet(component: Component, ctx: ResolveContext, env: Resol
   const skip = Math.max(0, (component.startPosition ?? 1) - 1) % perSheet;
 
   const records: (Record<string, unknown> | null)[] = component.dataset
-    ? toArray(lookupDataset(ctx.data, component.dataset)).map((r) => r as Record<string, unknown>)
+    ? toArray(sourceRows(component.dataset, ctx, env)).map((r) => r as Record<string, unknown>)
     : Array.from({ length: component.copies ?? perSheet }, () => null);
   if (records.length + skip > MAX_LABELS) {
     env.warnings.push({ code: "LABEL_SHEET_TOO_LARGE", path: env.path, message: `Label sheet would produce more than ${MAX_LABELS} labels; the rest were dropped.`, componentId: component.id });
@@ -319,7 +333,7 @@ function resolveLabelSheet(component: Component, ctx: ResolveContext, env: Resol
 }
 
 function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | null {
-  const rawRows = toArray(lookupDataset(ctx.data, component.dataset));
+  const rawRows = toArray(sourceRows(component.dataset, ctx, env));
   let rows = rawRows.map((row) => row as Record<string, unknown>);
 
   if (component.filterWhen) {
@@ -455,7 +469,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
 
 function resolveGroup(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent {
   const datasetId: string | undefined = component.dataset;
-  const rawRows = toArray(datasetId ? lookupDataset(ctx.data, datasetId) : undefined).map((r) => r as Record<string, unknown>);
+  const rawRows = toArray(datasetId ? sourceRows(datasetId, ctx, env) : undefined).map((r) => r as Record<string, unknown>);
 
   const keyed = rawRows.map((row) => ({
     row,

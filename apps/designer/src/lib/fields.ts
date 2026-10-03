@@ -141,6 +141,14 @@ export function datasetValue(doc: Record<string, any>, sample: Record<string, un
   if (!root) return undefined;
   let value: unknown = root in sample ? sample[root] : (doc.datasets ?? []).find((d: any) => d.id === root)?.query?.data;
   for (const key of rest) {
+    if (Array.isArray(value)) {
+      // A path through a list reads that field from every record; nested lists are joined (orders.lines = all order lines).
+      value = value.flatMap((item) => {
+        const child = item !== null && typeof item === "object" ? (item as Record<string, unknown>)[key] : undefined;
+        return child === undefined ? [] : Array.isArray(child) ? child : [child];
+      });
+      continue;
+    }
     if (value === null || value === undefined || typeof value !== "object") return undefined;
     value = (value as Record<string, unknown>)[key];
   }

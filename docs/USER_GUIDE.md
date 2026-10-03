@@ -47,6 +47,11 @@ While moving an element in a free-position layout, smart guides compare it with 
 - **Snap to** turns each target on or off: grid, other objects, band and page edges, guides, equal spacing and text baselines.
 - These settings are saved for you and are not stored in the report.
 
+**Nested lists.** A list inside each record (for example each order's `lines`) can be dragged from the data tree:
+- **Into a row of its parent list** (for example inside a repeater over `orders`): it shows that record's own list.
+- **Anywhere else:** the designer wraps it automatically in a repeater over the parent list, so one drag builds a master-detail layout. The drop dialog says which of the two will happen.
+- **Column choices:** inside a nested table they offer the nested fields and the parent record's fields (**Parent › …**).
+
 **Merging table cells.** In the Table Designer:
 - **Columns** → open a column and turn on **Merge repeated values** to merge equal consecutive values automatically. This suits category columns such as region or department; long runs split across pages and repeat their value.
 - **Rows & cells** → select two corner cells, choose **Keep this merge**, then **Merge cells**.

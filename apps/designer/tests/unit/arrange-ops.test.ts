@@ -101,3 +101,15 @@ describe("free-positioned arrangement", () => {
     expect(ops.tidyUp(decorated, ["a", "b", "c"], { ...sizes, background: { width: 300, height: 200 } }, 8)).not.toBe(decorated);
   });
 });
+
+describe("inserting a component tree", () => {
+  it("gives every nested component a unique id", async () => {
+    const { insert, walkAll } = await import("../../src/model/ops");
+    const doc = { schemaVersion: "1.0", id: "d", name: "d", sections: [{ type: "detail", children: [{ id: "table-1", type: "table", dataset: "x", columns: [] }] }] } as any;
+    const next = insert(doc, { type: "repeater", dataset: "orders", children: [{ type: "table", dataset: "row.lines", columns: [] }, { type: "container", children: [{ type: "text", value: "a" }, { type: "text", value: "b" }] }] }, undefined, "after", 0);
+    const ids = [...walkAll(next)].map((l: any) => l.comp.id);
+    expect(ids.every(Boolean)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toContain("table-1");
+  });
+});

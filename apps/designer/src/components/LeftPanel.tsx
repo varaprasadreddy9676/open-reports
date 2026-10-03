@@ -153,14 +153,16 @@ function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray, searching }: { 
   const [open, setOpen] = useState(depth < 1);
   const isArray = node.kind === "array";
   const isObj = node.kind === "object";
-  const canDrag = !isObj && !(isArray && parentIsArray);
+  const canDrag = !isObj;
   const ref = `${dsId}.${node.path}`;
   const expanded = searching || open;
   const example = fieldSample(node.sample);
+  const rowPath = `row.${node.path.split(".").slice(arrayRoot ? arrayRoot.split(".").length : 0).join(".")}`;
+  const rowDataset = arrayRoot ? `${dsId}.${arrayRoot}` : dsId;
   const payload = isArray
-    ? { kind: "array", ref }
+    ? parentIsArray ? { kind: "array", ref, rowRef: rowPath, rowDataset } : { kind: "array", ref }
     : parentIsArray
-      ? { kind: "field", binding: `row.${node.path.split(".").slice(arrayRoot ? arrayRoot.split(".").length : 0).join(".")}`, name: node.name, fieldKind: node.kind, rowDataset: arrayRoot ? `${dsId}.${arrayRoot}` : dsId }
+      ? { kind: "field", binding: rowPath, name: node.name, fieldKind: node.kind, rowDataset }
       : { kind: "field", binding: `data.${dsId}.${node.path}`, name: node.name, fieldKind: node.kind };
   return (
     <div className="data-tree">
@@ -174,7 +176,7 @@ function FieldRow({ node, dsId, arrayRoot, depth, parentIsArray, searching }: { 
           e.dataTransfer.effectAllowed = "copy";
         }}
         onClick={() => (isObj || isArray) && setOpen(!open)}
-        title={`${node.path} · ${node.kind}${example ? ` · Sample: ${example}` : ""}${isArray ? canDrag ? " · Drag to choose Table, Repeater, or Cards" : " · Nested lists inside rows are not directly draggable yet" : !isObj ? " · Drag to bind" : ""}`}
+        title={`${node.path} · ${node.kind}${example ? ` · Sample: ${example}` : ""}${isArray ? parentIsArray ? " · Drag into a row of its parent list to show each record's own list (or anywhere to list both)" : " · Drag to choose Table, Repeater, or Cards" : !isObj ? " · Drag to bind" : ""}`}
       >
         <span className="twisty">{isObj || isArray ? (expanded ? "▾" : "▸") : ""}</span>
         <span className="field-icon">{isArray ? "[]" : isObj ? "{}" : node.kind === "number" ? "#" : node.kind === "date" ? "d" : node.kind === "boolean" ? "b" : "a"}</span>

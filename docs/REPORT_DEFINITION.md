@@ -47,6 +47,15 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 | `fragment` | `ref` to `fragments[]` (reusable blocks) |
 | `custom` | `kind`, `props` — provided by a plugin |
 
+### Nested lists (master-detail)
+
+A `table`, `repeater`, `list`, `chart` or `group` normally takes its records from a report dataset (`"dataset": "orders"`, or a dotted path into one).
+- **Row-relative sources.** Inside a band or repeater that iterates records, the source can instead be a nested list of the current record: `"dataset": "row.lines"`, `"parent.items"` (the record one level out), or `"group.rows"` (the records of the current group).
+- **Per-record evaluation.** These sources are evaluated for each record, so each order prints its own lines.
+- **Expressions inside the nested list.** `row` is the nested record and `parent` is the enclosing record, for example `"binding": "parent.customer"`.
+- **Validation.** Row-relative sources are checked as expressions rather than dataset names.
+- **Unreadable lists.** A nested list that can't be read yields no rows, with a `NESTED_LIST_UNAVAILABLE` warning.
+
 ### Table merges
 
 - **Merge repeated values.** Set `mergeRepeated: true` on a column. Consecutive rows with the same displayed value print as one merged cell, and blank values never merge.

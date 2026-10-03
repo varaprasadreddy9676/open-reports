@@ -106,8 +106,15 @@ export function ensureDetailSection(doc: Doc): { doc: Doc; index: number } {
 export type DropPosition = "before" | "after" | "inside";
 
 /** Inserts `comp` relative to a component, into a selected band, or into Detail. */
+/** The component with an id on it and on every nested component that lacks one, so each part can be selected and edited. */
+function withIds(doc: Doc, comp: Comp): Comp {
+  const own: Comp = comp.id ? { ...comp } : { id: genId(doc, comp.type), ...comp };
+  for (const key of CHILD_LISTS) if (Array.isArray(own[key])) own[key] = own[key].map((child: Comp) => withIds(doc, child));
+  return own;
+}
+
 export function insert(doc: Doc, comp: Comp, targetId?: string, position: DropPosition = "after", bandIndex?: number | null): Doc {
-  const withId = comp.id ? comp : { id: genId(doc, comp.type), ...comp };
+  const withId = withIds(doc, comp);
   const next = clone(doc);
   if (targetId) {
     const t = find(next, targetId);
@@ -384,6 +391,40 @@ export function rowDatasetAt(doc: Doc, id: string | undefined): string | undefin
     if (loc && ["repeater", "group"].includes(loc.comp.type) && loc.comp.dataset) return loc.comp.dataset;
   }
   return undefined;
+}
+
+const ROW_RELATIVE = /^(row|parent|group)(\.|$)/;
+
+/** Datasets of the row contexts around `id`, innermost first: enclosing repeaters/groups (and `id` itself when it is one), then its band. */
+export function rowContextChain(doc: Doc, id: string | undefined, bandIndex?: number | null): string[] {
+  const chain: string[] = [];
+  let loc = id ? find(doc, id) : undefined;
+  if (loc && ["repeater", "group"].includes(loc.comp.type) && loc.comp.dataset) chain.push(loc.comp.dataset);
+  while (loc && !loc.parent.startsWith("section:")) {
+    loc = find(doc, loc.parent);
+    if (loc && ["repeater", "group"].includes(loc.comp.type) && loc.comp.dataset) chain.push(loc.comp.dataset);
+  }
+  const band = loc ? Number(loc.parent.slice("section:".length)) : bandIndex ?? undefined;
+  const bandDataset = band === undefined || band === null ? undefined : rowDatasetAtBand(doc, band);
+  if (bandDataset) chain.push(bandDataset);
+  return chain;
+}
+
+/**
+ * Resolves a chain of row sources (innermost first) to the absolute dataset path of the innermost one:
+ * ["row.lines", "orders"] -> "orders.lines"; "parent.x" refers to the context two levels out; "group.rows" to the current one.
+ */
+export function absoluteSource(chain: string[]): string | undefined {
+  const resolved: string[] = [];
+  for (const ref of [...chain].reverse()) {
+    if (!ROW_RELATIVE.test(ref)) { resolved.push(ref); continue; }
+    const [root, ...rest] = ref.split(".");
+    const base = root === "parent" ? resolved[resolved.length - 2] : resolved[resolved.length - 1];
+    if (!base) return undefined;
+    const tail = root === "group" && rest[0] === "rows" ? rest.slice(1) : rest;
+    resolved.push(tail.length ? `${base}.${tail.join(".")}` : base);
+  }
+  return resolved[resolved.length - 1];
 }
 
 /** Row context supplied by a semantic data band, even when it has no components yet. */

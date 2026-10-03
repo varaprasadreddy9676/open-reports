@@ -59,6 +59,10 @@ export interface DropPrompt {
   targetId?: string;
   position: ops.DropPosition;
   bandIndex?: number | null;
+  /** Absolute dataset path to infer fields from when `dataset` is a row-relative nested list. */
+  fieldsFrom?: string;
+  /** Wrap the new list in a repeater over this dataset (a nested list dropped outside its parent's rows). */
+  wrapIn?: string;
 }
 
 interface State {

@@ -20,7 +20,14 @@ function leafPaths(nodes: FieldNode[], prefix: string, group: string, label: str
 export function candidatesFor(doc: ops.Doc, sample: Record<string, unknown>, id?: string, tableDataset?: string): Candidate[] {
   const out: Candidate[] = [];
   const rowDs = tableDataset ?? ops.rowDatasetAt(doc, id);
-  if (rowDs) {
+  if (rowDs && /^(row|parent|group)(\.|$)/.test(rowDs)) {
+    // A nested list: resolve it through the row contexts around it, and offer the enclosing record as parent.*.
+    const chain = tableDataset ? [tableDataset, ...ops.rowContextChain(doc, id)] : ops.rowContextChain(doc, id);
+    const absolute = ops.absoluteSource(chain);
+    if (absolute) leafPaths(datasetFields(doc, sample, absolute), "row.", "This row", "", out);
+    const parent = ops.absoluteSource(chain.slice(1));
+    if (parent) leafPaths(datasetFields(doc, sample, parent), "parent.", "Parent row", "Parent › ", out);
+  } else if (rowDs) {
     leafPaths(datasetFields(doc, sample, rowDs), "row.", "This row", "", out);
   }
   for (const ds of doc.datasets ?? []) {
