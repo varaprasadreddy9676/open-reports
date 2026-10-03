@@ -5,7 +5,7 @@ export function InspectorSection({ title, children, open = true, summary }: { ti
   const [expanded, setExpanded] = useState(open);
   const bodyId = useId();
   return <section className="prop-section">
-    <button type="button" className="prop-section-title" aria-expanded={expanded} aria-controls={bodyId} onClick={() => setExpanded(!expanded)}>
+    <button type="button" className="prop-section-title" aria-label={title} aria-expanded={expanded} aria-controls={bodyId} onClick={() => setExpanded(!expanded)}>
       <span className="prop-section-chevron" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
       <span>{title}</span>
       {!expanded && summary && <span className="prop-section-meta">{summary}</span>}

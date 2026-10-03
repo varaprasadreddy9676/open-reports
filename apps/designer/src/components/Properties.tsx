@@ -453,7 +453,6 @@ function Advanced({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
   return (
     <Section title="Advanced" open={false}>
-      <ConditionBuilder comp={comp} />
       <label className="check">
         <input type="checkbox" data-testid="flag-bookmark" checked={!!comp.bookmark} onChange={(e) => patch(comp.id, { bookmark: e.target.checked ? true : undefined })} />
         PDF bookmark (shows in the PDF outline / navigation pane)
@@ -484,9 +483,6 @@ function TextProps({ comp }: { comp: ops.Comp }) {
       </Section>
       <Section title="Typography">
         <Typography comp={comp} />
-      </Section>
-      <Section title="Appearance" open={false}>
-        <Appearance comp={comp} />
       </Section>
     </>
   );
@@ -838,20 +834,29 @@ function SpacingEditor({ comp, prop, label }: { comp: ops.Comp; prop: "margin" |
   return <SpacingFields label={label} value={comp.style?.[prop]} onChange={(next) => patchStyle(comp.id, { [prop]: next })} />;
 }
 
+function QuickGeometry({ comp }: { comp: ops.Comp }) {
+  const patch = useStore((s) => s.patch);
+  const absolute = typeof comp.x === "number" || typeof comp.y === "number";
+  return <div className="quick-geometry" data-testid="quick-geometry">
+    <div className="grid2">
+      <Field label="Width"><Dim label="Width" value={comp.width} onChange={(value) => patch(comp.id, { width: value })} /></Field>
+      <Field label="Height"><Dim label="Height" value={comp.height} onChange={(value) => patch(comp.id, { height: value })} /></Field>
+    </div>
+    {absolute && <div className="grid2">
+      <Field label="X"><Num label="X position" value={typeof comp.x === "number" ? comp.x : undefined} onChange={(value) => patch(comp.id, { x: value })} /></Field>
+      <Field label="Y"><Num label="Y position" value={typeof comp.y === "number" ? comp.y : undefined} onChange={(value) => patch(comp.id, { y: value })} /></Field>
+    </div>}
+  </div>;
+}
+
 function LayoutProps({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
   const isContainer = ["container", "row", "column", "grid", "repeater", "keepTogether"].includes(comp.type);
   const absolute = typeof comp.x === "number" || typeof comp.y === "number";
   const parentLayout = ops.parentLayout(useStore.getState().doc, comp.id);
-  const flag = (key: string, label: string) => (
-    <label className="check" key={key}>
-      <input type="checkbox" data-testid={`flag-${key}`} checked={!!comp[key]} onChange={(e) => patch(comp.id, { [key]: e.target.checked ? true : undefined })} />
-      {label}
-    </label>
-  );
   return (
     <>
-      <Section title="Layout" open={comp.type !== "table"}>
+      <Section title="Layout" open={isContainer} summary={comp.layout ? titleCase(comp.layout) : absolute ? "Free position" : "Flow"}>
         {isContainer && (
           <Field label="Arrange children">
             <select aria-label="Layout" value={comp.layout ?? (comp.type === "row" ? "row" : comp.type === "grid" ? "grid" : "flow")} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
@@ -902,24 +907,6 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
             </Field>
           </>
         )}
-        <div className="grid2">
-          <Field label="Width">
-            <Dim label="Width" value={comp.width} onChange={(v) => patch(comp.id, { width: v })} />
-          </Field>
-          <Field label="Height">
-            <Dim label="Height" value={comp.height} onChange={(v) => patch(comp.id, { height: v })} />
-          </Field>
-        </div>
-        {absolute && (
-          <div className="grid2">
-            <Field label="X">
-              <Num label="X position" value={typeof comp.x === "number" ? comp.x : undefined} onChange={(v) => patch(comp.id, { x: v })} />
-            </Field>
-            <Field label="Y">
-              <Num label="Y position" value={typeof comp.y === "number" ? comp.y : undefined} onChange={(v) => patch(comp.id, { y: v })} />
-            </Field>
-          </div>
-        )}
         {!absolute && parentLayout === "absolute" && <button className="btn" onClick={() => patch(comp.id, { x: 0, y: 0 })}>Position freely</button>}
         {!absolute && parentLayout === "absolute" ? null : absolute && (
           <button className="btn" onClick={() => patch(comp.id, { x: undefined, y: undefined })}>Return to flow</button>
@@ -940,20 +927,30 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
           <Field label="Max height"><Dim label="Max height" value={comp.maxHeight} onChange={(v) => patch(comp.id, { maxHeight: v })} /></Field>
         </div>
       </Section>
-      <Section title="Page breaks" open={false}>
-        {flag("keepTogether", "Keep together (never split across pages)")}
-        {flag("keepWithNext", "Keep with next element")}
-        {comp.type === "text" && (
-          <div className="grid2">
-            <Field label="Min lines at top"><Num label="Minimum lines at top of page" min={0} value={comp.minLinesAtTop} onChange={(v) => patch(comp.id, { minLinesAtTop: v })} /></Field>
-            <Field label="Min lines at bottom"><Num label="Minimum lines at bottom of page" min={0} value={comp.minLinesAtBottom} onChange={(v) => patch(comp.id, { minLinesAtBottom: v })} /></Field>
-          </div>
-        )}
-        {flag("pageBreakBefore", "Start on a new page")}
-        {flag("pageBreakAfter", "Page break after")}
-      </Section>
     </>
   );
+}
+
+function PaginationProps({ comp }: { comp: ops.Comp }) {
+  const patch = useStore((s) => s.patch);
+  const flag = (key: string, label: string) => (
+    <label className="check" key={key}>
+      <input type="checkbox" data-testid={`flag-${key}`} checked={!!comp[key]} onChange={(e) => patch(comp.id, { [key]: e.target.checked ? true : undefined })} />
+      {label}
+    </label>
+  );
+  return <Section title="Pagination" open={false} summary={comp.keepTogether || comp.keepWithNext || comp.pageBreakBefore || comp.pageBreakAfter || comp.minLinesAtTop || comp.minLinesAtBottom ? "Custom" : "Default"}>
+    {flag("keepTogether", "Keep together (never split across pages)")}
+    {flag("keepWithNext", "Keep with next element")}
+    {comp.type === "text" && (
+      <div className="grid2">
+        <Field label="Min lines at top"><Num label="Minimum lines at top of page" min={0} value={comp.minLinesAtTop} onChange={(v) => patch(comp.id, { minLinesAtTop: v })} /></Field>
+        <Field label="Min lines at bottom"><Num label="Minimum lines at bottom of page" min={0} value={comp.minLinesAtBottom} onChange={(v) => patch(comp.id, { minLinesAtBottom: v })} /></Field>
+      </div>
+    )}
+    {flag("pageBreakBefore", "Start on a new page")}
+    {flag("pageBreakAfter", "Page break after")}
+  </Section>;
 }
 
 // ------------------------------------------------------------------ page masters
@@ -1320,18 +1317,19 @@ function ComponentProps({ id }: { id: string }) {
           <button className="danger" data-testid="delete-selected" onClick={() => useStore.getState().removeSelected()}>Delete element</button>
         </InspectorActions>
       </div>
+      {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <QuickGeometry comp={comp} />}
       {(t === "text" || t === "richText" || t === "field") && <TextProps comp={comp} />}
       {t === "table" && <TableProps comp={comp} />}
       {t === "chart" && <ChartProps comp={comp} />}
       {t === "labelSheet" && <LabelSheetProps comp={comp} />}
       {(t === "qrcode" || t === "barcode") && <CodeProps comp={comp} />}
       {t === "image" && <ImageProps comp={comp} />}
-      {(t === "rectangle" || t === "container" || t === "row" || t === "column" || t === "grid") && (
-        <Section title="Appearance" open={t === "rectangle"}>
+      {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <LayoutProps comp={comp} />}
+      {(["text", "richText", "field", "rectangle", "container", "row", "column", "grid"].includes(t)) && (
+        <Section title="Style" open={t === "rectangle"} summary={comp.style?.color || comp.style?.background || comp.style?.border ? "Customized" : "Default"}>
           <Appearance comp={comp} />
         </Section>
       )}
-      {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <LayoutProps comp={comp} />}
       {t === "group" && (
         <Section title="Grouping">
           <Field label="Group by (expression)">
@@ -1339,11 +1337,15 @@ function ComponentProps({ id }: { id: string }) {
           </Field>
         </Section>
       )}
-      {t !== "pageBreak" && t !== "table" && (
-        <Section title="Conditional appearance" open={!!comp.styleWhen?.length}>
-          <StyleRulesEditor comp={comp} property="styleWhen" testId="component-style-rules" />
+      {t !== "pageBreak" && (
+        <Section title="Conditions" open={!!comp.visibleWhen || !!comp.styleWhen?.length} summary={comp.visibleWhen || comp.styleWhen?.length ? "Active" : "None"}>
+          <div className="inspector-subtitle">Visibility</div>
+          <ConditionBuilder comp={comp} />
+          {t !== "table" && <><div className="inspector-subtitle">Appearance</div><StyleRulesEditor comp={comp} property="styleWhen" testId="component-style-rules" /></>}
+          {t === "table" && <p className="field-hint">Edit row appearance rules in Table Designer.</p>}
         </Section>
       )}
+      {t !== "pageBreak" && t !== "line" && t !== "labelSheet" && <PaginationProps comp={comp} />}
       {t !== "pageBreak" && <Advanced comp={comp} />}
     </>
   );

@@ -454,7 +454,7 @@ test.describe("editing", () => {
     await page.getByTestId("starter-conditional").click();
     await expect(page.getByTestId("page-1")).toBeVisible();
     await page.evaluate(() => (window as any).__designer.getState().select(["attention"]));
-    await page.getByRole("button", { name: /Advanced/ }).click();
+    await page.getByRole("button", { name: /Conditions/ }).click();
     await page.getByTestId("visible-when-toggle").check();
     await page.getByTestId("cond-field").selectOption({ index: 0 });
     await page.getByTestId("cond-op").selectOption("gt");

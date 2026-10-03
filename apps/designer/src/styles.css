@@ -637,6 +637,10 @@ textarea {
   z-index: 2;
 }
 .prop-head > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-geometry { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.quick-geometry .field-label { font-weight: 600; }
+.inspector-subtitle { padding-top: 2px; color: var(--text); font-size: 11px; font-weight: 650; }
+.inspector-subtitle:not(:first-child) { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
 .inspector-actions { position: relative; flex: none; }
 .inspector-actions > summary { display: grid; place-items: center; width: 28px; height: 28px; list-style: none; border-radius: var(--radius-sm); color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; }
 .inspector-actions > summary::-webkit-details-marker { display: none; }
@@ -655,7 +659,7 @@ textarea {
   text-align: left;
   background: none;
   border: 0;
-  padding: 9px 12px;
+  padding: 8px 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -665,10 +669,10 @@ textarea {
 .prop-section-chevron { width: 12px; flex: none; color: var(--muted); }
 .prop-section-meta { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 400; white-space: nowrap; }
 .prop-body {
-  padding: 0 12px 12px;
+  padding: 0 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .field {
   display: flex;

@@ -327,6 +327,7 @@ test.describe("properties, masters, print, blocks", () => {
     await page.goto("/");
     await page.getByTestId("starter-blank").click();
     await page.getByTestId("palette-text").click();
+    await page.getByRole("button", { name: "Layout", exact: true }).click();
     await page.getByLabel("Margin top").fill("6");
     await page.getByLabel("Padding left").fill("4");
     const d = JSON.stringify(await doc(page));
@@ -659,7 +660,7 @@ test("a text element can use the same visual conditional style editor", async ({
   await page.getByTestId("dataset-id").fill("patient");
   await page.getByTestId("dataset-json").fill(JSON.stringify({ flag: "H" }));
   await page.getByTestId("dataset-save").click();
-  await page.getByRole("button", { name: /Conditional appearance/ }).click();
+  await page.getByRole("button", { name: /Conditions/ }).click();
   await page.getByTestId("component-style-rules-add").click();
   await page.getByLabel("Rule 1 field").selectOption("data.patient.flag");
   await page.getByLabel("Rule 1 value").fill("H");
@@ -677,6 +678,26 @@ test("a text element can use the same visual conditional style editor", async ({
   await page.getByTestId("preview-tab-html").click();
   const body = page.getByTestId("html-frame").contentFrame().locator("body");
   await expect(body.getByText("Priority")).toHaveCSS("color", "rgb(185, 28, 28)");
+});
+
+test("text inspector keeps geometry visible and secondary settings collapsed", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("palette-text").click();
+  await page.getByTestId("value-text").fill("Patient name: Asha Rao");
+  await expect(page.getByTestId("quick-geometry")).toBeVisible();
+  await page.getByLabel("Width", { exact: true }).fill("180");
+  await page.getByLabel("Height", { exact: true }).fill("24");
+  await expect(page.getByRole("button", { name: "Layout", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: /Conditions/ })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByTestId("page-1")).toBeVisible();
+  await page.getByTestId("left-tab-layers").click();
+  const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+  fs.mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({ path: path.join(screenshots, "47-contextual-text-inspector.png") });
+  await page.getByRole("button", { name: /Conditions/ }).click();
+  await expect(page.getByTestId("visible-when-toggle")).toBeVisible();
+  await expect(page.getByTestId("component-style-rules-add")).toBeVisible();
 });
 
 test("fixed-height text shows an error until the author chooses an overflow policy", async ({ page }) => {
