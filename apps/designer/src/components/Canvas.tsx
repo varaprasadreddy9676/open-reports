@@ -9,7 +9,7 @@ import { cssFrom } from "../lib/css";
 import { datasetFields, datasetValue, scalarFields } from "../lib/fields";
 import { listFor, type ListDisplay } from "../lib/generate";
 import { titleCase } from "../lib/lowcode";
-import { snapBox, rectsIntersect, type Guide, type Distance } from "../lib/snap";
+import { snapBox, snapResizeBox, rectsIntersect, type Guide, type Distance } from "../lib/snap";
 import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
 import { Rulers } from "./Rulers";
 import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
@@ -307,6 +307,21 @@ export function Canvas() {
     return snap && !bypass ? Math.round(v / SNAP) * SNAP : Math.round(v * 10) / 10;
   }
 
+  function snapContext(sourceDoc: ops.Doc, id: string, page: number) {
+    const p = paginated?.pages[page];
+    const loc = ops.find(sourceDoc, id);
+    if (!p || !loc || !paginated) return null;
+    const nodes = [...flat([...p.header, ...p.content, ...p.footer])];
+    const siblingIds = new Set<string>(loc.list.map((c) => c.id).filter((siblingId: string) => siblingId && siblingId !== id));
+    const others = nodes.filter((n) => siblingIds.has((n.component as any).id)).map((n) => n.box);
+    const parentId = loc.parent;
+    const parentBox = !parentId.startsWith("section:") ? nodes.find((n) => (n.component as any).id === parentId)?.box : undefined;
+    const sectionBand = structure && parentId.startsWith("section:") ? structure.bands.find((b) => b.sectionIndex === Number(parentId.slice(8)) && !b.ghost) : undefined;
+    const bounds = parentBox ?? (sectionBand ? { x: paginated.margin.left, y: sectionBand.y, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: sectionBand.height } : { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom });
+    const extra = { x: ((sourceDoc.guides ?? []) as any[]).filter((g) => g.axis === "x").map((g) => g.pos), y: ((sourceDoc.guides ?? []) as any[]).filter((g) => g.axis === "y").map((g) => g.pos) };
+    return { others, bounds, extra };
+  }
+
   // ---- pointer interactions (select, move/reorder, resize)
   function onPointerDown(e: React.PointerEvent, page: number) {
     if (e.button !== 0) return;
@@ -317,7 +332,7 @@ export function Canvas() {
       const id = store.selection[0]!;
       const loc = ops.find(store.doc, id);
       const node = [...flat([...paginated!.pages[page]!.header, ...paginated!.pages[page]!.content, ...paginated!.pages[page]!.footer])].find((n) => (n.component as any).id === id);
-      drag.current = { id, mode: "resize", handle: handle.dataset.handle, sx: e.clientX, sy: e.clientY, moved: false, orig: { w: node?.box.width ?? 0, h: node?.box.height ?? 0, x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: typeof loc?.comp.x === "number" }, page };
+      drag.current = { id, mode: "resize", handle: handle.dataset.handle, sx: e.clientX, sy: e.clientY, moved: false, orig: { w: node?.box.width ?? 0, h: node?.box.height ?? 0, x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: typeof loc?.comp.x === "number", box: node?.box ? { ...node.box } : undefined }, page };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
@@ -363,17 +378,37 @@ export function Canvas() {
     if (d.mode === "resize") {
       const patch: Record<string, number> = {};
       const h = d.handle!;
-      if (h.includes("e")) patch.width = Math.max(8, snapTo(d.orig.w + dx, e.altKey));
-      if (h.includes("s")) patch.height = Math.max(4, snapTo(d.orig.h + dy, e.altKey));
-      if (h.includes("w")) {
-        const w = Math.max(8, snapTo(d.orig.w - dx, e.altKey));
-        patch.width = w;
-        if (d.orig.absolute) patch.x = d.orig.x + (d.orig.w - w);
+      const changesX = h.includes("e") || h.includes("w");
+      const changesY = h.includes("n") || h.includes("s");
+      let width = Math.max(8, d.orig.w + (h.includes("e") ? dx : h.includes("w") ? -dx : 0));
+      let height = Math.max(4, d.orig.h + (h.includes("s") ? dy : h.includes("n") ? -dy : 0));
+      let x = h.includes("w") ? d.orig.x + d.orig.w - width : d.orig.x;
+      let y = h.includes("n") ? d.orig.y + d.orig.h - height : d.orig.y;
+      const context = d.orig.absolute && d.orig.box ? snapContext(store.doc, d.id, page) : null;
+      let snapped = { x: false, y: false };
+      if (context) {
+        const offX = d.orig.box.x - d.orig.x;
+        const offY = d.orig.box.y - d.orig.y;
+        const guideEnabled = store.view.guides && !e.altKey;
+        const result = snapResizeBox({ x: x + offX, y: y + offY, width, height }, h, context.others, context.bounds, guideEnabled, context.extra);
+        if (guideEnabled) {
+          snapped = result.snapped;
+          width = result.box.width;
+          height = result.box.height;
+          x = result.box.x - offX;
+          y = result.box.y - offY;
+          setGuides({ page, guides: result.guides, distances: result.distances });
+        } else setGuides(null);
+      } else setGuides(null);
+      if (changesX) {
+        if (!snapped.x) width = Math.max(8, snapTo(width, e.altKey));
+        patch.width = Math.round(width * 10) / 10;
+        if (h.includes("w") && d.orig.absolute) patch.x = snapped.x ? Math.round(x * 10) / 10 : Math.round((d.orig.x + d.orig.w - width) * 10) / 10;
       }
-      if (h.includes("n")) {
-        const hh = Math.max(4, snapTo(d.orig.h - dy, e.altKey));
-        patch.height = hh;
-        if (d.orig.absolute) patch.y = d.orig.y + (d.orig.h - hh);
+      if (changesY) {
+        if (!snapped.y) height = Math.max(4, snapTo(height, e.altKey));
+        patch.height = Math.round(height * 10) / 10;
+        if (h.includes("n") && d.orig.absolute) patch.y = snapped.y ? Math.round(y * 10) / 10 : Math.round((d.orig.y + d.orig.h - height) * 10) / 10;
       }
       store.patch(d.id, patch, `resize:${d.id}`);
       return;
@@ -391,21 +426,14 @@ export function Canvas() {
       }
       let x = d.orig.x + dx;
       let y = d.orig.y + dy;
-      const p = paginated?.pages[page];
       const me = d.orig.box;
       let snapped = { x: false, y: false };
-      if (me && p && paginated) {
-        const loc = ops.find(store.doc, d.id);
-        const parentId = loc?.parent;
-        const siblingIds = new Set<string>(loc?.list.map((c) => c.id).filter((id: string) => id && id !== d.id) ?? []);
-        const others = [...flat([...p.header, ...p.content, ...p.footer])].filter((n) => siblingIds.has((n.component as any).id)).map((n) => n.box);
-        const parentBox = parentId && !parentId.startsWith("section:") ? [...flat([...p.header, ...p.content, ...p.footer])].find((n) => (n.component as any).id === parentId)?.box : undefined;
-        const sectionBand = structure && parentId?.startsWith("section:") ? structure.bands.find((b) => b.sectionIndex === Number(parentId.slice(8)) && !b.ghost) : undefined;
-        const bounds = parentBox ?? (sectionBand ? { x: paginated.margin.left, y: sectionBand.y, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: sectionBand.height } : { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom });
+      const context = me ? snapContext(store.doc, d.id, page) : null;
+      if (me && context) {
         const offX = me.x - d.orig.x;
         const offY = me.y - d.orig.y;
         const guideEnabled = store.view.guides && !e.altKey;
-        const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, others, bounds, guideEnabled, { x: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "x").map((g) => g.pos), y: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "y").map((g) => g.pos) });
+        const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, context.others, context.bounds, guideEnabled, context.extra);
         if (guideEnabled) {
           x = r.x - offX;
           y = r.y - offY;

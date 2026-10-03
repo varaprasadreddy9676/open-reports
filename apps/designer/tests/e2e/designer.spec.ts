@@ -302,6 +302,48 @@ test.describe("editing", () => {
     expect((await doc(page)).sections[0].children).toHaveLength(4);
   });
 
+  test("resizing an absolute element snaps its active edge and Alt bypasses it", async ({ page }) => {
+    await startBlank(page);
+    await page.evaluate(() => {
+      const store = (window as any).__designer.getState();
+      store.loadDoc({ ...store.doc, id: "resize-demo", name: "Resize demo", sections: [{ type: "detail", layout: "absolute", children: [
+        { id: "resize-me", type: "rectangle", x: 100, y: 100, width: 50, height: 30 },
+        { id: "neighbour", type: "rectangle", x: 200, y: 100, width: 40, height: 30 },
+      ] }] });
+      (window as any).__designer.getState().select(["resize-me"]);
+    });
+    const handle = page.locator(".handle.e");
+    await expect(handle).toBeVisible();
+    const scale = await page.evaluate(() => (4 / 3) * (window as any).__designer.getState().zoom);
+    const start = (await handle.boundingBox())!;
+    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(start.x + start.width / 2 + 48 * scale, start.y + start.height / 2, { steps: 9 });
+    await expect.poll(async () => (await doc(page)).sections[0].children[0].width).toBe(100);
+    await expect(page.locator(".guide.x")).toHaveCount(1);
+    await expect.poll(async () => {
+      const selected = await page.locator(".selbox").boundingBox();
+      const neighbour = await page.locator('.cn[data-cid="neighbour"]').boundingBox();
+      return Math.abs((selected?.x ?? 0) + (selected?.width ?? 0) - (neighbour?.x ?? Infinity));
+    }).toBeLessThan(1);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "41-resize-smart-guide.png") });
+    await page.mouse.up();
+
+    await page.evaluate(() => (window as any).__designer.getState().patch("resize-me", { width: 50 }));
+    await expect.poll(async () => (await page.locator(".selbox").boundingBox())?.width).toBeCloseTo(50 * scale, 0);
+    const reset = (await handle.boundingBox())!;
+    await page.keyboard.down("Alt");
+    await page.mouse.move(reset.x + reset.width / 2, reset.y + reset.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(reset.x + reset.width / 2 + 48 * scale, reset.y + reset.height / 2, { steps: 9 });
+    await expect(page.locator(".guide.x")).toHaveCount(0);
+    await page.mouse.up();
+    await page.keyboard.up("Alt");
+    expect((await doc(page)).sections[0].children[0].width).toBeCloseTo(98, 0);
+  });
+
   test("selection ruler zero and canvas dimensions follow the rendered element", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();

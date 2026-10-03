@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { snapBox, rectsIntersect } from "../../src/lib/snap";
+import { snapBox, snapResizeBox, rectsIntersect } from "../../src/lib/snap";
 
 const bounds = { x: 40, y: 40, width: 500, height: 700 };
 
@@ -46,6 +46,22 @@ describe("snapBox", () => {
     ], bounds, true);
     expect(r.y).toBe(200);
     expect(r.distances.filter((d) => d.axis === "y" && d.equal)).toHaveLength(2);
+  });
+  it("snaps only active resize edges to sibling geometry", () => {
+    const other = { x: 200, y: 200, width: 40, height: 30 };
+    const east = snapResizeBox({ x: 100, y: 200, width: 98, height: 30 }, "e", [other], bounds, true);
+    expect(east.box).toEqual({ x: 100, y: 200, width: 100, height: 30 });
+    expect(east.guides).toContainEqual({ axis: "x", pos: 200, from: 200, to: 230 });
+    expect(east.distances.some((d) => d.axis === "x" && d.mm === 0)).toBe(true);
+    expect(east.snapped).toEqual({ x: true, y: false });
+
+    const west = snapResizeBox({ x: 202, y: 200, width: 98, height: 30 }, "w", [other], bounds, true);
+    expect(west.box).toEqual({ x: 200, y: 200, width: 100, height: 30 });
+    const south = snapResizeBox({ x: 200, y: 100, width: 40, height: 98 }, "s", [other], bounds, true);
+    expect(south.box).toEqual({ x: 200, y: 100, width: 40, height: 100 });
+    const north = snapResizeBox({ x: 200, y: 202, width: 40, height: 98 }, "n", [other], bounds, true);
+    expect(north.box).toEqual({ x: 200, y: 200, width: 40, height: 100 });
+    expect(snapResizeBox({ x: 100, y: 200, width: 98, height: 30 }, "e", [other], bounds, false)).toMatchObject({ box: { width: 98 }, guides: [], distances: [] });
   });
   it("rectsIntersect", () => {
     expect(rectsIntersect({ x: 0, y: 0, width: 10, height: 10 }, { x: 5, y: 5, width: 10, height: 10 })).toBe(true);

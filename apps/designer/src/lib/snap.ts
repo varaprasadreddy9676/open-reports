@@ -25,6 +25,26 @@ interface SpacingMatch {
   reference: { from: number; to: number; at: number };
 }
 
+function measureDistances(box: Box, others: Box[]): Distance[] {
+  const distances: Distance[] = [];
+  let left: Box | undefined, right: Box | undefined, above: Box | undefined, below: Box | undefined;
+  for (const o of others) {
+    const overlapY = o.y < box.y + box.height && o.y + o.height > box.y;
+    const overlapX = o.x < box.x + box.width && o.x + o.width > box.x;
+    if (overlapY && o.x + o.width <= box.x && (!left || o.x + o.width > left.x + left.width)) left = o;
+    if (overlapY && o.x >= box.x + box.width && (!right || o.x < right.x)) right = o;
+    if (overlapX && o.y + o.height <= box.y && (!above || o.y + o.height > above.y + above.height)) above = o;
+    if (overlapX && o.y >= box.y + box.height && (!below || o.y < below.y)) below = o;
+  }
+  const midY = box.y + box.height / 2;
+  const midX = box.x + box.width / 2;
+  if (left) distances.push({ axis: "x", from: left.x + left.width, to: box.x, at: midY, mm: (box.x - left.x - left.width) * MM });
+  if (right) distances.push({ axis: "x", from: box.x + box.width, to: right.x, at: midY, mm: (right.x - box.x - box.width) * MM });
+  if (above) distances.push({ axis: "y", from: above.y + above.height, to: box.y, at: midX, mm: (box.y - above.y - above.height) * MM });
+  if (below) distances.push({ axis: "y", from: box.y + box.height, to: below.y, at: midX, mm: (below.y - box.y - box.height) * MM });
+  return distances;
+}
+
 /** Equal gaps between neighbours, or one matching gap immediately outside a pair. */
 function spacingMatch(moving: Box, others: Box[], bounds: Box, axis: "x" | "y"): SpacingMatch | undefined {
   const start = (b: Box) => axis === "x" ? b.x : b.y;
@@ -62,8 +82,7 @@ function spacingMatch(moving: Box, others: Box[], bounds: Box, axis: "x" | "y"):
 export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[] } = { x: [], y: [] }): { x: number; y: number; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
   let { x, y } = moving;
   const guides: Guide[] = [];
-  const distances: Distance[] = [];
-  if (!enabled) return { x, y, guides, distances, snapped: { x: false, y: false } };
+  if (!enabled) return { x, y, guides, distances: [] as Distance[], snapped: { x: false, y: false } };
 
   const xs = (b: Box) => [b.x, b.x + b.width / 2, b.x + b.width];
   const ys = (b: Box) => [b.y, b.y + b.height / 2, b.y + b.height];
@@ -96,22 +115,7 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
   if (!equalX && bestX.d <= THRESHOLD) guides.push({ axis: "x", pos: bestX.at, from: Math.min(box.y, bestX.source?.y ?? bounds.y), to: Math.max(box.y + box.height, bestX.source ? bestX.source.y + bestX.source.height : bounds.y + bounds.height) });
   if (!equalY && bestY.d <= THRESHOLD) guides.push({ axis: "y", pos: bestY.at, from: Math.min(box.x, bestY.source?.x ?? bounds.x), to: Math.max(box.x + box.width, bestY.source ? bestY.source.x + bestY.source.width : bounds.x + bounds.width) });
 
-  // distance to the nearest neighbour on each side that overlaps on the other axis
-  let left: Box | undefined, right: Box | undefined, above: Box | undefined, below: Box | undefined;
-  for (const o of others) {
-    const overlapY = o.y < box.y + box.height && o.y + o.height > box.y;
-    const overlapX = o.x < box.x + box.width && o.x + o.width > box.x;
-    if (overlapY && o.x + o.width <= box.x && (!left || o.x + o.width > left.x + left.width)) left = o;
-    if (overlapY && o.x >= box.x + box.width && (!right || o.x < right.x)) right = o;
-    if (overlapX && o.y + o.height <= box.y && (!above || o.y + o.height > above.y + above.height)) above = o;
-    if (overlapX && o.y >= box.y + box.height && (!below || o.y < below.y)) below = o;
-  }
-  const midY = box.y + box.height / 2;
-  const midX = box.x + box.width / 2;
-  if (left) distances.push({ axis: "x", from: left.x + left.width, to: box.x, at: midY, mm: (box.x - left.x - left.width) * MM });
-  if (right) distances.push({ axis: "x", from: box.x + box.width, to: right.x, at: midY, mm: (right.x - box.x - box.width) * MM });
-  if (above) distances.push({ axis: "y", from: above.y + above.height, to: box.y, at: midX, mm: (box.y - above.y - above.height) * MM });
-  if (below) distances.push({ axis: "y", from: box.y + box.height, to: below.y, at: midX, mm: (below.y - box.y - box.height) * MM });
+  const distances = measureDistances(box, others);
   for (const [axis, equal] of [["x", equalX], ["y", equalY]] as const) {
     if (!equal) continue;
     for (const distance of distances) if (distance.axis === axis && Math.abs(distance.mm / MM - equal.gap) < 0.1) { distance.equal = true; distance.at = equal.reference.at; }
@@ -120,6 +124,52 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
     }
   }
   return { x, y, guides, distances, snapped: { x: Boolean(equalX || bestX.d <= THRESHOLD), y: Boolean(equalY || bestY.d <= THRESHOLD) } };
+}
+
+/** Snap only the edge under a resize handle; the opposite edge stays fixed. */
+export function snapResizeBox(proposed: Box, handle: string, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[] } = { x: [], y: [] }): { box: Box; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
+  const box = { ...proposed };
+  const guides: Guide[] = [];
+  const snapped = { x: false, y: false };
+  if (!enabled) return { box, guides, distances: [], snapped };
+
+  for (const axis of ["x", "y"] as const) {
+    const fromStart = axis === "x" ? handle.includes("w") : handle.includes("n");
+    const fromEnd = axis === "x" ? handle.includes("e") : handle.includes("s");
+    if (!fromStart && !fromEnd) continue;
+    const start = axis === "x" ? box.x : box.y;
+    const size = axis === "x" ? box.width : box.height;
+    const active = fromStart ? start : start + size;
+    const edge = axis === "x" ? bounds.x : bounds.y;
+    const extent = axis === "x" ? bounds.width : bounds.height;
+    const targets: { pos: number; source?: Box }[] = [
+      ...[edge, edge + extent / 2, edge + extent, ...extra[axis]].map((pos) => ({ pos })),
+      ...others.flatMap((source) => {
+        const origin = axis === "x" ? source.x : source.y;
+        const length = axis === "x" ? source.width : source.height;
+        return [origin, origin + length / 2, origin + length].map((pos) => ({ pos, source }));
+      }),
+    ];
+    const target = targets.reduce<{ pos: number; source?: Box; delta: number } | undefined>((best, candidate) => {
+      const delta = Math.abs(candidate.pos - active);
+      return delta <= THRESHOLD && (!best || delta < best.delta) ? { ...candidate, delta } : best;
+    }, undefined);
+    if (!target) continue;
+    const opposite = fromStart ? start + size : start;
+    const nextSize = fromStart ? opposite - target.pos : target.pos - opposite;
+    if (nextSize < (axis === "x" ? 8 : 4)) continue;
+    if (axis === "x") {
+      if (fromStart) box.x = target.pos;
+      box.width = nextSize;
+      guides.push({ axis, pos: target.pos, from: Math.min(box.y, target.source?.y ?? bounds.y), to: Math.max(box.y + box.height, target.source ? target.source.y + target.source.height : bounds.y + bounds.height) });
+    } else {
+      if (fromStart) box.y = target.pos;
+      box.height = nextSize;
+      guides.push({ axis, pos: target.pos, from: Math.min(box.x, target.source?.x ?? bounds.x), to: Math.max(box.x + box.width, target.source ? target.source.x + target.source.width : bounds.x + bounds.width) });
+    }
+    snapped[axis] = true;
+  }
+  return { box, guides, distances: measureDistances(box, others), snapped };
 }
 
 export function rectsIntersect(a: Box, b: Box): boolean {
