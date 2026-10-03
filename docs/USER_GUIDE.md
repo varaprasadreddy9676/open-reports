@@ -7,18 +7,18 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 2. Click any text on the page. The right panel shows its content as **Text · Field · Formula** — pick **Field** to bind to data.
 3. In **Data**, search by field name, path, or type. Check the sample value, then drag a field onto the intended report band. Drag a *list* (e.g. `items`) and choose **Table**, **Repeater**, or **Cards**. Leave **Create fields automatically** on to bind columns or card fields from the sample; turn it off to start with a blank editable field.
 4. Changing a total? Choose **fx Formula → Builder**: pick *Quantity × Rate* from dropdowns. Switch to **Formula** for the raw expression; autocomplete and errors appear as you type.
-5. **Preview** shows the real PDF. Use **Pages** for thumbnails, enter a page number, choose **Fit page**, **Fit width** or a zoom level, and use **Find** to locate text on a page. Only the current page and nearby thumbnails are drawn in long reports. **Open to print** opens the PDF in the browser's viewer; **Download PDF** saves the same generated file shown in Preview. **Export ▾** also gives HTML, Excel, CSV or a ZPL label. **Save** keeps a version. **Publish** opens a review: run validation and boundary-data checks, inspect the generated PDF, review warnings, and enter version notes. Critical errors block publishing; published versions never change.
+5. **Preview** shows the real PDF. Use **Pages** for thumbnails, enter a page number, choose **Fit page**, **Fit width** or a zoom level, and use **Find** to locate text on a page. Only the current page and nearby thumbnails are drawn in long reports. **Open to print** opens the PDF in the browser's viewer; **Download PDF** saves the same generated file shown in Preview. **More report actions → Export** also gives HTML, Excel, CSV or a ZPL label. **Save** keeps a version. **Publish** opens a review: run validation and boundary-data checks, inspect the generated PDF, review warnings, and enter version notes. Critical errors block publishing; published versions never change.
 
 ## 2. The workspace
 | Area | What it does |
 |---|---|
-| Top modes | **Design · Data · Code · Preview**. ◫ shows Design and Code side by side. |
+| Top modes | **Design · Data · Code · Preview**. **More report actions → Split design and code** opens both editors side by side. |
 | Left | **Structure** (bands, layers, lock 🔒, hide 👁) · **Data** (searchable fields and samples) · **Components** (incl. *My Components* and *Plugins*) · **Pages** (thumbnails) |
-| Canvas | Smart guides with distances in mm, 8 resize handles, marquee select, hold Alt/Option to move without snapping, Shift+Alt/Option-drag to duplicate, double-click to edit text, floating format bar, right-click menu, zoom to selection |
+| Canvas | The toolbar above the page switches Structure/Pages, shows pagination, and controls zoom. The page supports smart guides with distances in mm, 8 resize handles, marquee select, hold Alt/Option to move without snapping, Shift+Alt/Option-drag to duplicate, double-click to edit text, floating format bar, and right-click menu. **Canvas settings** includes zoom to selection. |
 | Right | Properties for the selection — content, typography, layout (margin, padding, gap, grow, min/max), page-break rules, Advanced (visibility conditions) |
 | Bottom | **Problems** (with one-click *Fix*) · **Pagination** (why content moved to the next page) · **History** (labelled steps, restore) |
-| **View ▾** | Grid, rulers, smart guides, margins & safe area, boundaries, diagnostics, "design with first N rows" |
-| **Target** | Choose PDF / HTML / Excel / CSV / ZPL / ESC/POS — the designer warns about anything that format cannot express |
+| **More report actions → Canvas view options** | Grid, rulers, smart guides, margins & safe area, boundaries, diagnostics, "design with first N rows", Focus Canvas |
+| **More report actions → Output target** | Choose PDF / HTML / Excel / CSV / ZPL / ESC/POS — the designer warns about anything that format cannot express |
 
 On a laptop, the properties panel starts closed and opens over the canvas when requested. Below 980 px the left workspace panel also starts closed; use the side arrows to open it and the close button in its header to return to the canvas. The canvas **Fit** control scales a full page into the available width.
 

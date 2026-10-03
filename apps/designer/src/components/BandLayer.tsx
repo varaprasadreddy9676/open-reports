@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { StructureBand } from "@reporting/layout";
 import { savePref, useStore, type RulerOrigin, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
-import { fitZoom } from "../lib/zoom";
+import { fitZoom, zoomToSelection } from "../lib/zoom";
 import { GuideControls } from "./GuideControls";
 import { rulerAnchor } from "../lib/ruler-origin";
 
@@ -23,7 +23,7 @@ const ADDABLE: { type: string; hint: string }[] = [
 
 /** Compact canvas controls; detailed setup and pagination appear when requested. */
 export function BandBar() {
-  const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, rulerOrigin, gridMode, showGrid, doc, engine, selection, selectedBand } = useStore();
+  const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, rulerOrigin, gridMode, showGrid, doc, engine, selection, selectedBand, zoom } = useStore();
   const receipt = doc.print?.printerType === "receipt";
   const rollView = receipt && canvasView === "pages";
   const set = useStore((s) => s.set);
@@ -41,7 +41,6 @@ export function BandBar() {
           {receipt ? "Roll" : "Pages"}
         </button>
       </div>
-      {!rollView && <button className="compact-fit" type="button" aria-label="Fit page to canvas" data-testid="canvas-fit" onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>Fit</button>}
       {(!receipt || canvasView === "structure") && <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title={receipt ? "Show page starts for PDF output; the ESC/POS roll does not paginate" : "Show page starts and explain pagination decisions"}>
           {receipt ? "PDF pagination" : "Pagination"}
       </button>}
@@ -50,9 +49,19 @@ export function BandBar() {
           {receipt ? "PDF split preview" : "Split preview"}
         </button>
       )}
+      {!rollView && <div className="canvas-zoom" role="group" aria-label="Canvas zoom">
+        <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => set({ zoom: Math.max(0.25, +(zoom - 0.1).toFixed(2)), fitToWidth: false })}>−</button>
+        <span className="zoom-label" data-testid="zoom-label">{Math.round(zoom * 100)}%</span>
+        <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => set({ zoom: Math.min(3, +(zoom + 0.1).toFixed(2)), fitToWidth: false })}>+</button>
+        <button type="button" aria-label="Fit to width" data-testid="canvas-fit" title="Fit to width" onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>Fit</button>
+      </div>}
       {!rollView && <details className="canvas-options" data-testid="canvas-options">
         <summary>Canvas settings</summary>
         <div className="canvas-options-panel">
+        <div className="canvas-options-actions">
+          <button type="button" aria-label="Zoom to selection" onClick={zoomToSelection}>Zoom to selection</button>
+          <button type="button" aria-label="Actual size" onClick={() => set({ zoom: 1, fitToWidth: false })}>Actual size</button>
+        </div>
         {canvasView === "structure" && <label title="Show extra example records in each detail band">
           Examples{" "}
           <select

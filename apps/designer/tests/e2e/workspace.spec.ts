@@ -15,6 +15,50 @@ async function absoluteForm(page: Page) {
 }
 
 test.describe("workspace", () => {
+  test("global header stays calm while canvas tools remain available at desktop and laptop widths", async ({ page }) => {
+    await page.setViewportSize({ width: 1536, height: 900 });
+    await page.addInitScript(() => localStorage.setItem("designer.canvasView", "structure"));
+    await page.goto("/");
+    await page.getByTestId("starter-search").fill("department");
+    await page.getByTestId("starter-department-report").click();
+    await expect(page.getByTestId("page-1")).toBeVisible();
+    const toolbar = page.getByRole("toolbar", { name: "Main toolbar" });
+    await expect(toolbar.getByRole("tablist", { name: "Editor mode" }).getByRole("tab")).toHaveCount(4);
+    await expect(toolbar.getByRole("button", { name: "Zoom in" })).toHaveCount(0);
+    await expect(page.getByTestId("band-bar").getByRole("button", { name: "Zoom in" })).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+      const global = box(".toolbar");
+      const context = box(".band-bar");
+      const canvas = box(".canvas-scroll");
+      const center = box(".center");
+      return { globalBottom: global.bottom, contextTop: context.top, contextBottom: context.bottom, canvasTop: canvas.top, contextLeft: context.left, contextRight: context.right, centerLeft: center.left, centerRight: center.right };
+    });
+    expect(geometry.contextTop).toBeGreaterThanOrEqual(geometry.globalBottom - 1);
+    expect(geometry.canvasTop).toBeGreaterThanOrEqual(geometry.contextBottom - 1);
+    expect(geometry.contextLeft).toBeGreaterThanOrEqual(geometry.centerLeft);
+    expect(geometry.contextRight).toBeLessThanOrEqual(geometry.centerRight);
+    const initialZoom = await page.getByTestId("zoom-label").innerText();
+    await page.getByTestId("band-bar").getByRole("button", { name: "Zoom in" }).click();
+    await expect(page.getByTestId("zoom-label")).not.toHaveText(initialZoom);
+    await page.getByTestId("canvas-fit").click();
+    await page.getByTestId("btn-more").click();
+    await expect(page.getByTestId("btn-new")).toBeFocused();
+    await page.getByTestId("btn-new").press("End");
+    await expect(page.getByRole("menuitem", { name: "Settings…" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("btn-more")).toBeFocused();
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await page.getByTestId("left-tab-layers").click();
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "65-designer-workspace-desktop.png") });
+    await page.setViewportSize({ width: 1120, height: 720 });
+    await expect(page.getByTestId("btn-publish")).toBeVisible();
+    await expect(page.getByTestId("band-bar").getByRole("button", { name: "Fit to width" })).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "66-designer-workspace-laptop.png") });
+  });
+
   test("laptop keeps the canvas wide and opens side panels without squeezing it", async ({ page }) => {
     await page.setViewportSize({ width: 1120, height: 720 });
     await absoluteForm(page);
@@ -166,6 +210,7 @@ test.describe("workspace", () => {
     await expect(page.getByTestId("data-mode")).toBeVisible();
     await expect(page.getByTestId("data-item-invoice")).toBeVisible();
     await page.getByTestId("mode-design").click();
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("toggle-split").click();
     await expect(page.getByTestId("canvas")).toBeVisible();
     await expect(page.locator(".split")).toBeVisible();
@@ -265,10 +310,12 @@ test.describe("workspace", () => {
   test("view menu toggles overlays and the target selector changes renderer warnings", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("btn-view").click();
     await page.getByTestId("toggle-boundaries").click();
     await expect(page.locator(".page.boundaries")).toHaveCount(1);
     await page.getByTestId("toggle-problems").click();
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("target-select").selectOption("xlsx");
     await expect(page.getByTestId("problems")).toContainText(/Excel|XLSX|Absolute/i, { timeout: 8000 });
   });
@@ -277,6 +324,7 @@ test.describe("workspace", () => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();
     await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("btn-view").click();
     await page.getByTestId("toggle-focus-canvas").click();
     await expect(page.getByTestId("canvas")).toBeVisible();
@@ -285,6 +333,7 @@ test.describe("workspace", () => {
     const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
     fs.mkdirSync(screenshots, { recursive: true });
     await page.screenshot({ path: path.join(screenshots, "24-focus-canvas.png") });
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("btn-view").click();
     await page.getByTestId("toggle-focus-canvas").click();
     await expect(page.getByTestId("properties")).toBeVisible();
@@ -696,6 +745,7 @@ test.describe("AI assistant (BYOK, mocked provider)", () => {
   test("without a key the settings dialog opens; the key is stored locally only", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-blank").click();
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("btn-ai").click();
     await page.getByTestId("ai-prompt").fill("add a title");
     await page.getByTestId("ai-send").click();

@@ -91,6 +91,7 @@ test.describe("complete journey: create, bind, style, preview, save, reload, exp
     await expect(page.getByTestId("canvas")).toContainText("Patient Invoice");
     await expect(page.getByTestId("canvas")).toContainText("Consult");
 
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("btn-export").click();
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-pdf").click()]);
     const file = path.join(os.tmpdir(), `e2e-${Date.now()}.pdf`);
@@ -591,6 +592,7 @@ test.describe("preview and export formats", () => {
     await page.getByTestId("dataset-json").fill(JSON.stringify(sale));
     await page.getByTestId("dataset-save").click();
     await page.getByTestId("left-tab-layers").click();
+    await page.getByTestId("btn-more").click();
     await expect(page.getByTestId("target-select")).toHaveValue("escpos");
     await page.getByTestId("view-pages").click();
     await expect(page.getByTestId("view-pages")).toHaveText("Roll");
@@ -603,6 +605,7 @@ test.describe("preview and export formats", () => {
     const designScreenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
     fs.mkdirSync(designScreenshots, { recursive: true });
     await page.screenshot({ path: path.join(designScreenshots, "51-continuous-receipt-design.png") });
+    await page.getByTestId("btn-more").click();
     await page.getByTestId("target-select").selectOption("escpos");
     await page.getByTestId("mode-preview").click();
     await expect(page.getByTestId("preview-tab-escpos")).toHaveAttribute("aria-selected", "true");
@@ -626,6 +629,7 @@ test.describe("preview and export formats", () => {
     await page.getByTestId("blank-size").selectOption({ label: "Receipt 80 mm" });
     await page.getByTestId("starter-blank").click();
     expect((await doc(page)).print).toMatchObject({ printerType: "receipt", language: "escpos", dpi: 203 });
+    await page.getByTestId("btn-more").click();
     await expect(page.getByTestId("target-select")).toHaveValue("escpos");
     await expect(page.getByTestId("view-structure")).toBeVisible();
     await page.getByTestId("view-pages").click();

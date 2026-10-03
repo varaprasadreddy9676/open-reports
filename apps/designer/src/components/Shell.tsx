@@ -46,12 +46,15 @@ const TARGETS = [
 ];
 
 export function Toolbar() {
-  const { doc, meta, zoom, view, snap, past, future, engineBusy, target, mode, split } = useStore();
+  const { doc, meta, view, snap, past, future, engineBusy, target, mode, split } = useStore();
   const s = useStore.getState;
   const set = useStore((st) => st.set);
   const [menu, setMenu] = useState<null | "export" | "more" | "view">(null);
   const close = React.useCallback(() => setMenu(null), []);
   useOutsideClose(menu !== null, close);
+  useEffect(() => {
+    if (menu) requestAnimationFrame(() => document.querySelector<HTMLElement>('.toolbar [role="menu"] [role="menuitem"]:not(:disabled), .toolbar [role="menu"] [role="menuitemcheckbox"]:not(:disabled)')?.focus());
+  }, [menu]);
   const setView = (k: keyof typeof view) => {
     const v = { ...s().view, [k]: !s().view[k] };
     set({ view: v, showGrid: v.grid, showRulers: v.rulers });
@@ -78,57 +81,9 @@ export function Toolbar() {
         {engineBusy && <span className="busy" aria-label="Updating">⟳</span>}
       </div>
 
-      <div className="toolbar-group">
+      <div className="toolbar-group toolbar-history">
         <button className="icon-btn" data-testid="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!past.length} onClick={() => s().undo()}>↶</button>
         <button className="icon-btn" data-testid="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled={!future.length} onClick={() => s().redo()}>↷</button>
-        <span className="sep" />
-        <button className="icon-btn" aria-label="Zoom out" title="Zoom out" onClick={() => set({ zoom: Math.max(0.25, +(zoom - 0.1).toFixed(2)), fitToWidth: false })}>−</button>
-        <span className="zoom-label" data-testid="zoom-label">{Math.round(zoom * 100)}%</span>
-        <button className="icon-btn" aria-label="Zoom in" title="Zoom in" onClick={() => set({ zoom: Math.min(3, +(zoom + 0.1).toFixed(2)), fitToWidth: false })}>+</button>
-        <button className="icon-btn" title="Fit page width" aria-label="Fit to width" onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>⤢</button>
-        <button className="icon-btn" title="Zoom to selection" aria-label="Zoom to selection" onClick={() => zoomToSelection()}>◎</button>
-        <button className="icon-btn" title="Actual size (100%)" aria-label="Actual size" onClick={() => set({ zoom: 1, fitToWidth: false })}>1:1</button>
-        <span className="sep" />
-        <div className="menu-wrap">
-          <button className="btn" data-testid="btn-view" aria-haspopup="menu" aria-expanded={menu === "view"} onClick={() => setMenu(menu === "view" ? null : "view")}>View ▾</button>
-          {menu === "view" && (
-            <div className="menu" role="menu">
-              {(
-                [
-                  ["grid", "Grid", "toggle-grid"],
-                  ["rulers", "Rulers", "toggle-rulers"],
-                  ["guides", "Smart guides", "toggle-guides"],
-                  ["margins", "Margins & safe area", "toggle-margins"],
-                  ["boundaries", "Show all boundaries", "toggle-boundaries"],
-                  ["diagnostics", "Diagnostics on canvas", "toggle-diagnostics"],
-                ] as const
-              ).map(([k, label, tid]) => (
-                <button key={k} role="menuitemcheckbox" aria-checked={view[k]} data-testid={tid} onClick={() => setView(k)}>
-                  <span className="check">{view[k] ? "✓" : ""}</span>
-                  {label}
-                </button>
-              ))}
-              <label className="menu-field">
-                Design with
-                <select data-testid="sample-rows" value={useStore.getState().sampleRows} onChange={(e) => (set({ sampleRows: Number(e.target.value) }), s().refresh())}>
-                  <option value={0}>all rows</option>
-                  <option value={5}>first 5 rows</option>
-                  <option value={20}>first 20 rows</option>
-                  <option value={50}>first 50 rows</option>
-                </select>
-              </label>
-              <button role="menuitemcheckbox" aria-checked={snap} data-testid="toggle-snap" onClick={() => set({ snap: !snap })}>
-                <span className="check">{snap ? "✓" : ""}</span>Snap to grid & components
-              </button>
-              <button role="menuitemcheckbox" aria-checked={useStore.getState().focusCanvas} data-testid="toggle-focus-canvas" onClick={() => {
-                const state = s();
-                if (state.focusCanvas) set({ ...state.focusRestore, focusCanvas: false, focusRestore: null });
-                else set({ focusCanvas: true, focusRestore: { leftOpen: state.leftOpen, rightOpen: state.rightOpen, bottom: state.bottom }, leftOpen: false, rightOpen: false, bottom: null });
-                setMenu(null);
-              }}><span className="check">{useStore.getState().focusCanvas ? "✓" : ""}</span>Focus Canvas</button>
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="mode-switch" role="tablist" aria-label="Editor mode">
@@ -137,43 +92,29 @@ export function Toolbar() {
             {m === "design" ? "Design" : m === "data" ? "Data" : m === "code" ? "Code" : "Preview"}
           </button>
         ))}
-        <button className={`split-btn ${split ? "active" : ""}`} data-testid="toggle-split" aria-pressed={split} title="Split view: design + code" onClick={() => set({ split: !split, mode: split ? s().mode : "design" })}>
-          ◫
-        </button>
       </div>
 
       <div className="toolbar-group right">
-        <label className="target" title="Choose which output to design for; the editor warns about anything it can't express">
-          <span className="muted small">Target</span>
-          <select data-testid="target-select" value={target} onChange={(e) => (set({ target: e.target.value }), s().refresh())}>
-            {TARGETS.map((t) => (
-              <option key={t.id} value={t.id}>{t.label}</option>
-            ))}
-          </select>
-        </label>
-        <button className="btn ai-btn" data-testid="btn-ai" title="Ask AI to edit (Ctrl+J) - bring your own key" onClick={() => set({ aiOpen: !useStore.getState().aiOpen })}>
-          ✦ AI
-        </button>
-        <button className="btn" data-testid="btn-palette" title="Command palette (Ctrl+K)" onClick={() => set({ dialog: "palette" })}>⌘K</button>
-        <div className="menu-wrap">
-          <button className="btn" data-testid="btn-export" aria-haspopup="menu" aria-expanded={menu === "export"} onClick={() => setMenu(menu === "export" ? null : "export")}>Export ▾</button>
-          {menu === "export" && (
-            <div className="menu" role="menu">
-              {(["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as const).map((f) => (
-                <button key={f} role="menuitem" data-testid={`export-${f}`} onClick={() => (setMenu(null), exportReport(f))}>
-                  {f === "zpl" ? "ZPL label" : f === "escpos" ? "ESC/POS receipt" : f.toUpperCase()}
-                </button>
-              ))}
-              <hr />
-              <button role="menuitem" data-testid="export-definition" onClick={() => (setMenu(null), downloadDefinition())}>Report definition (.json)</button>
-            </div>
-          )}
-        </div>
-        <button className="btn primary" data-testid="btn-preview" onClick={() => set({ mode: "preview" })}>▶ Preview</button>
+        <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview" })}>▶ Run preview</button>
         <button className="btn" data-testid="btn-save" onClick={() => s().save()}>Save</button>
         <button className="btn publish" data-testid="btn-publish" onClick={() => set({ dialog: "publish" })}>Publish</button>
-        <div className="menu-wrap">
-          <button className="icon-btn" data-testid="btn-more" aria-label="More" aria-haspopup="menu" aria-expanded={menu === "more"} onClick={() => setMenu(menu === "more" ? null : "more")}>⋯</button>
+        <div className="menu-wrap" onKeyDown={(e) => {
+          if (!menu) return;
+          if (e.key === "Escape") {
+            e.preventDefault();
+            setMenu(null);
+            document.querySelector<HTMLElement>('[data-testid="btn-more"]')?.focus();
+            return;
+          }
+          if (e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement || !["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+          const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)'));
+          if (!items.length) return;
+          e.preventDefault();
+          const at = items.indexOf(document.activeElement as HTMLButtonElement);
+          const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : (at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+          items[next]?.focus();
+        }}>
+          <button className="icon-btn" data-testid="btn-more" aria-label="More report actions" aria-haspopup="menu" aria-expanded={menu !== null} onClick={() => setMenu(menu === null ? "more" : null)}>⋯</button>
           {menu === "more" && (
             <div className="menu right" role="menu">
               <button role="menuitem" data-testid="btn-new" onClick={() => (setMenu(null), set({ dialog: "new" }))}>New report…</button>
@@ -181,12 +122,64 @@ export function Toolbar() {
               <button role="menuitem" data-testid="menu-duplicate" onClick={() => (setMenu(null), duplicateReport())}>Duplicate report</button>
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "compare", compareVersion: null }))} disabled={!meta.id}>Compare versions…</button>
               <hr />
-              <button role="menuitem" onClick={() => (setMenu(null), downloadDefinition())}>Export definition</button>
+              <button role="menuitem" data-testid="btn-view" onClick={() => setMenu("view")}>Canvas view options…</button>
+              <button role="menuitemcheckbox" aria-checked={split} data-testid="toggle-split" onClick={() => (set({ split: !split, mode: split ? s().mode : "design" }), setMenu(null))}><span className="check">{split ? "✓" : ""}</span>Split design and code</button>
+              <button role="menuitem" data-testid="btn-ai" onClick={() => (set({ aiOpen: !s().aiOpen }), setMenu(null))}>Ask AI…</button>
+              <button role="menuitem" data-testid="btn-palette" onClick={() => (set({ dialog: "palette" }), setMenu(null))}>Command palette… <kbd>⌘K</kbd></button>
+              <button role="menuitem" data-testid="btn-export" onClick={() => setMenu("export")}>Export…</button>
+              <label className="menu-field">Output target
+                <select data-testid="target-select" value={target} onChange={(e) => (set({ target: e.target.value }), s().refresh())}>
+                  {TARGETS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+              </label>
+              <hr />
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "settings" }))}>Settings…</button>
               <hr />
               <button role="menuitem" className="danger" disabled={!meta.id} onClick={() => (setMenu(null), deleteReport())}>Delete report</button>
             </div>
           )}
+          {menu === "export" && <div className="menu right" role="menu">
+            <button role="menuitem" onClick={() => setMenu("more")}>← Report actions</button>
+            <hr />
+            {(["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as const).map((f) => (
+              <button key={f} role="menuitem" data-testid={`export-${f}`} onClick={() => (setMenu(null), exportReport(f))}>
+                {f === "zpl" ? "ZPL label" : f === "escpos" ? "ESC/POS receipt" : f.toUpperCase()}
+              </button>
+            ))}
+            <hr />
+            <button role="menuitem" data-testid="export-definition" onClick={() => (setMenu(null), downloadDefinition())}>Report definition (.json)</button>
+          </div>}
+          {menu === "view" && <div className="menu right" role="menu">
+            <button role="menuitem" onClick={() => setMenu("more")}>← Report actions</button>
+            <hr />
+            {([
+              ["grid", "Grid", "toggle-grid"],
+              ["rulers", "Rulers", "toggle-rulers"],
+              ["guides", "Smart guides", "toggle-guides"],
+              ["margins", "Margins & safe area", "toggle-margins"],
+              ["boundaries", "Show all boundaries", "toggle-boundaries"],
+              ["diagnostics", "Diagnostics on canvas", "toggle-diagnostics"],
+            ] as const).map(([k, label, tid]) => (
+              <button key={k} role="menuitemcheckbox" aria-checked={view[k]} data-testid={tid} onClick={() => setView(k)}>
+                <span className="check">{view[k] ? "✓" : ""}</span>{label}
+              </button>
+            ))}
+            <label className="menu-field">Design with
+              <select data-testid="sample-rows" value={useStore.getState().sampleRows} onChange={(e) => (set({ sampleRows: Number(e.target.value) }), s().refresh())}>
+                <option value={0}>all rows</option>
+                <option value={5}>first 5 rows</option>
+                <option value={20}>first 20 rows</option>
+                <option value={50}>first 50 rows</option>
+              </select>
+            </label>
+            <button role="menuitemcheckbox" aria-checked={snap} data-testid="toggle-snap" onClick={() => set({ snap: !snap })}><span className="check">{snap ? "✓" : ""}</span>Snap to grid & components</button>
+            <button role="menuitemcheckbox" aria-checked={useStore.getState().focusCanvas} data-testid="toggle-focus-canvas" onClick={() => {
+              const state = s();
+              if (state.focusCanvas) set({ ...state.focusRestore, focusCanvas: false, focusRestore: null });
+              else set({ focusCanvas: true, focusRestore: { leftOpen: state.leftOpen, rightOpen: state.rightOpen, bottom: state.bottom }, leftOpen: false, rightOpen: false, bottom: null });
+              setMenu(null);
+            }}><span className="check">{useStore.getState().focusCanvas ? "✓" : ""}</span>Focus Canvas</button>
+          </div>}
         </div>
       </div>
     </header>
@@ -220,18 +213,6 @@ async function deleteReport() {
   } catch (e) {
     s.toast((e as Error).message, "error");
   }
-}
-
-export function zoomToSelection() {
-  const s = useStore.getState();
-  const id = s.selection[0];
-  const el = id ? (document.querySelector(`[data-cid="${id}"]`) as HTMLElement | null) : null;
-  const scroller = document.querySelector(".canvas-scroll") as HTMLElement | null;
-  if (!el || !scroller) return s.set({ zoom: fitZoom(), fitToWidth: true });
-  const r = el.getBoundingClientRect();
-  const factor = Math.min((scroller.clientWidth - 120) / r.width, (scroller.clientHeight - 120) / r.height, 4);
-  s.set({ zoom: Math.max(0.25, Math.min(3, +(s.zoom * factor).toFixed(2))), fitToWidth: false });
-  requestAnimationFrame(() => document.querySelector(`[data-cid="${id}"]`)?.scrollIntoView({ block: "center", inline: "center" }));
 }
 
 // ------------------------------------------------------------------ bottom bar + panels

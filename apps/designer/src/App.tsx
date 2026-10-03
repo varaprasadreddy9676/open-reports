@@ -9,6 +9,7 @@ import { BottomBar, BottomPanel, Dialogs, Toasts, Toolbar } from "./components/S
 import { DataMode } from "./components/DataMode";
 import { AiBar } from "./components/AiBar";
 import { TableDesigner } from "./components/TableDesigner";
+import { BandBar } from "./components/BandLayer";
 import * as ops from "./model/ops";
 
 function isTyping(t: EventTarget | null): boolean {
@@ -135,6 +136,7 @@ export default function App() {
           {(mode === "design" || mode === "code") && <button className="edge right" aria-label={rightOpen ? "Hide properties" : "Show properties"} title="Toggle properties" onClick={() => set({ rightOpen: !rightOpen, focusCanvas: false, focusRestore: null })}>
             {rightOpen ? "›" : "‹"}
           </button>}
+          {mode === "design" && <BandBar />}
           {mode === "design" && !split && <Canvas />}
           {mode === "design" && split && (
             <div className="split">

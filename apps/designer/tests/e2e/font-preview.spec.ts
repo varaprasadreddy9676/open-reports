@@ -42,6 +42,7 @@ test("canvas loads the PDF renderer's Telugu face and exports it embedded", asyn
   });
   await page.screenshot({ path: path.resolve("../../output/playwright/ui-audit-2026-10-03/43-pdf-text-parity.png") });
 
+  await page.getByTestId("btn-more").click();
   await page.getByTestId("btn-export").click();
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-pdf").click()]);
   const file = path.join(os.tmpdir(), `font-preview-${Date.now()}.pdf`);

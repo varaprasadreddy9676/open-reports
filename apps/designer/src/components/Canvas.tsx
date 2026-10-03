@@ -12,7 +12,7 @@ import { titleCase } from "../lib/lowcode";
 import { snapBox, snapResizeBox, rectsIntersect, type Guide, type Distance } from "../lib/snap";
 import { ContextMenu, FloatingToolbar, InlineEditor } from "./CanvasTools";
 import { Rulers } from "./Rulers";
-import { BandBar, BandChrome, GuideLayer } from "./BandLayer";
+import { BandChrome, GuideLayer } from "./BandLayer";
 import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 import { PageBreakDetails } from "./PageBreakDetails";
 import { EscPosPreview, PdfPreview } from "./Preview";
@@ -570,7 +570,6 @@ export function Canvas() {
   if (doc.print?.printerType === "receipt" && canvasView === "pages") {
     return (
       <div className="canvas-scroll receipt-canvas" ref={scroller} data-testid="canvas">
-        <BandBar />
         <EscPosPreview design />
       </div>
     );
@@ -578,7 +577,6 @@ export function Canvas() {
 
   return (
     <div className={`canvas-scroll ${structure ? "structure" : ""}`} ref={scroller} data-testid="canvas">
-      <BandBar />
       {structure && showPagination && engine.paginated && <StructurePageStrip paginated={engine.paginated} />}
       <div className={structure && previewSplit ? "canvas-layout with-preview" : "canvas-layout"}>
       <div className="pages">
