@@ -83,19 +83,20 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
   const { doc } = ctx;
   const style = component.style ?? {};
 
-  if (component.bookmark) addBookmark(ctx, component, node);
+  if (component.bookmark && (!node.textFragment || node.textFragment.startLine === 0)) addBookmark(ctx, component, node);
 
   switch (component.type) {
     case "text":
     case "richText":
     case "field": {
+      const text = node.textFragment?.text ?? component.text ?? "";
       drawBoxDecoration(ctx, node.box, style);
       const pad = spacing(style.padding);
       const isBold = style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700);
       doc.fontSize(style.fontSize ?? 10).fillColor(style.color ?? "#000000");
-      drawRuns(ctx, component.text ?? "", node.box.x + pad.left, node.box.y + pad.top, {
+      drawRuns(ctx, text, node.box.x + pad.left, node.box.y + pad.top, {
         width: node.box.width - pad.left - pad.right,
-        align: style.align ?? (startsRtl(component.text ?? "") ? "right" : "left"),
+        align: style.align ?? (startsRtl(text) ? "right" : "left"),
         underline: Boolean(style.underline),
         strike: Boolean(style.strikethrough),
       }, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight);

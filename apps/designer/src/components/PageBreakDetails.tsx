@@ -6,10 +6,8 @@ const mm = (pt: number) => `${(pt * 25.4 / 72).toFixed(1)} mm`;
 
 /** Explain a real paginator boundary using its recorded decisions and measured space. */
 export function PageBreakDetails({ paginated, pageNumber }: { paginated: PaginatedReport; pageNumber: number }) {
-  // Expanding a tall flow container is preparatory work, not the boundary that
-  // moved a row. Show the recorded page move before its repeated-header effect.
   const decisions = paginated.decisions
-    .filter((decision) => decision.page === pageNumber && !(decision.kind === "cannot-split" && decision.message.includes("so its contents continue")))
+    .filter((decision) => decision.page === pageNumber)
     .sort((a, b) => Number(a.kind === "group-header-repeated") - Number(b.kind === "group-header-repeated"));
   const tableDecision = decisions.find((decision) => decision.kind === "table-split" && decision.componentId);
   const table = tableDecision?.componentId ? ops.find(useStore.getState().doc, tableDecision.componentId)?.comp : undefined;

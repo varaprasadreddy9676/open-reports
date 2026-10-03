@@ -105,6 +105,22 @@ test.describe("complete journey: create, bind, style, preview, save, reload, exp
 });
 
 test.describe("editing", () => {
+  test("long narrative continues across design pages with an explained break", async ({ page }) => {
+    await startBlank(page);
+    const markers = Array.from({ length: 90 }, (_, index) => `NARRATIVE${String(index + 1).padStart(3, "0")}`);
+    await page.evaluate((value) => {
+      const store = (window as any).__designer.getState();
+      store.loadDoc({ ...store.doc, id: "narrative-design", page: { size: "custom", unit: "pt", width: 300, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } }, sections: [{ type: "detail", children: [{ type: "text", id: "narrative", value, width: 200 }] }] });
+    }, markers.join("\n"));
+    await expect(page.getByTestId("page-2")).toBeVisible();
+    const rendered = (await page.locator('[data-cid="narrative"] .text-content').allTextContents()).join("\n");
+    expect([...rendered.matchAll(/NARRATIVE\d{3}/g)].map((match) => match[0])).toEqual(markers);
+    await page.getByTestId("toggle-pagination").click();
+    await expect(page.getByTestId("pagination-panel")).toContainText("text split");
+    await expect(page.getByTestId("pagination-panel")).not.toContainText("cannot split");
+    await page.screenshot({ path: path.resolve("../../output/playwright/ui-audit-2026-10-03/45-long-narrative-pages.png") });
+  });
+
   test("undo, redo, copy, paste, duplicate and delete", async ({ page }) => {
     await startBlank(page);
     await page.getByTestId("palette-text").click();

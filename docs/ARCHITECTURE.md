@@ -15,7 +15,7 @@ A **Report Definition** (JSON, validated by `@reporting/schema`) is the only mod
 5. **Render**: every renderer consumes only the resolved tree (and the paginated pages for paged formats). Renderers never run SQL, call APIs or evaluate formulas.
 
 ## Why pagination is its own engine
-Typography decides page breaks, so layout measures text with the same font metrics the PDF renderer draws with (`createPdfMeasurer`, Noto fonts, per-script runs). HTML shares the same paginated output, so on-screen and print agree. Key behaviours: repeated table headers, row splitting, `minRowsBeforeBreak/AfterBreak` (orphan/widow), `keepTogether`, `keepWithNext`, forced breaks, and page masters (`appliesTo`: first / last / odd / even / standard). The last-page master changes available height, so the page count is resolved to a fixed point.
+Typography decides page breaks, so the online designer uses the PDF renderer's font metrics (`createPdfMeasurer`, Noto fonts, per-script runs). The paginator records auto-height flow text as page fragments of one source component; PDF, HTML and the canvas draw only each page's fragment. Table rows and text lines have separate orphan/widow controls. HTML and the offline designer still paginate with a heuristic measurer, so their page counts can differ from PDF. Other behaviours include repeated table headers, `keepTogether`, `keepWithNext`, forced breaks, and page masters (`appliesTo`: first / last / odd / even / standard). The last-page master changes available height, so the page count is resolved to a fixed point.
 
 ## Packages
 ```

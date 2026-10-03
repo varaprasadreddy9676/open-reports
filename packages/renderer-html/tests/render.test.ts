@@ -49,6 +49,17 @@ const invoiceReport = {
 };
 
 describe("HtmlRenderer", () => {
+  it("keeps every line of a long narrative in paginated HTML", async () => {
+    const markers = Array.from({ length: 80 }, (_, index) => `NARRATIVE${String(index + 1).padStart(3, "0")}`);
+    const html = String((await renderReport({
+      schemaVersion: "1.0", id: "narrative", name: "Long narrative",
+      page: { size: "custom", unit: "pt", width: 300, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [{ type: "detail", children: [{ type: "text", value: markers.join("\n"), width: 200 }] }],
+    })).content);
+    expect((html.match(/class="page"/g) ?? []).length).toBeGreaterThan(1);
+    expect([...html.matchAll(/NARRATIVE\d{3}/g)].map((match) => match[0])).toEqual(markers);
+  });
+
   it("renders basic report structure as a single page with correct mime type", async () => {
     const result = await renderReport(invoiceReport);
     expect(result.mimeType).toBe("text/html");

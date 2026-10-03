@@ -30,23 +30,40 @@ export const defaultTextMeasurer: TextMeasurer = {
   },
 };
 
-export function wrapLineCount(text: string, maxWidth: number, fontSize: number, measurer: TextMeasurer, hint?: TextStyleHint): number {
-  if (!text) return 1;
-  const words = text.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return 1;
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
-  let lines = 1;
-  let currentWidth = 0;
-  const spaceWidth = measurer.widthOf(" ", fontSize, hint);
-
-  for (const word of words) {
-    const wordWidth = measurer.widthOf(word, fontSize, hint);
-    if (currentWidth > 0 && currentWidth + spaceWidth + wordWidth > maxWidth) {
-      lines++;
-      currentWidth = wordWidth;
-    } else {
-      currentWidth += (currentWidth > 0 ? spaceWidth : 0) + wordWidth;
+/** Lines used for both measurement and page slicing. Explicit newlines are
+ * preserved; overlong words are broken at Unicode grapheme boundaries. */
+export function wrapTextLines(text: string, maxWidth: number, fontSize: number, measurer: TextMeasurer, hint?: TextStyleHint): string[] {
+  const fits = (value: string) => measurer.widthOf(value, fontSize, hint) <= maxWidth;
+  const lines: string[] = [];
+  for (const paragraph of text.split(/\r\n|\r|\n/)) {
+    if (!paragraph) { lines.push(""); continue; }
+    let line = "";
+    for (const word of paragraph.match(/\S+|\s+/gu) ?? []) {
+      if (/^\s+$/u.test(word)) {
+        if (line) line += word;
+        continue;
+      }
+      const candidate = line + word;
+      if (line && !fits(candidate)) {
+        lines.push(line.trimEnd());
+        line = "";
+      }
+      if (fits(word)) { line += word; continue; }
+      for (const { segment: character } of graphemes.segment(word)) {
+        if (line && !fits(line + character)) {
+          lines.push(line.trimEnd());
+          line = "";
+        }
+        line += character;
+      }
     }
+    lines.push(line.trimEnd());
   }
   return lines;
+}
+
+export function wrapLineCount(text: string, maxWidth: number, fontSize: number, measurer: TextMeasurer, hint?: TextStyleHint): number {
+  return wrapTextLines(text, maxWidth, fontSize, measurer, hint).length;
 }

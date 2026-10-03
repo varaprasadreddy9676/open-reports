@@ -11,7 +11,7 @@
 |---|---|---|---|
 | Count | 7 | 15 | 14 |
 
-**Correction to earlier statements at the time of the audit.** Table span/rowSpan/colSpan support was absent in the original audit; header and body spans were subsequently implemented on 2026-10-02. Orphan/widow control for text (`minLinesAtTop/Bottom`) remains unimplemented. Orphan/widow control works for **table rows only**.
+**Correction to earlier statements at the time of the audit.** Table span/rowSpan/colSpan support was absent in the original audit; header and body spans were subsequently implemented on 2026-10-02. Auto-height flow text now splits at measured lines and honours `minLinesAtTop/Bottom` where feasible; table row orphan/widow control also works. Fixed-height and decorated/absolute container overflow still needs a policy.
 
 ---
 
@@ -70,12 +70,12 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 
 | Field | Promised in | Reality |
 |---|---|---|
-| `minLinesAtTop` / `minLinesAtBottom` | designer *Page breaks* section, `docs/USER_GUIDE.md`, `docs/USE_CASES.md` (“stops one stray line”) | text is never split; no effect |
+| `minLinesAtTop` / `minLinesAtBottom` | designer *Page breaks* section, `docs/USER_GUIDE.md`, `docs/USE_CASES.md` (“stops one stray line”) | **Addressed for auto-height flow text:** line fragments honour both minima when feasible; fixed-height and decorated/absolute containers remain unsplittable |
 | `style.overflow: "ellipsis"/"clip"` | designer *Advanced → Overflow* | HTML only; **PDF ignores** |
 | `colSpan` / `rowSpan` | task #17 “completed” | **Addressed 2026-10-02:** explicit `headerRows` and positional body `cellSpans`; see current schema and tests. |
 | `table.groupBy` | schema, `docs/REPORT_DEFINITION.md` | ignored — no group rows/subtotals |
 | `richText` component | palette, docs | renders markup literally (`**bold**` shown as text) |
-| `allowRowSplit`, `allowSplit`, `keepFooterTogether` | schema comments say “implemented” | no consumer found |
+| `allowRowSplit`, `allowSplit`, `keepFooterTogether` | schema and designer | `allowSplit` now controls auto-height flow text and splittable bands; table rows still stay atomic despite `allowRowSplit`; inspect `keepFooterTogether` in table pagination before claiming it works |
 | `repeatOn`, `showOn` (section) | schema comments | dead (page masters use `appliesTo`) |
 | `resetOn` (variable) | schema | dead |
 | `style.borderRadius` | `plugin-clinic-pack` statusBadge uses it | no renderer draws it |
@@ -92,7 +92,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 | # | Gap | Evidence | Where | Fix |
 |---|---|---|---|---|
 | P1-1 | **HTML and offline designer pagination can differ from PDF.** The online designer now uses `/api/v1/analyze` PDF-measured pages and line advance; HTML and the labelled offline estimate still use the default measurer | Earlier `account-statement` comparison found 3 HTML pages versus 4 PDF pages; the online designer page tree has since been corrected. A controlled Latin/Telugu canvas/PDF text-position check passes, but broad parity is not proved | `apps/designer/src/engine.ts` analysis fallback; `packages/renderer-html/src/render.ts` uses `paginate(...)` without PDF metrics | Share font measurement with HTML and the offline designer; compare multiple report/page/font scenarios against PDF |
-| P1-2 | **Long paragraphs are not under layout control** | 400-line paragraph → pdfkit auto-flows onto extra pages: no repeated header/footer, no widow/orphan, layout warns overflow | `paginate.ts` (no text splitting); `renderer-pdf/src/draw-node.ts` text case | Add `splitText(node, available)` using the measurer's line breaks; draw with a `lineRange`; honour `minLinesAtTop/Bottom`. Needed for 100-page clinical narratives |
+| P1-2 | **Long narrative pagination is partial** | Auto-height flow text now splits into measured page fragments with repeated page furniture and `minLinesAtTop/Bottom` where feasible. 130 explicit lines, 80 narrow-box words, and every marker of a 100+ page narrative were extracted once each from real PDF pages. Fixed-height text now warns when content exceeds its box; decorated/absolute containers and mixed-script narratives remain unverified | `packages/layout/src/paginate.ts`, `measure.ts`; PDF/HTML text drawing | Define explicit clip/grow/continue policies for constrained layouts and verify mixed scripts, 100+ page designer responsiveness, and further PDFKit edge cases |
 | P1-3 | **`groupHeader`/`groupFooter` sections wrong** | `GH GH GH a1 a2 b1 GF` (header once per *row*, footer once total) | `packages/core/src/pipeline.ts` (section → components), `resolve-component.ts` | Either implement as bands bound to the section’s `groupBy`, or remove the section types and point to the `group` component (which works) |
 | P1-4 | **No group subtotals on tables** | `table.groupBy` ignored | `resolve-component.ts` → `resolveTable`; `layout/paginate.ts` → `placeTable` | Group rows + per-group footer aggregates; keep group header with its first row |
 | P1-5 | **No error/null policy** | `formatDate('garbage')` → `NaN`; `1/0` → `Infinity`; `formatCurrency(null)` → `$0.00`, printed into documents | `expressions/src/functions.ts`, `evaluator.ts` (`evalBinary`), `core/src/format.ts` | Per-report `onError: "fail"|"warn"|"blank"` and `nullDisplay`; formatters return `""`/placeholder + warning with component id; division by zero = error |
@@ -153,7 +153,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 ## Appendix — reproducing the audit
 
 *Schema-field consumer check* (fields declared in `packages/schema/src/*.ts` and not referenced by `core`, `layout` or any renderer):
-`allowRowSplit, allowSplit, borderRadius, colors, fontSizes, itemLayout, keepFooterTogether, minLinesAtBottom, minLinesAtTop, repeatOn, resetOn, showOn, timezone, verticalAlign` (`connectionId, method, resultPath, url, language, printerType, safeMargin, locked` are consumed by data sources / the designer and are not gaps).
+Historical v0.1 list: `allowRowSplit, allowSplit, borderRadius, colors, fontSizes, itemLayout, keepFooterTogether, minLinesAtBottom, minLinesAtTop, repeatOn, resetOn, showOn, timezone, verticalAlign`. `allowSplit` and both `minLinesAt*` fields now have flow-text consumers; the others require individual verification. (`connectionId, method, resultPath, url, language, printerType, safeMargin, locked` are consumed by data sources / the designer and are not gaps.)
 
 *Style-key × renderer matrix* — keys with no PDF consumer: `verticalAlign, letterSpacing, borderRadius, wrap, overflow, direction`; no XLSX consumer: all except borders and header bold.
 

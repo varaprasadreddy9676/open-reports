@@ -80,6 +80,55 @@ async function assertIntegrity(n: number, opts: Opts = {}, prefix = "ROW") {
 }
 
 describe("pagination boundaries (real PDF output)", () => {
+  it("prints every line of a long narrative once with repeated page furniture", async () => {
+    const markers = Array.from({ length: 130 }, (_, index) => `NARRATIVE${String(index + 1).padStart(3, "0")}`);
+    const pages = await render({
+      schemaVersion: "1.0", id: "narrative", name: "Long narrative",
+      page: { size: "custom", unit: "pt", width: 300, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [
+        { type: "pageHeader", children: [{ type: "text", value: "HEADERMARK" }] },
+        { type: "detail", children: [{ type: "text", id: "narrative", value: markers.join("\n"), width: 200, minLinesAtBottom: 2, minLinesAtTop: 2 }] },
+        { type: "pageFooter", children: [{ type: "text", expression: '"FOOT " + page.number + "/" + page.total' }] },
+      ],
+    });
+    expect(pages.length).toBeGreaterThan(2);
+    expect(pages.flatMap((page) => [...page.matchAll(/NARRATIVE\d{3}/g)].map((match) => match[0]))).toEqual(markers);
+    pages.forEach((page, index) => {
+      expect(page).toContain("HEADERMARK");
+      expect(page).toContain(`FOOT ${index + 1}/${pages.length}`);
+    });
+  });
+
+  it("keeps a 100-page narrative complete and page-controlled", async () => {
+    const markers = Array.from({ length: 2700 }, (_, index) => `LONG${String(index + 1).padStart(4, "0")}`);
+    const pages = await render({
+      schemaVersion: "1.0", id: "long-narrative", name: "Long narrative",
+      page: { size: "custom", unit: "pt", width: 300, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [
+        { type: "pageHeader", children: [{ type: "text", value: "HEADERMARK" }] },
+        { type: "detail", children: [{ type: "text", id: "narrative", value: markers.join("\n"), width: 200 }] },
+        { type: "pageFooter", children: [{ type: "text", expression: '"FOOT " + page.number + "/" + page.total' }] },
+      ],
+    });
+    expect(pages.length).toBeGreaterThanOrEqual(100);
+    expect(pages.flatMap((page) => [...page.matchAll(/LONG\d{4}/g)].map((match) => match[0]))).toEqual(markers);
+    pages.forEach((page, index) => {
+      expect(page).toContain("HEADERMARK");
+      expect(page).toContain(`FOOT ${index + 1}/${pages.length}`);
+    });
+  }, 60_000);
+
+  it("prints all words from a narrow auto-height paragraph across PDF pages", async () => {
+    const words = Array.from({ length: 80 }, (_, index) => `WORD${String(index + 1).padStart(3, "0")}`);
+    const pages = await render({
+      schemaVersion: "1.0", id: "narrow-paragraph", name: "Narrow paragraph",
+      page: { size: "custom", unit: "pt", width: 300, height: 320, margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [{ type: "detail", children: [{ type: "text", id: "paragraph", value: words.join(" "), width: 75 }] }],
+    });
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.flatMap((page) => [...page.matchAll(/WORD\d{3}/g)].map((match) => match[0]))).toEqual(words);
+  });
+
   it("N-1, N and N+1 rows around the page capacity keep every row once, in order, with header/footer on each page", async () => {
     const cap = await capacity();
     expect(cap).toBeGreaterThan(20);

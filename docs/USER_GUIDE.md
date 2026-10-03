@@ -54,7 +54,7 @@ For a custom hospital header, add Image components to the Page Header. **Embed i
 ## 4. Pagination for long documents
 - Tables: **Repeat header on every page**; set *Min rows after break* to avoid a lone row on a page.
 - Headings: **Keep with next**. Blocks that must not split: **Keep together** (Page breaks section).
-- Long paragraphs are not yet split under the pagination engine's control; check the rendered PDF and overflow warnings before publishing long narrative reports.
+- Auto-height text in a flow band continues on later pages with the page header/footer repeated. Set **Minimum lines at bottom/top** to avoid a single stranded line. A fixed-height box or decorated/absolute container can still overflow; review `TEXT_EXCEEDS_HEIGHT` and the rendered PDF before publishing those layouts.
 - **Page → Headers & footers**: add a different first-page header, a last-page footer (signatures/totals) or odd/even masters.
 - Open **Pagination** at the bottom to inspect recorded page-break decisions; click one to jump to it, or apply a suggested fix when available.
 

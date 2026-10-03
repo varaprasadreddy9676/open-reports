@@ -1,8 +1,8 @@
 import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, ResolvedSection } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
-import { defaultTextMeasurer } from "./measure.js";
+import { defaultTextMeasurer, wrapTextLines } from "./measure.js";
 import { resolvePageGeometry } from "./units.js";
-import { layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
+import { edgesOf, layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
 import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
 
 export interface PaginateOptions {
@@ -235,7 +235,6 @@ function layoutContentIntoPages(
       const bandInfo = anyC.band as { allowSplit?: boolean } | undefined;
       const splitNow = tooTall || (bandInfo?.allowSplit === true && !anyC.keepTogether && needed > remaining());
       if (splitNow && parts.length > 0) {
-        decide({ kind: "cannot-split", componentId: anyC.id, message: `${label(component)} is ${tooTall ? "taller than a page" : "split because it does not fit the space left"} (${pt(needed)} needed, ${pt(remaining())} left), so its contents continue on the next page.`, required: needed, available: remaining() });
         const first = parts[0] as any;
         const last = parts[parts.length - 1] as any;
         if (anyC.pageBreakBefore) first.pageBreakBefore = true;
@@ -293,7 +292,66 @@ function layoutContentIntoPages(
       }
     }
 
-    if (component.type === "table" && !anyC.keepTogether) {
+    const textComponent = ["text", "richText", "field"].includes(component.type);
+    const textStyle = (component.style ?? {}) as Record<string, any>;
+    const textPad = edgesOf(textStyle.padding);
+    const textFontSize = textStyle.fontSize ?? 10;
+    const textHint = { family: textStyle.fontFamily, bold: textStyle.fontWeight === "bold" || (typeof textStyle.fontWeight === "number" && textStyle.fontWeight >= 700), italic: Boolean(textStyle.italic), lineHeight: textStyle.lineHeight };
+    const textProbe = textComponent ? layoutComponent(component, { x: 0, y: y + m.top, width: innerWidth, height: 0 }, measurer) : undefined;
+    const textLines = textComponent ? wrapTextLines(anyC.text ?? "", Math.max(1, textProbe!.box.width - textPad.left - textPad.right), textFontSize, measurer, textHint) : [];
+    const lineHeight = textComponent ? measurer.lineHeight(textFontSize, textHint) : 0;
+    const textHeight = textLines.length * lineHeight + textPad.top + textPad.bottom;
+    const canSplitText = textComponent && lineHeight > 0 && anyC.height === undefined && anyC.minHeight === undefined && anyC.maxHeight === undefined && !anyC.keepTogether && anyC.allowSplit !== false;
+    const splitText = canSplitText && textHeight + m.top + m.bottom > remaining() && (anyC.allowSplit === true || textHeight + m.top + m.bottom > pageHeightAt(pages.length) - repeatHeight());
+
+    if (splitText) {
+      let start = 0;
+      const minBottom = Math.max(1, Number(anyC.minLinesAtBottom) || 1);
+      const minTop = Math.max(1, Number(anyC.minLinesAtTop) || 1);
+      while (start < textLines.length) {
+        const capacity = Math.floor((remaining() - m.top - m.bottom - textPad.top - textPad.bottom + 0.01) / lineHeight);
+        const fresh = currentPage().every((node) => Boolean((node.component as any).band?.repeated));
+        if (capacity < 1) {
+          if (fresh) throw new Error(`Text ${label(component)} cannot fit even one line in the available page area.`);
+          decide({ kind: "text-split", componentId: anyC.id, message: `${label(component)} continues on the next page because no line fits in the ${pt(Math.max(0, remaining()))} left.`, required: lineHeight + textPad.top + textPad.bottom, available: remaining() });
+          newPage();
+          continue;
+        }
+        const left = textLines.length - start;
+        let take = Math.min(left, capacity);
+        if (take < left && take < minBottom && !fresh) {
+          decide({ kind: "orphan-control", componentId: anyC.id, message: `${label(component)} moves to the next page so at least ${minBottom} lines stay below the break.`, required: minBottom * lineHeight + textPad.top + textPad.bottom, available: remaining() });
+          newPage();
+          continue;
+        }
+        if (take < left && left - take < minTop) {
+          const adjusted = left - minTop;
+          if (adjusted >= minBottom) {
+            take = adjusted;
+            decide({ kind: "widow-control", componentId: anyC.id, message: `${label(component)} keeps at least ${minTop} lines at the top of the next page.`, required: minTop * lineHeight + textPad.top + textPad.bottom, available: remaining() });
+          } else if (!fresh) {
+            decide({ kind: "widow-control", componentId: anyC.id, message: `${label(component)} moves to the next page to avoid leaving fewer than ${minTop} lines at the top.`, required: minTop * lineHeight + textPad.top + textPad.bottom, available: remaining() });
+            newPage();
+            continue;
+          } else {
+            warnings.push({ code: "TEXT_WIDOW_LIMIT_UNSATISFIED", path: anyC.id ?? component.type, message: `Text ${label(component)} cannot satisfy its minimum lines at the top and bottom of a page.` });
+          }
+        }
+        const end = start + take;
+        const fragment = textLines.slice(start, end).join("\n");
+        const node = layoutComponent({ ...component, text: fragment } as ResolvedComponent, { x: m.left, y: y + m.top, width: innerWidth, height: 0 }, measurer);
+        node.component = component;
+        node.box.height = take * lineHeight + textPad.top + textPad.bottom;
+        node.textFragment = { text: fragment, startLine: start, endLine: end, totalLines: textLines.length };
+        place(node);
+        y = node.box.y + node.box.height + m.bottom;
+        start = end;
+        if (start < textLines.length) {
+          decide({ kind: "text-split", componentId: anyC.id, message: `${label(component)} continues on page ${pages.length + 1} at line ${start + 1} of ${textLines.length}.`, required: (textLines.length - start) * lineHeight, available: remaining() });
+          newPage();
+        }
+      }
+    } else if (component.type === "table" && !anyC.keepTogether) {
       placeTable(component as ResolvedTableComponent, innerWidth, measurer, {
         place: (node, height) => {
           node.box.y = y;
@@ -309,10 +367,11 @@ function layoutContentIntoPages(
       });
       y += m.bottom;
     } else {
-      const probe = layoutComponent(component, { x: 0, y: y + m.top, width: innerWidth, height: 0 }, measurer);
+      const probe = textProbe ?? layoutComponent(component, { x: 0, y: y + m.top, width: innerWidth, height: 0 }, measurer);
       const needed = probe.box.height + m.top + m.bottom;
       const fitsCurrent = needed <= remaining();
       const fitsFresh = needed <= pageHeightAt(pages.length) - repeatHeight();
+      let moved = false;
 
       if (!fitsCurrent && y > 0) {
         if (fitsFresh) {
@@ -328,6 +387,7 @@ function layoutContentIntoPages(
             actions: keep ? [{ label: "Allow split", patch: { keepTogether: false } }] : undefined,
           });
           newPage();
+          moved = true;
         } else {
           decide({ kind: "overflow", componentId: anyC.id, message: `${label(component)} (${pt(needed)}) is taller than a whole page and will overflow.`, required: needed, available: pageHeight() });
           warnings.push({
@@ -336,6 +396,7 @@ function layoutContentIntoPages(
             message: `Component ${label(component)} is taller than a full page and will overflow; manual splitting of this component type is not yet supported.`,
           });
           newPage();
+          moved = true;
         }
       } else if (!fitsFresh) {
         warnings.push({
@@ -345,7 +406,11 @@ function layoutContentIntoPages(
         });
       }
 
-      const placed = layoutComponent(component, { x: m.left, y: y + m.top, width: innerWidth, height: 0 }, measurer);
+      const placed = moved ? layoutComponent(component, { x: m.left, y: y + m.top, width: innerWidth, height: 0 }, measurer) : probe;
+      if (!moved) shiftNode(placed, m.left, 0);
+      if (textComponent && (anyC.height !== undefined || anyC.maxHeight !== undefined) && textHeight > placed.box.height + 0.5) {
+        warnings.push({ code: "TEXT_EXCEEDS_HEIGHT", path: anyC.id ?? component.type, message: `Text ${label(component)} needs ${pt(textHeight)} but its height is limited to ${pt(placed.box.height)}; output may clip or flow unexpectedly.` });
+      }
       if (component.type === "table") (placed as PositionedNode).rowRange = { start: 0, end: (component as ResolvedTableComponent).rows.length };
       place(placed);
       y = placed.box.y + placed.box.height + m.bottom;

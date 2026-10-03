@@ -141,6 +141,53 @@ describe("paginate: stacking order", () => {
   });
 });
 
+describe("paginate: long flow text", () => {
+  const lines = Array.from({ length: 70 }, (_, index) => `LINE${String(index + 1).padStart(3, "0")}`);
+  const paragraph = { type: "text", id: "narrative", text: lines.join("\n"), width: 200 } as unknown as ResolvedTextComponent;
+
+  it("splits a long narrative into complete, ordered page fragments", () => {
+    const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [paragraph] }]));
+    const fragments = result.pages.flatMap((page) => page.content).filter((node) => node.textFragment);
+    expect(fragments.length).toBeGreaterThan(1);
+    expect(fragments.flatMap((node) => node.textFragment!.text.split("\n"))).toEqual(lines);
+    expect(fragments[0]!.textFragment?.startLine).toBe(0);
+    expect(fragments.at(-1)!.textFragment?.endLine).toBe(lines.length);
+    expect(result.warnings.some((warning) => warning.code === "CONTENT_OVERFLOWS_PAGE")).toBe(false);
+    expect(result.decisions.filter((decision) => decision.kind === "text-split")).toHaveLength(fragments.length - 1);
+    for (const page of result.pages) for (const node of page.content) expect(node.box.y + node.box.height).toBeLessThanOrEqual(page.zones.body.height + 0.01);
+  });
+
+  it("keeps at least two lines on both sides of a break when possible", () => {
+    const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, text: lines.slice(0, 24).join("\n"), minLinesAtBottom: 2, minLinesAtTop: 2 }] }]));
+    const counts = result.pages.map((page) => page.content.flatMap((node) => node.textFragment?.text.split("\n") ?? []).length);
+    expect(counts.length).toBeGreaterThan(1);
+    expect(counts.every((count) => count >= 2)).toBe(true);
+    expect(result.decisions.some((decision) => decision.kind === "widow-control")).toBe(true);
+  });
+
+  it("explains a minimum-lines move when a partial page has too little room", () => {
+    const heading = { type: "spacer", height: 279 } as any;
+    const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [heading, { ...paragraph, text: lines.slice(0, 25).join("\n"), allowSplit: true, minLinesAtBottom: 2 }] }]));
+    expect(result.decisions.some((decision) => decision.kind === "orphan-control" && decision.page === 2)).toBe(true);
+    expect(result.pages[0]!.content).toHaveLength(1);
+    expect(result.pages.slice(1).flatMap((page) => page.content).flatMap((node) => node.textFragment?.text.split("\n") ?? [])).toEqual(lines.slice(0, 25));
+  });
+
+  it("wraps at the component width before choosing page boundaries", () => {
+    const words = Array.from({ length: 80 }, (_, index) => `WORD${String(index + 1).padStart(3, "0")}`);
+    const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, text: words.join(" "), width: 75 }] }]));
+    expect(result.pages.length).toBeGreaterThan(1);
+    const rendered = result.pages.flatMap((page) => page.content.map((node) => node.textFragment?.text ?? "")).join(" ");
+    expect([...rendered.matchAll(/WORD\d{3}/g)].map((match) => match[0])).toEqual(words);
+    expect(result.warnings.some((warning) => warning.code === "CONTENT_OVERFLOWS_PAGE")).toBe(false);
+  });
+
+  it("warns when a fixed-height text box is shorter than its contents", () => {
+    const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, height: 20 }] }]));
+    expect(result.warnings.some((warning) => warning.code === "TEXT_EXCEEDS_HEIGHT")).toBe(true);
+  });
+});
+
 describe("paginate: forced breaks and keepTogether", () => {
   it("honors pageBreakBefore", () => {
     const text1 = { type: "text", text: "A" } as unknown as ResolvedTextComponent;
