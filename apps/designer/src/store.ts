@@ -10,6 +10,7 @@ import { loadCanvasFonts } from "./lib/fonts";
 
 export type Mode = "design" | "data" | "code" | "preview";
 export type LeftTab = "insert" | "layers" | "data" | "pages";
+export type ReportInspectorTab = "page" | "print" | "details";
 export type BottomPanel = null | "problems" | "pagination" | "history";
 export type CanvasView = "structure" | "pages";
 export type RulerUnit = "mm" | "cm" | "in" | "pt" | "px" | "dots";
@@ -70,6 +71,7 @@ interface State {
   lastCoalesce: { key: string; at: number } | null;
   mode: Mode;
   leftTab: LeftTab;
+  reportInspectorTab: ReportInspectorTab;
   zoom: number;
   fitToWidth: boolean;
   showGrid: boolean;
@@ -230,6 +232,7 @@ export const useStore = create<State>((set, get) => ({
   lastCoalesce: null,
   mode: "design",
   leftTab: "insert",
+  reportInspectorTab: "page",
   zoom: 1,
   fitToWidth: false,
   showGrid: false,
@@ -295,7 +298,8 @@ export const useStore = create<State>((set, get) => ({
   loadDoc(doc, meta = {}, sample = {}) {
     const d = ops.ensureIds(doc);
     const hasStructure = (d.sections ?? []).length > 1 || (d.groups ?? []).length > 0 || (d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
-    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
+    const printFirst = !!d.print?.printerType && d.print.printerType !== "document";
+    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
     persistDraft(d, sample);
     get().refresh();
   },

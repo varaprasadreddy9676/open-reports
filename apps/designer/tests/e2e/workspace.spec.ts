@@ -86,6 +86,55 @@ test.describe("workspace", () => {
     await expect(page.getByTestId("section-reportHeader").locator("..").locator('.explorer-row[data-testid^="layer-"]')).toHaveCount(3);
   });
 
+  test("report settings keep page, print, and details in focused inspector views", async ({ page }) => {
+    await page.setViewportSize({ width: 1536, height: 900 });
+    await page.goto("/");
+    await page.getByTestId("starter-search").fill("department");
+    await page.getByTestId("starter-department-report").click();
+    await page.getByTestId("view-structure").click();
+    await expect(page.locator(".canvas-scroll")).toContainText("Department Revenue Report");
+    await expect(page.getByTestId("report-tab-page")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("page-size")).toBeVisible();
+    await expect(page.getByTestId("print-preset")).toHaveCount(0);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "68-report-page-inspector.png") });
+
+    await page.getByTestId("report-tab-page").press("ArrowRight");
+    await expect(page.getByTestId("report-tab-print")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("report-tab-print")).toBeFocused();
+    await expect(page.getByTestId("print-preset")).toBeVisible();
+    await expect(page.getByTestId("page-size")).toHaveCount(0);
+    await page.getByTestId("report-tab-print").click();
+    await page.screenshot({ path: path.join(screenshots, "69-report-print-inspector.png") });
+
+    await page.getByTestId("report-tab-print").press("End");
+    await expect(page.getByTestId("report-tab-details")).toBeFocused();
+    await expect(page.getByTestId("report-name")).toBeVisible();
+    await expect(page.getByLabel("Description")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "70-report-details-inspector.png") });
+
+    await page.getByTestId("left-tab-pages").click();
+    await expect(page.getByTestId("report-tab-page")).toHaveAttribute("aria-selected", "true");
+    await page.getByTestId("edit-page-masters").click();
+    await expect(page.getByTestId("page-masters-section")).toContainText("Page masters");
+    expect(await page.evaluate(() => (window as any).__designer.getState().meta.dirty)).toBe(false);
+
+    await page.setViewportSize({ width: 1120, height: 720 });
+    await page.getByRole("button", { name: "Show properties" }).click();
+    await expect(page.getByTestId("report-tab-page")).toBeVisible();
+    await page.screenshot({ path: path.join(screenshots, "71-report-inspector-laptop.png") });
+  });
+
+  test("receipt reports open their physical print settings first", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("starter-receipt").click();
+    await expect(page.getByTestId("report-tab-print")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("print-facts")).toContainText("Roll width");
+    await page.getByTestId("report-tab-page").click();
+    await expect(page.getByTestId("page-size")).toBeVisible();
+  });
+
   test("laptop keeps the canvas wide and opens side panels without squeezing it", async ({ page }) => {
     await page.setViewportSize({ width: 1120, height: 720 });
     await absoluteForm(page);
@@ -532,7 +581,7 @@ test.describe("properties, masters, print, blocks", () => {
     await page.goto("/");
     await page.getByTestId("starter-blank").click();
     await page.evaluate(() => (window as any).__designer.getState().select([]));
-    await page.getByRole("button", { name: /Print & labels/ }).click();
+    await page.getByTestId("report-tab-print").click();
     await page.getByTestId("print-preset").selectOption({ label: "Label 50 × 30 mm (ZPL 203 dpi)" });
     const d = await doc(page);
     expect(d.print).toMatchObject({ printerType: "label", language: "zpl", dpi: 203 });
@@ -549,7 +598,7 @@ test.describe("properties, masters, print, blocks", () => {
     await page.goto("/");
     await page.getByTestId("starter-blank").click();
     await page.evaluate(() => (window as any).__designer.getState().select([]));
-    await page.getByRole("button", { name: /Print & labels/ }).click();
+    await page.getByTestId("report-tab-print").click();
     await page.getByTestId("print-preset").selectOption({ label: "Label 50 × 30 mm (ZPL 203 dpi)" });
     await expect.poll(() => page.getByTestId("page-1").evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(500);
     await expect(page.getByTestId("ruler-h")).toBeVisible();

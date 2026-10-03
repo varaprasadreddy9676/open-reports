@@ -666,6 +666,12 @@ textarea {
   z-index: 2;
 }
 .prop-head > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspector-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 5px 10px 0; border-bottom: 1px solid var(--border); background: var(--panel); }
+.inspector-tabs button { min-width: 0; padding: 7px 2px 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 11px; font-weight: 550; cursor: pointer; }
+.inspector-tabs button:hover { color: var(--text); background: var(--panel-2); }
+.inspector-tabs button[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--accent); font-weight: 700; }
+.inspector-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.print-profile-body { padding-top: 14px; }
 .quick-geometry { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .quick-geometry .field-label { font-weight: 600; }
 .inspector-subtitle { padding-top: 2px; color: var(--text); font-size: 11px; font-weight: 650; }

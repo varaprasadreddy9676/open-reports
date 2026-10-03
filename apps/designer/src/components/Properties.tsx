@@ -13,6 +13,7 @@ import { removeBodyColumn } from "../lib/table-body";
 import { fitZoom } from "../lib/zoom";
 import { SpacingFields } from "./SpacingFields";
 import { InspectorActions } from "./InspectorActions";
+import { InspectorTabs } from "./InspectorTabs";
 import { api, type SavedPrinterProfile } from "../lib/api";
 import { PrintCalibration } from "./PrintCalibration";
 import { PageMasters } from "./PageMasters";
@@ -1043,7 +1044,7 @@ function PrintProfilePanel() {
     finally { setProfileBusy(false); }
   };
   return (
-    <Section title="Print & labels" open={!!print}>
+    <div className="prop-body print-profile-body">
       <Field label="Saved printer profile" wide>
         <select aria-label="Saved printer profile" data-testid="saved-print-profile" value={selectedProfile?.id ?? ""} onChange={(event) => {
           const profile = profiles.find((item) => item.id === event.target.value);
@@ -1132,13 +1133,15 @@ function PrintProfilePanel() {
           Remove print profile
         </button>
       )}
-    </Section>
+    </div>
   );
 }
 
 // ------------------------------------------------------------------ page / report panel (nothing selected)
 function PageProps() {
   const { doc } = useStore();
+  const reportTab = useStore((s) => s.reportInspectorTab);
+  const set = useStore((s) => s.set);
   const setDoc = useStore((s) => s.setDoc);
   const page = doc.page ?? {};
   const margin = page.margin ?? { top: 15, right: 15, bottom: 18, left: 15 };
@@ -1147,10 +1150,10 @@ function PageProps() {
   return (
     <>
       <div className="prop-head">
-        <strong>Report</strong>
-        <span className="muted small">Select an element to edit it</span>
+        <strong>Report settings</strong>
       </div>
-      <Section title="Report">
+      <InspectorTabs label="Report settings" tabs={[{ id: "page", label: "Page" }, { id: "print", label: "Print" }, { id: "details", label: "Details" }]} active={reportTab} onChange={(next) => set({ reportInspectorTab: next })} testIdPrefix="report-tab">
+      {reportTab === "details" && <Section title="Report">
         <Field label="Name">
           <input aria-label="Report name" data-testid="report-name" value={doc.name ?? ""} onChange={(e) => setDoc({ ...doc, name: e.target.value }, { coalesce: "name" })} />
         </Field>
@@ -1160,8 +1163,9 @@ function PageProps() {
         <Field label="Description">
           <input aria-label="Description" value={doc.description ?? ""} onChange={(e) => setDoc({ ...doc, description: e.target.value }, { coalesce: "desc" })} />
         </Field>
-      </Section>
-      <Section title="Page">
+      </Section>}
+      {reportTab === "page" && <>
+      <Section title="Size & margins">
         <div className="grid2">
           <Field label="Size">
             <select aria-label="Page size" data-testid="page-size" value={page.size ?? "A4"} onChange={(e) => setPage({ size: e.target.value, ...(e.target.value === "custom" && !page.width ? { width: 100, height: 150, unit: "mm" } : {}) })}>
@@ -1222,8 +1226,9 @@ function PageProps() {
         <p className="muted small">Shown in Preview and exports (PDF, HTML).</p>
       </Section>
       <PageMasters />
-      <PrintProfilePanel />
-      <Section title="Locale & theme" open={false}>
+      </>}
+      {reportTab === "print" && <PrintProfilePanel />}
+      {reportTab === "details" && <Section title="Locale & theme" open={false}>
         <Field label="Locale">
           <input aria-label="Locale" value={doc.locale ?? ""} placeholder="en-US" onChange={(e) => setDoc({ ...doc, locale: e.target.value || undefined }, { coalesce: "locale" })} />
         </Field>
@@ -1233,7 +1238,8 @@ function PageProps() {
         <Field label="Body font">
           <input aria-label="Body font" value={doc.theme?.fonts?.body ?? ""} placeholder="Noto Sans" onChange={(e) => setTheme({ fonts: { ...(doc.theme?.fonts ?? {}), body: e.target.value || undefined } })} />
         </Field>
-      </Section>
+      </Section>}
+      </InspectorTabs>
     </>
   );
 }

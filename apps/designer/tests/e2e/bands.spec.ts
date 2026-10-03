@@ -80,6 +80,7 @@ test("data drops fill the empty Page Header and Detail bands", async ({ page }) 
 test("A4 authoring keeps grouped investigation rows once from data binding through output", async ({ page }) => {
   test.setTimeout(180_000);
   await page.getByTestId("page-1").click({ position: { x: 10, y: 10 } });
+  await page.getByTestId("report-tab-details").click();
   await page.getByTestId("properties").getByLabel("Report id").fill("clinical-a4-journey");
   await page.getByTestId("left-tab-data").click();
   await page.getByTestId("add-dataset").click();

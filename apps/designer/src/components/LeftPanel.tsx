@@ -630,7 +630,7 @@ function PagesTab() {
   const scale = 96 / pag.pageSize.width;
   return (
     <div className="tab-body" data-testid="pages-tab">
-      <button className="btn pages-master-entry" data-testid="edit-page-masters" onClick={() => { savePref("canvasView", "pages"); useStore.getState().set({ selection: [], selectedBand: null, rightOpen: true, canvasView: "pages" }); requestAnimationFrame(() => { const section = document.querySelector('[data-testid="page-masters-section"]'); const toggle = section?.querySelector<HTMLButtonElement>(".prop-section-title"); if (toggle?.getAttribute("aria-expanded") === "false") toggle.click(); section?.scrollIntoView({ block: "start" }); }); }}>Edit page masters</button>
+      <button className="btn pages-master-entry" data-testid="edit-page-masters" onClick={() => { savePref("canvasView", "pages"); useStore.getState().set({ selection: [], selectedBand: null, rightOpen: true, canvasView: "pages", reportInspectorTab: "page" }); requestAnimationFrame(() => { const section = document.querySelector('[data-testid="page-masters-section"]'); const toggle = section?.querySelector<HTMLButtonElement>(".prop-section-title"); if (toggle?.getAttribute("aria-expanded") === "false") toggle.click(); section?.scrollIntoView({ block: "start" }); }); }}>Edit page masters</button>
       {pag.pages.map((p, i) => (
         <button key={i} className="thumb" data-testid="page-thumb" onClick={() => document.querySelector(`[data-page="${i}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })} aria-label={`Go to page ${i + 1}`}>
           <span className="thumb-page" style={{ width: pag.pageSize.width * scale, height: pag.pageSize.height * scale }}>
@@ -660,14 +660,14 @@ export function LeftPanel() {
     event.preventDefault();
     const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + offset + tabs.length) % tabs.length;
     const id = tabs[next]!.id;
-    set({ leftTab: id });
+    set({ leftTab: id, ...(id === "pages" ? { reportInspectorTab: "page" as const } : {}) });
     requestAnimationFrame(() => document.getElementById(`workspace-tab-${id}`)?.focus());
   };
   return (
     <aside className="panel left" aria-label="Workspace panels">
       <nav className="workspace-rail" aria-label="Workspace panels" role="tablist">
         {tabs.map((item, index) => (
-          <button key={item.id} id={`workspace-tab-${item.id}`} type="button" role="tab" aria-controls="workspace-panel" aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} className={tab === item.id ? "active" : ""} data-testid={`left-tab-${item.id}`} onClick={() => set({ leftTab: item.id })} onKeyDown={(event) => moveTab(event, index)} title={item.label}>
+          <button key={item.id} id={`workspace-tab-${item.id}`} type="button" role="tab" aria-controls="workspace-panel" aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} className={tab === item.id ? "active" : ""} data-testid={`left-tab-${item.id}`} onClick={() => set({ leftTab: item.id, ...(item.id === "pages" ? { reportInspectorTab: "page" } : {}) })} onKeyDown={(event) => moveTab(event, index)} title={item.label}>
             <Icon name={item.icon} small />
             <span>{item.label}</span>
           </button>

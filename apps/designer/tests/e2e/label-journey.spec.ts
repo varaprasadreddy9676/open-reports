@@ -27,7 +27,7 @@ test("build a 40 × 25 mm patient label through the UI, validate it, and preview
   await page.getByTestId("properties").getByRole("button", { name: /Size and layout/ }).click();
   await page.getByTestId("band-layout-absolute").click();
   await page.getByTestId("page-1").click();
-  await page.getByTestId("properties").getByRole("button", { name: /Print & labels/ }).click();
+  await page.getByTestId("report-tab-print").click();
   await page.getByTestId("print-preset").selectOption({ label: "Label 40 × 25 mm (ZPL 203 dpi)" });
   await expect(page.getByTestId("print-preset")).toHaveValue("3");
   await expect(page.getByTestId("print-facts")).toContainText("40.0 × 25.0 mm");
@@ -113,7 +113,7 @@ test("save and reapply a named printer profile to a label", async ({ page }) => 
   await page.getByTestId("blank-size").selectOption({ label: "Label 40 × 25 mm" });
   await page.getByTestId("starter-blank").click();
   await page.getByTestId("page-1").click();
-  await page.getByTestId("properties").getByRole("button", { name: "Print & labels" }).click();
+  await page.getByTestId("report-tab-print").click();
   await page.getByTestId("print-preset").selectOption({ label: "Label 40 × 25 mm (ZPL 203 dpi)" });
   await page.getByTestId("save-printer-profile").click();
   await page.getByLabel("New printer profile name").fill("Lab Zebra 40 × 25");
@@ -139,8 +139,7 @@ test("save and reapply a named printer profile to a label", async ({ page }) => 
   await expect(page.getByTestId("zpl-text")).toContainText("^PW320");
   await expect(page.getByTestId("zpl-text")).toContainText("^LL200");
   await page.getByTestId("mode-design").click();
-  const printSection = page.getByTestId("properties").getByRole("button", { name: "Print & labels" });
-  if (await printSection.getAttribute("aria-expanded") === "false") await printSection.click();
+  await page.getByTestId("report-tab-print").click();
   await expect(page.getByRole("button", { name: "Delete saved profile" })).toBeVisible();
   await page.getByRole("button", { name: "Delete saved profile" }).click();
   await expect(page.getByTestId("saved-print-profile").getByRole("option", { name: "Lab Zebra 40 × 25" })).toHaveCount(0);
@@ -153,7 +152,7 @@ test("calibrate a ZPL label from a measured test box and reuse its printer profi
   await page.getByTestId("starter-blank").click();
   await page.getByTestId("page-1").click();
   const props = page.getByTestId("properties");
-  await props.getByRole("button", { name: "Print & labels" }).click();
+  await props.getByTestId("report-tab-print").click();
   await props.getByTestId("print-preset").selectOption({ label: "Label 40 × 25 mm (ZPL 203 dpi)" });
   const calibration = props.getByTestId("calibration-panel");
   await calibration.locator("summary").click();
