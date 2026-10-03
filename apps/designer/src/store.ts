@@ -1,3 +1,4 @@
+import { parseGrid, parseSnapTargets, type GridSettings, type SnapTargets } from "./lib/grid";
 import { create } from "zustand";
 import * as ops from "./model/ops";
 import type { Comp, Doc } from "./model/ops";
@@ -85,6 +86,10 @@ interface State {
   rulerUnit: RulerUnit;
   rulerOrigin: RulerOrigin;
   gridMode: "lines" | "dots";
+  /** Grid spacing and subdivisions (saved per user). */
+  grid: GridSettings;
+  /** Which targets dragging and resizing snap to (saved per user). */
+  snapTargets: SnapTargets;
   /** Index (in doc.sections) of the band selected on the structure canvas. */
   selectedBand: number | null;
   view: ViewOptions;
@@ -245,6 +250,8 @@ export const useStore = create<State>((set, get) => ({
   rulerUnit: pref("rulerUnit", "mm") as RulerUnit,
   rulerOrigin: pref("rulerOrigin", "page") as RulerOrigin,
   gridMode: "lines",
+  grid: parseGrid(pref("grid", "")),
+  snapTargets: parseSnapTargets(pref("snapTargets", "")),
   selectedBand: null,
   view: { grid: false, rulers: true, guides: true, margins: true, boundaries: false, diagnostics: true },
   split: false,

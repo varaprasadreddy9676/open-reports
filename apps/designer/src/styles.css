@@ -963,9 +963,12 @@ textarea {
   user-select: none;
   touch-action: none;
 }
+/* Major lines are stronger than minor ones; Canvas.tsx hides minor lines (minor = major) when they would be closer than 4 px. */
 .page.grid {
-  background-image: linear-gradient(to right, rgba(37, 99, 235, 0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(37, 99, 235, 0.12) 1px, transparent 1px);
-  background-size: var(--gridsize) var(--gridsize);
+  background-image:
+    linear-gradient(to right, rgba(37, 99, 235, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(37, 99, 235, 0.2) 1px, transparent 1px),
+    linear-gradient(to right, rgba(37, 99, 235, 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(37, 99, 235, 0.08) 1px, transparent 1px);
+  background-size: var(--grid-major) var(--grid-major), var(--grid-major) var(--grid-major), var(--grid-minor) var(--grid-minor), var(--grid-minor) var(--grid-minor);
 }
 .margin-guide {
   position: absolute;
@@ -2263,7 +2266,10 @@ kbd {
 .guide-hit { position: absolute; z-index: 6; }
 .guide-hit.x { width: 9px; margin-left: -4px; top: 0; bottom: 0; cursor: ew-resize; }
 .guide-hit.y { height: 9px; margin-top: -4px; left: 0; right: 0; cursor: ns-resize; }
-.page.dots { background-image: radial-gradient(rgba(37, 99, 235, 0.35) 1px, transparent 1.2px); background-size: var(--gridsize) var(--gridsize); }
+.page.dots { background-image: radial-gradient(rgba(37, 99, 235, 0.55) 1.5px, transparent 1.8px), radial-gradient(rgba(37, 99, 235, 0.3) 1px, transparent 1.2px); background-size: var(--grid-major) var(--grid-major), var(--grid-minor) var(--grid-minor); background-position: -1px -1px, -1px -1px; }
+.snap-targets { display: grid; gap: 4px; margin: 4px 0 0; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.snap-targets legend { padding: 0 4px; color: var(--muted); font-size: 11px; }
+.snap-target { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 
 /* ---------- band chrome */
 .band-chrome { position: absolute; left: 0; right: 0; pointer-events: none; border-top: 1px dashed rgba(100, 116, 139, 0.55); z-index: 4; }

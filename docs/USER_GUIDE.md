@@ -42,6 +42,13 @@ For precise alignment, click the top ruler to place a vertical guide or the left
 
 While moving an element in a free-position layout, smart guides compare it with sibling edges and centres. Matching gaps between neighbours appear as blue paired measurements. Resizing from a handle snaps the active edge to nearby sibling edges, centres, page bounds, or saved guides, and shows the remaining gap. Grid snapping still applies on an axis without a nearby smart-guide match. Hold **Alt/Option** during the drag or resize to place freely; hold **Shift+Alt/Option** while dragging to make a copy.
 
+**Grid and snapping.** In **Canvas settings**:
+- Set **Grid spacing** in the current ruler unit (mm, cm, in, pt, px or printer dots) and choose **Subdivisions**. Major lines are drawn stronger than minor lines, and objects snap to the minor step (**Snaps every …** shows it). Grid lines start at the page edge, and moved or resized edges land exactly on them, whatever the page margins.
+- **Snap to** turns each target on or off: grid, other objects, band and page edges, guides, equal spacing and text baselines.
+- These settings are saved for you and are not stored in the report.
+
+**Panning.** Hold **Space** and drag, or drag with the middle mouse button, to pan the canvas. A pan never selects or moves anything. Space still types in text fields and activates focused buttons.
+
 In **Canvas settings → Ruler zero**, choose **Selected band** in Structure view to measure vertically from that band's top. Choose **Selection bounds** to measure from the upper-left corner of the selected element(s) visible on the first page. Clearing the selection temporarily returns the ruler to the page edge; it does not move any report content or guides.
 
 For several elements in one **Free position** layout, the inspector's **Arrange** controls align edges, centres, and equal spacing. **Text baseline** aligns the first visible line of selected text using the canvas font measurements. **Tidy up** groups selected elements by their current rows, then places each row from the left with an 8 pt gap. It is disabled when that arrangement would overlap another visible element in the same layout. Both actions change report coordinates and can be undone. Flow items, locked elements, and items in different parents cannot be arranged together.

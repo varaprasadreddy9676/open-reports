@@ -4,6 +4,7 @@ import { savePref, useStore, type RulerOrigin, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
 import { fitZoom, zoomToSelection } from "../lib/zoom";
 import { GuideControls } from "./GuideControls";
+import { GridSettingsControls } from "./GridSettings";
 import { rulerAnchor } from "../lib/ruler-origin";
 
 const ADDABLE: { type: string; hint: string }[] = [
@@ -106,6 +107,7 @@ export function BandBar() {
           <option value="dots">Dots</option>
         </select>
         </label>
+        <GridSettingsControls />
         <GuideControls />
         </div>
       </details>}

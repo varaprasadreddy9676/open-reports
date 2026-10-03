@@ -18,13 +18,13 @@ import { PageBreakDetails } from "./PageBreakDetails";
 import { EscPosPreview, PdfPreview } from "./Preview";
 import { fitZoom } from "../lib/zoom";
 import { useCanvasPan } from "../lib/use-canvas-pan";
+import { minorStep, snapToGrid } from "../lib/grid";
 import { pointsPerRulerUnit } from "../lib/ruler";
 import { api } from "../lib/api";
 import { canvasFontStack } from "../lib/fonts";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
-const SNAP = 5;
 
 function* flat(nodes: PositionedNode[]): Generator<PositionedNode> {
   for (const n of nodes) {
@@ -235,7 +235,7 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode, rulerUnit, capabilities } = useStore();
+  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode, rulerUnit, capabilities, grid, snapTargets } = useStore();
   const k = PT * zoom;
   const unitPt = pointsPerRulerUnit(rulerUnit, doc.print?.dpi ?? 203);
   const measure = (pt: number) => String(Math.round((pt / unitPt) * (rulerUnit === "dots" ? 1 : 10)) / (rulerUnit === "dots" ? 1 : 10));
@@ -332,8 +332,9 @@ export function Canvas() {
     return set;
   }
 
-  function snapTo(v: number, bypass = false) {
-    return snap && !bypass ? Math.round(v / SNAP) * SNAP : Math.round(v * 10) / 10;
+  /** Grid lines start at the page origin, so `offset` converts a parent-relative value to page coordinates first. */
+  function snapTo(v: number, bypass = false, offset = 0) {
+    return snap && !bypass && snapTargets.grid ? Math.round((snapToGrid(v + offset, grid) - offset) * 1000) / 1000 : Math.round(v * 10) / 10;
   }
 
   function snapContext(sourceDoc: ops.Doc, id: string, page: number) {
@@ -342,21 +343,23 @@ export function Canvas() {
     if (!p || !loc || !paginated) return null;
     const nodes = [...flat([...p.header, ...p.content, ...p.footer])];
     const siblingIds = new Set<string>(loc.list.map((c) => c.id).filter((siblingId: string) => siblingId && siblingId !== id));
-    const others = nodes.filter((n) => siblingIds.has((n.component as any).id)).map((n) => n.box);
+    const targets = useStore.getState().snapTargets;
+    const others = targets.objects ? nodes.filter((n) => siblingIds.has((n.component as any).id)).map((n) => n.box) : [];
     const parentId = loc.parent;
     const parentBox = !parentId.startsWith("section:") ? nodes.find((n) => (n.component as any).id === parentId)?.box : undefined;
     const sectionBand = structure && parentId.startsWith("section:") ? structure.bands.find((b) => b.sectionIndex === Number(parentId.slice(8)) && !b.ghost) : undefined;
     const bounds = parentBox ?? (sectionBand ? { x: paginated.margin.left, y: sectionBand.y, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: sectionBand.height } : { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom });
-    const extra = { x: ((sourceDoc.guides ?? []) as any[]).filter((g) => g.axis === "x").map((g) => g.pos), y: ((sourceDoc.guides ?? []) as any[]).filter((g) => g.axis === "y").map((g) => g.pos) };
+    const guidesForSnap = targets.guides ? ((sourceDoc.guides ?? []) as any[]) : [];
+    const extra = { x: guidesForSnap.filter((g) => g.axis === "x").map((g) => g.pos), y: guidesForSnap.filter((g) => g.axis === "y").map((g) => g.pos) };
     const pageEl = pageEls.current[page];
     const pageTop = pageEl?.getBoundingClientRect().top ?? 0;
     const textEls = new Map(pageEl ? [...pageEl.querySelectorAll<HTMLElement>(".cn-text[data-cid]")].map((el) => [el.dataset.cid, el] as const) : []);
-    const baselines = pageEl ? nodes.filter((n) => siblingIds.has((n.component as any).id) && ["text", "richText", "field"].includes(n.component.type)).flatMap((n) => {
+    const baselines = pageEl && targets.baseline ? nodes.filter((n) => siblingIds.has((n.component as any).id) && ["text", "richText", "field"].includes(n.component.type)).flatMap((n) => {
       const textEl = textEls.get((n.component as any).id);
       const probe = textEl?.querySelector<HTMLElement>(".text-baseline-probe");
       return probe ? [{ pos: (probe.getBoundingClientRect().top - pageTop) / k, box: n.box }] : [];
     }) : [];
-    return { others, bounds, extra, baselines };
+    return { others, bounds, extra, baselines, rules: { bounds: targets.bounds, spacing: targets.spacing } };
   }
 
   // ---- pointer interactions (select, move/reorder, resize)
@@ -430,7 +433,7 @@ export function Canvas() {
         const offX = d.orig.box.x - d.orig.x;
         const offY = d.orig.box.y - d.orig.y;
         const guideEnabled = store.view.guides && !e.altKey;
-        const result = snapResizeBox({ x: x + offX, y: y + offY, width, height }, h, context.others, context.bounds, guideEnabled, context.extra);
+        const result = snapResizeBox({ x: x + offX, y: y + offY, width, height }, h, context.others, context.bounds, guideEnabled, context.extra, context.rules);
         if (guideEnabled) {
           snapped = result.snapped;
           width = result.box.width;
@@ -440,13 +443,23 @@ export function Canvas() {
           setGuides({ page, guides: result.guides, distances: result.distances });
         } else setGuides(null);
       } else setGuides(null);
+      // Free-positioned objects snap the dragged edge onto a grid line; flow children snap their size.
+      const edges = d.orig.absolute && d.orig.box ? { x: d.orig.box.x - d.orig.x, y: d.orig.box.y - d.orig.y } : null;
       if (changesX) {
-        if (!snapped.x) width = Math.max(8, snapTo(width, e.altKey));
+        if (!snapped.x) {
+          if (!edges) width = Math.max(8, snapTo(width, e.altKey));
+          else if (h.includes("w")) width = Math.max(8, x + width - snapTo(x, e.altKey, edges.x));
+          else width = Math.max(8, snapTo(x + width, e.altKey, edges.x) - x);
+        }
         patch.width = Math.round(width * 10) / 10;
         if (h.includes("w") && d.orig.absolute) patch.x = snapped.x ? Math.round(x * 10) / 10 : Math.round((d.orig.x + d.orig.w - width) * 10) / 10;
       }
       if (changesY) {
-        if (!snapped.y) height = Math.max(4, snapTo(height, e.altKey));
+        if (!snapped.y) {
+          if (!edges) height = Math.max(4, snapTo(height, e.altKey));
+          else if (h.includes("n")) height = Math.max(4, y + height - snapTo(y, e.altKey, edges.y));
+          else height = Math.max(4, snapTo(y + height, e.altKey, edges.y) - y);
+        }
         patch.height = Math.round(height * 10) / 10;
         if (h.includes("n") && d.orig.absolute) patch.y = snapped.y ? Math.round(y * 10) / 10 : Math.round((d.orig.y + d.orig.h - height) * 10) / 10;
       }
@@ -473,7 +486,7 @@ export function Canvas() {
         const offX = me.x - d.orig.x;
         const offY = me.y - d.orig.y;
         const guideEnabled = store.view.guides && !e.altKey;
-        const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, context.others, context.bounds, guideEnabled, { ...context.extra, baseline: d.orig.baselineOffset === undefined ? undefined : { movingOffset: d.orig.baselineOffset, targets: context.baselines } });
+        const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, context.others, context.bounds, guideEnabled, { ...context.extra, baseline: d.orig.baselineOffset === undefined ? undefined : { movingOffset: d.orig.baselineOffset, targets: context.baselines } }, context.rules);
         if (guideEnabled) {
           x = r.x - offX;
           y = r.y - offY;
@@ -481,7 +494,8 @@ export function Canvas() {
           setGuides({ page, guides: r.guides, distances: r.distances });
         } else setGuides(null);
       }
-      store.patch(d.id, { x: snapped.x ? Math.round(x * 10) / 10 : snapTo(x, e.altKey), y: snapped.y ? Math.round(y * 10) / 10 : snapTo(y, e.altKey) }, `move:${d.id}`);
+      const origin = me ? { x: me.x - d.orig.x, y: me.y - d.orig.y } : { x: 0, y: 0 };
+      store.patch(d.id, { x: snapped.x ? Math.round(x * 10) / 10 : snapTo(x, e.altKey, origin.x), y: snapped.y ? Math.round(y * 10) / 10 : snapTo(y, e.altKey, origin.y) }, `move:${d.id}`);
       return;
     }
     const pt = pagePoint(e.clientX, e.clientY, page);
@@ -605,7 +619,7 @@ export function Canvas() {
                 }}
                 className={`page ${showGrid ? (gridMode === "dots" ? "dots" : "grid") : ""} ${view.boundaries ? "boundaries" : ""}`}
                 data-testid={`page-${pi + 1}`}
-                style={{ width: pw, height: ph, fontFamily: canvasFontStack(capabilities, doc.theme?.fonts?.body), ["--gridsize" as any]: `${SNAP * k}px` }}
+                style={{ width: pw, height: ph, fontFamily: canvasFontStack(capabilities, doc.theme?.fonts?.body), ["--grid-major" as any]: `${grid.major * k}px`, ["--grid-minor" as any]: `${(minorStep(grid) * k >= 4 ? minorStep(grid) : grid.major) * k}px` }}
                 onPointerDown={(e) => onPointerDown(e, pi)}
                 onPointerMove={(e) => onPointerMove(e, pi)}
                 onPointerUp={onPointerUp}

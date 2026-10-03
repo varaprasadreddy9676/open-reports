@@ -85,27 +85,35 @@ function spacingMatch(moving: Box, others: Box[], bounds: Box, axis: "x" | "y"):
 }
 
 /** Snap a moving box to the edges/centres of other boxes and the page margins. Returns the adjusted position plus guide lines to draw. */
-export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[]; baseline?: BaselineSnap } = { x: [], y: [] }): { x: number; y: number; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
+/** Optional snap rules: ignore the container's edges/centre (`bounds`) or equal-gap spacing (`spacing`). */
+export interface SnapRules {
+  bounds?: boolean;
+  spacing?: boolean;
+}
+
+export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[]; baseline?: BaselineSnap } = { x: [], y: [] }, rules: SnapRules = {}): { x: number; y: number; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
   let { x, y } = moving;
   const guides: Guide[] = [];
   if (!enabled) return { x, y, guides, distances: [] as Distance[], snapped: { x: false, y: false } };
 
   const xs = (b: Box) => [b.x, b.x + b.width / 2, b.x + b.width];
   const ys = (b: Box) => [b.y, b.y + b.height / 2, b.y + b.height];
+  const useBounds = rules.bounds !== false;
+  const useSpacing = rules.spacing !== false;
   const targetsX: { pos: number; box?: Box }[] = [
-    ...[bounds.x, bounds.x + bounds.width / 2, bounds.x + bounds.width].map((pos) => ({ pos })),
+    ...(useBounds ? [bounds.x, bounds.x + bounds.width / 2, bounds.x + bounds.width] : []).map((pos) => ({ pos })),
     ...others.flatMap((box) => xs(box).map((pos) => ({ pos, box }))),
     ...extra.x.map((pos) => ({ pos })),
   ];
   const targetsY: { pos: number; box?: Box }[] = [
-    ...[bounds.y, bounds.y + bounds.height / 2, bounds.y + bounds.height].map((pos) => ({ pos })),
+    ...(useBounds ? [bounds.y, bounds.y + bounds.height / 2, bounds.y + bounds.height] : []).map((pos) => ({ pos })),
     ...others.flatMap((box) => ys(box).map((pos) => ({ pos, box }))),
     ...extra.y.map((pos) => ({ pos })),
   ];
 
   let bestX: { d: number; delta: number; at: number; source?: Box } = { d: THRESHOLD + 1, delta: 0, at: 0 };
   for (const mine of xs({ ...moving, x })) for (const target of targetsX) if (Math.abs(target.pos - mine) < bestX.d) bestX = { d: Math.abs(target.pos - mine), delta: target.pos - mine, at: target.pos, source: target.box };
-  const spacingX = spacingMatch(moving, others, bounds, "x");
+  const spacingX = useSpacing ? spacingMatch(moving, others, bounds, "x") : undefined;
   const equalX = spacingX && Math.abs(spacingX.pos - x) <= bestX.d ? spacingX : undefined;
   if (equalX) x = equalX.pos;
   else if (bestX.d <= THRESHOLD) x += bestX.delta;
@@ -119,7 +127,7 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
       if (d <= THRESHOLD && d <= bestY.d) bestY = { d, delta: target.pos - mine, at: target.pos, source: target.box, kind: "baseline" };
     }
   }
-  const spacingY = spacingMatch(moving, others, bounds, "y");
+  const spacingY = useSpacing ? spacingMatch(moving, others, bounds, "y") : undefined;
   const equalY = spacingY && Math.abs(spacingY.pos - y) <= bestY.d ? spacingY : undefined;
   if (equalY) y = equalY.pos;
   else if (bestY.d <= THRESHOLD) y += bestY.delta;
@@ -140,7 +148,7 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
 }
 
 /** Snap only the edge under a resize handle; the opposite edge stays fixed. */
-export function snapResizeBox(proposed: Box, handle: string, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[] } = { x: [], y: [] }): { box: Box; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
+export function snapResizeBox(proposed: Box, handle: string, others: Box[], bounds: Box, enabled: boolean, extra: { x: number[]; y: number[] } = { x: [], y: [] }, rules: SnapRules = {}): { box: Box; guides: Guide[]; distances: Distance[]; snapped: { x: boolean; y: boolean } } {
   const box = { ...proposed };
   const guides: Guide[] = [];
   const snapped = { x: false, y: false };
@@ -156,7 +164,7 @@ export function snapResizeBox(proposed: Box, handle: string, others: Box[], boun
     const edge = axis === "x" ? bounds.x : bounds.y;
     const extent = axis === "x" ? bounds.width : bounds.height;
     const targets: { pos: number; source?: Box }[] = [
-      ...[edge, edge + extent / 2, edge + extent, ...extra[axis]].map((pos) => ({ pos })),
+      ...[...(rules.bounds !== false ? [edge, edge + extent / 2, edge + extent] : []), ...extra[axis]].map((pos) => ({ pos })),
       ...others.flatMap((source) => {
         const origin = axis === "x" ? source.x : source.y;
         const length = axis === "x" ? source.width : source.height;
