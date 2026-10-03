@@ -6,6 +6,7 @@ import { diffDocs, summarize } from "./lib/diff";
 import type { Proposal } from "./lib/ai";
 import { blankReport } from "./lib/templates";
 import { api, ApiError } from "./lib/api";
+import { loadCanvasFonts } from "./lib/fonts";
 
 export type Mode = "design" | "data" | "code" | "preview";
 export type LeftTab = "insert" | "layers" | "data" | "pages";
@@ -568,8 +569,10 @@ export const useStore = create<State>((set, get) => ({
 
   async loadCapabilities() {
     try {
-      set({ capabilities: await api.capabilities() });
+      const capabilities = await api.capabilities();
+      set({ capabilities });
       get().refresh();
+      await loadCanvasFonts(capabilities);
     } catch {
       /* server unavailable: capability checks are skipped */
     }

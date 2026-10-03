@@ -68,6 +68,8 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
         { id: "zpl", mimeType: "text/plain", supports: ["text", "richText", "field", "line", "rectangle", "spacer", "barcode", "qrcode", "table", "container", "row", "column", "grid", "repeater", "group", "keepTogether", "pageBreak"] },
       ],
       fonts: Object.keys(fonts.families ?? {}),
+      fontFaces: Object.fromEntries(Object.entries(fonts.families ?? {}).map(([family, face]) => [family, Object.keys(face).filter((variant) => Boolean(face[variant as keyof typeof face]))])),
+      defaultFont: fonts.defaultFamily ?? null,
       scriptFonts: fonts.scriptFamilies ?? {},
       secrets: Object.keys(secretsFromEnv()),
       sqlConnections: sqlConnectionIds(),
@@ -103,6 +105,23 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
       return reply.header("cache-control", "no-store").send({ dataUrl });
     } catch (err) {
       return sendRenderError(reply, err);
+    }
+  });
+
+  // Only serve font files selected by the PDF renderer's discovery list. The
+  // browser can then draw with the same face that PDFKit embeds.
+  app.get("/api/v1/resources/font", async (request, reply) => {
+    const { family, variant } = request.query as { family?: string; variant?: string };
+    const fonts = discoverFonts().families ?? {};
+    const face = family && Object.hasOwn(fonts, family) ? fonts[family] : undefined;
+    const kind = variant === "bold" ? "bold" : variant === "italic" ? "italic" : variant === "boldItalic" ? "boldItalic" : variant === "regular" ? "regular" : undefined;
+    if (!face || !kind) return reply.code(404).send({ error: { code: "FONT_NOT_FOUND", message: "This font face is not available to the PDF renderer." } });
+    const file = kind === "boldItalic" ? face.boldItalic ?? face.bold ?? face.regular : kind === "bold" ? face.bold ?? face.regular : kind === "italic" ? face.italic ?? face.regular : face.regular;
+    try {
+      const bytes = fs.readFileSync(file);
+      return reply.type("font/ttf").header("cache-control", "private, max-age=3600").send(bytes);
+    } catch {
+      return reply.code(404).send({ error: { code: "FONT_NOT_FOUND", message: "This font face is no longer available." } });
     }
   });
 
@@ -384,6 +403,7 @@ function buildOpenApiDocument(): Record<string, unknown> {
       "/api/v1/validate": { post: { summary: "Validate a report definition" } },
       "/api/v1/render": { post: { summary: "Render a report inline" } },
       "/api/v1/resources/image": { get: { summary: "Resolve a server-accessible image path or URL for authenticated designer preview" } },
+      "/api/v1/resources/font": { get: { summary: "Fetch an installed PDF font face for authenticated designer preview" } },
       "/api/v1/templates": { get: { summary: "List templates" }, post: { summary: "Create a template" } },
       "/api/v1/templates/{id}": { get: { summary: "Get a template" }, put: { summary: "Update a template (creates a new version)" }, delete: { summary: "Delete a template" } },
       "/api/v1/templates/{id}/versions": { get: { summary: "List template versions" } },

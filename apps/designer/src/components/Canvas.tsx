@@ -19,6 +19,7 @@ import { PdfPreview } from "./Preview";
 import { fitZoom } from "../lib/zoom";
 import { pointsPerRulerUnit } from "../lib/ruler";
 import { api } from "../lib/api";
+import { canvasFontStack } from "../lib/fonts";
 
 const PT = 4 / 3;
 const CONTAINERS = ["container", "row", "column", "grid", "repeater", "keepTogether", "group"];
@@ -90,7 +91,7 @@ function ImageView({ component, style }: { component: any; style: React.CSSPrope
   return <img data-cid={component.id} className="cn" src={linked ? preview?.dataUrl : component.src} alt={component.alt ?? ""} style={{ ...style, objectFit: component.fit === "cover" ? "cover" : component.fit === "fill" || component.fit === "stretch" ? "fill" : "contain" }} />;
 }
 
-function NodeView({ node, k }: { node: PositionedNode; k: number }) {
+function NodeView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
   const c = node.component as any;
   const common = { "data-cid": c.id } as Record<string, any>;
   const st = boxStyle(node, k);
@@ -100,7 +101,7 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
     case "richText":
     case "field":
       return (
-        <div {...common} className="cn cn-text" style={{ ...st, ...cssFrom(c.style, k), whiteSpace: "pre-wrap", overflow: "hidden" }}>
+        <div {...common} className="cn cn-text" style={{ ...st, ...cssFrom(c.style, k, capabilities), whiteSpace: "pre-wrap", overflow: "hidden" }}>
           <span className="text-baseline-probe" aria-hidden="true" />{c.text}
         </div>
       );
@@ -109,7 +110,7 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
     case "line":
       return <div {...common} className="cn" style={{ ...st, ...(c.orientation === "vertical" ? { borderLeft: `${k}px solid #000` } : { borderTop: `${k}px solid #000` }) }} />;
     case "rectangle":
-      return <div {...common} className="cn" style={{ ...st, ...(c.style ? cssFrom(c.style, k) : { border: `${k}px solid #000` }) }} />;
+      return <div {...common} className="cn" style={{ ...st, ...(c.style ? cssFrom(c.style, k, capabilities) : { border: `${k}px solid #000` }) }} />;
     case "spacer":
       return <div {...common} className="cn cn-spacer" style={st} />;
     case "pageBreak":
@@ -131,14 +132,14 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
         <div {...common} className="cn" style={{ ...st, background: "#fff" }} dangerouslySetInnerHTML={{ __html: renderChartSvg(c, Math.round(node.box.width * k), Math.round(node.box.height * k)) }} />
       );
     case "table":
-      return <TableView node={node} k={k} />;
+      return <TableView node={node} k={k} capabilities={capabilities} />;
     default: {
       const own = CONTAINERS.includes(c.type);
       return (
         <>
-          {own && <div {...common} className={`cn cn-block cn-${c.type}`} style={{ ...st, ...cssFrom(c.style, k) }} />}
+          {own && <div {...common} className={`cn cn-block cn-${c.type}`} style={{ ...st, ...cssFrom(c.style, k, capabilities) }} />}
           {(node.children ?? []).map((ch, i) => (
-            <NodeView key={i} node={ch} k={k} />
+            <NodeView key={i} node={ch} k={k} capabilities={capabilities} />
           ))}
         </>
       );
@@ -146,7 +147,7 @@ function NodeView({ node, k }: { node: PositionedNode; k: number }) {
   }
 }
 
-function TableView({ node, k }: { node: PositionedNode; k: number }) {
+function TableView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
   const t = node.component as any;
   const widths = resolveColumnWidths(t, node.box.width);
   const headerHeights = node.tableMetrics?.headerRowHeights ?? measureHeaderRowHeights(t, widths, defaultTextMeasurer);
@@ -156,7 +157,7 @@ function TableView({ node, k }: { node: PositionedNode; k: number }) {
   const end = node.rowRange?.end ?? t.rows.length;
   const fs = ((t.style?.fontSize as number) ?? 10) * k;
   return (
-    <table data-cid={t.id} className="cn cn-table" style={{ ...boxStyle(node, k), borderCollapse: "collapse", fontSize: fs, tableLayout: "fixed", ...cssFrom(t.style, k) }}>
+    <table data-cid={t.id} className="cn cn-table" style={{ ...boxStyle(node, k), borderCollapse: "collapse", fontSize: fs, tableLayout: "fixed", ...cssFrom(t.style, k, capabilities) }}>
       <colgroup>
         {widths.map((w, i) => (
           <col key={i} style={{ width: w.width * k }} />
@@ -173,7 +174,7 @@ function TableView({ node, k }: { node: PositionedNode; k: number }) {
       )}
       <tbody>
         {t.rows.slice(start, end).map((row: any, i: number) => (
-          <tr key={start + i} style={{ height: rowHeights[start + i]! * k, background: t.alternateRowStyle && (start + i) % 2 === 1 ? "#f5f5f5" : undefined, ...cssFrom(row.style, k) }}>
+          <tr key={start + i} style={{ height: rowHeights[start + i]! * k, background: t.alternateRowStyle && (start + i) % 2 === 1 ? "#f5f5f5" : undefined, ...cssFrom(row.style, k, capabilities) }}>
             {t.columns.map((c: any, column: number) => {
               const slot = spanGrid.get(start + i)?.get(column);
               if (slot && !slot.anchor) return null;
@@ -230,7 +231,7 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode, rulerUnit } = useStore();
+  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode, rulerUnit, capabilities } = useStore();
   const k = PT * zoom;
   const unitPt = pointsPerRulerUnit(rulerUnit, doc.print?.dpi ?? 203);
   const measure = (pt: number) => String(Math.round((pt / unitPt) * (rulerUnit === "dots" ? 1 : 10)) / (rulerUnit === "dots" ? 1 : 10));
@@ -558,7 +559,7 @@ export function Canvas() {
                 }}
                 className={`page ${showGrid ? (gridMode === "dots" ? "dots" : "grid") : ""} ${view.boundaries ? "boundaries" : ""}`}
                 data-testid={`page-${pi + 1}`}
-                style={{ width: pw, height: ph, ["--gridsize" as any]: `${SNAP * k}px` }}
+                style={{ width: pw, height: ph, fontFamily: canvasFontStack(capabilities, doc.theme?.fonts?.body), ["--gridsize" as any]: `${SNAP * k}px` }}
                 onPointerDown={(e) => onPointerDown(e, pi)}
                 onPointerMove={(e) => onPointerMove(e, pi)}
                 onPointerUp={onPointerUp}
@@ -593,7 +594,7 @@ export function Canvas() {
                 ) : null}
                 {view.margins && !structure && <PageZones page={page} paginated={paginated} k={k} />}
                 {[...page.header, ...page.content, ...page.footer].map((n, i) => (
-                  <NodeView key={i} node={n} k={k} />
+                  <NodeView key={i} node={n} k={k} capabilities={capabilities} />
                 ))}
                 {structure && <BandChrome bands={structure.bands} k={k} />}
                 {(doc.guides?.length ?? 0) > 0 && <GuideLayer k={k} width={pw} height={ph} />}

@@ -37,6 +37,8 @@ export interface Capabilities {
   customComponents?: { kind: string; description?: string; props?: Record<string, string> }[];
   formats: { id: string; supports: string[] }[];
   fonts: string[];
+  fontFaces?: Record<string, string[]>;
+  defaultFont?: string | null;
   scriptFonts: Record<string, string>;
   secrets: string[];
 }

@@ -113,8 +113,11 @@ export const api = {
   async deleteTemplate(id: string): Promise<void> {
     await request(`/api/v1/templates/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
-  async capabilities(): Promise<{ formats: { id: string; supports: string[] }[]; fonts: string[]; scriptFonts: Record<string, string>; secrets: string[] }> {
+  async capabilities(): Promise<{ formats: { id: string; supports: string[] }[]; fonts: string[]; fontFaces?: Record<string, string[]>; defaultFont?: string | null; scriptFonts: Record<string, string>; secrets: string[] }> {
     return (await request("/api/v1/capabilities")).json();
+  },
+  async fontFace(family: string, variant: string): Promise<ArrayBuffer> {
+    return (await request(`/api/v1/resources/font?family=${encodeURIComponent(family)}&variant=${encodeURIComponent(variant)}`)).arrayBuffer();
   },
   async imageSource(src: string): Promise<string> {
     const result = await (await request(`/api/v1/resources/image?src=${encodeURIComponent(src)}`, { cache: "no-store" })).json() as { dataUrl: string };

@@ -1,9 +1,12 @@
 /** Resolved style -> CSS at a given pixels-per-point scale. Mirrors the HTML renderer so the canvas matches Preview. */
-export function cssFrom(style: Record<string, any> | undefined, k: number): React.CSSProperties {
+import type { Capabilities } from "../engine";
+import { canvasFontStack } from "./fonts";
+
+export function cssFrom(style: Record<string, any> | undefined, k: number, caps?: Capabilities): React.CSSProperties {
   if (!style) return {};
   const px = (n: number) => `${(n * k).toFixed(2)}px`;
   const css: Record<string, any> = {};
-  if (style.fontFamily) css.fontFamily = `"${style.fontFamily}", sans-serif`;
+  if (style.fontFamily) css.fontFamily = canvasFontStack(caps, style.fontFamily);
   if (style.fontSize) css.fontSize = px(style.fontSize);
   if (style.fontWeight) css.fontWeight = style.fontWeight === "bold" ? 700 : style.fontWeight === "normal" ? 400 : style.fontWeight;
   if (style.italic) css.fontStyle = "italic";
