@@ -119,6 +119,46 @@ test("a missing PDF row names the record and opens its table in Design", async (
   expect(await page.evaluate(() => (window as any).__designer.getState().selection)).toEqual(["investigation-table"]);
 });
 
+test("a missing PDF text element names its page and opens the element in Design", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.setDoc({
+      ...store.doc,
+      datasets: [{ id: "clinical", source: "inline", query: { data: { investigations: [{ testName: "Glucose" }] } } }],
+      sections: [
+        { type: "reportHeader", children: [{ id: "missing-heading", type: "text", value: "Clinical Findings Summary", width: 220 }] },
+        { type: "detail", children: [{ id: "investigation-table", type: "table", dataset: "clinical.investigations", columns: [{ id: "test", header: "Test", binding: "row.testName" }] }] },
+      ],
+    });
+  });
+  let removeHeading = false;
+  await page.route("**/api/v1/render", async (route) => {
+    const body = route.request().postDataJSON();
+    if (body.format !== "pdf") return route.continue();
+    if (removeHeading) body.report.sections[0].children = [];
+    await route.fulfill({ response: await route.fetch({ postData: JSON.stringify(body) }) });
+  });
+  await page.getByTestId("mode-data").click();
+  await page.getByTestId("data-workspace-tests").click();
+  const counts = page.getByRole("group", { name: "Record counts" });
+  for (const count of [0, 1, 31, 32, 100]) await counts.getByLabel(String(count), { exact: true }).uncheck();
+  await counts.getByLabel("10", { exact: true }).check();
+  await page.getByTestId("run-stress-tests").click();
+  const result = page.getByTestId("stress-result-10");
+  await expect(result.getByTestId("pdf-text-coverage")).toHaveText("Text 1/1");
+  removeHeading = true;
+  await page.getByTestId("run-stress-tests").click();
+  await expect(result.getByTestId("pdf-text-coverage")).toHaveText("Text 0/1");
+  await result.locator("summary").click();
+  await expect(result).toContainText("Page 1: expected text");
+  await expect(result).toContainText("Clinical Findings Summary");
+  await result.getByRole("button", { name: "Show component" }).click();
+  await expect(page.getByTestId("mode-design")).toHaveAttribute("aria-selected", "true");
+  expect(await page.evaluate(() => (window as any).__designer.getState().selection)).toEqual(["missing-heading"]);
+});
+
 test("Data parameter value reaches the real PDF preview", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("starter-blank").click();
