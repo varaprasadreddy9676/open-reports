@@ -44,6 +44,9 @@ test("test data workspace runs boundary and stress scenarios without changing th
   expect(pdfPages).toBeGreaterThan(1);
   expect(pages).toBe(pdfPages);
   await expect(page.getByTestId("stress-result-100")).not.toContainText("Designer shows");
+  await expect(page.getByTestId("stress-result-100").getByTestId("pdf-row-coverage")).toContainText(/Rows \d+\/\d+/);
+  const coverage = (await page.getByTestId("stress-result-100").getByTestId("pdf-row-coverage").innerText()).match(/Rows (\d+)\/(\d+)/);
+  expect(coverage?.[1]).toBe(coverage?.[2]);
   if (process.env.UI_AUDIT_DIR) {
     fs.mkdirSync(process.env.UI_AUDIT_DIR, { recursive: true });
     await page.screenshot({ path: path.join(process.env.UI_AUDIT_DIR, "27-test-data-lab.png") });
@@ -76,6 +79,7 @@ test("test data workspace can render a 1,000-row scenario", async ({ page }) => 
   await expect(page.getByTestId("stress-result-1000")).toContainText(/\d+ pages · PDF \d+/, { timeout: 30_000 });
   const summary = await page.getByTestId("stress-result-1000").innerText();
   expect(summary.match(/(\d+) pages/)?.[1]).toBe(summary.match(/PDF (\d+)/)?.[1]);
+  await expect(page.getByTestId("stress-result-1000").getByTestId("pdf-row-coverage")).toHaveText("Rows 1000/1000");
 });
 
 test("Data parameter value reaches the real PDF preview", async ({ page }) => {
