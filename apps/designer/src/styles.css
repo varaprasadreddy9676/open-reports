@@ -1996,6 +1996,8 @@ kbd {
 .dist.x { border-top-width: 1px; height: 0; }
 .dist.y { border-left-width: 1px; width: 0; }
 .dist span { background: #f43f5e; color: #fff; font-size: 9px; padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+.dist.equal { border-color: var(--accent); }
+.dist.equal span { background: var(--accent); }
 .zone { position: absolute; pointer-events: none; }
 .zone span { position: absolute; left: 4px; top: 2px; font-size: 9px; color: rgba(37, 99, 235, 0.7); letter-spacing: 0.04em; text-transform: uppercase; opacity: 0; transition: opacity 0.15s; }
 .zone.header, .zone.footer { background: rgba(37, 99, 235, 0.035); border-bottom: 1px dotted rgba(37, 99, 235, 0.25); }

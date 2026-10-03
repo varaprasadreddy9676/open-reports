@@ -303,8 +303,8 @@ export function Canvas() {
     return set;
   }
 
-  function snapTo(v: number) {
-    return snap ? Math.round(v / SNAP) * SNAP : Math.round(v * 10) / 10;
+  function snapTo(v: number, bypass = false) {
+    return snap && !bypass ? Math.round(v / SNAP) * SNAP : Math.round(v * 10) / 10;
   }
 
   // ---- pointer interactions (select, move/reorder, resize)
@@ -341,7 +341,8 @@ export function Canvas() {
     else if (!store.selection.includes(id)) store.select([id]);
     const loc = ops.find(store.doc, id);
     if (loc?.comp.locked) return;
-    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || typeof loc?.comp.x === "number" }, page };
+    const node = [...flat([...paginated!.pages[page]!.header, ...paginated!.pages[page]!.content, ...paginated!.pages[page]!.footer])].find((n) => (n.component as any).id === id);
+    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || typeof loc?.comp.x === "number", box: node?.box ? { ...node.box } : undefined }, page };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -362,15 +363,15 @@ export function Canvas() {
     if (d.mode === "resize") {
       const patch: Record<string, number> = {};
       const h = d.handle!;
-      if (h.includes("e")) patch.width = Math.max(8, snapTo(d.orig.w + dx));
-      if (h.includes("s")) patch.height = Math.max(4, snapTo(d.orig.h + dy));
+      if (h.includes("e")) patch.width = Math.max(8, snapTo(d.orig.w + dx, e.altKey));
+      if (h.includes("s")) patch.height = Math.max(4, snapTo(d.orig.h + dy, e.altKey));
       if (h.includes("w")) {
-        const w = Math.max(8, snapTo(d.orig.w - dx));
+        const w = Math.max(8, snapTo(d.orig.w - dx, e.altKey));
         patch.width = w;
         if (d.orig.absolute) patch.x = d.orig.x + (d.orig.w - w);
       }
       if (h.includes("n")) {
-        const hh = Math.max(4, snapTo(d.orig.h - dy));
+        const hh = Math.max(4, snapTo(d.orig.h - dy, e.altKey));
         patch.height = hh;
         if (d.orig.absolute) patch.y = d.orig.y + (d.orig.h - hh);
       }
@@ -378,8 +379,8 @@ export function Canvas() {
       return;
     }
     if (d.orig.absolute) {
-      if (e.altKey && !d.duplicated) {
-        // Alt-drag leaves the original in place and drags a copy.
+      if (e.altKey && e.shiftKey && !d.duplicated) {
+        // Shift+Alt-drag leaves the original in place and drags a copy.
         d.duplicated = true;
         const r = ops.duplicate(store.doc, d.id);
         if (r.newId) {
@@ -391,23 +392,28 @@ export function Canvas() {
       let x = d.orig.x + dx;
       let y = d.orig.y + dy;
       const p = paginated?.pages[page];
-      const me = p ? [...flat([...p.header, ...p.content, ...p.footer])].find((n) => (n.component as any).id === d.id) : undefined;
+      const me = d.orig.box;
+      let snapped = { x: false, y: false };
       if (me && p && paginated) {
-        const parent = ops.find(store.doc, d.id)?.parent as any;
-        const siblingIds = new Set<string>(((parent?.children as any[]) ?? []).map((c) => c.id).filter((id: string) => id !== d.id));
+        const loc = ops.find(store.doc, d.id);
+        const parentId = loc?.parent;
+        const siblingIds = new Set<string>(loc?.list.map((c) => c.id).filter((id: string) => id && id !== d.id) ?? []);
         const others = [...flat([...p.header, ...p.content, ...p.footer])].filter((n) => siblingIds.has((n.component as any).id)).map((n) => n.box);
-        const parentBox = parent ? [...flat([...p.header, ...p.content, ...p.footer])].find((n) => (n.component as any).id === parent.id)?.box : undefined;
-        const bounds = parentBox ?? { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom };
-        const offX = me.box.x - d.orig.x;
-        const offY = me.box.y - d.orig.y;
-        const r = snapBox({ x: x + offX, y: y + offY, width: me.box.width, height: me.box.height }, others, bounds, store.view.guides, { x: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "x").map((g) => g.pos), y: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "y").map((g) => g.pos) });
-        if (store.view.guides) {
+        const parentBox = parentId && !parentId.startsWith("section:") ? [...flat([...p.header, ...p.content, ...p.footer])].find((n) => (n.component as any).id === parentId)?.box : undefined;
+        const sectionBand = structure && parentId?.startsWith("section:") ? structure.bands.find((b) => b.sectionIndex === Number(parentId.slice(8)) && !b.ghost) : undefined;
+        const bounds = parentBox ?? (sectionBand ? { x: paginated.margin.left, y: sectionBand.y, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: sectionBand.height } : { x: paginated.margin.left, y: paginated.margin.top, width: paginated.pageSize.width - paginated.margin.left - paginated.margin.right, height: paginated.pageSize.height - paginated.margin.top - paginated.margin.bottom });
+        const offX = me.x - d.orig.x;
+        const offY = me.y - d.orig.y;
+        const guideEnabled = store.view.guides && !e.altKey;
+        const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, others, bounds, guideEnabled, { x: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "x").map((g) => g.pos), y: ((store.doc.guides ?? []) as any[]).filter((g) => g.axis === "y").map((g) => g.pos) });
+        if (guideEnabled) {
           x = r.x - offX;
           y = r.y - offY;
+          snapped = r.snapped;
           setGuides({ page, guides: r.guides, distances: r.distances });
-        }
+        } else setGuides(null);
       }
-      store.patch(d.id, { x: store.view.guides ? Math.round(x * 10) / 10 : snapTo(x), y: store.view.guides ? Math.round(y * 10) / 10 : snapTo(y) }, `move:${d.id}`);
+      store.patch(d.id, { x: snapped.x ? Math.round(x * 10) / 10 : snapTo(x, e.altKey), y: snapped.y ? Math.round(y * 10) / 10 : snapTo(y, e.altKey) }, `move:${d.id}`);
       return;
     }
     const pt = pagePoint(e.clientX, e.clientY, page);
@@ -662,7 +668,7 @@ function SmartGuides({ g, k }: { g: { guides: Guide[]; distances: Distance[] }; 
         <div key={i} className={`guide ${l.axis}`} style={l.axis === "x" ? { left: l.pos * k, top: l.from * k, height: (l.to - l.from) * k } : { top: l.pos * k, left: l.from * k, width: (l.to - l.from) * k }} />
       ))}
       {g.distances.map((d, i) => (
-        <div key={`d${i}`} className={`dist ${d.axis}`} style={d.axis === "x" ? { left: d.from * k, width: (d.to - d.from) * k, top: d.at * k } : { top: d.from * k, height: (d.to - d.from) * k, left: d.at * k }}>
+        <div key={`d${i}`} className={`dist ${d.axis}${d.equal ? " equal" : ""}`} data-testid={d.equal ? "equal-gap-guide" : undefined} title={d.equal ? "Equal spacing" : undefined} style={d.axis === "x" ? { left: d.from * k, width: (d.to - d.from) * k, top: d.at * k } : { top: d.from * k, height: (d.to - d.from) * k, left: d.at * k }}>
           <span>{d.mm.toFixed(1)} mm</span>
         </div>
       ))}

@@ -14,7 +14,7 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 |---|---|
 | Top modes | **Design · Data · Code · Preview**. ◫ shows Design and Code side by side. |
 | Left | **Structure** (bands, layers, lock 🔒, hide 👁) · **Data** (searchable fields and samples) · **Components** (incl. *My Components* and *Plugins*) · **Pages** (thumbnails) |
-| Canvas | Smart guides with distances in mm, 8 resize handles, marquee select, Alt-drag to duplicate, double-click to edit text, floating format bar, right-click menu, zoom to selection |
+| Canvas | Smart guides with distances in mm, 8 resize handles, marquee select, hold Alt/Option to move without snapping, Shift+Alt/Option-drag to duplicate, double-click to edit text, floating format bar, right-click menu, zoom to selection |
 | Right | Properties for the selection — content, typography, layout (margin, padding, gap, grow, min/max), page-break rules, Advanced (visibility conditions) |
 | Bottom | **Problems** (with one-click *Fix*) · **Pagination** (why content moved to the next page) · **History** (labelled steps, restore) |
 | **View ▾** | Grid, rulers, smart guides, margins & safe area, boundaries, diagnostics, "design with first N rows" |
@@ -29,6 +29,8 @@ For free-positioned elements inside the same absolute layout, select two or more
 To arrange a band's contents, select its label in Structure and open **Size and layout**. Choose **Stack vertically**, **Side by side**, **Grid**, or **Free position**. Gap and padding use points; empty fixed height lets the band grow with its contents. Drag a child within a flow layout to reorder it. The inspector shows alignment and distribution controls only for layouts that use them.
 
 For precise alignment, click the top ruler to place a vertical guide or the left ruler to place a horizontal guide. Open **Canvas settings → Guides** to add guides by keyboard, name them, enter exact positions, lock them against changes, or remove them. Positions use the selected ruler unit and zero point; switching to **Inside margins** changes the displayed origin without moving a guide. Guides are saved with the report and can also be dragged or double-clicked on the canvas.
+
+While moving an element in a free-position layout, smart guides compare it with sibling edges and centres. Matching gaps between neighbours appear as blue paired measurements. Grid snapping still applies on an axis without a nearby smart-guide match. Hold **Alt/Option** during the drag or resize to place freely; hold **Shift+Alt/Option** while dragging to make a copy.
 
 In **Canvas settings → Ruler zero**, choose **Selected band** in Structure view to measure vertically from that band's top. Choose **Selection bounds** to measure from the upper-left corner of the selected element(s) visible on the first page. Clearing the selection temporarily returns the ruler to the page edge; it does not move any report content or guides.
 

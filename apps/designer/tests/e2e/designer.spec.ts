@@ -247,6 +247,61 @@ test.describe("editing", () => {
     expect((await doc(page)).sections[0].children.find((item: any) => item.id === "c").y).toBe(130);
   });
 
+  test("dragging uses sibling equal-spacing guides and Alt bypasses snapping", async ({ page }) => {
+    await startBlank(page);
+    await page.evaluate(() => {
+      const store = (window as any).__designer.getState();
+      store.loadDoc({ ...store.doc, id: "snap-demo", name: "Spacing demo", sections: [{ type: "detail", layout: "absolute", children: [
+        { id: "left", type: "text", value: "Left", x: 100, y: 100, width: 30, height: 20 },
+        { id: "right", type: "text", value: "Right", x: 200, y: 100, width: 30, height: 20 },
+        { id: "moving", type: "text", value: "Move", x: 300, y: 100, width: 30, height: 20 },
+      ] }] });
+    });
+    const moving = page.locator('.cn-text[data-cid="moving"]');
+    await expect(moving).toBeVisible();
+    const scale = await page.evaluate(() => (4 / 3) * (window as any).__designer.getState().zoom);
+    const start = (await moving.boundingBox())!;
+    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(start.x + start.width / 2 - 148 * scale, start.y + start.height / 2, { steps: 12 });
+    await expect(page.getByTestId("equal-gap-guide")).toHaveCount(2);
+    await expect.poll(async () => {
+      const left = await page.locator('.cn-text[data-cid="left"]').boundingBox();
+      const moved = await moving.boundingBox();
+      return Math.abs((moved?.x ?? Infinity) - (left?.x ?? 0) - 50 * scale);
+    }).toBeLessThan(1);
+    const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
+    fs.mkdirSync(screenshots, { recursive: true });
+    await page.screenshot({ path: path.join(screenshots, "40-equal-spacing-guides.png") });
+    await page.mouse.up();
+    expect((await doc(page)).sections[0].children.find((item: any) => item.id === "moving").x).toBe(150);
+
+    await page.evaluate(() => (window as any).__designer.getState().patch("moving", { x: 300, y: 100 }));
+    await expect.poll(async () => (await moving.boundingBox())?.x).toBeCloseTo(start.x, 0);
+    const reset = (await moving.boundingBox())!;
+    await page.keyboard.down("Alt");
+    await page.mouse.move(reset.x + reset.width / 2, reset.y + reset.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(reset.x + reset.width / 2 - 148 * scale, reset.y + reset.height / 2, { steps: 12 });
+    await expect(page.getByTestId("equal-gap-guide")).toHaveCount(0);
+    await page.mouse.up();
+    await page.keyboard.up("Alt");
+    expect((await doc(page)).sections[0].children.find((item: any) => item.id === "moving").x).toBeCloseTo(152, 0);
+    expect((await doc(page)).sections[0].children).toHaveLength(3);
+
+    await expect.poll(async () => (await moving.boundingBox())?.x).toBeCloseTo(start.x - 148 * scale, 0);
+    const current = (await moving.boundingBox())!;
+    await page.mouse.move(current.x + current.width / 2, current.y + current.height / 2);
+    await page.mouse.down();
+    await page.keyboard.down("Alt");
+    await page.keyboard.down("Shift");
+    await page.mouse.move(current.x + current.width / 2 + 40 * scale, current.y + current.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await page.keyboard.up("Shift");
+    await page.keyboard.up("Alt");
+    expect((await doc(page)).sections[0].children).toHaveLength(4);
+  });
+
   test("selection ruler zero and canvas dimensions follow the rendered element", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("starter-absolute-form").click();
