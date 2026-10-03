@@ -15,6 +15,7 @@
     "doctor": "node scripts/doctor.mjs",
     "examples": "node scripts/build-examples.mjs",
     "test:all": "pnpm -r test",
+    "check:schema-consumers": "node scripts/schema-consumers.mjs",
     "dev": "node scripts/dev.mjs"
   },
   "devDependencies": {
