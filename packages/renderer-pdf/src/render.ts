@@ -58,8 +58,12 @@ export class PdfRenderer implements ReportRenderer {
     const ended = new Promise<void>((resolve) => doc.on("end", () => resolve()));
 
     const drawCtx = { doc, fonts, warnings, defaultFamily, measurer };
+    // Print rotation: the page is drawn as designed and marked for viewers and printers to turn it.
+    const rotation = (input.resolved.print as { rotation?: number } | undefined)?.rotation ?? 0;
+    const rotate = () => { if (rotation) (doc.page as unknown as { dictionary: { data: Record<string, unknown> } }).dictionary.data.Rotate = rotation; };
     for (const page of paginated.pages) {
       doc.addPage({ size: [paginated.pageSize.width, paginated.pageSize.height], margin: 0 });
+      rotate();
       doc.fillColor("#000000");
       for (const node of [...page.background, ...page.header, ...page.content, ...page.footer]) {
         await drawNode(drawCtx, node);

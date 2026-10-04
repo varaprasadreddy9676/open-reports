@@ -2,7 +2,7 @@ import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, Resolve
 import { sliceTableSpans } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
 import { defaultTextMeasurer, ellipsizeText, wrapTextLines } from "./measure.js";
-import { resolvePageGeometry } from "./units.js";
+import { resolvePageGeometry, toPoints } from "./units.js";
 import { edgesOf, layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
 import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
 
@@ -35,7 +35,52 @@ export function pickMaster(sections: ResolvedSection[], pageNumber: number, tota
   return at("standard") ?? sections.find((s) => !s.appliesTo || s.appliesTo === "all");
 }
 
+/** Longest roll segment when continuous media has no maxLength (200 in). */
+const CONTINUOUS_LIMIT = 14_400;
+
 export function paginate(report: ResolvedReport, options: PaginateOptions = {}): PaginatedReport {
+  const continuous = (report.page as { continuous?: { minLength?: number; maxLength?: number } } | undefined)?.continuous;
+  if (!continuous) return paginateFixed(report, options);
+  return paginateContinuous(report, continuous, options);
+}
+
+/**
+ * Roll media: lay out on a segment as long as the maximum, then, when everything fits on one segment, shorten the page to
+ * its content (respecting the minimum) and move the footer to the new bottom.
+ */
+function paginateContinuous(report: ResolvedReport, continuous: { minLength?: number; maxLength?: number }, options: PaginateOptions): PaginatedReport {
+  const page = report.page;
+  const width = resolvePageGeometry({ ...page, orientation: "portrait" } as typeof page).width;
+  const unit = page.unit ?? "mm";
+  const toUnit = (points: number) => points / toPoints(1, unit);
+  const maxPoints = continuous.maxLength ? toPoints(continuous.maxLength, unit) : CONTINUOUS_LIMIT;
+  const tall = { ...page, size: "custom" as const, width: toUnit(width), height: toUnit(maxPoints), orientation: "portrait" as const };
+  const result = paginateFixed({ ...report, page: tall }, options);
+  if (result.pages.length !== 1) return result;
+  const only = result.pages[0]!;
+  const footerHeight = only.zones.footer.height;
+  const bottomOf = (nodes: PositionedNode[]) => Math.max(0, ...nodes.map((node) => node.box.y + node.box.height));
+  const contentBottom = Math.max(bottomOf(only.header), bottomOf(only.content), result.margin.top + only.zones.header.height);
+  const minPoints = continuous.minLength ? toPoints(continuous.minLength, unit) : 0;
+  const height = Math.min(maxPoints, Math.max(minPoints, contentBottom + footerHeight + result.margin.bottom));
+  const dy = height - result.pageSize.height;
+  const footer = offsetNodes(only.footer, 0, dy);
+  return {
+    ...result,
+    pageSize: { width: result.pageSize.width, height },
+    pages: [{
+      ...only,
+      footer,
+      zones: {
+        header: only.zones.header,
+        body: { y: only.zones.body.y, height: Math.max(0, height - result.margin.bottom - footerHeight - only.zones.body.y) },
+        footer: { y: only.zones.footer.y + dy, height: footerHeight },
+      },
+    }],
+  };
+}
+
+function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}): PaginatedReport {
   const measurer = options.measurer ?? defaultTextMeasurer;
   const geometry = resolvePageGeometry(report.page);
   const warnings: PaginatedReport["warnings"] = [...report.warnings];

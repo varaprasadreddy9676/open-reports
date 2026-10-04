@@ -46,8 +46,16 @@ export class ZplRenderer implements ReportRenderer {
     const W = ptToDots(paginated.pageSize.width, dpi);
     const H = ptToDots(paginated.pageSize.height, dpi);
 
+    // Print rotation: 90°/270° turn every field onto media fed the other way; 180° inverts the whole label.
+    const rotation = (input.resolved.print as { rotation?: number } | undefined)?.rotation ?? 0;
+    const quarter = rotation === 90 || rotation === 270;
+    const o = rotation === 90 ? "R" : rotation === 270 ? "B" : "N";
+    const fo = (fx: number, fy: number, fw: number, fh: number) =>
+      rotation === 90 ? `^FO${Math.max(0, H - fy - fh)},${fx}` : rotation === 270 ? `^FO${fy},${Math.max(0, W - fx - fw)}` : `^FO${fx},${fy}`;
+    const gb = (bw: number, bh: number, thickness: number) => (quarter ? `^GB${bh},${bw},${thickness}^FS` : `^GB${bw},${bh},${thickness}^FS`);
+
     for (const page of paginated.pages) {
-      out.push("^XA", `^PW${W}`, `^LL${H}`, "^LH0,0", "^CI28");
+      out.push("^XA", `^PW${quarter ? H : W}`, `^LL${quarter ? W : H}`, "^LH0,0", "^CI28", rotation === 180 ? "^POI" : "^PON");
       for (const node of flat([...page.header, ...page.content, ...page.footer])) {
         const c = node.component as any;
         const rawX = positionX(node.box.x);
@@ -75,7 +83,7 @@ export class ZplRenderer implements ReportRenderer {
             }
             const align = c.style?.align === "center" ? "C" : c.style?.align === "right" ? "R" : "L";
             const lines = Math.max(1, Math.round(h / Math.max(1, Math.round(fsY * 1.2))));
-            out.push(`^FO${x},${y}^A0N,${fsY},${fsX}^FB${w},${lines},0,${align},0^FD${fieldData(text)}^FS`);
+            out.push(`${fo(x, y, w, h)}^A0${o},${fsY},${fsX}^FB${w},${lines},0,${align},0^FD${fieldData(text)}^FS`);
             break;
           }
           case "barcode": {
@@ -84,7 +92,7 @@ export class ZplRenderer implements ReportRenderer {
             const modules = 11 * (value.length + 3) + 13;
             const moduleDots = Math.max(1, Math.min(10, Math.floor(w / modules)));
             const code = SYMBOLOGY[c.symbology] ?? "BC";
-            out.push(`^FO${x},${y}^BY${moduleDots}^${code}N,${h},N,N,N^FD${fieldData(value)}^FS`);
+            out.push(`${fo(x, y, w, h)}^BY${moduleDots}^${code}${o},${h},N,N,N^FD${fieldData(value)}^FS`);
             if (moduleDots * modules > w) {
               warnings.push({ code: "ZPL_BARCODE_TOO_WIDE", path: c.id ?? "barcode", message: `Barcode needs about ${moduleDots * modules} dots but only ${w} are available; it may be clipped or unreadable.` });
             }
@@ -94,16 +102,16 @@ export class ZplRenderer implements ReportRenderer {
             const value = String(c.value ?? "");
             if (!value) break;
             const mag = Math.max(1, Math.min(10, Math.floor(Math.min(w, h) / 29)));
-            out.push(`^FO${x},${y}^BQN,2,${mag}^FDQA,${fieldData(value)}^FS`);
+            out.push(`${fo(x, y, w, h)}^BQN,2,${mag}^FDQA,${fieldData(value)}^FS`);
             break;
           }
           case "line": {
             const vertical = c.orientation === "vertical";
-            out.push(`^FO${x},${y}^GB${vertical ? 1 : w},${vertical ? h : 1},1^FS`);
+            out.push(`${fo(x, y, vertical ? 1 : w, vertical ? h : 1)}${gb(vertical ? 1 : w, vertical ? h : 1, 1)}`);
             break;
           }
           case "rectangle":
-            out.push(`^FO${x},${y}^GB${w},${h},${c.style?.border?.width ? dimensionX(c.style.border.width) : 1}^FS`);
+            out.push(`${fo(x, y, w, h)}${gb(w, h, c.style?.border?.width ? dimensionX(c.style.border.width) : 1)}`);
             break;
           case "table": {
             const widths = resolveColumnWidths(c, node.box.width);
@@ -112,7 +120,7 @@ export class ZplRenderer implements ReportRenderer {
             const rowH = c.rows.length ? Math.max(fsY + 4, Math.round(h / (end - start + (c.showHeader ? 1 : 0) + (c.showFooter ? 1 : 0)))) : fsY + 4;
             let ry = y;
             const cell = (text: string, cx: number, cw: number, align: string) =>
-              out.push(`^FO${cx},${ry}^A0N,${fsY},${fsX}^FB${cw},1,0,${align},0^FD${fieldData(text)}^FS`);
+              out.push(`${fo(cx, ry, cw, rowH)}^A0${o},${fsY},${fsX}^FB${cw},1,0,${align},0^FD${fieldData(text)}^FS`);
             const row = (texts: string[]) => {
               let cx = x;
               widths.forEach((cw, i) => {

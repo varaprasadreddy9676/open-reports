@@ -23,6 +23,10 @@ Units are **points** for component sizes (1 pt = 1/72 in) and `page.unit` for th
 
 For ZPL labels, `print.calibration` can contain `{ "scaleX": 1.008, "scaleY": 1, "offsetXmm": 0.5, "offsetYmm": 0 }`. Scale factors multiply ZPL element positions and dimensions; offsets move the content in millimetres. The declared media width/length and the PDF output stay unchanged. The designer's **Print & labels → Calibrate ZPL printer** control downloads an uncorrected measurement box and derives scale from the measured length. A saved printer profile copies these values into reports when selected.
 
+**Continuous media** (label rolls, wristbands, receipts printed as PDF): `"page": { "width": 100, "height": 150, "unit": "mm", "continuous": { "minLength": 40, "maxLength": 600 } }` produces one page whose length follows the content. `page.height` is ignored for continuous pages; `minLength`/`maxLength` (in `page.unit`) bound it. Content longer than `maxLength` continues on further segments of exactly `maxLength`; without `maxLength` a segment is at most 14400 pt (200 in). The page footer sits directly after the content.
+
+`print.rotation` (`0`, `90`, `180`, `270`) rotates the printed output clockwise without changing the design: PDF pages get a `/Rotate` entry, and ZPL output rotates every field and swaps print width and label length (180 uses `^POI`). Use it for wristbands and labels fed sideways.
+
 ## Sections
 `reportHeader`, `pageHeader`, `groupHeader`, `detail`, `groupFooter`, `pageFooter`, `reportFooter`, `background` (among other section types in the schema). Page headers, page footers, and backgrounds take `appliesTo`: `first | last | odd | even | standard | all`. The standard/all or unspecified band is the fallback. A variant can copy it and then edit its own `children`, dimensions, and `style` independently. A variant with empty `children` suppresses the fallback for that slot. Background bands are positioned behind page content; their section `style` (for example a fill) and child elements are rendered on the canvas and in the PDF. The report's page size, margins, and orientation remain global.
 

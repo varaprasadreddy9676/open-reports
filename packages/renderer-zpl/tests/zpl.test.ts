@@ -83,4 +83,32 @@ describe("ZplRenderer", () => {
     const text = (await zpl({ ...label, sections: [{ type: "detail", children: [{ type: "text", value: "A^FO0,0^FDHACK^FS" }] }] })).content as string;
     expect(text).not.toContain("^FDHACK");
   });
+
+  it("rotates a whole label for the printer: 90° and 270° transform each field, 180° inverts the print", async () => {
+    const wristband = {
+      schemaVersion: "1.0", id: "w", name: "W",
+      print: { dpi: 203, printerType: "wristband", language: "zpl", rotation: 90 },
+      page: { size: "custom", width: 100, height: 25, unit: "mm", orientation: "landscape", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [{ type: "detail", layout: "absolute", children: [
+        { type: "text", id: "name", value: "PATIENT", x: 10, y: 20, width: 120, height: 14, style: { fontSize: 10 } },
+        { type: "barcode", id: "code", value: "123456", x: 150, y: 10, width: 120, height: 40 },
+        { type: "rectangle", id: "frame", x: 5, y: 5, width: 60, height: 20 },
+      ] }],
+    };
+    const W = ptToDots((100 / 25.4) * 72, 203);
+    const H = ptToDots((25 / 25.4) * 72, 203);
+    const dots = (pt: number) => Math.round((pt / 72) * 203);
+    const rotated = (await zpl(wristband)).content as string;
+    expect(rotated).toContain(`^PW${H}`);
+    expect(rotated).toContain(`^LL${W}`);
+    expect(rotated).toContain(`^FO${H - dots(20) - dots(14)},${dots(10)}^A0R,`);
+    expect(rotated).toContain("^BCR,");
+    expect(rotated).toContain(`^FO${H - dots(5) - dots(20)},${dots(5)}^GB${dots(20)},${dots(60)},`);
+    const left = (await zpl({ ...wristband, print: { ...wristband.print, rotation: 270 } })).content as string;
+    expect(left).toContain(`^FO${dots(20)},${W - dots(10) - dots(120)}^A0B,`);
+    const inverted = (await zpl({ ...wristband, print: { ...wristband.print, rotation: 180 } })).content as string;
+    expect(inverted).toContain("^POI");
+    expect(inverted).toContain(`^PW${W}`);
+    expect((await zpl(label)).content as string).not.toContain("^POI");
+  });
 });

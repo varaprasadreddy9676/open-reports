@@ -492,3 +492,40 @@ describe("paginate: page headers/footers with real page numbers", () => {
     expect(header2.text).toBe("Page 2 of 2");
   });
 });
+
+describe("continuous media", () => {
+  const roll = (lines: number, continuous: Record<string, number> = {}) => ({
+    id: "receipt", name: "Receipt", locale: "en-US",
+    page: { size: "custom", width: 80, height: 200, unit: "mm", orientation: "portrait", margin: { top: 4, right: 4, bottom: 4, left: 4 }, continuous },
+    sections: [
+      { type: "pageFooter", sourceIndex: 0, children: [{ type: "text", id: "thanks", text: "THANK YOU" }] },
+      { type: "detail", sourceIndex: 1, children: Array.from({ length: lines }, (_, i) => ({ type: "text", id: `l${i}`, text: `Line ${i + 1}` })) },
+    ],
+    warnings: [],
+  }) as unknown as ResolvedReport;
+  const MM = 72 / 25.4;
+
+  it("sizes one page to its content, with the footer directly under the content", () => {
+    const short = paginate(roll(5));
+    const long = paginate(roll(60));
+    expect(short.pages).toHaveLength(1);
+    expect(long.pages).toHaveLength(1);
+    expect(short.pageSize.width).toBeCloseTo(80 * MM, 1);
+    expect(short.pageSize.height).toBeLessThan(long.pageSize.height);
+    expect(long.pageSize.height).toBeGreaterThan(200 * MM);
+    for (const result of [short, long]) {
+      const lastLine = result.pages[0]!.content.at(-1)!;
+      const footer = result.pages[0]!.footer[0]!;
+      expect(footer.box.y).toBeGreaterThanOrEqual(lastLine.box.y + lastLine.box.height - 0.01);
+      expect(footer.box.y + footer.box.height + result.margin.bottom).toBeCloseTo(result.pageSize.height, 1);
+      expect(result.pages[0]!.zones.footer.y).toBeCloseTo(footer.box.y, 1);
+    }
+  });
+
+  it("respects a minimum length and cuts into segments past a maximum length", () => {
+    expect(paginate(roll(2, { minLength: 120 })).pageSize.height).toBeCloseTo(120 * MM, 1);
+    const capped = paginate(roll(80, { maxLength: 150 }));
+    expect(capped.pages.length).toBeGreaterThan(1);
+    expect(capped.pageSize.height).toBeCloseTo(150 * MM, 1);
+  });
+});

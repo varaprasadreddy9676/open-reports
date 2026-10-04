@@ -1,5 +1,5 @@
 import type { BlockMode } from "../lib/blocks";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { savePref, useStore } from "../store";
 import * as ops from "../model/ops";
 import { datasetFields, datasetIsArray, fieldSample, filterFields, type FieldNode } from "../lib/fields";
@@ -577,9 +577,14 @@ function ReportExplorer() {
   const tree = useMemo(() => explorerTree(doc.sections ?? [], doc.groups ?? []), [doc]);
   const overview = (doc.sections ?? []).length >= 8;
   const search = useMemo(() => query.trim() ? searchExplorer(doc, tree, query) : undefined, [doc, tree, query]);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0);
+  // Focus right after the box renders. A frame-delayed focus could arrive after the user has already moved on
+  // (for example to a search result) and pull focus back.
+  useLayoutEffect(() => { if (searchFocusRequest) searchInput.current?.focus(); }, [searchFocusRequest]);
   const focusSearch = () => {
     setSearchOpen(true);
-    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[data-testid="structure-search"]')?.focus());
+    setSearchFocusRequest((request) => request + 1);
   };
   const addBand = (type: string) => {
     const st = useStore.getState();
@@ -624,7 +629,7 @@ function ReportExplorer() {
         </div>
       </div>
       {searchOpen && <div className="structure-search-row">
-        <input className="search" type="search" data-testid="structure-search" aria-label="Search structure" placeholder="Find bands or elements…" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+        <input className="search" type="search" ref={searchInput} data-testid="structure-search" aria-label="Search structure" placeholder="Find bands or elements…" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
           if (event.key === "Escape") { event.preventDefault(); setQuery(""); setSearchOpen(false); document.querySelector<HTMLButtonElement>(".structure-search-trigger")?.focus(); }
           if (event.key === "Enter") { event.preventDefault(); document.querySelector<HTMLElement>("[data-explorer-match]")?.focus(); }
         }} />

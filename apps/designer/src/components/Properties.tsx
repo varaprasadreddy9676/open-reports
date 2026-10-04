@@ -1010,12 +1010,15 @@ function PaginationProps({ comp }: { comp: ops.Comp }) {
 
 const PRINT_PRESETS: { label: string; profile: Record<string, unknown>; page?: Record<string, unknown> }[] = [
   { label: "Office printer (A4)", profile: { printerType: "document", language: "pdf", dpi: 300, safeMargin: 5 } },
-  { label: "Thermal receipt 80 mm", profile: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 80, height: 200, unit: "mm", orientation: "portrait" } },
-  { label: "Thermal receipt 58 mm", profile: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 58, height: 200, unit: "mm", orientation: "portrait" } },
+  { label: "Receipt roll 80 mm (continuous)", profile: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 80, height: 200, unit: "mm", orientation: "portrait", continuous: {} } },
+  { label: "Receipt roll 58 mm (continuous)", profile: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 58, height: 200, unit: "mm", orientation: "portrait", continuous: {} } },
   { label: "Label 40 × 25 mm (ZPL 203 dpi)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } } },
   { label: "Label 50 × 30 mm (ZPL 203 dpi)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 50, height: 30, unit: "mm", orientation: "landscape" } },
   { label: "Label 100 × 50 mm (ZPL 300 dpi)", profile: { printerType: "label", language: "zpl", dpi: 300, safeMargin: 2 }, page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape" } },
-  { label: "Wristband 25 × 250 mm (ZPL)", profile: { printerType: "wristband", language: "zpl", dpi: 300, safeMargin: 1 }, page: { size: "custom", width: 25, height: 250, unit: "mm", orientation: "portrait" } },
+  { label: "Continuous label roll 100 mm (ZPL, up to 600 mm)", profile: { printerType: "label", language: "zpl", dpi: 203, safeMargin: 2 }, page: { size: "custom", width: 100, height: 150, unit: "mm", orientation: "portrait", continuous: { maxLength: 600 } } },
+  { label: "Event ticket 5.5 × 2 in (ZPL 203 dpi)", profile: { printerType: "card", language: "zpl", dpi: 203, safeMargin: 1.5 }, page: { size: "custom", width: 5.5, height: 2, unit: "in", orientation: "landscape", margin: { top: 0.08, right: 0.08, bottom: 0.08, left: 0.08 } } },
+  { label: "Hang tag 50 × 90 mm (PDF 300 dpi)", profile: { printerType: "card", language: "pdf", dpi: 300, safeMargin: 2 }, page: { size: "custom", width: 50, height: 90, unit: "mm", orientation: "portrait" } },
+  { label: "Wristband 254 × 25 mm (ZPL 300 dpi, printed rotated)", profile: { printerType: "wristband", language: "zpl", dpi: 300, safeMargin: 1, rotation: 90 }, page: { size: "custom", width: 254, height: 25, unit: "mm", orientation: "landscape", margin: { top: 2, right: 3, bottom: 2, left: 3 } } },
 ];
 
 function PrintProfilePanel() {
@@ -1032,10 +1035,12 @@ function PrintProfilePanel() {
   const dpi = print?.dpi ?? 203;
   const presetIndex = PRINT_PRESETS.findIndex((preset) =>
     print && Object.entries(preset.profile).every(([key, value]) => print[key as keyof typeof print] === value)
-      && (!preset.page || Object.entries(preset.page).every(([key, value]) =>
-        key === "margin"
+      && (print.rotation ?? 0) === ((preset.profile.rotation as number | undefined) ?? 0)
+      && (!preset.page || (JSON.stringify(doc.page?.continuous ?? null) === JSON.stringify(preset.page.continuous ?? null) && Object.entries(preset.page).every(([key, value]) =>
+        key === "continuous" ? true
+        : key === "margin"
           ? Object.entries(value as Record<string, number>).every(([side, amount]) => doc.page?.margin?.[side] === amount)
-          : doc.page?.[key as keyof typeof doc.page] === value))
+          : doc.page?.[key as keyof typeof doc.page] === value)))
   );
   const set = (p: Record<string, unknown>) => {
     const { name: _name, ...settings } = doc.print ?? {};
@@ -1109,7 +1114,7 @@ function PrintProfilePanel() {
           onChange={(e) => {
             const preset = PRINT_PRESETS[Number(e.target.value)];
             if (!preset) return;
-            setDoc({ ...doc, print: { ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, margin: preset.page.margin ?? { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
+            setDoc({ ...doc, print: { ...preset.profile }, page: preset.page ? { ...(doc.page ?? {}), ...preset.page, continuous: preset.page.continuous, margin: preset.page.margin ?? { top: 2, right: 2, bottom: 2, left: 2 } } : doc.page });
             useStore.getState().set({ target: preset.profile.printerType === "receipt" ? "escpos" : "pdf" });
             if (preset.page?.unit === "mm" && typeof preset.page.width === "number") {
               useStore.getState().set({ zoom: fitZoom(preset.page.width * 72 / 25.4), fitToWidth: true });
@@ -1149,6 +1154,20 @@ function PrintProfilePanel() {
         <Field label="Safe margin (mm)">
           <Num label="Safe margin" min={0} step={0.5} value={print?.safeMargin} onChange={(v) => set({ safeMargin: v })} />
         </Field>
+        <Field label="Print rotation">
+          <select aria-label="Print rotation" data-testid="print-rotation" value={print?.rotation ?? 0} onChange={(e) => set({ rotation: Number(e.target.value) === 0 ? undefined : Number(e.target.value) })} title="Turn the output for media fed in a different direction from the design, e.g. wristbands">
+            <option value={0}>As designed</option><option value={90}>90° clockwise</option><option value={180}>180°</option><option value={270}>90° counter-clockwise</option>
+          </select>
+        </Field>
+        <Field label="Length" wide>
+          <span className="row-inline">
+            <label className="check"><input type="checkbox" data-testid="page-continuous" checked={!!doc.page?.continuous} onChange={(e) => setDoc({ ...doc, page: { ...(doc.page ?? {}), continuous: e.target.checked ? {} : undefined } })} />Continuous roll: as long as the content</label>
+          </span>
+        </Field>
+        {doc.page?.continuous && <div className="grid2">
+          <Field label={`Minimum (${doc.page.unit ?? "mm"})`}><Num label="Minimum length" min={0} value={doc.page.continuous.minLength} onChange={(v) => setDoc({ ...doc, page: { ...doc.page, continuous: { ...doc.page.continuous, minLength: v || undefined } } }, { coalesce: "continuous" })} /></Field>
+          <Field label={`Maximum (${doc.page.unit ?? "mm"})`}><Num label="Maximum length" min={0} value={doc.page.continuous.maxLength} onChange={(v) => setDoc({ ...doc, page: { ...doc.page, continuous: { ...doc.page.continuous, maxLength: v || undefined } } }, { coalesce: "continuous" })} /></Field>
+        </div>}
       </div>
       {pag && (
         <div className="print-facts" data-testid="print-facts">

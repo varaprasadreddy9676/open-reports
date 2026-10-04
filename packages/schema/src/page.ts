@@ -17,5 +17,10 @@ export const pageConfigSchema = z.object({
   unit: unitSchema.default("mm"),
   orientation: z.enum(["portrait", "landscape"]).default("portrait"),
   margin: marginSchema.default({ top: 20, right: 15, bottom: 20, left: 15 }),
+  /**
+   * Roll media (receipts, tickets, wristbands, tags): the page is exactly as long as its content, between
+   * `minLength` and `maxLength` (in `unit`). Content beyond `maxLength` continues on further segments of that length.
+   */
+  continuous: z.object({ minLength: z.number().positive().optional(), maxLength: z.number().positive().optional() }).strict().optional(),
 });
 export type PageConfig = z.infer<typeof pageConfigSchema>;

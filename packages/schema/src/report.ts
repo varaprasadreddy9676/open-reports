@@ -46,6 +46,8 @@ export const printProfileSchema = z.object({
   language: z.enum(["pdf", "zpl", "escpos"]).optional(),
   /** Printable margin the printer cannot reach, in mm. */
   safeMargin: z.number().nonnegative().optional(),
+  /** Clockwise turn applied when printing, for media fed in a different direction from the design (e.g. wristbands). */
+  rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
   calibration: printCalibrationSchema.optional(),
 });
 export type PrintProfile = z.infer<typeof printProfileSchema>;

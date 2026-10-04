@@ -8,6 +8,7 @@ import { parseReportDefinition } from "@reporting/schema";
 import { DataSourceRegistry, InlineDataSource, resolveReport } from "@reporting/core";
 import { PdfRenderer } from "../src/render.js";
 import { extractPdfPages, extractPdfText } from "./pdf-helpers.js";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 function registry() {
   const r = new DataSourceRegistry();
@@ -326,6 +327,26 @@ describe("PdfRenderer", () => {
     const all = pages.join("\n");
     for (let i = 1; i <= 60; i++) expect(all.split(`STACKITEM${String(i).padStart(3, "0")}`).length - 1).toBe(1);
     expect(all).toContain("Note line 50");
+  });
+
+  it("sizes continuous media to its content and marks rotated pages for the printer", async () => {
+    const receipt = (lines: number, print?: Record<string, unknown>) => ({
+      schemaVersion: "1.0", id: "roll", name: "Roll", ...(print ? { print } : {}),
+      page: { size: "custom", width: 80, height: 200, unit: "mm", margin: { top: 3, right: 3, bottom: 3, left: 3 }, continuous: {} },
+      sections: [{ type: "detail", children: Array.from({ length: lines }, (_, i) => ({ type: "text", value: `Item ${i + 1}` })) }],
+    });
+    const heights = async (definition: unknown) => {
+      const pdf = await getDocument({ data: new Uint8Array((await renderPdf(definition)).content as Buffer), verbosity: 0 }).promise;
+      const page = await pdf.getPage(1);
+      return { pages: pdf.numPages, height: page.view[3]!, rotate: page.rotate };
+    };
+    const short = await heights(receipt(4));
+    const long = await heights(receipt(90));
+    expect([short.pages, long.pages]).toEqual([1, 1]);
+    expect(short.height).toBeLessThan(120);
+    expect(long.height).toBeGreaterThan((200 / 25.4) * 72);
+    expect(short.rotate).toBe(0);
+    expect((await heights(receipt(4, { rotation: 90 }))).rotate).toBe(90);
   });
 
   it("never reads a local file path itself; linked files are resolved by the server first", async () => {
