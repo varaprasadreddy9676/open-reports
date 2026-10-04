@@ -74,6 +74,29 @@ export const styleSchema = z
   .strict();
 export type Style = z.infer<typeof styleSchema>;
 
+/** Appearance of one table section. Font size and padding stay on the table so styles never change page breaks. */
+export const tablePartStyleSchema = z.object({
+  color: colorSchema.optional(),
+  background: colorSchema.optional(),
+  fontWeight: z.union([z.enum(["normal", "bold"]), z.number()]).optional(),
+  italic: z.boolean().optional(),
+}).strict();
+
+export const tableStylesSchema = z.object({
+  header: tablePartStyleSchema.optional(),
+  body: tablePartStyleSchema.optional(),
+  /** Every second body row. */
+  alternateRow: tablePartStyleSchema.optional(),
+  footer: tablePartStyleSchema.optional(),
+  /** Rules: none; header (under the header, above the footer); horizontal (also between rows); all (every cell and the outline). */
+  grid: z.object({
+    lines: z.enum(["none", "header", "horizontal", "all"]).optional(),
+    color: colorSchema.optional(),
+    width: z.number().min(0).max(5).optional(),
+  }).strict().optional(),
+}).strict();
+export type TableStyles = z.infer<typeof tableStylesSchema>;
+
 export const styleWhenSchema = z.array(
   z.object({
     when: z.string(),

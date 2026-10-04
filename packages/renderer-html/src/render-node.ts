@@ -1,4 +1,4 @@
-import { tableCellSpanGrid, tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
+import { tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
 import { defaultTextMeasurer, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths } from "@reporting/layout";
 import { escapeHtml } from "./escape.js";
@@ -67,6 +67,9 @@ export async function renderNode(node: PositionedNode): Promise<string> {
 function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxStyle: string): string {
   const widths = resolveColumnWidths(table, node.box.width);
   const colgroup = widths.map((w) => `<col style="width:${ptToPx(w.width).toFixed(2)}px" />`).join("");
+  const styles = tableStylesOrDefault(table);
+  const { lines } = styles.grid;
+  const rule = `${Math.max(0.5, ptToPx(styles.grid.width)).toFixed(2)}px solid ${styles.grid.color}`;
 
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? table.rows.length;
@@ -74,27 +77,32 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
   const spanGrid = tableCellSpanGrid(table.cellSpans ?? []);
 
   const headerHeights = measureHeaderRowHeights(table, widths, defaultTextMeasurer);
+  const headerBorder = lines === "all" || (table.headerRows && lines !== "none") ? `border:${rule};` : lines === "none" ? "border:none;" : `border-bottom:${rule};`;
   const headerRow = table.showHeader
-    ? `<thead>${tableHeaderRows(table).map((cells, row) => `<tr style="height:${ptToPx(headerHeights[row]!).toFixed(2)}px">${cells.map((cell) => `<th${cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ""}${cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ""} style="text-align:${cell.align ?? "left"};${table.headerRows ? "border:1px solid #000;" : "border-bottom:1px solid #000;"}padding:2px 4px;">${escapeHtml(cell.text)}</th>`).join("")}</tr>`).join("")}</thead>`
+    ? `<thead>${tableHeaderRows(table).map((cells, row) => `<tr style="height:${ptToPx(headerHeights[row]!).toFixed(2)}px">${cells.map((cell) => `<th${cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ""}${cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ""} style="text-align:${cell.align ?? "left"};${headerBorder}padding:2px 4px;font-weight:400;${styleToCss(styles.header as Record<string, unknown>)}">${escapeHtml(cell.text)}</th>`).join("")}</tr>`).join("")}</thead>`
     : "";
 
   const bodyRows = table.rows
     .slice(start, end)
-    .map(
-      (row, i) =>
-        `<tr style="height:${ptToPx(rowHeights[start + i]!).toFixed(2)}px;${table.alternateRowStyle && (start + i) % 2 === 1 ? "background:#f5f5f5;" : ""}${styleToCss(row.style)}">${table.columns
-          .map((c, column) => {
-            const slot = spanGrid.get(start + i)?.get(column);
-            if (slot && !slot.anchor) return "";
-            return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;${slot ? "border:1px solid #000;" : ""}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
-          })
-          .join("")}</tr>`
-    )
+    .map((row, i) => {
+      const index = start + i;
+      const rowStyle = tableRowStyle(styles, index, row.style as Record<string, unknown> | undefined);
+      const rowRule = lines === "horizontal" && index < end - 1 ? `border-bottom:${rule};` : "";
+      return `<tr style="height:${ptToPx(rowHeights[index]!).toFixed(2)}px;${styleToCss(rowStyle)}">${table.columns
+        .map((c, column) => {
+          const slot = spanGrid.get(index)?.get(column);
+          if (slot && !slot.anchor) return "";
+          const cellRule = lines === "all" || (slot && lines !== "none") ? `border:${rule};` : rowRule;
+          return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;${cellRule}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
+        })
+        .join("")}</tr>`;
+    })
     .join("");
 
+  const footerBorder = lines === "all" ? `border:${rule};` : lines === "none" ? "" : `border-top:${rule};`;
   const footerRow = table.showFooter
-    ? `<tfoot><tr style="height:${ptToPx(measureFooterHeight(table, defaultTextMeasurer)).toFixed(2)}px">${table.columns.map((c) => `<td style="border-top:1px solid #000;font-weight:bold;padding:2px 4px;">${escapeHtml(c.footer?.value ?? "")}</td>`).join("")}</tr></tfoot>`
+    ? `<tfoot><tr style="height:${ptToPx(measureFooterHeight(table, defaultTextMeasurer)).toFixed(2)}px">${table.columns.map((c) => `<td style="${footerBorder}padding:2px 4px;${styleToCss(styles.footer as Record<string, unknown>)}">${escapeHtml(c.footer?.value ?? "")}</td>`).join("")}</tr></tfoot>`
     : "";
 
-  return `<table style="${boxStyle}border-collapse:collapse;width:${ptToPx(node.box.width).toFixed(2)}px;">${colgroup}${headerRow}<tbody>${bodyRows}</tbody>${footerRow}</table>`;
+  return `<table style="${boxStyle}border-collapse:collapse;width:${ptToPx(node.box.width).toFixed(2)}px;${lines === "all" ? `border:${rule};` : ""}">${colgroup}${headerRow}<tbody>${bodyRows}</tbody>${footerRow}</table>`;
 }

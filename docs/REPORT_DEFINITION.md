@@ -127,6 +127,17 @@ Table merge coordinates are zero-based. Body `row` positions refer to resolved r
 
 **In the designer.** **Edit theme…** (report properties, or the command palette) manages tokens and text styles. Renaming one updates every reference in the report, and deleting one in use asks first.
 
+### Table styles
+
+- **Setting styles.** A table's `styles` set:
+  - `header`, `body`, `alternateRow` (every second row of the whole table) and `footer`, each with `color`, `background`, `fontWeight` and `italic`;
+  - `grid: { lines, color, width }`, where `lines` is `none`, `header` (the default: under the header and above the footer), `horizontal` (also between rows) or `all` (every cell and the outline).
+- **Presets.** `theme.tableStyles` holds named presets, applied with `tableStyle`; `styles` overrides a preset section by section. Both may use theme tokens.
+- **Where they apply.** PDF, HTML, XLSX (fonts, fills and borders) and the designer canvas all use the same resolved styles.
+- **What styles can't change.** Font size and padding stay on the table itself, so styling never moves a page break.
+- **Measurement.** Row heights are measured with the weight and slant each row is drawn with.
+- **Tables without styles.** They keep their previous look. Grey stripes from `alternateRowStyle` now follow the row's position in the whole table, so they continue consistently across pages.
+
 ## Conditional rules
 
 Any component and any band may declare `rules`. A rule changes properties of the object it is declared on when its condition holds. Rules run in order; when two rules set the same property, the later one wins.

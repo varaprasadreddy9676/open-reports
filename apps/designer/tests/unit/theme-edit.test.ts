@@ -54,4 +54,21 @@ describe("theme editing", () => {
   it("captures only text properties as a text style", () => {
     expect(textStyleFromStyle({ fontSize: 12, fontWeight: "bold", color: "#111", background: "#eee", padding: 4 })).toEqual({ fontSize: 12, fontWeight: "bold", color: "#111" });
   });
+
+  it("renames colour tokens inside table styles and table presets, and renames presets", async () => {
+    const { renameTableStyle, countTableStyleUses } = await import("../../src/lib/theme-edit");
+    const base: any = {
+      theme: { colors: { brand: "#1d4ed8" }, tableStyles: { ledger: { header: { background: "$brand" }, grid: { color: "$brand" } } } },
+      sections: [{ type: "detail", children: [{ id: "t", type: "table", tableStyle: "ledger", styles: { footer: { color: "$brand" }, grid: { color: "$brand", lines: "all" } } }] }],
+    };
+    expect(countTokenUses(base, "colors", "brand")).toBe(4);
+    const next = renameToken(base, "colors", "brand", "primary");
+    expect(JSON.stringify(next)).not.toContain("$brand");
+    expect(next.theme.tableStyles.ledger).toEqual({ header: { background: "$primary" }, grid: { color: "$primary" } });
+    expect(next.sections[0].children[0].styles).toEqual({ footer: { color: "$primary" }, grid: { color: "$primary", lines: "all" } });
+    expect(countTableStyleUses(base, "ledger")).toBe(1);
+    const renamed = renameTableStyle(base, "ledger", "accounts");
+    expect(Object.keys(renamed.theme.tableStyles)).toEqual(["accounts"]);
+    expect(renamed.sections[0].children[0].tableStyle).toBe("accounts");
+  });
 });

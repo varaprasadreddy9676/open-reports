@@ -268,6 +268,49 @@ describe("PdfRenderer", () => {
     expect(all).toContain("Item 120");
   });
 
+  it("draws table styles: header and stripe fills, text colours and each grid-line mode", async () => {
+    const rows = Array.from({ length: 6 }, (_, index) => ({ item: `Item ${index + 1}`, qty: index + 1 }));
+    const doc = (lines: string) => ({
+      schemaVersion: "1.0", id: `styled-${lines}`, name: "Styled",
+      theme: { colors: { brand: "#1d4ed8" }, tableStyles: { ledger: { header: { background: "$brand", color: "#ffffff" }, alternateRow: { background: "#fde68a" } } } },
+      datasets: [{ id: "rows", source: "inline", query: { data: rows } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "rows", tableStyle: "ledger", styles: { grid: { lines, color: "#ff0000", width: 1 } }, columns: [
+        { id: "item", header: "Item", binding: "row.item" }, { id: "qty", header: "Qty", binding: "row.qty" },
+      ] }] }],
+    });
+    const pixels = async (definition: unknown) => {
+      const result = await renderPdf(definition);
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "table-style-"));
+      try {
+        fs.writeFileSync(path.join(dir, "t.pdf"), result.content as Buffer);
+        execFileSync("pdftoppm", ["-r", "72", "-f", "1", "-l", "1", path.join(dir, "t.pdf"), path.join(dir, "p")]);
+        const ppm = fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith(".ppm"))!));
+        // P6 header: "P6\n<w> <h>\n255\n"
+        const header = ppm.subarray(0, 32).toString("latin1").split(/\s+/);
+        const offset = ppm.indexOf("\n255\n") + 5;
+        const count = (r: number, g: number, b: number, tolerance = 24) => {
+          let n = 0;
+          for (let i = offset; i + 2 < ppm.length; i += 3) if (Math.abs(ppm[i]! - r) <= tolerance && Math.abs(ppm[i + 1]! - g) <= tolerance && Math.abs(ppm[i + 2]! - b) <= tolerance) n++;
+          return n;
+        };
+        expect(header[0]).toBe("P6");
+        return { count };
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    const all = await pixels(doc("all"));
+    expect(all.count(0x1d, 0x4e, 0xd8)).toBeGreaterThan(500);   // header fill
+    expect(all.count(0xfd, 0xe6, 0x8a)).toBeGreaterThan(500);   // stripes on rows 2, 4, 6
+    expect(all.count(255, 0, 0, 40)).toBeGreaterThan(300);      // full grid in red
+    const none = await pixels(doc("none"));
+    expect(none.count(255, 0, 0, 40)).toBe(0);
+    expect(none.count(0x1d, 0x4e, 0xd8)).toBeGreaterThan(500);
+    const plain = await pixels({ ...doc("header"), theme: undefined, sections: [{ type: "detail", children: [{ type: "table", dataset: "rows", columns: [{ id: "item", header: "Item", binding: "row.item" }] }] }] });
+    expect(plain.count(0x1d, 0x4e, 0xd8)).toBe(0);
+    expect(plain.count(0xfd, 0xe6, 0x8a)).toBe(0);
+  });
+
   it("never reads a local file path itself; linked files are resolved by the server first", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-local-image-"));
     const file = path.join(dir, "secret.png");

@@ -50,8 +50,18 @@ function mapRules(rules: any[] | undefined, visit: Visit): any[] | undefined {
   }));
 }
 
+/** Table styles: colours in each section and the grid line colour. */
+function mapTableStyles(styles: Record<string, any> | undefined, visit: Visit): Record<string, any> | undefined {
+  if (!styles) return styles;
+  const next: Record<string, any> = { ...styles };
+  for (const part of ["header", "body", "alternateRow", "footer"]) if (styles[part]) next[part] = mapStyle(styles[part], visit);
+  if (styles.grid?.color !== undefined) next.grid = { ...styles.grid, color: visit(styles.grid.color, "colors") };
+  return next;
+}
+
 function mapOwner<T extends Record<string, any>>(owner: T, visit: Visit): T {
   const next: Record<string, any> = { ...owner };
+  if (owner.type === "table" && owner.styles) next.styles = mapTableStyles(owner.styles, visit);
   if (owner.style) next.style = mapStyle(owner.style, visit);
   if (owner.gap !== undefined) next.gap = visit(owner.gap, "spacing");
   if (owner.styleWhen) next.styleWhen = owner.styleWhen.map((r: any) => ({ ...r, style: mapStyle(r.style, visit) }));
@@ -67,7 +77,11 @@ function mapDoc(doc: Doc, visit: Visit): Doc {
     ...doc,
     sections: (doc.sections ?? []).map((section: any) => mapOwner(section, visit)),
     ...(doc.fragments ? { fragments: doc.fragments.map((fragment: any) => mapOwner(fragment, visit)) } : {}),
-    ...(doc.theme?.textStyles ? { theme: { ...doc.theme, textStyles: Object.fromEntries(Object.entries(doc.theme.textStyles).map(([name, style]) => [name, mapStyle(style, visit)])) } } : {}),
+    ...(doc.theme ? { theme: {
+      ...doc.theme,
+      ...(doc.theme.textStyles ? { textStyles: Object.fromEntries(Object.entries(doc.theme.textStyles).map(([name, style]) => [name, mapStyle(style, visit)])) } : {}),
+      ...(doc.theme.tableStyles ? { tableStyles: Object.fromEntries(Object.entries(doc.theme.tableStyles).map(([name, styles]) => [name, mapTableStyles(styles as Record<string, any>, visit)])) } : {}),
+    } } : {}),
   };
 }
 
@@ -131,3 +145,32 @@ export function textStyleFromStyle(style: Record<string, unknown> | undefined): 
 }
 
 export const TOKEN_NAME = /^[A-Za-z][A-Za-z0-9_-]*$/;
+
+/** Renames a table style preset and the tables that use it. */
+export function renameTableStyle(doc: Doc, from: string, to: string): Doc {
+  const presets = doc.theme?.tableStyles ?? {};
+  if (!(from in presets) || from === to) return doc;
+  const rename = (owner: any): any => {
+    const next = { ...owner };
+    if (owner.type === "table" && owner.tableStyle === from) next.tableStyle = to;
+    for (const key of CHILD_KEYS) if (Array.isArray(owner[key])) next[key] = owner[key].map(rename);
+    return next;
+  };
+  return {
+    ...doc,
+    sections: (doc.sections ?? []).map(rename),
+    ...(doc.fragments ? { fragments: doc.fragments.map(rename) } : {}),
+    theme: { ...doc.theme, tableStyles: Object.fromEntries(Object.entries(presets).map(([key, value]) => [key === from ? to : key, value])) },
+  };
+}
+
+export function countTableStyleUses(doc: Doc, name: string): number {
+  let uses = 0;
+  const visit = (owner: any) => {
+    if (owner.type === "table" && owner.tableStyle === name) uses++;
+    for (const key of CHILD_KEYS) if (Array.isArray(owner[key])) owner[key].forEach(visit);
+  };
+  (doc.sections ?? []).forEach(visit);
+  (doc.fragments ?? []).forEach(visit);
+  return uses;
+}

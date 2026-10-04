@@ -47,3 +47,23 @@ export function validateRuleThemeValues(rules: Rule[] | undefined, theme: Theme 
 export function validateTheme(theme: Theme | undefined, issues: ValidationIssue[]): void {
   for (const [name, style] of Object.entries(theme?.textStyles ?? {})) validateStyleTokens(style as Record<string, unknown>, theme, `theme.textStyles.${name}`, issues);
 }
+
+/** Table style presets and inline table styles: known preset names and defined tokens. */
+export function validateTableStyles(component: { tableStyle?: unknown; styles?: Record<string, any> }, theme: Theme | undefined, path: string, issues: ValidationIssue[], componentId?: string): void {
+  validateTableStyleTokens(component.styles, theme, `${path}.styles`, issues, componentId);
+  const presets = (theme as { tableStyles?: Record<string, unknown> } | undefined)?.tableStyles ?? {};
+  if (typeof component.tableStyle === "string" && !presets[component.tableStyle]) {
+    const known = Object.keys(presets);
+    issues.push({ severity: "error", code: "THEME_UNKNOWN_TABLE_STYLE", path: `${path}.tableStyle`, ...(componentId ? { componentId } : {}), message: `Table style "${component.tableStyle}" is not defined in theme.tableStyles.${known.length ? ` Defined: ${known.join(", ")}.` : ""}` });
+  }
+}
+
+function validateTableStyleTokens(styles: Record<string, any> | undefined, theme: Theme | undefined, path: string, issues: ValidationIssue[], componentId?: string): void {
+  if (!styles) return;
+  for (const part of ["header", "body", "alternateRow", "footer"]) validateStyleTokens(styles[part], theme, `${path}.${part}`, issues, componentId);
+  if (styles.grid?.color !== undefined) validateStyleTokens({ color: styles.grid.color }, theme, `${path}.grid`, issues, componentId);
+}
+
+export function validateThemeTableStyles(theme: Theme | undefined, issues: ValidationIssue[]): void {
+  for (const [name, styles] of Object.entries((theme as { tableStyles?: Record<string, Record<string, any>> } | undefined)?.tableStyles ?? {})) validateTableStyleTokens(styles, theme, `theme.tableStyles.${name}`, issues);
+}

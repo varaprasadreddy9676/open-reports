@@ -1,4 +1,4 @@
-import { tableCellSpanGrid, tableHeaderRows, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
+import { isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
 import { measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type TextMeasurer } from "@reporting/layout";
 import { renderChartSvg } from "@reporting/renderer-html";
@@ -188,22 +188,29 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
   const headerHeight = headerRowHeights.reduce((sum, height) => sum + height, 0);
   const footerHeight = measureFooterHeight(table, ctx.measurer);
   const fontSize = (table.style?.fontSize as number | undefined) ?? 10;
+  const styles = tableStylesOrDefault(table);
+  const { lines, color: lineColor, width: lineWidth } = styles.grid;
+  const stroke = () => doc.lineWidth(lineWidth).strokeColor(lineColor);
+  const left = node.box.x;
+  const right = node.box.x + node.box.width;
+  const columnX = (column: number) => left + widths.slice(0, column).reduce((sum, part) => sum + part.width, 0);
   let y = node.box.y;
 
-  doc.lineWidth(0.5).strokeColor("#000000");
-
   if (table.showHeader) {
-    doc.fontSize(fontSize).fillColor("#000000");
+    const header = styles.header;
+    if (header.background) doc.rect(left, y, node.box.width, headerHeight).fill(header.background);
+    doc.fontSize(fontSize);
     tableHeaderRows(table).forEach((cells, row) => cells.forEach((cell) => {
-      const x = node.box.x + widths.slice(0, cell.column).reduce((sum, column) => sum + column.width, 0);
+      const x = columnX(cell.column);
       const cellY = y + headerRowHeights.slice(0, row).reduce((sum, height) => sum + height, 0);
       const cellWidth = widths.slice(cell.column, cell.column + (cell.colSpan ?? 1)).reduce((sum, column) => sum + column.width, 0);
       const cellHeight = headerRowHeights.slice(row, row + (cell.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0);
-      if (table.headerRows) doc.rect(x, cellY, cellWidth, cellHeight).stroke();
-      drawRuns(ctx, cell.text, x + 2, cellY + 3, { width: Math.max(1, cellWidth - 4), height: Math.max(1, cellHeight - 4), align: cell.align ?? "left" }, ctx.defaultFamily, true, false);
+      if ((table.headerRows && lines !== "none") || lines === "all") { stroke(); doc.rect(x, cellY, cellWidth, cellHeight).stroke(); }
+      doc.fillColor(header.color ?? "#000000");
+      drawRuns(ctx, cell.text, x + 2, cellY + 3, { width: Math.max(1, cellWidth - 4), height: Math.max(1, cellHeight - 4), align: cell.align ?? "left" }, ctx.defaultFamily, isBold(header), Boolean(header.italic));
     }));
     y += headerHeight;
-    if (!table.headerRows) doc.moveTo(node.box.x, y).lineTo(node.box.x + node.box.width, y).stroke();
+    if (!table.headerRows && lines !== "none" && lines !== "all") { stroke(); doc.moveTo(left, y).lineTo(right, y).stroke(); }
   }
 
   const start = node.rowRange?.start ?? 0;
@@ -214,49 +221,46 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
   let bodyEnd = y;
 
   for (let i = start; i < end; i++) {
-    const row = table.rows[i]!;
     const rowHeight = rowHeights[i]!;
-    const rowStyle = (row.style ?? {}) as any;
+    const rowStyle = tableRowStyle(styles, i, table.rows[i]!.style as Record<string, unknown> | undefined);
     rowYs.set(i, bodyEnd);
-    if (rowStyle.background) {
-      doc.rect(node.box.x, bodyEnd, node.box.width, rowHeight).fill(rowStyle.background);
-    } else if (table.alternateRowStyle && (i - start) % 2 === 1) {
-      doc.rect(node.box.x, bodyEnd, node.box.width, rowHeight).fill("#f5f5f5");
-    }
+    if (rowStyle.background) doc.rect(left, bodyEnd, node.box.width, rowHeight).fill(rowStyle.background as string);
     bodyEnd += rowHeight;
   }
 
   for (let i = start; i < end; i++) {
     const row = table.rows[i]!;
-    const rowStyle = (row.style ?? {}) as any;
-    let x = node.box.x;
-    const bold = rowStyle.fontWeight === "bold" || (typeof rowStyle.fontWeight === "number" && rowStyle.fontWeight >= 700);
+    const rowStyle = tableRowStyle(styles, i, row.style as Record<string, unknown> | undefined);
+    let x = left;
     doc.fontSize(fontSize);
     table.columns.forEach((col, ci) => {
       const slot = spanGrid.get(i)?.get(ci);
       const cellWidth = slot ? widths.slice(ci, ci + (slot.span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0) : widths[ci]!.width;
       const cellHeight = slot ? rowHeights.slice(i, i + (slot.span.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0) : rowHeights[i]!;
       if (slot && !slot.anchor) { x += widths[ci]!.width; return; }
-      if (slot) doc.lineWidth(0.5).strokeColor("#000000").rect(x, rowYs.get(i)!, cellWidth, cellHeight).stroke();
-      doc.fillColor(rowStyle.color ?? "#000000");
+      if (lines === "all" || (slot && lines !== "none")) { stroke(); doc.rect(x, rowYs.get(i)!, cellWidth, cellHeight).stroke(); }
+      doc.fillColor((rowStyle.color as string | undefined) ?? "#000000");
       drawRuns(ctx, row.formatted[col.id] ?? "", x + 2, rowYs.get(i)! + 2, {
         width: Math.max(1, cellWidth - 4),
         height: Math.max(1, cellHeight - 2),
         align: (col.align as any) ?? "left",
-      }, ctx.defaultFamily, bold, Boolean(rowStyle.italic));
+      }, ctx.defaultFamily, isBold(rowStyle), Boolean(rowStyle.italic));
       x += widths[ci]!.width;
     });
+    if (lines === "horizontal" && i < end - 1) { stroke(); doc.moveTo(left, rowYs.get(i)! + rowHeights[i]!).lineTo(right, rowYs.get(i)! + rowHeights[i]!).stroke(); }
   }
   y = bodyEnd;
 
   if (table.showFooter) {
-    doc.moveTo(node.box.x, y).lineTo(node.box.x + node.box.width, y).stroke();
-    let x = node.box.x;
-    doc.fontSize(fontSize).fillColor("#000000");
+    const footer = styles.footer;
+    if (footer.background) doc.rect(left, y, node.box.width, footerHeight).fill(footer.background);
+    if (lines !== "none") { stroke(); doc.moveTo(left, y).lineTo(right, y).stroke(); }
+    doc.fontSize(fontSize).fillColor(footer.color ?? "#000000");
     table.columns.forEach((col, i) => {
-      drawRuns(ctx, col.footer?.value ?? "", x + 2, y + 3, { width: widths[i]!.width - 4, align: (col.align as any) ?? "left", lineBreak: false }, ctx.defaultFamily, true, false);
-      x += widths[i]!.width;
+      if (lines === "all") { stroke(); doc.rect(columnX(i), y, widths[i]!.width, footerHeight).stroke(); doc.fillColor(footer.color ?? "#000000"); }
+      drawRuns(ctx, col.footer?.value ?? "", columnX(i) + 2, y + 3, { width: widths[i]!.width - 4, align: (col.align as any) ?? "left", lineBreak: false }, ctx.defaultFamily, isBold(footer), Boolean(footer.italic));
     });
     y += footerHeight;
   }
+  if (lines === "all") { stroke(); doc.rect(left, node.box.y, node.box.width, y - node.box.y).stroke(); }
 }

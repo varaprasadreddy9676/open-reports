@@ -1,5 +1,6 @@
 import { applyLegacyStyleWhen, applyOwnRules, type RuleDecision } from "./rules.js";
 import { resolveGapToken, resolveStyleTokens, withTextStyle, type UnknownToken } from "./theme.js";
+import { resolveTableStyles, type ResolvedTableStyles } from "./table-styles.js";
 import type { Theme } from "@reporting/schema";
 import { ExpressionEngine } from "@reporting/expressions";
 import type { ResolveContext } from "./context.js";
@@ -486,6 +487,12 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     showFooter: component.showFooter ?? false,
     keepFooterTogether: component.keepFooterTogether ?? true,
     repeatHeaderOnPageBreak: component.repeatHeaderOnPageBreak ?? true,
+    ...((): { styles?: ResolvedTableStyles } => {
+      const unknown: UnknownToken[] = [];
+      const styles = resolveTableStyles(component as any, env.theme, unknown);
+      for (const item of unknown) env.warnings.push({ code: "THEME_UNKNOWN_TOKEN", path: `${env.path}.styles`, componentId: component.id, message: `Theme token ${item.token} is not defined in theme.${item.category}; it was left unset.` });
+      return styles ? { styles } : {};
+    })(),
     keepRowTogether: component.keepRowTogether ?? true,
     minRowsBeforeBreak: component.minRowsBeforeBreak ?? 0,
     minRowsAfterBreak: component.minRowsAfterBreak ?? 0,

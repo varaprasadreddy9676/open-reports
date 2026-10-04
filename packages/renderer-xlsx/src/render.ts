@@ -1,7 +1,7 @@
 import { PassThrough } from "node:stream";
 import ExcelJS from "exceljs";
 import type { RenderInput, RenderResult, RendererCapabilities, ReportRenderer, ResolvedTableComponent } from "@reporting/core";
-import { findComponentsByType, tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
+import { findComponentsByType, isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, type TablePartStyle } from "@reporting/core";
 import { excelNumberFormat } from "./formats.js";
 import { sanitizeSheetName } from "./sheet-name.js";
 
@@ -68,7 +68,50 @@ export class XlsxRenderer implements ReportRenderer {
   }
 }
 
+/** "#rgb" / "#rrggbb" to Excel ARGB; other colour forms are not representable and are skipped. */
+function argb(color: unknown): string | undefined {
+  if (typeof color !== "string") return undefined;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color)?.[1];
+  if (!hex) return undefined;
+  const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+  return `FF${full.toUpperCase()}`;
+}
+
+/**
+ * Paints cells of a styled table as they are written (the streaming writer cannot change committed rows).
+ * Returns undefined for tables without table styles, which keep the historical look.
+ */
+function tablePainter(table: ResolvedTableComponent, headerCount: number) {
+  const styles = table.styles;
+  if (!styles) return undefined;
+  const side = { style: "thin" as const, color: { argb: argb(styles.grid.color) ?? "FF000000" } };
+  const all = { top: side, right: side, bottom: side, left: side };
+  const lines = styles.grid.lines;
+  const paint = (cell: ExcelJS.Cell, style: TablePartStyle & Record<string, unknown>, border: Partial<ExcelJS.Borders>) => {
+    const color = argb(style.color);
+    cell.font = { ...(cell.font ?? {}), bold: isBold(style), italic: Boolean(style.italic), ...(color ? { color: { argb: color } } : {}) };
+    const fill = argb(style.background);
+    cell.fill = fill ? { type: "pattern", pattern: "solid", fgColor: { argb: fill } } : { type: "pattern", pattern: "none" };
+    cell.border = border;
+  };
+  const eachCell = (row: ExcelJS.Row, fn: (cell: ExcelJS.Cell) => void) => { for (let column = 1; column <= table.columns.length; column++) fn(row.getCell(column)); };
+  return {
+    header(row: ExcelJS.Row, headerRow: number) {
+      eachCell(row, (cell) => paint(cell, styles.header as Record<string, unknown>, lines === "all" ? all : lines === "none" ? {} : headerRow === headerCount ? { bottom: side } : {}));
+    },
+    body(row: ExcelJS.Row, index: number) {
+      const style = tableRowStyle(styles, index, table.rows[index]!.style as Record<string, unknown> | undefined);
+      const border = lines === "all" ? all : lines === "horizontal" && index < table.rows.length - 1 ? { bottom: side } : {};
+      eachCell(row, (cell) => paint(cell, style, border));
+    },
+    footer(row: ExcelJS.Row) {
+      eachCell(row, (cell) => paint(cell, styles.footer as Record<string, unknown>, lines === "all" ? all : lines === "none" ? {} : { top: side }));
+    },
+  };
+}
+
 function writeTable(sheet: ExcelJS.Worksheet, table: ResolvedTableComponent, warnings: RenderResult["warnings"]): void {
+  const painter = tablePainter(table, table.showHeader ? (table.headerRows?.length ?? 1) : 0);
   sheet.columns = table.columns.map((col) => ({
     header: table.showHeader && !table.headerRows ? col.header : undefined,
     key: col.id,
@@ -91,6 +134,7 @@ function writeTable(sheet: ExcelJS.Worksheet, table: ResolvedTableComponent, war
           x.fill = HEADER_FILL;
           x.border = THIN_BORDER;
         });
+        painter?.header(headerRow, row + 1);
         headerRow.commit();
       });
     } else {
@@ -100,6 +144,7 @@ function writeTable(sheet: ExcelJS.Worksheet, table: ResolvedTableComponent, war
         cell.fill = HEADER_FILL;
         cell.border = THIN_BORDER;
       });
+      painter?.header(headerRow, 1);
       headerRow.commit();
     }
   }
@@ -127,6 +172,7 @@ function writeTable(sheet: ExcelJS.Worksheet, table: ResolvedTableComponent, war
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F5F5" } };
       });
     }
+    painter?.body(sheetRow, i);
     sheetRow.commit();
   });
 
@@ -144,6 +190,7 @@ function writeTable(sheet: ExcelJS.Worksheet, table: ResolvedTableComponent, war
       const numFmt = excelNumberFormat(col.format);
       if (numFmt && typeof col.footer?.raw === "number") footerRow.getCell(ci + 1).numFmt = numFmt;
     });
+    painter?.footer(footerRow);
     footerRow.commit();
   }
 

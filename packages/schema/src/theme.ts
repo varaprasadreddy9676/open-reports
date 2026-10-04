@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { styleSchema } from "./common.js";
+import { styleSchema, tableStylesSchema } from "./common.js";
 
 /**
  * Report theme. Tokens are referenced from styles as "$name": colours, font families, font sizes and spacing.
@@ -11,6 +11,7 @@ export const themeSchema = z.object({
   colors: z.record(z.string(), z.string()).optional(),
   spacing: z.record(z.string(), z.number().nonnegative()).optional(),
   textStyles: z.record(z.string(), styleSchema.partial()).optional(),
+  tableStyles: z.record(z.string(), tableStylesSchema).optional(),
   locale: z.string().optional(),
   timezone: z.string().optional(),
   currency: z.string().optional(),

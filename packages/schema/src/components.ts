@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { componentBaseSchema, dimensionSchema, styleWhenSchema } from "./common.js";
+import { componentBaseSchema, dimensionSchema, styleWhenSchema, tableStylesSchema } from "./common.js";
 
 const valueOrBindingOrExpression = z.object({
   value: z.unknown().optional(),
@@ -158,6 +158,9 @@ export const tableComponentSchema = componentBaseSchema.extend({
    * possible by moving trailing rows from the preceding page with them. */
   minRowsAfterBreak: z.number().int().nonnegative().optional().default(0),
   alternateRowStyle: z.boolean().optional(),
+  /** Name of a preset in `theme.tableStyles`; `styles` overrides it part by part. */
+  tableStyle: z.string().optional(),
+  styles: tableStylesSchema.optional(),
   /** Conditional row styling, e.g. { when: "row.balance < 0", style: { color: "#b91c1c" } }. */
   rowStyleWhen: styleWhenSchema.optional(),
   /** What to render when the dataset has no rows. */

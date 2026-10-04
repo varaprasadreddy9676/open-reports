@@ -146,4 +146,27 @@ describe("XlsxRenderer", () => {
     expect(sheet.rowCount).toBe(10_001); // header + 10000 data rows
     expect(sheet.getRow(10001).getCell(1).value).toBe(9999);
   });
+
+  it("applies table styles as Excel fonts, fills and borders", async () => {
+    const styles = {
+      header: { color: "#ffffff", background: "#1d4ed8", fontWeight: "bold" as const },
+      body: { color: "#111111" },
+      alternateRow: { background: "#fde68a" },
+      footer: { color: "#000000", fontWeight: "bold" as const, italic: true },
+      grid: { lines: "all" as const, color: "#ff0000", width: 1 },
+    };
+    const result = await new XlsxRenderer().render({ resolved: report([table({ styles })]) });
+    const sheet = (await loadWorkbook(result.content as Buffer)).worksheets[0]!;
+    const header = sheet.getRow(1).getCell(1);
+    expect(header.font).toMatchObject({ bold: true, color: { argb: "FFFFFFFF" } });
+    expect((header.fill as ExcelJS.FillPattern).fgColor).toEqual({ argb: "FF1D4ED8" });
+    expect((sheet.getRow(2).getCell(1).fill as ExcelJS.FillPattern).pattern).toBe("none");
+    expect((sheet.getRow(3).getCell(2).fill as ExcelJS.FillPattern).fgColor).toEqual({ argb: "FFFDE68A" });
+    expect(sheet.getRow(2).getCell(1).font).toMatchObject({ color: { argb: "FF111111" } });
+    expect(sheet.getRow(2).getCell(1).font.bold).toBeFalsy();
+    expect(sheet.getRow(2).getCell(3).border.left).toEqual({ style: "thin", color: { argb: "FFFF0000" } });
+    // Unstyled tables keep the historical look.
+    const plain = (await loadWorkbook((await new XlsxRenderer().render({ resolved: report([table()]) })).content as Buffer)).worksheets[0]!;
+    expect((plain.getRow(1).getCell(1).fill as ExcelJS.FillPattern).fgColor).toEqual({ argb: "FFE5E7EB" });
+  });
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { defaultTextMeasurer, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
-import { tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
+import { isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault } from "@reporting/core";
 import { renderChartSvg } from "@reporting/renderer-html/chart";
 import { useStore } from "../store";
 import * as ops from "../model/ops";
@@ -160,8 +160,15 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
   const start = node.rowRange?.start ?? 0;
   const end = node.rowRange?.end ?? t.rows.length;
   const fs = ((t.style?.fontSize as number) ?? 10) * k;
+  const styles = tableStylesOrDefault(t);
+  const lines = styles.grid.lines;
+  const rule = `${Math.max(1, styles.grid.width * k)}px solid ${styles.grid.color}`;
+  const part = (style: Record<string, unknown>): React.CSSProperties => ({
+    color: style.color as string | undefined, background: style.background as string | undefined,
+    fontWeight: isBold(style) ? 700 : 400, fontStyle: style.italic ? "italic" : undefined,
+  });
   return (
-    <table data-cid={t.id} className="cn cn-table" style={{ ...boxStyle(node, k), borderCollapse: "collapse", fontSize: fs, tableLayout: "fixed", ...cssFrom(t.style, k, capabilities) }}>
+    <table data-cid={t.id} className="cn cn-table" style={{ ...boxStyle(node, k), borderCollapse: "collapse", fontSize: fs, tableLayout: "fixed", ...cssFrom(t.style, k, capabilities), ...(lines === "all" ? { border: rule } : {}) }}>
       <colgroup>
         {widths.map((w, i) => (
           <col key={i} style={{ width: w.width * k }} />
@@ -170,7 +177,7 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
       {t.showHeader && (
         <thead>
           {tableHeaderRows(t).map((cells, row) => <tr key={row} style={{ height: headerHeights[row]! * k }}>
-            {cells.map((cell) => <th key={cell.column} colSpan={cell.colSpan} rowSpan={cell.rowSpan} style={{ textAlign: cell.align ?? "left", border: t.headerRows ? `${k}px solid #000` : undefined, borderBottom: `${k}px solid #000`, padding: `${2 * k}px ${4 * k}px`, fontWeight: 700 }}>
+            {cells.map((cell) => <th key={cell.column} colSpan={cell.colSpan} rowSpan={cell.rowSpan} style={{ textAlign: cell.align ?? "left", ...(lines === "all" || (t.headerRows && lines !== "none") ? { border: rule } : lines === "none" ? {} : { borderBottom: rule }), padding: `${2 * k}px ${4 * k}px`, ...part(styles.header as Record<string, unknown>) }}>
               {cell.text}
             </th>)}
           </tr>)}
@@ -178,11 +185,12 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
       )}
       <tbody>
         {t.rows.slice(start, end).map((row: any, i: number) => (
-          <tr key={start + i} style={{ height: rowHeights[start + i]! * k, background: t.alternateRowStyle && (start + i) % 2 === 1 ? "#f5f5f5" : undefined, ...cssFrom(row.style, k, capabilities) }}>
+          <tr key={start + i} style={{ height: rowHeights[start + i]! * k, ...part(tableRowStyle(styles, start + i)), ...cssFrom(row.style, k, capabilities) }}>
             {t.columns.map((c: any, column: number) => {
               const slot = spanGrid.get(start + i)?.get(column);
               if (slot && !slot.anchor) return null;
-              return <td key={c.id} colSpan={slot?.span.colSpan} rowSpan={slot?.span.rowSpan} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "nowrap", border: slot ? `${k}px solid #000` : undefined }}>
+              const cellRule = lines === "all" || (slot && lines !== "none") ? { border: rule } : lines === "horizontal" && start + i < end - 1 ? { borderBottom: rule } : {};
+              return <td key={c.id} colSpan={slot?.span.colSpan} rowSpan={slot?.span.rowSpan} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "nowrap", ...cellRule }}>
                 {row.formatted[c.id]}
               </td>;
             })}
@@ -200,7 +208,7 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
         <tfoot>
           <tr>
             {t.columns.map((c: any) => (
-              <td key={c.id} style={{ textAlign: c.align ?? "left", borderTop: `${k}px solid #000`, fontWeight: 700, padding: `${2 * k}px ${4 * k}px` }}>
+              <td key={c.id} style={{ textAlign: c.align ?? "left", ...(lines === "all" ? { border: rule } : lines === "none" ? {} : { borderTop: rule }), padding: `${2 * k}px ${4 * k}px`, ...part(styles.footer as Record<string, unknown>) }}>
                 {c.footer?.value ?? ""}
               </td>
             ))}

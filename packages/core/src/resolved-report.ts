@@ -8,6 +8,7 @@
  * output format reports the same numbers (see spec sections 82-83).
  */
 
+import type { ResolvedTableStyles } from "./table-styles.js";
 import type { ExportsConfig, PageConfig, Style, Theme } from "@reporting/schema";
 
 export interface ResolvedReport {
@@ -210,6 +211,8 @@ export interface ResolvedTableComponent extends ResolvedComponentBase {
   minRowsBeforeBreak: number;
   minRowsAfterBreak: number;
   alternateRowStyle?: boolean;
+  /** Effective table styles when the table uses `tableStyle` or `styles`; renderers otherwise use the historical look. */
+  styles?: ResolvedTableStyles;
 }
 
 export interface ResolvedContainerComponent extends ResolvedComponentBase {

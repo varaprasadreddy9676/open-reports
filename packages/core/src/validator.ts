@@ -3,7 +3,7 @@ import { Parser } from "@reporting/expressions";
 import { ROW_RELATIVE_SOURCE, type Component } from "./resolve-component.js";
 import { tableHeaderGridErrors } from "./table-header.js";
 import { PAGE_BAND_TYPES, validateRules } from "./rule-validation.js";
-import { validateGapToken, validateRuleThemeValues, validateStyleTokens, validateTextStyleRef, validateTheme } from "./theme-validation.js";
+import { validateGapToken, validateRuleThemeValues, validateStyleTokens, validateTableStyles, validateTextStyleRef, validateTheme, validateThemeTableStyles } from "./theme-validation.js";
 import { tableCellSpanErrors } from "./table-cell-spans.js";
 
 export interface ValidationIssue {
@@ -68,6 +68,7 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
 
   validateBands(report, issues);
   validateTheme(report.theme, issues);
+  validateThemeTableStyles(report.theme, issues);
 
   for (const f of report.fragments) {
     walkComponents(f.children as Component[], `fragments.${f.id}`, { fragmentIds, datasetIds, issues, seenComponentIds: new Set(), targetRenderers: options.targetRenderers });
@@ -140,6 +141,7 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
   validateGapToken(component.gap, ctx.theme, `${path}.gap`, ctx.issues, component.id);
   if (component.textStyle !== undefined) validateTextStyleRef(component.textStyle, ctx.theme, `${path}.textStyle`, ctx.issues, component.id);
   validateRuleThemeValues(component.rules, ctx.theme, path, ctx.issues, component.id);
+  if (component.type === "table") validateTableStyles(component as any, ctx.theme, path, ctx.issues, component.id);
   (component.styleWhen as { style: Record<string, unknown> }[] | undefined)?.forEach((rule, index) => validateStyleTokens(rule.style, ctx.theme, `${path}.styleWhen[${index}].style`, ctx.issues, component.id));
   if (component.type === "table") (component.rowStyleWhen as { style: Record<string, unknown> }[] | undefined)?.forEach((rule, index) => validateStyleTokens(rule.style, ctx.theme, `${path}.rowStyleWhen[${index}].style`, ctx.issues, component.id));
   if (component.id) {

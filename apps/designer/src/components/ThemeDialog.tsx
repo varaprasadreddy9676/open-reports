@@ -2,17 +2,18 @@ import { useState } from "react";
 import { resolveStyleTokens } from "@reporting/core";
 import { useStore } from "../store";
 import type { Doc } from "../model/ops";
-import { countTextStyleUses, countTokenUses, renameTextStyle, renameToken, TOKEN_NAME, type TokenCategory } from "../lib/theme-edit";
+import { countTableStyleUses, countTextStyleUses, countTokenUses, renameTableStyle, renameTextStyle, renameToken, TOKEN_NAME, type TokenCategory } from "../lib/theme-edit";
 
-type Tab = TokenCategory | "textStyles";
+type Tab = TokenCategory | "textStyles" | "tableStyles";
 const TABS: { id: Tab; label: string; noun: string }[] = [
   { id: "colors", label: "Colours", noun: "colour" },
   { id: "fonts", label: "Fonts", noun: "font" },
   { id: "fontSizes", label: "Font sizes", noun: "size" },
   { id: "spacing", label: "Spacing", noun: "spacing" },
   { id: "textStyles", label: "Text styles", noun: "text style" },
+  { id: "tableStyles", label: "Table styles", noun: "table style" },
 ];
-const DEFAULTS: Record<Tab, unknown> = { colors: "#1d4ed8", fonts: "Noto Sans", fontSizes: 10, spacing: 8, textStyles: { fontSize: 10 } };
+const DEFAULTS: Record<Tab, unknown> = { colors: "#1d4ed8", fonts: "Noto Sans", fontSizes: 10, spacing: 8, textStyles: { fontSize: 10 }, tableStyles: { header: { background: "#e5e7eb" }, grid: { lines: "horizontal" } } };
 
 function uniqueName(existing: Record<string, unknown>, base: string): string {
   let n = 1;
@@ -52,9 +53,9 @@ export function ThemeDialogBody() {
   const save = (next: Doc) => setDoc(next, { coalesce: "theme" });
   const setValue = (name: string, value: unknown) => save({ ...doc, theme: { ...theme, [tab]: { ...table, [name]: value } } });
   const remove = (name: string) => save({ ...doc, theme: { ...theme, [tab]: Object.fromEntries(Object.entries(table).filter(([key]) => key !== name)) } });
-  const rename = (from: string, to: string) => save(tab === "textStyles" ? renameTextStyle(doc, from, to) : renameToken(doc, tab, from, to));
-  const uses = (name: string) => (tab === "textStyles" ? countTextStyleUses(doc, name) : countTokenUses(doc, tab, name));
-  const add = () => setValue(uniqueName(table, tab === "textStyles" ? "style" : TABS.find((t) => t.id === tab)!.noun.replace(" ", "-")), DEFAULTS[tab]);
+  const rename = (from: string, to: string) => save(tab === "textStyles" ? renameTextStyle(doc, from, to) : tab === "tableStyles" ? renameTableStyle(doc, from, to) : renameToken(doc, tab, from, to));
+  const uses = (name: string) => (tab === "textStyles" ? countTextStyleUses(doc, name) : tab === "tableStyles" ? countTableStyleUses(doc, name) : countTokenUses(doc, tab, name));
+  const add = () => setValue(uniqueName(table, tab === "textStyles" ? "style" : tab === "tableStyles" ? "table" : TABS.find((t) => t.id === tab)!.noun.replace(" ", "-")), DEFAULTS[tab]);
   const tokens = (category: TokenCategory) => Object.keys(theme[category] ?? {});
   const noun = TABS.find((t) => t.id === tab)!.noun;
 
@@ -76,6 +77,7 @@ export function ThemeDialogBody() {
         {(tab === "fontSizes" || tab === "spacing") && <input type="number" min={tab === "fontSizes" ? 1 : 0} step="any" aria-label={`${name} ${tab === "fontSizes" ? "size" : "spacing"} in points`} value={Number(value)} onChange={(e) => e.target.value !== "" && setValue(name, Number(e.target.value))} />}
         {tab === "textStyles" && <TextStyleEditor style={value} fonts={tokens("fonts")} sizes={tokens("fontSizes")} colors={tokens("colors")} onChange={(next) => setValue(name, next)} />}
         {tab === "textStyles" && <span className="theme-preview" data-testid={`theme-preview-${name}`} style={previewStyle(value, theme)}>The quick brown fox</span>}
+        {tab === "tableStyles" && <span className="muted small">Edit a preset from a table's Style tab, then save it as a preset.</span>}
         <span className="muted small">{uses(name)} use{uses(name) === 1 ? "" : "s"}</span>
         <DeleteButton uses={uses(name)} label={name} onDelete={() => remove(name)} />
       </div>)}

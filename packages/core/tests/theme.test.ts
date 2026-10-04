@@ -81,3 +81,40 @@ describe("theme validation", () => {
     expect(codes({ type: "text", value: "x" }, { ...theme, textStyles: { bad: { color: "$missing" } } })).toEqual([["THEME_UNKNOWN_TOKEN", "theme.textStyles.bad.color"]]);
   });
 });
+
+describe("table styles", () => {
+  const tableTheme = { ...theme, tableStyles: { ledger: { header: { background: "$brand", color: "#ffffff" }, alternateRow: { background: "#eef2ff" }, grid: { lines: "horizontal", color: "$muted" } } } };
+  const resolveTable = async (table: Record<string, unknown>) => {
+    const parsed = parseReportDefinition({ schemaVersion: "1.0", id: "t", name: "t", theme: tableTheme, datasets: [{ id: "d", source: "inline", query: { data: [{ a: 1 }] } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "d", columns: [{ id: "a", header: "A", binding: "row.a" }], ...table }] }] });
+    if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
+    const registry2 = new DataSourceRegistry();
+    const { InlineDataSource } = await import("../src/index.js");
+    registry2.register(new InlineDataSource());
+    return { node: sectionChildren((await resolveReport(parsed.report, { registry: registry2 })).resolved, 0)[0] as any, report: parsed.report };
+  };
+
+  it("merges defaults, a theme preset and the table's own styles, resolving tokens", async () => {
+    const { node } = await resolveTable({ tableStyle: "ledger", styles: { header: { italic: true }, grid: { width: 1 } } });
+    expect(node.styles).toEqual({
+      header: { color: "#ffffff", fontWeight: "bold", background: "#1d4ed8", italic: true },
+      body: { color: "#000000" },
+      alternateRow: { background: "#eef2ff" },
+      footer: { color: "#000000", fontWeight: "bold" },
+      grid: { lines: "horizontal", color: "#64748b", width: 1 },
+    });
+  });
+
+  it("leaves tables without table styles untouched", async () => {
+    const { node } = await resolveTable({ alternateRowStyle: true });
+    expect(node.styles).toBeUndefined();
+  });
+
+  it("validates preset names and table style tokens", async () => {
+    const { report: bad } = await resolveTable({ tableStyle: "nope", styles: { body: { color: "$nope" } } });
+    expect(validateReport(bad).issues.map((i) => [i.code, i.path])).toEqual([
+      ["THEME_UNKNOWN_TOKEN", "sections[0].children[0].styles.body.color"],
+      ["THEME_UNKNOWN_TABLE_STYLE", "sections[0].children[0].tableStyle"],
+    ]);
+  });
+});

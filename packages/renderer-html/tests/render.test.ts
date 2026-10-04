@@ -222,4 +222,20 @@ describe("watermark", () => {
     expect(html).toContain("Georgia");
     expect(html).not.toContain("$brand");
   });
+
+  it("renders table styles: section colours, stripes and grid-line modes", async () => {
+    const html = async (lines: string) => String((await renderReport({
+      schemaVersion: "1.0", id: "styled", name: "Styled",
+      datasets: [{ id: "rows", source: "inline", query: { data: [{ a: "one" }, { a: "two" }, { a: "three" }] } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "rows", columns: [{ id: "a", header: "A", binding: "row.a" }], showFooter: true,
+        styles: { header: { background: "#1d4ed8", color: "#ffffff" }, alternateRow: { background: "#fde68a" }, footer: { italic: true }, grid: { lines, color: "#ff0000", width: 1 } } }] }],
+    })).content);
+    const all = await html("all");
+    expect(all).toMatch(/<th[^>]*background-color:#1d4ed8[^>]*color:#ffffff|<th[^>]*color:#ffffff[^>]*background-color:#1d4ed8/);
+    expect(all.match(/background-color:#fde68a/g)).toHaveLength(1);
+    expect(all).toContain("font-style:italic");
+    expect((all.match(/solid #ff0000/g) ?? []).length).toBeGreaterThan(4);
+    expect(await html("none")).not.toContain("#ff0000");
+    expect((await html("horizontal")).match(/border-bottom:[^;]*#ff0000/g)?.length).toBe(3);
+  });
 });

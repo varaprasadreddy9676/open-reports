@@ -4,7 +4,7 @@ import type {
   ResolvedContainerComponent,
   ResolvedGroupComponent,
 } from "@reporting/core";
-import { tableCellSpanGrid, tableHeaderRows } from "@reporting/core";
+import { isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
 import { wrapLineCount, type TextStyleHint } from "./measure.js";
 import { resolveDimension } from "./units.js";
@@ -378,13 +378,20 @@ export function measureTableRowHeights(table: ResolvedTableComponent, columnWidt
   const lineHeight = measurer.lineHeight(fontSize);
   const spans = table.cellSpans ?? [];
   const grid = tableCellSpanGrid(spans);
+  // Measure with the weight and slant each row is drawn with (body, stripes, rule styles).
+  const styles = tableStylesOrDefault(table);
+  const hintFor = (rowIndex: number): TextStyleHint => {
+    const style = tableRowStyle(styles, rowIndex, table.rows[rowIndex]?.style as Record<string, unknown> | undefined);
+    return { bold: isBold(style), italic: Boolean(style.italic) };
+  };
   const heights = table.rows.map((row, rowIndex) => {
     let maxLines = 1;
+    const hint = hintFor(rowIndex);
     table.columns.forEach((column, columnIndex) => {
       const slot = grid.get(rowIndex)?.get(columnIndex);
       if (slot && (!slot.anchor || (slot.span.rowSpan ?? 1) > 1)) return;
       const width = slot ? columnWidths.slice(columnIndex, columnIndex + (slot.span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0) : columnWidths[columnIndex]!.width;
-      maxLines = Math.max(maxLines, wrapLineCount(row.formatted[column.id] ?? "", Math.max(1, width - 4), fontSize, measurer));
+      maxLines = Math.max(maxLines, wrapLineCount(row.formatted[column.id] ?? "", Math.max(1, width - 4), fontSize, measurer, hint));
     });
     return maxLines * lineHeight + ROW_PADDING;
   });
@@ -392,7 +399,7 @@ export function measureTableRowHeights(table: ResolvedTableComponent, columnWidt
     if ((span.rowSpan ?? 1) <= 1) continue;
     const width = columnWidths.slice(span.column, span.column + (span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0);
     const text = table.rows[span.row]!.formatted[table.columns[span.column]!.id] ?? "";
-    const required = wrapLineCount(text, Math.max(1, width - 4), fontSize, measurer) * lineHeight + ROW_PADDING;
+    const required = wrapLineCount(text, Math.max(1, width - 4), fontSize, measurer, hintFor(span.row)) * lineHeight + ROW_PADDING;
     const current = heights.slice(span.row, span.row + (span.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0);
     if (required > current) heights[span.row + (span.rowSpan ?? 1) - 1]! += required - current;
   }
@@ -403,11 +410,13 @@ export function measureHeaderRowHeights(table: ResolvedTableComponent, columnWid
   const fontSize = styleFontSize(table);
   const lineHeight = measurer.lineHeight(fontSize);
   const rows = tableHeaderRows(table);
+  const headerStyle = tableStylesOrDefault(table).header;
+  const hint: TextStyleHint = { bold: isBold(headerStyle), italic: Boolean(headerStyle.italic) };
   const heights = rows.map(() => lineHeight + HEADER_FOOTER_PADDING);
   rows.forEach((cells, row) => cells.forEach((cell) => {
     const span = cell.rowSpan ?? 1;
     const width = columnWidths.slice(cell.column, cell.column + (cell.colSpan ?? 1)).reduce((sum, column) => sum + column.width, 0);
-    const required = wrapLineCount(cell.text, Math.max(1, width - 4), fontSize, measurer) * lineHeight + HEADER_FOOTER_PADDING;
+    const required = wrapLineCount(cell.text, Math.max(1, width - 4), fontSize, measurer, hint) * lineHeight + HEADER_FOOTER_PADDING;
     const current = heights.slice(row, row + span).reduce((sum, height) => sum + height, 0);
     if (required > current) heights[row + span - 1]! += required - current;
   }));

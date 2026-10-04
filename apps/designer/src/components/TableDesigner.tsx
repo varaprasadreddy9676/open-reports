@@ -9,12 +9,13 @@ import { appendHeaderColumn } from "../lib/table-header";
 import { FormulaInput } from "./FormulaInput";
 import { TableHeaderEditor } from "./TableHeaderEditor";
 import { TableBodyEditor } from "./TableBodyEditor";
+import { TableStyleEditor } from "./TableStyleEditor";
 import { ColumnEditor, StyleRulesEditor } from "./Properties";
 
-type Tab = "columns" | "header" | "rows" | "groups" | "totals" | "pagination" | "conditions";
+type Tab = "columns" | "header" | "rows" | "style" | "groups" | "totals" | "pagination" | "conditions";
 const TABS: { id: Tab; label: string }[] = [
   { id: "columns", label: "Columns" }, { id: "header", label: "Multi-level headers" },
-  { id: "rows", label: "Rows & cells" }, { id: "groups", label: "Groups" },
+  { id: "rows", label: "Rows & cells" }, { id: "style", label: "Style" }, { id: "groups", label: "Groups" },
   { id: "totals", label: "Totals" }, { id: "pagination", label: "Pagination" },
   { id: "conditions", label: "Conditions" },
 ];
@@ -106,6 +107,7 @@ export function TableDesigner({ id }: { id: string }) {
           <button className="btn" data-testid="table-designer-add-column" onClick={() => patch(id, { columns: [...table.columns, { id: `col-${Date.now()}`, header: "New column", binding: "row.value" }], ...(table.headerRows ? { headerRows: appendHeaderColumn(table.headerRows, table.columns.length, "New column") } : {}) })}>+ Add column</button>
         </>}
         {tab === "header" && <>{flag("showHeader", "Show table header", true)}{flag("repeatHeaderOnPageBreak", "Repeat header on every page", true)}<p className="muted small">Edit the header grid on the canvas. Its levels and merged cells print with the table.</p></>}
+        {tab === "style" && <TableStyleEditor table={table} />}
         {tab === "rows" && <>
           {flag("alternateRowStyle", "Zebra stripes")}
           <label className="field"><span className="field-label">When there is no data</span>
