@@ -1844,6 +1844,10 @@ kbd {
   border-top: 1px solid var(--border);
 }
 .jrxml-review { margin-top: 14px; }
+.jrxml-folder-import { padding-top: 14px; }
+.jrxml-folder-import h3 { margin: 0 0 6px; }
+.jrxml-folder-import .migration-row span:nth-child(2) { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.jrxml-folder-import .migration-row .btn { flex: none; }
 .jrxml-review-list { max-height: 34vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
 .migration-panel { max-height: 200px; overflow: auto; }
 .migration-row { display: flex; gap: 10px; align-items: baseline; padding: 7px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }

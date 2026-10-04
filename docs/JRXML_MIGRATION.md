@@ -70,6 +70,7 @@ For a local repeat, use [ReceiptBaseline.java](../scripts/jrxml-parity/ReceiptBa
 ## Import contract
 
 - Accept well-formed JasperReports 6 and 7 source XML; reject DTDs, oversized documents, malformed XML, and non-JRXML roots.
+- Designer's **Import JRXML → Folder** reads the selected folder locally, converts every `.jrxml`, links uniquely matched child sources, and saves each valid result as a separate draft JSON template. Invalid files and ambiguous or missing children appear in the folder review. Existing templates are not replaced. A saved parent still needs child data bindings and PDF comparison before production use.
 - Produce an editable report and a per-feature issue list with `converted`, `needs-review`, or `unsupported` status, source location, and target component where applicable.
 - Preserve geometry in point units. Convert basic bands, static text, simple fields, shapes, and direct images. Flag unsupported/approximate behavior at the exact source node.
 - Never evaluate Java/Groovy or automatically run imported SQL. Unsupported visual elements need visible Designer placeholders so they cannot disappear unnoticed.
