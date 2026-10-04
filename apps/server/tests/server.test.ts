@@ -70,6 +70,34 @@ describe("POST /api/v1/validate", () => {
 });
 
 describe("POST /api/v1/render (inline)", () => {
+  it("renders a supplied JRXML-derived child and refuses a missing one", async () => {
+    const parent = { schemaVersion: "1.0", id: "parent", name: "Parent", sections: [
+      { type: "reportHeader", children: [{ type: "subreport", reportId: "lines", dataset: "params.lineItems", parameters: { label: { expression: "params.label" } } }] },
+    ] };
+    const child = { schemaVersion: "1.0", id: "lines", name: "Lines",
+      parameters: [{ id: "label", type: "string", required: true }],
+      datasets: [{ id: "main", source: "inline", query: [] }],
+      sections: [{ type: "detail", dataset: "main", children: [{ type: "text", expression: "params.label + row.name" }] }],
+    };
+    const parameters = { label: "Item: ", lineItems: [{ name: "A" }, { name: "B" }] };
+    const missing = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: parent, format: "html", parameters } });
+    expect(missing.statusCode).toBe(422);
+    expect(missing.json().error.details.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: "SUBREPORT_NOT_RENDERED" })]));
+    const rendered = await app.inject({ method: "POST", url: "/api/v1/render", payload: {
+      report: parent, format: "html", parameters, subreports: { lines: { report: child } },
+    } });
+    expect(rendered.statusCode).toBe(200);
+    expect(rendered.payload).toContain("Item: A");
+    expect(rendered.payload).toContain("Item: B");
+    const jrxml = `<jasperReport name="Lines" pageWidth="300" pageHeight="300"><parameter name="label" class="java.lang.String"/><field name="name" class="java.lang.String"/><detail><band height="18"><textField><reportElement x="0" y="0" width="200" height="18"/><textFieldExpression><![CDATA[$P{label} + $F{name}]]></textFieldExpression></textField></band></detail></jasperReport>`;
+    const fromSource = await app.inject({ method: "POST", url: "/api/v1/render", payload: {
+      report: parent, format: "html", parameters, subreports: { lines: { jrxml } },
+    } });
+    expect(fromSource.statusCode).toBe(200);
+    expect(fromSource.payload).toContain("Item: A");
+    expect(fromSource.payload).toContain("Item: B");
+  });
+
   it("renders PDF", async () => {
     const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: invoiceReport, format: "pdf" } });
     expect(res.statusCode).toBe(200);

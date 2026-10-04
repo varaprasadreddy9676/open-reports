@@ -8,6 +8,7 @@ import { executeDatasets, type DatasetExecutionIssue } from "./datasets.js";
 import { computeReportVariables } from "./variables.js";
 import { PAGE_BAND_TYPES } from "@reporting/schema";
 import { expandBodyBands } from "./bands.js";
+import { resolveNestedReport, type SubreportSource } from "./subreports.js";
 import { lookupDataset, resolveComponents, themeStyle, type CustomComponentExpander, type ResolveEnv } from "./resolve-component.js";
 import type { ResolvedComponent, ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
 import type { ResolveContext } from "./context.js";
@@ -35,6 +36,8 @@ export interface RenderPipelineOptions {
   design?: { ghosts: number };
   /** Record every rule decision (conditions, current values, what applied) in `ruleDecisions`, for the condition debugger. */
   traceRules?: boolean;
+  /** Child definitions and already-authorized data. Child SQL is never executed implicitly. */
+  subreports?: Record<string, SubreportSource>;
 }
 
 export interface RenderPipelineResult {
@@ -126,6 +129,8 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     customComponents: options.customComponents,
     decisions,
     theme: report.theme,
+    subreportStack: [report.id],
+    subreportResolver: (component, ctx, env) => resolveNestedReport(component, ctx, env, options.subreports),
   });
 
   /** A page band's own rules decide whether it prints; in the per-page pass they also see `page.*`. */
@@ -138,7 +143,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     });
     if (band.hidden && !options.design) return [];
     const children = resolveComponents(band.children as any, ctx, env);
-    if (band.type === "background") return children;
+    if (band.type === "background" || band.layout !== "absolute") return children;
     // A page master has one layout root. Its children must obey the band's
     // layout mode; feeding them directly to layoutBlock always stacks them.
     return [{
@@ -205,6 +210,8 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       customComponents: options.customComponents,
       decisions,
       theme: report.theme,
+      subreportStack: [report.id],
+      subreportResolver: (component, ctx, nestedEnv) => resolveNestedReport(component, ctx, nestedEnv, options.subreports),
     };
     return pageBandChildren(section.sourceIndex, { ...baseCtx, page: pageFacts(page) }, env);
   };

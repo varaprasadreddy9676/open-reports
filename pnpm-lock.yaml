@@ -140,6 +140,9 @@ importers:
       '@reporting/datasource-sql':
         specifier: workspace:*
         version: link:../../packages/datasource-sql
+      '@reporting/jrxml-import':
+        specifier: workspace:*
+        version: link:../../packages/jrxml-import
       '@reporting/layout':
         specifier: workspace:*
         version: link:../../packages/layout

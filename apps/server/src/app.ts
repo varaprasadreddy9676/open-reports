@@ -251,9 +251,9 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   // --- Inline render ---
   app.post("/api/v1/render", async (request, reply) => {
-    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; strict?: boolean };
+    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; subreports?: Record<string, { jrxml?: string; report?: unknown; data?: Record<string, unknown> }>; strict?: boolean };
     try {
-      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data, strict: body.strict }, runtime);
+      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data, subreports: body.subreports, strict: body.strict }, runtime);
       reply
         .header("content-type", result.mimeType)
         .header("x-render-id", renderId)

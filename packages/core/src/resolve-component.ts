@@ -42,6 +42,9 @@ export interface ResolveEnv {
   decisions?: RuleDecision[];
   /** Report theme: tokens ("$name") and named text styles are resolved against it. */
   theme?: Theme;
+  /** Optional nested-report resolver; supplied by the pipeline after report lookup is configured. */
+  subreportResolver?: (component: Component, ctx: ResolveContext, env: ResolveEnv) => ResolvedComponent;
+  subreportStack?: string[];
 }
 
 /** Resolves theme tokens in a style, reporting unknown ones against the component. */
@@ -303,18 +306,13 @@ function resolveComponent(definition: Component, ctx: ResolveContext, env: Resol
       return { ...base(component), type: "container", children: inner } as ResolvedComponent;
     }
     case "subreport":
-      // KNOWN LIMITATION (v1): embedding and rendering another report's own
-      // datasets recursively is not yet wired up -- the schema supports
-      // declaring a subreport (and the validator checks for circular
-      // references), but runtime execution of its nested pipeline is left
-      // for a follow-up. Flag it so callers see the gap instead of silently
-      // dropping content.
+      if (env.subreportResolver) return env.subreportResolver(component, ctx, env);
       env.warnings.push({
         code: "SUBREPORT_NOT_RENDERED",
         path: env.path,
-        message: `Subreport "${component.reportId}" was not rendered: subreport execution is not yet implemented.`,
+        message: `Subreport "${component.reportId}" was not rendered: no child report was supplied.`,
       });
-      return null;
+      return { ...base(component), type: "text", text: `[Subreport ${component.reportId} needs a report source]`, style: { ...component.style, color: "#b91c1c" } } as ResolvedComponent;
     default:
       env.warnings.push({ code: "UNKNOWN_COMPONENT_TYPE", path: env.path, message: `Unknown component type "${component.type}".` });
       return null;

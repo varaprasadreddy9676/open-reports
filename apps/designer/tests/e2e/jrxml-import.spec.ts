@@ -11,7 +11,7 @@ test("imports a JRXML draft and keeps navigable migration issues", async ({ page
   await page.goto("/");
   await page.getByTestId("starter-jrxml").click();
   await page.getByTestId("jrxml-file").setInputFiles({ name: "pilot.jrxml", mimeType: "application/xml", buffer: Buffer.from(source) });
-  await expect(page.getByTestId("jrxml-review")).toContainText("unsupported");
+  await expect(page.getByTestId("jrxml-review")).toContainText("need review");
   await page.getByTestId("apply-jrxml").click();
   await expect(page.getByTestId("migration-panel")).toBeVisible();
   await expect(page.getByTestId("migration-panel")).toContainText("subreport");
@@ -21,11 +21,12 @@ test("imports a JRXML draft and keeps navigable migration issues", async ({ page
   });
   expect(state.name).toBe("Migration Pilot");
   expect(state.sections.map((section: any) => section.type)).toEqual(["reportHeader", "detail"]);
-  expect(state.migration.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "subreport", status: "unsupported" })]));
+  expect(state.migration.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "subreport", status: "needs-review" })]));
   await page.getByTestId("migration-issue").filter({ hasText: "subreport" }).click();
   const selected = await page.evaluate(() => (window as any).__designer.getState().selection);
   expect(selected).toEqual([state.migration.issues.find((issue: any) => issue.feature === "subreport").targetId]);
-  await expect(page.getByRole("textbox", { name: "Content" })).toHaveValue("[Migration review: subreport]");
+  const selectedComponent = await page.evaluate(() => (window as any).__designer.getState().doc.sections[1].children[1]);
+  expect(selectedComponent).toMatchObject({ type: "subreport", reportId: "header" });
 
   await page.getByTestId("btn-save").click();
   await expect(page.getByTestId("save-state")).toContainText("Saved");
@@ -34,5 +35,5 @@ test("imports a JRXML draft and keeps navigable migration issues", async ({ page
   await page.evaluate(async (id) => (window as any).__designer.getState().openTemplate(id), savedId);
   await expect(page.getByTestId("migration-panel")).toContainText("subreport");
   const persisted = await page.evaluate(() => (window as any).__designer.getState().doc.migration);
-  expect(persisted.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "subreport", status: "unsupported" })]));
+  expect(persisted.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "subreport", status: "needs-review" })]));
 });

@@ -13,6 +13,7 @@ export * from "./validator.js";
 export * from "./renderer.js";
 export * from "./walk.js";
 export * from "./bands.js";
+export * from "./subreports.js";
 export * from "./rules.js";
 export * from "./dataset-shape.js";
 export * from "./theme.js";

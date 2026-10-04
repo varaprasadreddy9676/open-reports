@@ -97,7 +97,7 @@ describe("resolveReport (full pipeline)", () => {
 
     expect(issues).toEqual([]);
 
-    const header = (resolved.sections[0]?.children[0] as any)?.children[0] as ResolvedTextComponent;
+    const header = sectionChildren(resolved, 0)[0] as ResolvedTextComponent;
     expect(header.text).toBe("Invoice #1001");
 
     const table = sectionChildren(resolved, 1)[0] as ResolvedTableComponent;

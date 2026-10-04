@@ -259,13 +259,38 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
     }
     if (kind === "subreport") {
       const source = content(expressionNode(node, "subreportExpression")).trim();
-      const name = source.match(/"([^"\r\n]+\.jasper)"/i)?.[1]?.split(/[/\\]/).pop();
+      // Older JRXML often names the compiled output in this expression. Use
+      // its basename only as a hint for the corresponding .jrxml source file.
+      // The compiled artifact is never opened or executed.
+      const referencedName = source.match(/"([^"\r\n]+\.(?:jasper|jrxml))"/i)?.[1]?.split(/[/\\]/).pop();
+      const sourceName = referencedName?.replace(/\.(?:jasper|jrxml)$/i, ".jrxml");
+      const childId = sourceName?.slice(0, -6);
       const mode = child(node, "dataSourceExpression") ? "data-source-backed" : child(node, "connectionExpression") ? "connection-backed" : "source unspecified";
       const count = children(node, "subreportParameter").length;
-      add("unsupported", "subreport", node,
-        `${name ?? "Dynamic subreport"} is ${mode} with ${count} parameter${count === 1 ? "" : "s"}; import its JRXML source, bind its data, and review nested pagination.`,
+      const dataSource = child(node, "dataSourceExpression");
+      const dataset = dataSource ? translateJasperExpression(content(dataSource), availableVariables) : undefined;
+      const params: Record<string, { expression: string }> = {};
+      let safeParameters = true;
+      for (const param of children(node, "subreportParameter")) {
+        const expressionNode = child(param, "subreportParameterExpression") ?? child(param, "expression");
+        if (!expressionNode) continue;
+        const expression = translateJasperExpression(content(expressionNode), availableVariables);
+        if (!param.attrs.name || !expression) {
+          safeParameters = false;
+          add("needs-review", "subreport parameter", param, "Parameter expression needs manual translation.", targetId, content(expressionNode));
+        } else params[param.attrs.name] = { expression };
+      }
+      const linked = !!sourceName && /^[A-Za-z0-9_-]+\.jrxml$/i.test(sourceName) && safeParameters && (!dataSource || !!dataset);
+      if (!linked) {
+        add("unsupported", "subreport", node,
+          `${sourceName ?? "Dynamic subreport"} is ${mode} with ${count} parameter${count === 1 ? "" : "s"}; its JRXML source or bindings need manual migration.`,
+          targetId, source);
+        return { ...base, type: "text", value: "[Migration review: subreport]", style: { ...((g.style as object) ?? {}), color: "#b91c1c", fontSize: 9 } };
+      }
+      add("needs-review", "subreport", node,
+        `${sourceName} is ${mode} with ${count} parameter${count === 1 ? "" : "s"}; import this JRXML source as child report "${childId}", bind child datasets, and compare nested pagination.`,
         targetId, source);
-      return { ...base, type: "text", value: "[Migration review: subreport]", style: { ...((g.style as object) ?? {}), color: "#b91c1c", fontSize: 9 } };
+      return { ...base, type: "subreport", reportId: childId, ...(dataset ? { dataset } : {}), parameters: params };
     }
     if (kind === "component" || kind === "componentElement") {
       const nested = node.children.find((item) => local(item.name) === "component") ?? node.children.find((item) => ["table", "list", "barbecue", "barcode4j"].includes(local(item.name)));

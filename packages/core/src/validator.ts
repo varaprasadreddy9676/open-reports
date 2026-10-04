@@ -168,7 +168,7 @@ function validateComponent(component: Component, path: string, ctx: WalkCtx): vo
   }
 
   const datasetRef: string | undefined = component.dataset;
-  if (datasetRef && ROW_RELATIVE_SOURCE.test(datasetRef)) {
+  if (datasetRef && (ROW_RELATIVE_SOURCE.test(datasetRef) || (component.type === "subreport" && datasetRef.startsWith("params.")))) {
     try {
       Parser.parse(datasetRef);
     } catch (err) {

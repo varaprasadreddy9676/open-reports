@@ -17,7 +17,7 @@ export interface PaginateOptions {
 
 /** Warnings that mean a generated document may omit or misplace report data. */
 export const isDataLossWarningCode = (code: string): boolean =>
-  code === "CONTENT_OVERFLOWS_PAGE" || code === "CONTENT_EXCEEDS_PRINTABLE_WIDTH" || code === "TEXT_EXCEEDS_HEIGHT" || code === "CONTAINER_CONTENT_EXCEEDS_HEIGHT";
+  code === "CONTENT_OVERFLOWS_PAGE" || code === "CONTENT_EXCEEDS_PRINTABLE_WIDTH" || code === "TEXT_EXCEEDS_HEIGHT" || code === "CONTAINER_CONTENT_EXCEEDS_HEIGHT" || code === "SUBREPORT_NOT_RENDERED";
 
 /**
  * Page masters: a report may declare several pageHeader / pageFooter sections,

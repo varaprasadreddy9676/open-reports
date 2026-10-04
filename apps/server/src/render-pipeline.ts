@@ -1,7 +1,8 @@
 import { refreshLinkedBlocks, type BlockLookup } from "./linked-blocks.js";
 import { randomUUID } from "node:crypto";
 import { parseReportDefinition, type ReportDefinition } from "@reporting/schema";
-import { DataSourceRegistry, resolveReport, validateReport } from "@reporting/core";
+import { importJrxml } from "@reporting/jrxml-import";
+import { DataSourceRegistry, resolveReport, validateReport, type SubreportSource } from "@reporting/core";
 import type { RenderResult } from "@reporting/core";
 import { createDefaultDataSourceRegistry } from "./datasources.js";
 import type { ReportRenderer } from "@reporting/core";
@@ -22,6 +23,8 @@ export interface RunRenderInput {
    * it, so `reporter.render({report, data})` works without pre-wiring
    * datasource config for ad-hoc/local usage. */
   data?: Record<string, unknown>;
+  /** Child definitions and their explicit datasets; child saved queries are not run implicitly. */
+  subreports?: Record<string, { jrxml?: string; report?: unknown; data?: Record<string, unknown> }>;
   /** Reject PDF/HTML output with pagination warnings that can lose content. Defaults to true. */
   strict?: boolean;
 }
@@ -89,10 +92,29 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
   }
 
   const report = withInlineData(parsed.report, input.data);
+  const subreports: Record<string, SubreportSource> = {};
+  for (const [id, source] of Object.entries(input.subreports ?? {})) {
+    if (!source || typeof source !== "object") throw new RenderPipelineError(`Invalid subreport source "${id}".`, "INVALID_REPORT", 400);
+    if ((source.jrxml === undefined) === (source.report === undefined)) {
+      throw new RenderPipelineError(`Subreport "${id}" needs exactly one JRXML source or imported report definition.`, "INVALID_REPORT", 400);
+    }
+    const imported = source.jrxml === undefined ? undefined : importJrxml(source.jrxml, { id, sourceName: `${id}.jrxml` });
+    if (imported && !imported.report) {
+      throw new RenderPipelineError(`Subreport "${id}" JRXML could not be imported.`, "INVALID_REPORT", 400, imported.issues);
+    }
+    const child = parseReportDefinition(imported?.report ?? source.report);
+    if (!child.valid) throw new RenderPipelineError(`Subreport "${id}" failed schema validation.`, "INVALID_REPORT", 400, child.issues);
+    const childValidation = validateReport(child.report);
+    if (!childValidation.valid) throw new RenderPipelineError(`Subreport "${id}" failed validation.`, "VALIDATION_FAILED", 400, childValidation.issues);
+    if (source.data !== undefined && (source.data === null || typeof source.data !== "object" || Array.isArray(source.data))) {
+      throw new RenderPipelineError(`Subreport "${id}" data must be an object keyed by dataset id.`, "INVALID_REPORT", 400);
+    }
+    subreports[id] = { report: child.report, data: source.data };
+  }
 
   let pipeline;
   try {
-    pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: input.parameters ?? {}, functions: runtime.functions, customComponents: runtime.customComponents });
+    pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: input.parameters ?? {}, functions: runtime.functions, customComponents: runtime.customComponents, subreports });
     pipeline.resolved.warnings.push(...linked.warnings);
   } catch (err) {
     throw new RenderPipelineError(describeError(err), "REPORT_RESOLVE_FAILED", 422, { renderId });
@@ -122,7 +144,11 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
 
   const dataLossWarnings = result.warnings.filter((warning) => isDataLossWarningCode(warning.code));
   if (input.strict !== false && dataLossWarnings.length > 0) {
-    throw new RenderPipelineError("Report content exceeds its layout. Adjust the named component or choose an explicit clipping policy before rendering.", "REPORT_RENDER_FAILED", 422, { renderId, warnings: dataLossWarnings });
+    const missingChild = dataLossWarnings.some((warning) => warning.code === "SUBREPORT_NOT_RENDERED");
+    throw new RenderPipelineError(missingChild
+      ? "A nested report could not be rendered. Supply its JRXML-derived definition and datasets, then retry."
+      : "Report content exceeds its layout. Adjust the named component or choose an explicit clipping policy before rendering.",
+    "REPORT_RENDER_FAILED", 422, { renderId, warnings: dataLossWarnings });
   }
 
   return { renderId, result, durationMs: Date.now() - start };

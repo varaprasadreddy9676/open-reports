@@ -23,10 +23,10 @@ describe("JRXML import", () => {
     expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "text", value: "Patient bill", x: "10pt", y: "2pt", style: { fontWeight: "bold" } });
     expect(result.report?.sections[1]?.children[0]).toMatchObject({ type: "field", expression: "row.patientName" });
     expect(result.report?.sections[1]?.children[1]).toMatchObject({ type: "image", binding: "params.logoPath" });
-    expect(result.report?.sections[1]?.children[2]).toMatchObject({ type: "text", value: "[Migration review: subreport]" });
+    expect(result.report?.sections[1]?.children[2]).toMatchObject({ type: "subreport", reportId: "header" });
     expect(result.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ feature: "SQL query", status: "needs-review" }),
-      expect.objectContaining({ feature: "subreport", status: "unsupported", original: '$P{reportPath} + "header.jasper"', message: expect.stringContaining("header.jasper is source unspecified") }),
+      expect.objectContaining({ feature: "subreport", status: "needs-review", original: '$P{reportPath} + "header.jasper"', message: expect.stringContaining("header.jrxml is source unspecified") }),
     ]));
     expect(result.report?.migration?.issues.some((issue) => issue.feature === "subreport")).toBe(true);
     expect(result.report?.migration?.issues.some((issue) => "original" in issue)).toBe(false);
@@ -34,8 +34,9 @@ describe("JRXML import", () => {
 
   it("reports the source and data mode of a linked subreport", () => {
     const result = importJrxml(`<jasperReport name="Parent" pageWidth="300" pageHeight="500"><detail><band height="20"><subreport><reportElement x="0" y="0" width="100" height="20"/><subreportParameter name="id"><subreportParameterExpression><![CDATA[$P{id}]]></subreportParameterExpression></subreportParameter><dataSourceExpression><![CDATA[$P{lines}]]></dataSourceExpression><subreportExpression><![CDATA[$P{reportPath} + "PaymentLines.jasper"]]></subreportExpression></subreport></band></detail></jasperReport>`);
+    expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "subreport", reportId: "PaymentLines", dataset: "params.lines", parameters: { id: { expression: "params.id" } } });
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({
-      feature: "subreport", status: "unsupported", message: expect.stringContaining("PaymentLines.jasper is data-source-backed with 1 parameter"),
+      feature: "subreport", status: "needs-review", message: expect.stringContaining("PaymentLines.jrxml is data-source-backed with 1 parameter"),
     })]));
   });
 
