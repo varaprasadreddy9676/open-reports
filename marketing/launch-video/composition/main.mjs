@@ -1,18 +1,18 @@
-// Composition: builds every scene once, then renderFrame(t) sets all styles as a pure function of time (RULES.md).
-import { ANCHORS, BEAT, DURATION, FPS, REPO, SCENES, t as beatTime } from "../timeline.mjs";
+// v2 composition: every scene is built once; renderFrame(t) is async (clip frames decode) and otherwise a pure
+// function of time (RULES.md). Scene data comes from timeline.mjs.
+import { BEAT, DURATION, FPS, REPO, SCENES, t as beatTime } from "../timeline.mjs";
 
-const W = 1920, H = 1080, M = 96;
-const SHOT_W = 1440, SHOT_H = 900; // CSS size of the captured screens
+const M = 96;
+const C = { navy: "#0b1220", ink: "#1a2b49", blue: "#2563eb", sky: "#60a5fa", gold: "#fde68a", red: "#ef4444", canvas: "#eef2f6", muted: "#5d6c82" };
 const stage = document.getElementById("stage");
-// Layout measures text (headline fitting, underline placement), so the faces must be loaded before scenes are built.
-await Promise.all(["700 100px Display", "400 100px Display", "italic 400 100px Accent", "400 100px Mono", "700 100px Mono"].map((font) => document.fonts.load(font)));
+await Promise.all(["700 100px Display", "400 100px Display", "italic 400 100px Accent", "400 100px Mono", "700 100px Mono"].map((f) => document.fonts.load(f)));
 
-// ---------------------------------------------------------------- easing and timing
+// ---------------------------------------------------------------- time helpers
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-const easeOutExpo = (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x));
-const easeInOutCubic = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
-/** Progress 0..1 of an entrance that starts at `beat` and lasts `beats`. */
-const enter = (time, beat, beats = 1) => easeOutExpo(clamp((time - beatTime(beat)) / (beats * BEAT)));
+const expo = (x) => (x >= 1 ? 1 : 1 - 2 ** (-10 * x));
+const cubic = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
+const back = (x) => { const c = 1.6; return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2; }; // gentle overshoot for slams
+const enter = (time, beat, beats = 1, ease = expo) => ease(clamp((time - beatTime(beat)) / (beats * BEAT)));
 const between = (time, from, to) => clamp((time - beatTime(from)) / (beatTime(to) - beatTime(from)));
 
 // ---------------------------------------------------------------- DOM helpers
@@ -23,386 +23,310 @@ function el(tag, cls, parent, html) {
   parent?.appendChild(node);
   return node;
 }
-const asset = (name) => `../assets/shots/${name}`;
+const css = (node, style) => (Object.assign(node.style, style), node);
 const output = (name) => `../assets/outputs/${name}`;
-function img(src, cls, parent) {
-  const node = el("img", cls, parent);
+const mark = (size, bg, fg) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="display:block"><rect width="24" height="24" rx="5" fill="${bg}"/><path d="M7 8h10M7 12h10M7 16h6" stroke="${fg}" stroke-width="2" stroke-linecap="round"/></svg>`;
+function image(src, parent, style = {}) {
+  const node = el("img", "", parent);
   node.src = src;
-  node.decoding = "sync";
-  return node;
+  return css(node, style);
 }
-function markSvg(size, bg, fg) {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="display:block"><rect width="24" height="24" rx="5" fill="${bg}"/><path d="M7 8h10M7 12h10M7 16h6" stroke="${fg}" stroke-width="2" stroke-linecap="round"/></svg>`;
+/** A masked line that rises in; returns its update function. */
+function riseLine(parent, html, at, style = {}) {
+  const mask = css(el("span", "mask", parent), style);
+  const inner = el("span", "", mask, html);
+  return (time) => { inner.style.transform = `translateY(${(1 - enter(time, at, 1)) * 112}%)`; };
 }
-const CURSOR_SVG = `<svg viewBox="0 0 24 24" width="34" height="34"><path d="M4 2.5l15 11.2-6.7 1.1 3.9 7.3-2.6 1.4-3.9-7.4L4 21z" fill="#111827" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
-const CHECK_SVG = `<svg viewBox="0 0 24 24" width="30" height="30"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const accent = (text, color) => `<span class="accent" style="color:${color}">${text}</span>`;
 
-/** Headline lines with one accent word, sized so the widest line fits `maxWidth`. */
-function headline(scene, parent, { top, maxWidth, size = 124, min = 80, color }) {
-  const box = el("div", "headline", parent);
-  box.style.top = `${top}px`;
-  box.style.color = color;
-  const lines = scene.lines.map((text) => {
-    const line = el("span", "line", box);
-    const inner = el("span", "in", line);
-    const at = scene.accent && text.endsWith(scene.accent) ? text.length - scene.accent.length : -1;
-    if (at >= 0) {
-      inner.append(document.createTextNode(text.slice(0, at)));
-      const accent = el("span", "accent", inner, scene.accent);
-      accent.style.color = scene.accentColor;
-      return { line, inner, accent };
-    }
-    inner.textContent = text;
-    return { line, inner };
-  });
-  let fs = size;
-  box.style.fontSize = `${fs}px`;
-  while (fs > min && Math.max(...lines.map((l) => l.inner.getBoundingClientRect().width)) > maxWidth) {
-    fs -= 2;
-    box.style.fontSize = `${fs}px`;
-  }
-  return { box, lines, fontSize: fs };
+// ---------------------------------------------------------------- clips
+const clips = {};
+for (const name of [...new Set(SCENES.flatMap((s) => [s.clip, ...(s.cuts ?? []).map((c) => c[1])]).filter(Boolean))]) {
+  const manifest = await (await fetch(`../assets/clips/${name}/manifest.json`)).json();
+  const files = [];
+  for (const [file, count] of manifest.frames) for (let i = 0; i < count; i++) files.push(`../assets/clips/${name}/${file}`);
+  clips[name] = { manifest, files };
 }
-function animateHeadline(h, time, at) {
-  h.lines.forEach((l, i) => {
-    const p = enter(time, at + i, 1);
-    l.inner.style.transform = `translateY(${(1 - p) * 110}%)`;
-    if (l.accent) {
-      const a = enter(time, at + i + 0.5, 1);
-      l.accent.style.transform = `translateY(${(1 - a) * 40}px)`;
-      l.accent.style.opacity = a;
-    }
-  });
-}
-function hud(scene, index, parent, color) {
-  const bar = el("div", "hud", parent);
-  bar.style.color = color;
-  const left = el("span", "", bar, `// ${String(index).padStart(2, "0")} &nbsp;${scene.id === "end" ? "" : scene.id}`);
-  const right = el("span", "", bar);
-  void left;
-  return (time) => {
-    const frame = Math.round(time * FPS);
-    const s = Math.floor(frame / FPS), f = frame % FPS;
-    right.textContent = `OPEN REPORTS   00:00:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")}`;
-  };
-}
-function kicker(scene, parent, top) {
-  const node = el("div", "kicker", parent, scene.kicker);
-  node.style.top = `${top}px`;
-  node.style.color = scene.ink === "#ffffff" ? "rgba(255,255,255,0.8)" : "#5d6c82";
-  return (time) => {
-    const p = enter(time, scene.from, 1);
-    node.style.opacity = p;
-    node.style.transform = `translateY(${(1 - p) * 16}px)`;
-  };
-}
-/** A product screen card with optional after-click swap, cursor, click ring and highlights. */
-function card(scene, parent, { x, y, w }) {
-  const h = (w * SHOT_H) / SHOT_W, k = w / SHOT_W;
-  const node = el("div", "card", parent);
-  Object.assign(node.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
-  const before = img(asset(scene.shot), "shot", node);
-  const after = scene.shotAfter ? img(asset(scene.shotAfter), "shot", node) : null;
-  const highlights = (scene.highlights ? ANCHORS[scene.highlights.anchor] : []).map((a) => {
-    const box = el("div", "hl", node);
-    Object.assign(box.style, { left: `${a.x * k - 4}px`, top: `${a.y * k - 4}px`, width: `${a.w * k + 8}px`, height: `${a.h * k + 8}px`, borderColor: scene.accentColor });
-    return box;
-  });
-  let cursor, ring, target;
-  if (scene.cursor) {
-    const a = ANCHORS[scene.cursor.target];
-    target = { x: (a.x + a.w / 2) * k, y: (a.y + a.h / 2) * k };
-    ring = el("div", "ring", node);
-    ring.style.borderColor = scene.accentColor;
-    cursor = el("div", "cursor", node, CURSOR_SVG);
-  }
-  return (time) => {
-    const p = enter(time, scene.from, 1.5);
-    const push = 1 + 0.04 * easeInOutCubic(between(time, scene.from, scene.to));
-    node.style.opacity = clamp(p * 1.5);
-    node.style.transform = `translateX(${(1 - p) * 220}px) scale(${(0.96 + 0.04 * p) * push})`;
-    if (after) after.style.opacity = time >= beatTime(scene.cursor.click) ? 1 : 0;
-    void before;
-    highlights.forEach((box, i) => {
-      const q = enter(time, scene.highlights.at[i], 0.75);
-      box.style.opacity = q;
-      box.style.transform = `scale(${1.04 - 0.04 * q})`;
-    });
-    if (cursor) {
-      const c = scene.cursor;
-      const move = easeInOutCubic(between(time, c.enter, c.arrive));
-      const start = { x: target.x + 340, y: target.y + 260 };
-      const cx = start.x + (target.x - start.x) * move, cy = start.y + (target.y - start.y) * move;
-      const visible = time >= beatTime(c.enter);
-      const press = time >= beatTime(c.click) && time < beatTime(c.click) + 0.12 ? 0.86 : 1;
-      cursor.style.opacity = visible ? 1 : 0;
-      cursor.style.transform = `translate(${cx - 6}px, ${cy - 4}px) scale(${press})`;
-      const r = clamp((time - beatTime(c.click)) / (BEAT * 1.2));
-      const size = 30 + 90 * easeOutExpo(r);
-      ring.style.opacity = r > 0 && r < 1 ? 1 - r : 0;
-      Object.assign(ring.style, { width: `${size}px`, height: `${size}px`, left: `${target.x - size / 2}px`, top: `${target.y - size / 2}px` });
-    }
-  };
-}
-function chips(scene, parent, top, perBeat) {
-  const row = el("div", "chips", parent);
-  row.style.top = `${top}px`;
-  row.style.maxWidth = "740px";
-  const items = scene.chips.items.map((label) => {
-    const chip = el("span", "chip", row, label);
-    chip.style.borderColor = scene.accentColor;
-    chip.style.color = scene.accentColor;
-    return chip;
-  });
-  return (time) => items.forEach((chip, i) => {
-    const p = enter(time, scene.chips.at + i * perBeat, 0.6);
-    chip.style.opacity = p;
-    chip.style.transform = `translateY(${(1 - p) * 18}px) scale(${0.9 + 0.1 * p})`;
-  });
+const clipFile = (name, index) => { const files = clips[name].files; return files[Math.max(0, Math.min(files.length - 1, index))]; };
+async function show(img, src) {
+  if (img.getAttribute("src") === src) return;
+  img.setAttribute("src", src);
+  await img.decode();
 }
 
-/** Large readable versions of what the product says, landing on the beat with their highlight. */
-function callouts(def, parent) {
-  const items = def.callouts.map(([at, page, text, x, y], i) => {
-    const box = el("div", "", parent);
-    Object.assign(box.style, { position: "absolute", left: `${x ?? 1010 + i * 60}px`, top: `${y ?? 640 + i * 130}px`, display: "flex", alignItems: "center", gap: "18px",
-      padding: "22px 28px", background: "#ffffff", borderRadius: "14px", border: `3px solid ${def.accentColor}`, boxShadow: "0 24px 60px rgba(16, 42, 67, 0.22)", zIndex: 6 });
-    box.innerHTML = `<span style="font:700 26px/1 Mono;color:#fff;background:${def.accentColor};padding:8px 12px;border-radius:8px">${page}</span><span style="font:700 34px/1.1 Display;color:#1a2b49;white-space:nowrap">${text}</span>`;
-    return { box, at };
-  });
-  return (time) => items.forEach(({ box, at }) => {
-    const p = enter(time, at, 0.75);
-    box.style.opacity = p;
-    box.style.transform = `translateY(${(1 - p) * 30}px) scale(${0.96 + 0.04 * p})`;
-  });
-}
-
-// ---------------------------------------------------------------- scenes
-const updaters = [];
-function scene(index, def, build) {
+// ---------------------------------------------------------------- scene registry
+const scenes = [];
+function scene(def, background, build) {
   const root = el("div", "scene", stage);
-  root.style.background = def.tint;
-  root.style.display = "block"; // measurable while building
-  const parts = build(root) ?? [];
+  root.style.background = background;
+  root.style.display = "block";
+  const parts = build(root, def) ?? [];
   root.style.display = "none";
-  const tick = def.id === "end" ? () => {} : hud(def, index, root, def.ink);
-  updaters.push({ def, root, update: (time) => { tick(time); parts.forEach((fn) => fn(time)); } });
+  scenes.push({ def, root, update: async (time) => { for (const part of parts) await part(time); } });
 }
+const byId = (id) => SCENES.find((s) => s.id === id);
 
-// 0 — hook: words build one per beat over faint paper pages.
-scene(0, SCENES[0], (root) => {
-  const def = SCENES[0];
-  const pages = ["invoice.png", "lab-report.png", "account-statement.png"].map((name, i) => {
-    const page = el("div", "page", root);
-    Object.assign(page.style, { width: "520px", height: "735px", left: `${1080 + i * 150}px`, top: `${150 + i * 40}px` });
-    img(output(name), "", page);
-    return page;
+// ---------------------------------------------------------------- Act 1: words
+scene(byId("words"), C.navy, (root, def) => {
+  const bgs = [C.navy, C.blue, "#ffffff", C.navy, C.blue];
+  const inks = ["#ffffff", "#ffffff", C.ink, "#ffffff", "#ffffff"];
+  const words = def.words.map(([text, at, doc], i) => {
+    const layer = css(el("div", "abs", root), { inset: "0", background: bgs[i] });
+    const label = doc === "pharmacy-label.png", receipt = doc === "receipt.png";
+    const page = css(el("div", "page", layer), { width: label ? "640px" : receipt ? "440px" : "520px", height: label ? "384px" : receipt ? "935px" : "735px", right: "130px", top: label ? "348px" : receipt ? "72px" : "172px" });
+    image(output(doc), page);
+    const word = css(el("div", "abs display", layer, text), { left: `${M}px`, top: "400px", fontSize: "210px", color: inks[i] });
+    return { layer, page, word, at, rot: [-7, 5, -4, 6, -3][i] };
   });
-  const k = kicker(def, root, 330);
-  const box = el("div", "headline", root);
-  Object.assign(box.style, { top: "390px", fontSize: "150px", color: def.ink });
-  const line1 = el("span", "line", box), line2 = el("span", "line", box);
-  const words = def.words.map(([text, , accent], i) => {
-    const holder = el("span", "in", i < 2 ? line1 : line2);
-    holder.style.marginRight = "0.22em";
-    if (accent) {
-      const a = el("span", "accent", holder, text);
-      a.style.color = def.accentColor;
-    } else holder.textContent = text;
-    return holder;
-  });
-  return [k, (time) => {
-    def.words.forEach(([, at], i) => {
-      const p = enter(time, at, 1);
-      words[i].style.transform = `translateY(${(1 - p) * 110}%)`;
+  const finale = css(el("div", "abs", root), { inset: "0", background: C.navy });
+  const lines = css(el("div", "abs display", finale), { left: `${M}px`, top: "250px", fontSize: "176px", color: "#fff" });
+  const parts = def.lines.map(([text, at, style]) => riseLine(lines, style ? accent(text, C.gold) : text, at));
+  return [(time) => {
+    words.forEach(({ layer, page, word, at, rot }, i) => {
+      const next = words[i + 1]?.at ?? def.lines[0][1];
+      const active = time >= beatTime(at) && time < beatTime(next);
+      layer.style.display = active ? "block" : "none";
+      if (!active) return;
+      const p = enter(time, at, 0.6, back);
+      word.style.transformOrigin = "0 50%";
+      word.style.transform = `scale(${1.25 - 0.25 * p})`;
+      const q = enter(time, at, 0.5);
+      page.style.transform = `translate(${(1 - q) * 160}px, ${(1 - q) * -40}px) rotate(${rot * q}deg) scale(${1.15 - 0.15 * q})`;
     });
-    pages.forEach((page, i) => {
-      const drift = between(time, 0, 8);
-      const rot = [-7, 3, 9][i];
-      page.style.opacity = 0.16 + 0.04 * i;
-      page.style.transform = `translateY(${-30 * drift * (i + 1) * 0.5}px) rotate(${rot}deg)`;
+    finale.style.display = time >= beatTime(def.lines[0][1]) ? "block" : "none";
+    parts.forEach((part) => part(time));
+  }];
+});
+
+// ---------------------------------------------------------------- Act 1: pain
+scene(byId("pain"), C.navy, (root, def) => {
+  const head = css(el("div", "abs display", root), { left: `${M}px`, top: "120px", fontSize: "96px", color: "#fff" });
+  const headParts = def.headline.map(([text, at, style]) => riseLine(head, style ? accent(text, C.gold) : text, at));
+  const cards = def.cards.map(([text, at], i) => {
+    const card = css(el("div", "card", root, text), { left: `${M + (i % 2) * 880}px`, top: `${470 + Math.floor(i / 2) * 230}px`, width: "840px" });
+    const strike = css(el("div", "strike", card), { width: "calc(100% - 60px)" });
+    return { card, strike, at };
+  });
+  const turn = css(el("div", "abs display", root), { left: `${M}px`, top: "430px", fontSize: "150px", color: "#fff", transformOrigin: "0 50%" });
+  turn.innerHTML = `There's a ${accent("better way.", C.gold)}`;
+  return [(time) => {
+    headParts.forEach((p) => p(time));
+    const out = enter(time, def.turn[1] - 0.5, 0.5);
+    head.style.opacity = 1 - out;
+    cards.forEach(({ card, strike, at }) => {
+      const p = enter(time, at, 0.5, back);
+      card.style.opacity = clamp(p * 2) * (1 - out);
+      card.style.transform = `scale(${1.18 - 0.18 * p}) translateY(${out * 60}px)`;
+      const s = enter(time, at + 0.5, 0.5);
+      strike.style.transform = `translateY(-50%) scaleX(${s})`;
+      card.style.color = s > 0.5 ? "rgba(255,255,255,0.45)" : "#fff";
+    });
+    const q = enter(time, def.turn[1], 0.8, back);
+    const fade = enter(time, 15.5, 0.5);
+    turn.style.transform = `scale(${1.1 - 0.1 * q})`;
+    turn.style.filter = `blur(${fade * 6}px)`;
+    turn.style.opacity = clamp(q * 2) * (1 - fade);
+  }];
+});
+
+// ---------------------------------------------------------------- Act 2: reveal
+scene(byId("reveal"), C.navy, (root, def) => {
+  const iris = css(el("div", "abs", root), { inset: "0", background: C.blue });
+  const brand = css(el("div", "abs", root), { left: "0", right: "0", top: "300px", display: "flex", justifyContent: "center", alignItems: "center", gap: "40px", color: "#fff", font: "700 190px/1 Display", letterSpacing: "-0.035em" });
+  brand.innerHTML = `<span>${mark(176, "#ffffff", C.blue)}</span><span>Open Reports</span>`;
+  const tag = css(el("div", "abs", root), { left: "0", right: "0", top: "560px", textAlign: "center", font: "400 60px/1.25 Display", color: "rgba(255,255,255,0.92)" });
+  const line1 = el("div", "", tag, def.tagline[0]);
+  const line2 = el("div", "", tag, def.tagline[1].replace(def.accent, accent(def.accent, C.gold)));
+  const chips = css(el("div", "abs", root), { left: "0", right: "0", top: "820px", display: "flex", justifyContent: "center", gap: "22px" });
+  const pills = def.chips.map((text) => css(el("span", "pill", chips, text), { border: "2px solid rgba(255,255,255,0.7)", color: "#fff" }));
+  return [(time) => {
+    iris.style.clipPath = `circle(${enter(time, 16, 0.6) * 1200}px at 50% 50%)`;
+    const p = enter(time, def.wordmarkAt, 1, back);
+    brand.style.opacity = clamp(p * 2);
+    brand.style.transform = `scale(${0.82 + 0.18 * p})`;
+    brand.style.top = `${300 - 40 * cubic(between(time, 17.5, 19))}px`;
+    [line1, line2].forEach((line, i) => {
+      const q = enter(time, def.taglineAt[i], 1);
+      line.style.opacity = q;
+      line.style.transform = `translateY(${(1 - q) * 30}px)`;
+    });
+    pills.forEach((pill, i) => {
+      const q = enter(time, def.chipsAt + i * 0.5, 0.6, back);
+      pill.style.opacity = clamp(q * 2);
+      pill.style.transform = `scale(${0.8 + 0.2 * q})`;
     });
   }];
 });
 
-// 1 — reveal on brand blue; the drop.
-scene(1, SCENES[1], (root) => {
-  const def = SCENES[1];
-  const brand = el("div", "", root);
-  Object.assign(brand.style, { position: "absolute", left: `${M}px`, top: "150px", display: "flex", alignItems: "center", gap: "24px", color: "#fff", font: "700 76px/1 Display" });
-  brand.innerHTML = `<span class="mark">${markSvg(88, "#ffffff", "#2563eb")}</span><span>Open Reports</span>`;
-  const h = headline(def, root, { top: 360, maxWidth: 1040, size: 132, color: "#ffffff" });
-  const underline = el("div", "", root);
-  underline.innerHTML = `<svg width="520" height="40" viewBox="0 0 520 40"><path d="M6 26 C 120 10, 260 34, 380 18 S 500 14, 514 22" fill="none" stroke="${def.accentColor}" stroke-width="7" stroke-linecap="round"/></svg>`;
-  const path = underline.querySelector("path");
-  const length = path.getTotalLength();
-  path.style.strokeDasharray = `${length}`;
-  const accentRect = h.lines[2].accent.getBoundingClientRect();
-  Object.assign(underline.style, { position: "absolute", left: `${accentRect.left - 4}px`, top: `${accentRect.bottom - 18}px`, width: `${accentRect.width + 10}px` });
-  underline.firstChild.setAttribute("width", `${accentRect.width + 10}`);
-  const pages = [["lab-report.png", 1180, 230, -5], ["invoice.png", 1420, 290, 4]].map(([name, x, y, rot]) => {
-    const page = el("div", "page", root);
-    Object.assign(page.style, { width: "460px", height: "650px", left: `${x}px`, top: `${y}px` });
-    img(output(name), "", page);
-    return { page, rot };
-  });
-  return [(time) => {
-    const p = enter(time, 8, 1);
-    brand.style.opacity = p;
-    brand.style.transform = `translateY(${(1 - p) * 30}px) scale(${0.94 + 0.06 * p})`;
-    animateHeadline(h, time, def.linesAt);
-    path.style.strokeDashoffset = `${length * (1 - easeInOutCubic(between(time, 11.5, 12.5)))}`;
-    pages.forEach(({ page, rot }, i) => {
-      const q = enter(time, 9.5 + i * 0.5, 1.2);
-      page.style.opacity = q;
-      page.style.transform = `translate(${(1 - q) * 260}px, ${(1 - q) * 40 - 14 * between(time, 9, 16)}px) rotate(${rot * q}deg)`;
+// ---------------------------------------------------------------- Act 3: live scenes
+function title(root, def, color, numberColor, accentColor) {
+  const box = css(el("div", "abs", root), { left: `${M}px`, top: "56px", display: "flex", alignItems: "baseline", gap: "28px" });
+  const number = css(el("div", "mono", box, def.number), { font: "700 30px/1 Mono", color: numberColor });
+  const text = css(el("div", "display", box), { fontSize: "108px", color });
+  const line = riseLine(text, `${def.title[0]} ${accent(def.title[1], accentColor)}`, def.from);
+  return (time) => { line(time); number.style.opacity = enter(time, def.from, 0.5); };
+}
+function browser(root, { x, y, w }) {
+  const k = w / 1440, vh = 900 * k;
+  const frame = css(el("div", "browser", root), { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${vh + 40}px` });
+  el("div", "chrome", frame, `<i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span class="url">open-reports · designer</span>`);
+  const viewport = css(el("div", "viewport", frame), { width: `${w}px`, height: `${vh}px` });
+  const img = css(el("img", "", viewport), { width: `${w}px`, height: `${vh}px` });
+  return { frame, img, k, vw: w, vh };
+}
+function camera(def, time) {
+  const keys = def.camera;
+  if (time <= beatTime(keys[0][0])) return keys[0];
+  for (let i = 1; i < keys.length; i++) {
+    if (time <= beatTime(keys[i][0])) {
+      const [b0, z0, x0, y0] = keys[i - 1], [b1, z1, x1, y1] = keys[i];
+      const p = cubic(between(time, b0, b1));
+      return [0, z0 + (z1 - z0) * p, x0 + (x1 - x0) * p, y0 + (y1 - y0) * p];
+    }
+  }
+  return keys[keys.length - 1];
+}
+for (const def of SCENES.filter((s) => s.kind === "live")) {
+  scene(def, C.canvas, (root) => {
+    const parts = [title(root, def, C.ink, C.blue, C.blue)];
+    const b = browser(root, { x: 484, y: 196, w: 1340 }); // 1340 x 878 incl. chrome: the whole window stays on screen
+    const captionBox = css(el("div", "abs", root), { left: `${M}px`, top: "330px", width: "350px", display: "flex", flexDirection: "column", gap: "26px" });
+    const captions = (def.captions ?? []).map((text) => css(el("div", "", captionBox, `<span style="color:${C.blue}">→</span> ${text}`), { font: "400 30px/1.3 Mono", color: C.ink }));
+    parts.push((time) => captions.forEach((node, i) => {
+      const q = enter(time, def.from + 2 + i, 0.8);
+      node.style.opacity = q;
+      node.style.transform = `translateX(${(1 - q) * -30}px)`;
+    }));
+    parts.push(async (time) => {
+      const p = enter(time, def.from, 1.2);
+      b.frame.style.transform = `translateY(${(1 - p) * 120}px) scale(${0.96 + 0.04 * p})`;
+      b.frame.style.opacity = clamp(p * 1.6);
+      const [, zoom, cx, cy] = camera(def, time);
+      const tx = clamp(b.vw / 2 - cx * b.k * zoom, b.vw - b.vw * zoom, 0);
+      const ty = clamp(b.vh / 2 - cy * b.k * zoom, b.vh - b.vh * zoom, 0);
+      b.img.style.transform = `translate(${tx}px, ${ty}px) scale(${zoom})`;
+      await show(b.img, clipFile(def.clip, Math.floor((time - beatTime(def.from)) * FPS * def.speed)));
     });
-  }, kicker(def, root, 290)];
-});
-
-// 2, 3, 4, 6 — feature scenes with a product card.
-for (const [index, id] of [[2, "design"], [3, "rules"], [4, "pagination"], [6, "ai"]]) {
-  const def = SCENES.find((s) => s.id === id);
-  scene(index, def, (root) => {
-    const h = headline(def, root, { top: 300, maxWidth: 700, size: 124, color: def.ink });
-    const parts = [kicker(def, root, 236), (time) => animateHeadline(h, time, def.linesAt), card(def, root, { x: 860, y: 190, w: 1180 })];
-    if (def.chips) parts.push(chips(def, root, 300 + h.lines.length * h.fontSize * 1.02 + 70, 0.5));
-    if (def.callouts) parts.push(callouts(def, root));
+    if (def.stamps) {
+      const stamp = css(el("div", "abs display", root), { left: `${M}px`, bottom: "70px", fontSize: "150px", color: "#fff", background: C.blue, padding: "18px 40px 26px", borderRadius: "24px", boxShadow: "0 30px 80px rgba(37,99,235,0.4)", transformOrigin: "0 100%" });
+      parts.push((time) => {
+        const i = clamp(Math.floor((time - beatTime(def.stampsAt)) / BEAT), 0, def.stamps.length - 1);
+        stamp.textContent = def.stamps[i];
+        const p = enter(time, def.stampsAt + i, 0.45, back);
+        stamp.style.transform = `scale(${1.2 - 0.2 * p}) rotate(${-3 + 3 * p}deg)`;
+      });
+    }
     return parts;
   });
 }
 
-// 5 — outputs: six format chips and a fan of real rendered documents.
-scene(5, SCENES[5], (root) => {
-  const def = SCENES[5];
-  const h = headline(def, root, { top: 300, maxWidth: 720, size: 124, color: def.ink });
-  const layout = [["invoice.png", 900, 170, 470, 664, -6], ["lab-report.png", 1180, 220, 470, 664, 2], ["receipt.png", 1520, 150, 280, 595, 7], ["pharmacy-label.png", 1190, 720, 560, 336, -3]];
-  const pages = layout.map(([name, x, y, w, hgt, rot]) => {
-    const page = el("div", "page", root);
-    Object.assign(page.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${hgt}px` });
-    img(output(name), "", page);
-    return { page, rot };
-  });
-  return [kicker(def, root, 236), (time) => {
-    animateHeadline(h, time, def.linesAt);
-    pages.forEach(({ page, rot }, i) => {
-      const q = enter(time, def.pages.at + i * 0.5, 1);
-      page.style.opacity = q;
-      page.style.transform = `translate(${(1 - q) * 300}px, ${(1 - q) * -60 - 10 * between(time, 40, 48)}px) rotate(${rot * (0.4 + 0.6 * q)}deg)`;
-    });
-  }, chips(def, root, 300 + 2 * h.fontSize * 1.02 + 70, 1)];
-});
-
-// 7 — API: a terminal types a render call and the response lands.
-scene(7, SCENES[7], (root) => {
-  const def = SCENES[7];
-  const h = headline(def, root, { top: 300, maxWidth: 700, size: 124, color: def.ink });
-  const term = el("div", "terminal", root);
-  Object.assign(term.style, { left: "860px", top: "250px", width: "1110px" });
-  term.innerHTML = `<div class="dots"><i style="background:#f87171"></i><i style="background:#fbbf24"></i><i style="background:#4ade80"></i></div>`;
-  const commandLines = def.terminal.command.map(() => el("div", "", term));
-  const caret = el("span", "caret");
-  const responses = def.terminal.response.map(([, text], i) => {
-    const line = el("div", i === 0 ? "ok" : "dim", term, i === 0 ? `✓ ${text}` : `  ${text}`);
-    line.style.marginTop = i === 0 ? "18px" : "0";
-    return line;
-  });
-  const note = el("div", "note", root, def.note.text);
-  Object.assign(note.style, { top: `${300 + 2 * h.fontSize * 1.02 + 70}px`, maxWidth: "700px", color: "#5d6c82" });
-  const total = def.terminal.command.join("").length;
-  return [kicker(def, root, 236), (time) => {
-    animateHeadline(h, time, def.linesAt);
-    const p = enter(time, def.from, 1.5);
-    term.style.opacity = clamp(p * 1.5);
-    term.style.transform = `translateX(${(1 - p) * 220}px) scale(${0.96 + 0.04 * p})`;
-    const typed = Math.floor(total * between(time, def.terminal.typeFrom, def.terminal.typeTo));
-    let left = typed;
-    def.terminal.command.forEach((text, i) => {
-      const shown = text.slice(0, Math.max(0, left));
-      left -= text.length;
-      commandLines[i].textContent = shown;
-      if ((left < 0 || i === def.terminal.command.length - 1) && !caret.isConnected) commandLines[i].appendChild(caret);
-    });
-    const active = commandLines.findIndex((_, i) => def.terminal.command.slice(0, i + 1).join("").length > typed);
-    const line = commandLines[active === -1 ? commandLines.length - 1 : active];
-    if (caret.parentNode !== line) line.appendChild(caret);
-    caret.style.opacity = time < beatTime(def.terminal.response[0][0]) ? (Math.floor(time / BEAT) % 2 === 0 || time < beatTime(def.terminal.typeTo) ? 1 : 0) : 0;
-    responses.forEach((r, i) => {
-      const q = enter(time, def.terminal.response[i][0], 0.6);
-      r.style.opacity = q;
-      r.style.transform = `translateY(${(1 - q) * 10}px)`;
-    });
-    const n = enter(time, def.note.at, 1);
-    note.style.opacity = n;
-    note.style.transform = `translateY(${(1 - n) * 16}px)`;
+// ---------------------------------------------------------------- Act 3: API terminal
+scene(byId("api"), C.navy, (root, def) => {
+  const parts = [title(root, def, "#ffffff", C.gold, C.gold)];
+  const term = css(el("div", "term", root), { left: `${M}px`, top: "300px", width: "1260px" });
+  el("div", "", term, `<span style="color:#94a3b8">$</span> <span class="cmd"></span><span class="caret" style="display:inline-block;width:16px;height:34px;background:#e2e8f0;vertical-align:-6px;margin-left:3px"></span>`);
+  const cmd = term.querySelector(".cmd"), caret = term.querySelector(".caret");
+  const responses = def.response.map(([, text], i) => css(el("div", "", term, i === 0 ? `<span style="color:#4ade80">✓ ${text}</span>` : `<span style="color:#94a3b8">  ${text}</span>`), { marginTop: i === 0 ? "22px" : "0" }));
+  const page = css(el("div", "page", root), { left: "1290px", top: "200px", width: "500px", height: "707px" });
+  image(output("invoice.png"), page);
+  return [...parts, (time) => {
+    const p = enter(time, def.from, 1.2);
+    term.style.transform = `translateY(${(1 - p) * 80}px)`;
+    term.style.opacity = clamp(p * 1.6);
+    cmd.textContent = def.command.slice(0, Math.floor(def.command.length * between(time, def.typeFrom, def.typeTo)));
+    caret.style.opacity = time < beatTime(def.response[0][0]) ? 1 : 0;
+    responses.forEach((r, i) => { const q = enter(time, def.response[i][0], 0.5); r.style.opacity = q; r.style.transform = `translateY(${(1 - q) * 12}px)`; });
+    const f = enter(time, def.pageAt, 1.1);
+    page.style.opacity = clamp(f * 2);
+    page.style.transform = `translate(${(1 - f) * -520}px, ${(1 - f) * 260}px) rotate(${6 * f - 10 * (1 - f)}deg) scale(${0.4 + 0.6 * f})`;
   }];
 });
 
-// 8 — recap: six tiles, a check on each beat.
-scene(8, SCENES[8], (root) => {
-  const def = SCENES[8];
-  const h = headline(def, root, { top: 300, maxWidth: 560, size: 124, color: def.ink });
-  const tileW = 360, tileH = 250, gap = 24, x0 = 700, y0 = 240;
-  const tiles = def.tiles.items.map(([label, tint, shot], i) => {
-    const tile = el("div", "tile", root);
-    Object.assign(tile.style, { left: `${x0 + (i % 3) * (tileW + gap)}px`, top: `${y0 + Math.floor(i / 3) * (tileH + gap + 40)}px`, width: `${tileW}px`, height: `${tileH}px`, background: tint });
-    if (shot) {
-      const picture = img(asset(shot), "", tile);
-      Object.assign(picture.style, { left: "22px", top: "22px", width: "384px", height: "240px" });
-    } else if (label === "Every output") {
-      ["invoice.png", "lab-report.png", "receipt.png"].forEach((name, j) => {
-        const picture = img(output(name), "", tile);
-        Object.assign(picture.style, { left: `${26 + j * 110}px`, top: `${24 + j * 8}px`, width: "130px", height: "184px", objectFit: "cover", objectPosition: "top" });
-      });
-    } else {
-      const code = el("div", "", tile, `$ curl …/render<br><span style="color:#86efac">✓ 200 application/pdf</span>`);
-      Object.assign(code.style, { position: "absolute", left: "22px", top: "22px", right: "22px", padding: "18px 20px", background: "#0f172a", color: "#e2e8f0", borderRadius: "8px", font: "400 20px/1.6 Mono" });
+// ---------------------------------------------------------------- Act 3: JasperReports migration
+scene(byId("migrate"), "#f3f0ff", (root, def) => {
+  const parts = [title(root, def, C.ink, "#6d28d9", "#6d28d9")];
+  const list = css(el("div", "abs", root), { left: `${M}px`, top: "290px", width: "900px", display: "flex", flexDirection: "column", gap: "14px" });
+  const rows = def.files.map((file) => {
+    const row = css(el("div", "", list), { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: "14px", padding: "20px 28px", font: "400 32px/1 Mono", color: C.ink, boxShadow: "0 10px 30px rgba(26,43,73,0.08)" });
+    el("span", "", row, file);
+    const status = css(el("span", "", row, "converting…"), { font: "700 28px/1 Mono", color: C.muted });
+    return { row, status };
+  });
+  const docs = ["invoice.png", "account-statement.png", "lab-report.png", "receipt.png"].map((name, i) => {
+    const page = css(el("div", "page", root), { left: `${1100 + i * 150}px`, top: `${250 + i * 50}px`, width: "420px", height: name === "receipt.png" ? "890px" : "594px" });
+    image(output(name), page);
+    return page;
+  });
+  return [...parts, (time) => {
+    rows.forEach(({ row, status }, i) => {
+      const appear = enter(time, def.from + 0.5 + i * 0.25, 0.6);
+      row.style.opacity = appear;
+      row.style.transform = `translateX(${(1 - appear) * -60}px)`;
+      const done = time >= beatTime(def.filesAt + i * 0.5);
+      status.textContent = done ? "✓ editable draft" : "converting…";
+      status.style.color = done ? "#15803d" : C.muted;
+    });
+    docs.forEach((page, i) => {
+      const q = enter(time, def.filesAt + i * 0.75, 0.8, back);
+      page.style.opacity = clamp(q * 2);
+      page.style.transform = `translateY(${(1 - q) * 120}px) rotate(${(-6 + i * 4) * q}deg)`;
+    });
+  }];
+});
+
+// ---------------------------------------------------------------- Act 4: montage
+scene(byId("montage"), C.navy, (root, def) => {
+  const img = css(el("img", "", root), { position: "absolute", left: "0", top: "0", width: "1920px", height: "1200px", objectFit: "cover", objectPosition: "top", transformOrigin: "50% 30%" });
+  const own = css(el("div", "abs", root), { inset: "0", background: C.blue });
+  const word = css(el("div", "abs display", root), { left: `${M}px`, bottom: "90px", fontSize: "200px", color: "#fff", background: C.navy, padding: "10px 46px 34px", borderRadius: "26px", transformOrigin: "0 100%" });
+  return [async (time) => {
+    const i = clamp(Math.floor((time - beatTime(def.from)) / BEAT), 0, def.cuts.length - 1);
+    const [text, clip, fraction] = def.cuts[i];
+    own.style.display = clip ? "none" : "block";
+    if (clip) {
+      const files = clips[clip].files;
+      await show(img, files[Math.round(fraction * (files.length - 1))]);
+      img.style.transform = `scale(${1.06 + 0.06 * between(time, def.from + i, def.from + i + 1)})`;
     }
-    const name = el("div", "label", tile, label);
-    name.style.background = "rgba(255,255,255,0.92)";
-    name.style.padding = "10px 14px";
-    name.style.borderRadius = "10px";
-    const check = el("div", "check", tile, CHECK_SVG);
-    check.style.background = "#047857";
-    return { tile, check };
-  });
-  return [kicker(def, root, 236), (time) => {
-    animateHeadline(h, time, def.linesAt);
-    tiles.forEach(({ tile, check }, i) => {
-      const p = enter(time, def.tiles.at + i * 0.25, 1);
-      tile.style.opacity = p;
-      tile.style.transform = `translateY(${(1 - p) * 40}px)`;
-      const c = enter(time, def.tiles.checksAt + i, 0.5);
-      check.style.opacity = c;
-      check.style.transform = `scale(${0.4 + 0.6 * c})`;
-    });
+    word.textContent = text;
+    word.style.background = clip ? C.navy : "transparent";
+    word.style.transform = `scale(${1.25 - 0.25 * enter(time, def.from + i, 0.4, back)})`;
   }];
 });
 
-// 9 — end card.
-scene(9, SCENES[9], (root) => {
-  const def = SCENES[9];
-  const wrap = el("div", "", root);
-  Object.assign(wrap.style, { position: "absolute", left: "0", right: "0", top: "250px", display: "flex", flexDirection: "column", alignItems: "center", gap: "34px", textAlign: "center" });
-  const brand = el("div", "", wrap);
-  Object.assign(brand.style, { display: "flex", alignItems: "center", gap: "34px", font: "700 168px/1 Display", letterSpacing: "-0.03em", color: def.ink });
-  brand.innerHTML = `<span class="mark">${markSvg(150, "#2563eb", "#ffffff")}</span><span>Open Reports</span>`;
-  const tagline = el("div", "", wrap);
-  Object.assign(tagline.style, { font: "400 46px/1.25 Display", color: "#5d6c82" });
-  tagline.innerHTML = `${def.tagline[0]} ${def.tagline[1].replace(def.accent, `<span class="accent" style="color:${def.accentColor};font-size:1.12em">${def.accent}</span>`)}`;
-  const cta = el("div", "", wrap);
-  Object.assign(cta.style, { display: "flex", alignItems: "center", gap: "28px", marginTop: "20px" });
-  cta.innerHTML = `<span class="cta"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="#fde68a"/></svg>Star on GitHub</span><span style="font:400 30px/1 Mono;color:#1a2b49">${REPO}</span>`;
-  const stats = el("div", "", wrap, def.stats);
-  Object.assign(stats.style, { font: "400 26px/1 Mono", color: "#5d6c82", marginTop: "36px", letterSpacing: "0.02em" });
+// ---------------------------------------------------------------- Act 4: stats
+scene(byId("stats"), C.navy, (root, def) => {
+  const cols = def.stats.map(([at, value, label], i) => {
+    const col = css(el("div", "abs", root), { left: `${M + i * 590}px`, top: "300px", width: "560px", color: "#fff" });
+    const num = css(el("div", "display", col, "0"), { fontSize: "300px", color: i === 2 ? C.gold : "#fff" });
+    css(el("div", "", col, label), { font: "400 48px/1.2 Display", color: "rgba(255,255,255,0.75)", marginTop: "10px" });
+    return { col, num, at, value: Number(value) };
+  });
+  return [(time) => cols.forEach(({ col, num, at, value }) => {
+    const p = enter(time, at, 0.6, back);
+    col.style.opacity = clamp(p * 2);
+    col.style.transform = `translateY(${(1 - p) * 60}px)`;
+    num.textContent = String(Math.round(value * expo(clamp((time - beatTime(at)) / (BEAT * 1.5)))));
+  })];
+});
+
+// ---------------------------------------------------------------- end card
+scene(byId("end"), "#ffffff", (root, def) => {
+  const wrap = css(el("div", "abs", root), { left: "0", right: "0", top: "230px", display: "flex", flexDirection: "column", alignItems: "center", gap: "40px" });
+  const brand = css(el("div", "", wrap), { display: "flex", alignItems: "center", gap: "36px", font: "700 170px/1 Display", letterSpacing: "-0.035em", color: C.ink });
+  brand.innerHTML = `<span>${mark(156, C.blue, "#fff")}</span><span>Open Reports</span>`;
+  const tagline = css(el("div", "", wrap, def.tagline.replace(def.accent, accent(def.accent, C.blue))), { font: "400 50px/1.2 Display", color: C.muted });
+  const cta = css(el("div", "", wrap), { display: "flex", alignItems: "center", gap: "30px", marginTop: "16px" });
+  cta.innerHTML = `<span style="display:inline-flex;align-items:center;gap:14px;background:${C.blue};color:#fff;border-radius:999px;padding:24px 44px;font:700 36px/1 Display"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M12 2.6l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.4l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="${C.gold}"/></svg>Star on GitHub</span><span style="font:400 32px/1 Mono;color:${C.ink}">${REPO}</span>`;
+  const stats = css(el("div", "", wrap, def.stats), { font: "400 27px/1 Mono", color: C.muted, marginTop: "34px" });
   return [(time) => {
-    const p = enter(time, def.wordmarkAt, 1.2);
-    brand.style.opacity = p;
-    brand.style.transform = `scale(${1.08 - 0.08 * p})`;
+    const p = enter(time, def.wordmarkAt, 1, back);
+    brand.style.opacity = clamp(p * 2);
+    brand.style.transform = `scale(${1.12 - 0.12 * p})`;
     for (const [node, at] of [[tagline, def.taglineAt], [cta, def.ctaAt], [stats, def.statsAt]]) {
       const q = enter(time, at, 1);
       node.style.opacity = q;
-      node.style.transform = `translateY(${(1 - q) * 24}px)`;
+      node.style.transform = `translateY(${(1 - q) * 26}px)`;
     }
   }];
 });
@@ -410,15 +334,15 @@ scene(9, SCENES[9], (root) => {
 // ---------------------------------------------------------------- frame contract
 window.DURATION = DURATION;
 window.FPS = FPS;
-window.renderFrame = (time) => {
-  for (const { def, root, update } of updaters) {
+window.renderFrame = async (time) => {
+  for (const { def, root, update } of scenes) {
     const active = time >= beatTime(def.from) && time < beatTime(def.to);
     root.style.display = active ? "block" : "none";
-    if (active) update(time);
+    if (active) await update(time);
   }
 };
 window.ready = (async () => {
   await document.fonts.ready;
-  await Promise.all([...document.images].map((image) => image.decode().catch(() => { throw new Error(`Image failed: ${image.src}`); })));
+  await Promise.all([...document.images].filter((i) => i.getAttribute("src")).map((i) => i.decode()));
   return true;
 })();

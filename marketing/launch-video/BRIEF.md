@@ -1,22 +1,22 @@
-# Director's brief — "Open Reports" launch film (42 s)
+# Director's brief v2 — "Open Reports" launch film (64 s)
 
-**Audience:** developers and operations teams who produce invoices, statements, clinical and business reports, labels and receipts, and are tired of heavy desktop report designers.
-**Promise:** design data-driven documents in the browser, render them anywhere, own everything.
-**Feeling:** calm confidence. Precise, editorial, a little playful in the type. Never hype.
-**Tempo:** 120 BPM, 21 bars. Scenes cut on bar lines; every action lands on a beat. `timeline.mjs` is the executable form of this brief.
+**Why v2:** v1 (42 s, in git history) was clean but static: screenshots sliding in. v2 is built around live product footage, a story with tension, kinetic type and a two-drop score.
 
-| # | Bars (s) | Tint | Kicker | Headline (accent in *italics*) | Visual and action | Sound |
-|---|---|---|---|---|---|---|
-| 0 | 0–2 (0–4) | white | `// 00 — a familiar problem` | Still fighting / your *report engine?* | Words land one per beat; a faint stack of paper pages behind. | pad and hats only, `type` per word |
-| 1 | 2–4 (4–8) | brand blue | `// 01 — meet` | Design documents / in your browser. / Render them *anywhere.* | Mark and wordmark land on the drop, headline lines on beats, hand-drawn underline under the accent. | drop: kick enters, `impact` |
-| 2 | 4–6 (8–12) | lavender | `// 02 — visual designer · bands · groups` | Design it / *visually.* | Real designer screenshot slides in; cursor clicks the invoice table on beat 21 and the inspector switches to the table. | `whoosh`, `click` |
-| 3 | 6–8 (12–16) | rose | `// 03 — row rules · cell rules · hidden columns` | Highlight / what *matters.* | Table Designer with out-of-range rows in red; three chips pop on beats. | `whoosh`, `pop` ×3 |
-| 4 | 8–10 (16–20) | sky | `// 04 — pagination you can explain` | Page breaks, / *explained.* | Account statement with the pagination panel; each decision row is outlined on the beat and its real explanation lands as a large callout. | `whoosh`, `pop` ×2 |
-| 5 | 10–12 (20–24) | mint | `// 05 — PDF · HTML · Excel · CSV · ZPL · ESC/POS` | One template. / Every *output.* | Six format chips stamp on beats; a fan of real rendered pages (invoice, lab report, receipt, label) deals in. | `whoosh`, `pop` ×6 |
-| 6 | 12–14 (24–28) | cream | `// 06 — bring your own key · the engine does the maths` | AI drafts / the edit. / You *approve.* | The AI proposal panel with the reviewed diff; cursor clicks Accept on beat 53. | `whoosh`, `click` |
-| 7 | 14–16 (28–32) | ice | `// 07 — REST API · plain JSON · JasperReports import` | Render from / *any app.* | A terminal card types a `curl` render call, then the response line lands; a small line notes `.jrxml` folders import as editable drafts. | `whoosh`, `type`, `pop` |
-| 8 | 16–18 (32–36) | white | `// 08 — all of it, open source` | Everything / you need. | Six chapter tiles, each gets a check on consecutive beats. | `pop` ×6, `riser` into bar 18 |
-| 9 | 18–21 (36–42) | white | — | Open Reports / Design documents in your browser. Render them *anywhere.* | Wordmark lands on the downbeat, CTA "Star on GitHub" with the repo URL, mono stats line: `MIT · self-hosted · PDF · Excel · ZPL · ESC/POS`. | `impact`, outro pad |
+**Audience:** developers and operations teams who produce invoices, statements, clinical and business reports, labels and receipts.
+**Promise:** design documents in the browser, render them anywhere, own everything.
+**Tempo:** 120 BPM, 32 bars. Every cut, slam and stamp lands on a beat. `timeline.mjs` is the executable form of this brief.
 
-**Must be true:** every claim is a shipped feature; every screen is the real product; the repo URL is correct.
-**Done when:** CRITIQUE.md scores every scene at least 8/10 and the film averages at least 8.5.
+| Act | Beats (s) | Scene | What happens | Sound |
+|---|---|---|---|---|
+| Hook | 0–8 (0–4) | words | "Invoices." "Statements." "Lab reports." "Receipts." "Labels." slam in one per beat, each with its real rendered document; then "Every business runs on *documents.*" | synth stab + slam per word |
+| | 8–16 (4–8) | pain | "Building them still *feels like 2005.*" Four pain cards stamp in and are struck through on the half beat; "There's a *better way.*" blurs out into a half-beat silence. | minor pad, stamps, scratches, riser, breath |
+| Drop | 16–24 (8–12) | reveal | Blue iris opens from the centre on the downbeat; the mark and wordmark land; tagline and three chips. | impact, full groove and hook melody enter |
+| Product | 24–88 (12–44) | data, drag, pages, rules, formats, ai | Live footage captured stop-motion from the real designer, in a browser frame with camera moves and three beat-timed captions: paste JSON → report; drop a list → Table; rows grow → pages follow → the break is explained; type a rule → rows turn red; PDF / HTML / Excel / CSV / ZPL / ESC/POS one per beat with a format stamp; type a prompt → review → Accept. | every captured click and keystroke has its sound; fills every 4 bars |
+| | 88–96 (44–48) | api | A terminal types the render call, the 200 lands, the real invoice flies out. | keys, pops, whoosh |
+| | 96–104 (48–52) | migrate | `.jrxml` files tick to "editable draft" as real documents stack up. | checks, riser |
+| Payoff | 104–112 (52–56) | montage | One cut per beat: Design. Bind. Paginate. Highlight. Export. Print. Automate. Own it. | slams, 16th snares into the stats |
+| | 112–120 (56–60) | stats | 6 output formats · 24 ready-made starters · 0 per-seat fees, counting up. | impacts |
+| | 120–128 (60–64) | end | Wordmark, tagline, "Star on GitHub" with the repo URL, formats line. | impact, ring-out |
+
+**Must be true:** every claim is a shipped feature; every screen is the real product, captured live; numbers are real (6 formats, 24 starters, MIT).
+**Done when:** CRITIQUE.md passes every scene and the objective checks (cuts on scheduled beats, exact duration, loudness and peak) pass.

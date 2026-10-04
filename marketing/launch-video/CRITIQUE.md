@@ -53,3 +53,22 @@ Final file: 1920 × 1080, 30 fps, H.264 + AAC, 42.000 s, 12.4 MB. `scdet` cuts a
 | Score | 8.5 | 8.5 | 8.5 | 8.5 | 8.5 | 9 | 8.5 | 8.5 | 8.5 | 9 |
 
 Average 8.6, every scene ≥ 8: ships.
+
+# v2 (64 s)
+
+Feedback on v1: "not interesting and catchy". Diagnosis: static screenshots, no tension, one tempo of reveal, a gentle score.
+
+## v2 pass 1 (contact sheet)
+Kinetic hook, stamped pain cards, iris reveal, live footage, stamps, montage and stats all read. Fixes: the pagination camera cut the explanation off on the left; the data scene ended too zoomed out; pain card text could be larger.
+
+## v2 pass 2 (film frames)
+- The browser frame (1500 px wide) ran 117 px below the screen, so the AI prompt bar (the subject of that shot) was cut off. Frame reduced to 1340 px so the whole window is on screen.
+- Rules: the red rows appeared 0.1 s before the cut. Clip speed 1.1 → 1.35 and a reframe: the payoff now holds about 2.5 s, parameter names visible, with a slow push.
+- Keystroke sounds at 1.75× speed were ~50 per second (a buzz). Spaced to ≥ 70 ms.
+- An empty column under each live title: three beat-timed factual captions added.
+
+## v2 final checks
+- 1920 × 1080, 30 fps, 64.000 s, 19 MB.
+- Scene detection finds every scheduled scene start (4, 8, 12, 18, 22, 28, 34, 38, 44, 48, 52, 56, 60 s) plus the intended per-beat cuts in the hook, the format stamps and the montage.
+- 182 sound cues, 93 of them from captured clicks and keystrokes.
+- Loudness −12.6 LUFS integrated, −2.2 dBFS peak after AAC (first master peaked at −0.3; headroom added).

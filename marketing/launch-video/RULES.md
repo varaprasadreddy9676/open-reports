@@ -39,3 +39,10 @@ These rules are the render contract. Every scene, cue and revision must satisfy 
 
 ## Banned
 - Stock gradients, glassmorphism, lens flares, particle bursts, 3D spins, bouncy elastic easing, emoji, exclamation marks, more than two type families on screen, centred body text, claims the product cannot back up.
+
+## v2 amendments
+- Live footage beats stills: product scenes play stop-motion clips captured from the running designer (`apps/designer/tests/e2e/launch-video-clips.spec.ts`). The browser frame must stay fully on screen, so camera moves (keyframes in `timeline.mjs`) show the detail instead of cropping by layout.
+- Slams may use a gentle overshoot (`back` easing, ≤ 10 %). Elastic bounces remain banned.
+- Kinetic hook and montage cut once per beat; product scenes hold at least 4 s.
+- Every captured click and keystroke has a sound, spaced like human typing (≥ 70 ms apart).
+- Master with headroom: −2.5 dBFS sample peak so the AAC encode stays below −1 dBFS.

@@ -1,6 +1,6 @@
 # Open Reports launch film
 
-A 42-second product film made entirely with code: real product screens, a motion composition rendered frame by frame, and a soundtrack synthesised from the same timeline.
+A 64-second product film made entirely with code: live product footage captured from the running designer, a motion composition rendered frame by frame, and a soundtrack synthesised from the same timeline. (v1, 42 s, is in git history.)
 
 | File | Role |
 |---|---|
@@ -12,15 +12,15 @@ A 42-second product film made entirely with code: real product screens, a motion
 | `audio.mjs` | Synthesises music (120 BPM) and sound effects from the timeline into `build/audio.wav`. |
 | `render.mjs` | Renders frames in headless Chromium and muxes them with the audio via ffmpeg. |
 | `CRITIQUE.md` | The scored critique passes that shaped the final cut. |
-| `assets/` | Fonts (Noto, OFL), product screenshots and rendered documents. |
+| `assets/` | Fonts (Noto, OFL), rendered documents, and `clips/` (live footage, git-ignored: regenerate with step 1). |
 
 ## Rebuild
 
 Needs Node 22, ffmpeg, and the repo installed (`pnpm install`, `pnpm build:all`).
 
 ```bash
-# 1. Capture product screens (starts the designer and API like the e2e tests)
-cd apps/designer && VIDEO_ASSETS=1 npx playwright test launch-video-assets && cd -
+# 1. Capture live footage stop-motion from the running designer (~2 min, ~180 MB of frames)
+cd apps/designer && VIDEO_ASSETS=1 npx playwright test launch-video-clips && cd -
 # 2. Render the documents on a server with the full Noto set (the e2e server's fixture fonts lack ₹), then rasterise
 PORT=4600 FONTS_DIR=/path/to/noto-fonts node apps/server/dist/index.js &
 cd marketing/launch-video/assets/outputs

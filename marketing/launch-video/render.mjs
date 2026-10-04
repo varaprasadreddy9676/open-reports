@@ -13,7 +13,7 @@ import { DURATION, FPS, SCENES, t } from "./timeline.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const build = path.join(here, "build");
 const { chromium } = createRequire(path.join(here, "../../apps/designer/package.json"))("@playwright/test");
-const TYPES = { ".html": "text/html", ".mjs": "text/javascript", ".js": "text/javascript", ".png": "image/png", ".ttf": "font/ttf", ".json": "application/json" };
+const TYPES = { ".html": "text/html", ".mjs": "text/javascript", ".js": "text/javascript", ".png": "image/png", ".jpg": "image/jpeg", ".ttf": "font/ttf", ".json": "application/json" };
 
 function serve() {
   const server = http.createServer((req, res) => {
@@ -58,11 +58,7 @@ async function stills(times) {
 
 /** The moment each scene is fully built, plus mid-action frames, tiled 4 across for the critique loop. */
 async function sheet() {
-  const moments = SCENES.flatMap((s) => {
-    const end = t(s.to) - 0.25;
-    const extra = s.cursor ? [t(s.cursor.click) + 0.1] : s.terminal ? [t(s.terminal.typeFrom) + 0.6] : [];
-    return [...extra, end];
-  });
+  const moments = SCENES.flatMap((s) => [t((s.from + s.to) / 2), t(s.to) - 0.2]);
   const files = await stills(moments);
   const seq = path.join(build, "sheet-frames");
   fs.rmSync(seq, { recursive: true, force: true });
