@@ -388,12 +388,29 @@ test.describe("workspace", () => {
     await page.evaluate(() => {
       const state = (window as any).__designer.getState();
       state.setDoc({ ...state.doc,
-        page: { size: "custom", width: 300, height: 90, unit: "pt", orientation: "landscape", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+        page: { size: "custom", width: 300, height: 400, unit: "pt", orientation: "portrait", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
         datasets: [{ id: "items", source: "inline", query: { data: Array.from({ length: 4 }, (_, index) => ({ name: `Item ${index + 1}` })) } }],
         sections: [{ type: "detail", children: [{ type: "table", id: "totals-table", dataset: "items", showFooter: true, columns: [{ id: "name", header: "Name", binding: "row.name", footer: { expression: '"TOTAL"' } }] }] }],
       });
       state.select(["totals-table"]);
     });
+    // Size the page from the measured table so all four rows fit but the totals row does not, whatever the fonts.
+    const tableHeight = async (showFooter: boolean) => {
+      await page.evaluate((showFooter) => (window as any).__designer.getState().patch("totals-table", { showFooter }), showFooter);
+      const measure = () => page.evaluate(() => {
+        const find = (nodes: any[]): any => nodes.map((n) => (n.component?.id === "totals-table" ? n : find(n.children ?? []))).find(Boolean);
+        const node = find((window as any).__designer.getState().engine.paginated?.pages[0]?.content ?? []);
+        return node ? { height: node.box.height, footer: node.component.showFooter } : null;
+      });
+      await expect.poll(async () => (await measure())?.footer).toBe(showFooter);
+      return (await measure())!.height;
+    };
+    const rowsOnly = await tableHeight(false);
+    const withTotals = await tableHeight(true);
+    await page.evaluate((height) => {
+      const state = (window as any).__designer.getState();
+      state.setDoc({ ...state.doc, page: { ...state.doc.page, height, orientation: height < 300 ? "landscape" : "portrait" } });
+    }, (rowsOnly + withTotals) / 2);
     await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engine.paginated?.pages[1]?.content[0]?.rowRange?.start)).toBe(3);
     const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
     fs.mkdirSync(screenshots, { recursive: true });

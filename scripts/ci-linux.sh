@@ -2,6 +2,7 @@
 # Runs the CI jobs from .github/workflows/ci.yml on Linux amd64 in Docker, with the same fonts, Node version and
 # Postgres/MySQL services, so failures that only happen on the CI runner show up before pushing.
 # Usage: scripts/ci-linux.sh [test|e2e|all]   (default: all)
+# PW_ARGS="tests/e2e/x.spec.ts -g name" narrows the browser tests.
 # PLATFORM=linux/arm64 runs natively on Apple silicon: much faster for functional tests. Screenshot baselines are
 # amd64 (what CI uses), so the @visual tests run only on the default linux/amd64.
 set -euo pipefail
@@ -27,7 +28,7 @@ for _ in $(seq 1 90); do
 done
 
 docker run --rm --platform "$PLATFORM" --network "container:$NET-pg" \
-  -v "$ROOT:/src:ro" -e NODE_VERSION="$NODE_VERSION" -e JOB="$JOB" -e PLATFORM="$PLATFORM" -e CI=true -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+  -v "$ROOT:/src:ro" -e NODE_VERSION="$NODE_VERSION" -e JOB="$JOB" -e PLATFORM="$PLATFORM" -e PW_ARGS="${PW_ARGS:-}" -e CI=true -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
   "$IMAGE" bash -euo pipefail -c '
     apt-get update -qq && apt-get install -y -qq fonts-noto-core poppler-utils xz-utils >/dev/null
     ARCH=$([ "$(uname -m)" = aarch64 ] && echo arm64 || echo x64)
@@ -50,7 +51,7 @@ docker run --rm --platform "$PLATFORM" --network "container:$NET-pg" \
       echo "== quick benchmark"; pnpm --filter @reporting/server bench:quick > /tmp/bench.log 2>&1 || { tail -30 /tmp/bench.log; status=1; }
     fi
     if [ "$JOB" = e2e ] || [ "$JOB" = all ]; then
-      echo "== designer e2e"; (cd apps/designer && npx playwright test --grep-invert @visual --reporter=line) || status=1
+      echo "== designer e2e"; (cd apps/designer && npx playwright test --grep-invert @visual --reporter=line $PW_ARGS) || status=1
       if [ "$PLATFORM" = linux/amd64 ]; then
         echo "== designer visual"; (cd apps/designer && npx playwright test --grep @visual --reporter=line) || status=1
       fi
