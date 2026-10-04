@@ -1,5 +1,6 @@
 import { ApiError, type ReportApi } from "./api.js";
 import { applyPatch, summarizeChanges, type PatchOp } from "./patch.js";
+import { describeStructure } from "./bands.js";
 
 export interface ToolResult {
   /** Short text for the model. */
@@ -81,6 +82,13 @@ export const TOOLS: ToolSpec[] = [
     handler: guard(async (a: { name: string }, api) => ({ text: `Example "${a.name}".`, data: await api.json("GET", `/api/v1/examples/${encodeURIComponent(a.name)}`) })),
   },
   {
+    name: "describe_report",
+    description: "A plain-text outline of a report: datasets, groups, and every band (report/page/group headers and footers, detail, ...) in print order with its print rules and the ids of the components inside it. Each band line starts with the reference to use in patch_report paths, e.g. @groupFooter:byRegion. Read this before changing a report's structure.",
+    inputSchema: { type: "object", properties: { report: reportProp }, required: ["report"] },
+    readOnly: true,
+    handler: guard(async (a: { report: unknown }) => ({ text: describeStructure((a.report ?? {}) as Record<string, any>) })),
+  },
+  {
     name: "analyze_report",
     description: "Validate AND paginate a report without rendering: schema/expression problems, page count, and the pagination decision log (why content moved to the next page, with suggested fixes). Use after every change.",
     inputSchema: { type: "object", properties: { report: reportProp, parameters: { type: "object" }, data: { type: "object", description: "Optional inline datasets keyed by dataset id." } }, required: ["report"] },
@@ -103,7 +111,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "patch_report",
     description:
-      "Change a report with RFC 6902 JSON Patch operations (add, replace, remove, move, copy, test). Paths may use a component id instead of indexes: \"#title/style/fontSize\", \"#items/columns/-\". The patch is atomic: if any op fails nothing changes. Returns the new report, a list of component-level changes, and an analysis. Prefer small patches. This is the ONLY way to modify a report.",
+      "Change a report with RFC 6902 JSON Patch operations (add, replace, remove, move, copy, test). Paths may use a component id instead of indexes: \"#title/style/fontSize\", \"#items/columns/-\"; and a band reference for bands: \"@groupFooter:byRegion/children/-\", \"@detail/keepTogether\", \"@pageFooter:first/children/0\" (see describe_report). The patch is atomic: if any op fails nothing changes. Returns the new report, a list of component-level changes, and an analysis. Prefer small patches. This is the ONLY way to modify a report.",
     inputSchema: {
       type: "object",
       properties: {
@@ -204,9 +212,19 @@ export const AUTHORING_GUIDE = `You edit report definitions: renderer-neutral JS
 
 Rules
 1. Never compute totals, dates or layout yourself - write an expression or binding and let the engine evaluate it.
-2. Change reports ONLY with patch_report (small, id-addressed JSON Patch). Address components as "#id/..." instead of array indexes.
+2. Change reports ONLY with patch_report (small, id-addressed JSON Patch). Address components as "#id/..." and bands as "@type[:qualifier]/..." instead of array indexes.
 3. After every change call analyze_report. Fix errors and read pagination decisions: they say why content moved and offer fixes (keepTogether, repeatHeaderOnPageBreak, minRowsAfterBreak, ...).
 4. Start from list_examples/get_example when the user wants a common document (invoice, lab report, label, receipt, sticker sheet).
 5. Units: component sizes are points; label sheet sizes are millimetres. Bind data with data.<dataset>.<field>; inside tables and repeaters use row.<field>.
 6. Never put secrets in a report. REST datasets use {{secrets.NAME}}; check list_capabilities for the names that exist.
-7. Do not save or publish unless the user asks. Explain what you changed in plain language.`;
+7. Do not save or publish unless the user asks. Explain what you changed in plain language.
+
+Bands
+A report's "sections" are bands; describe_report lists them in order with their references.
+- reportHeader / reportFooter print once (title block; grand totals, signatures). dataHeader / dataFooter print once around the records.
+- pageHeader / pageFooter / background repeat on every page. Variants use appliesTo: first, last, odd, even (e.g. @pageFooter:last); the band without appliesTo is the fallback. page.number and page.total work here.
+- detail prints once per record of its dataset (row.<field>). A detail band holding only a table over the same dataset prints the table once instead.
+- groupHeader / groupFooter print around each group instance; groups are declared in report.groups ({id, dataset, by, sort, repeatHeader, newPage, keepTogether}) and bands point at them with groupId (@groupHeader:byRegion). Inside them use group.key, group.count, group.rows: a group total is a text with expression sumBy(group.rows, "amount") added at @groupFooter:<groupId>/children/-.
+- child bands (parent: band id) print right after their parent; noData prints when the dataset is empty.
+- Print rules on a band: newPageBefore, newPageAfter, keepTogether, keepWithNext, allowSplit, printAtBottom (anchor above the page footer), repeatEveryPage (group headers), suppressWhenBlank, visibleWhen or rules.
+To add a band, add a section object with "type" (and groupId / appliesTo as needed) to /sections at the position it should print, then check analyze_report.`;

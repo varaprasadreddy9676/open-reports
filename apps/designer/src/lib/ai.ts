@@ -1,4 +1,4 @@
-import { applyPatch, summarizeChanges, AUTHORING_GUIDE, type PatchOp } from "@reporting/ai-tools";
+import { applyPatch, bandRefs, describeStructure, summarizeChanges, AUTHORING_GUIDE, type PatchOp } from "@reporting/ai-tools";
 import type { Doc } from "../model/ops";
 import { walkAll } from "../model/ops";
 import { datasetFields, fieldDefinitions } from "./fields";
@@ -42,25 +42,15 @@ export interface Proposal {
 
 const SYSTEM = `${AUTHORING_GUIDE}
 
-You are embedded in a visual report designer. The user's request applies to the SELECTED components when any are given, otherwise to the whole report.
+You are embedded in a visual report designer. The user's request applies to the SELECTED components or SELECTED band when one is given, otherwise to the whole report.
 Respond with ONLY a JSON object, no prose, no code fences:
 {"explanation": "one or two plain-language sentences", "ops": [ ...RFC 6902 operations... ]}
-Path syntax: "#componentId/prop/..." addresses a component by id (e.g. "#title/style/fontSize", "#box/children/-" to append). Use plain "/sections/0/..." pointers only for sections or report-level fields.
+Path syntax: "#componentId/prop/..." addresses a component by id (e.g. "#title/style/fontSize", "#box/children/-" to append). "@bandRef/..." addresses a band by the reference shown in the outline (e.g. "@groupFooter:byRegion/children/-", "@detail/keepTogether"). Use plain "/sections/-" to add a band and "/..." pointers for report-level fields.
 If the request cannot be done safely or is unclear, return {"explanation": "why / what you need", "ops": []}.
 Never invent dataset fields: use only the fields listed in the context. Never put secrets in the report.`;
 
-function outline(doc: Doc): string[] {
-  const lines: string[] = [];
-  for (const loc of walkAll(doc)) {
-    const c = loc.comp;
-    const label = c.name ?? (c.type === "text" ? String(c.binding ?? c.expression ?? c.value ?? "").slice(0, 30) : c.dataset ?? "");
-    lines.push(`${"  ".repeat(Math.max(0, (loc.path.match(/\./g)?.length ?? 1) - 1))}${c.id} [${c.type}]${label ? ` ${label}` : ""}`);
-  }
-  return lines.slice(0, 200);
-}
-
 /** What the model is told. Selection-scoped: selected components are given in full, everything else as an outline. */
-export function buildContext(doc: Doc, sample: Record<string, unknown>, selection: string[], problems: { severity: string; message: string; componentId?: string }[]): string {
+export function buildContext(doc: Doc, sample: Record<string, unknown>, selection: string[], problems: { severity: string; message: string; componentId?: string }[], selectedBand: number | null = null): string {
   const datasets = (doc.datasets ?? []).map((d: any) => {
     const fields = fieldDefinitions(datasetFields(doc, sample, d.id)).map((f) => `${f.path}:${f.kind}`);
     return `- ${d.id} (${d.source}) fields: ${fields.slice(0, 40).join(", ") || "unknown"}`;
@@ -74,12 +64,18 @@ export function buildContext(doc: Doc, sample: Record<string, unknown>, selectio
   // Privacy: inline sample data (patient names, amounts...) never leaves the browser; the model gets field names and types only.
   const redacted = { ...doc, datasets: (doc.datasets ?? []).map((d: any) => (d.source === "inline" ? { ...d, query: { data: "[omitted]" } } : d)) };
   const whole = JSON.stringify(redacted);
+  const band = selectedBand !== null && !selected.length ? (doc.sections ?? [])[selectedBand] : undefined;
+  const scope = selected.length
+    ? `SELECTED components (full JSON):\n${JSON.stringify(selected, null, 1).slice(0, 20000)}`
+    : band
+      ? `SELECTED band ${bandRefs(doc.sections ?? [])[selectedBand!]} (full JSON):\n${JSON.stringify(band, null, 1).slice(0, 20000)}`
+      : whole.length < 14000 ? `Full report JSON:\n${whole}` : "No selection; request applies to the whole report (see outline).";
   return [
     `Report: ${doc.name} (page ${JSON.stringify(doc.page ?? {})}${doc.print ? `, print ${JSON.stringify(doc.print)}` : ""})`,
     `Datasets:\n${datasets.join("\n") || "(none)"}`,
     `Parameters: ${(doc.parameters ?? []).map((p: any) => p.id).join(", ") || "(none)"}; variables: ${(doc.variables ?? []).map((v: any) => v.id).join(", ") || "(none)"}`,
-    `Component outline:\n${outline(doc).join("\n")}`,
-    selected.length ? `SELECTED components (full JSON):\n${JSON.stringify(selected, null, 1).slice(0, 20000)}` : whole.length < 14000 ? `Full report JSON:\n${whole}` : "No selection; request applies to the whole report (see outline).",
+    `Structure:\n${describeStructure(redacted, 250)}`,
+    scope,
     problems.length ? `Current problems:\n${problems.slice(0, 15).map((p) => `- [${p.severity}] ${p.message}${p.componentId ? ` (#${p.componentId})` : ""}`).join("\n")}` : "Current problems: none",
   ].join("\n\n");
 }
@@ -148,8 +144,8 @@ export async function askModel(settings: AiSettings, system: string, user: strin
   return j.choices?.[0]?.message?.content ?? "";
 }
 
-export async function requestProposal(settings: AiSettings, prompt: string, doc: Doc, sample: Record<string, unknown>, selection: string[], problems: { severity: string; message: string; componentId?: string }[]): Promise<Proposal> {
-  const context = buildContext(doc, sample, selection, problems);
+export async function requestProposal(settings: AiSettings, prompt: string, doc: Doc, sample: Record<string, unknown>, selection: string[], problems: { severity: string; message: string; componentId?: string }[], selectedBand: number | null = null): Promise<Proposal> {
+  const context = buildContext(doc, sample, selection, problems, selectedBand);
   const reply = await askModel(settings, SYSTEM, `${context}\n\nUser request: ${prompt}`);
   return makeProposal(prompt, doc, selection, parseModelReply(reply));
 }

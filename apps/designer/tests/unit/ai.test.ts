@@ -50,3 +50,34 @@ describe("buildContext privacy and scope", () => {
     expect(ctx).toContain("too wide");
   });
 });
+
+describe("band awareness", () => {
+  const banded: any = {
+    ...doc,
+    groups: [{ id: "byRegion", dataset: "p", by: "row.region" }],
+    sections: [
+      { type: "groupHeader", groupId: "byRegion", keepWithNext: true, children: [{ type: "text", id: "region", expression: "group.key" }] },
+      ...doc.sections,
+      { type: "groupFooter", groupId: "byRegion", children: [] },
+    ],
+  };
+  it("outlines bands in order with their references and components", () => {
+    const ctx = buildContext(banded, {}, [], []);
+    expect(ctx).toMatch(/@groupHeader:byRegion \[groupHeader\] group byRegion · keepWithNext\n\s+#region \[text\] group\.key/);
+    expect(ctx).toContain("@detail [detail]");
+    expect(ctx).toContain("@groupFooter:byRegion [groupFooter]");
+  });
+  it("sends a selected band in full, by reference", () => {
+    const ctx = buildContext(banded, {}, [], [], 2);
+    expect(ctx).toContain("SELECTED band @groupFooter:byRegion");
+    expect(ctx).toContain('"groupId": "byRegion"');
+  });
+  it("lists band changes in a proposal", () => {
+    const proposal = makeProposal("total per region", banded, [], { explanation: "", ops: [
+      { op: "add", path: "@groupFooter:byRegion/children/-", value: { type: "text", expression: "count(group.rows)" } },
+      { op: "add", path: "@groupFooter:byRegion/printAtBottom", value: true },
+    ] });
+    expect(proposal.changes).toEqual(expect.arrayContaining([expect.stringMatching(/^added text "text-\d+"$/), "changed band @groupFooter:byRegion: printAtBottom"]));
+  });
+});
+

@@ -829,6 +829,32 @@ test.describe("AI assistant (BYOK, mocked provider)", () => {
     expect(JSON.stringify(await doc(page))).not.toContain('"fontSize":28');
   });
 
+  test("band-scoped edit: the selected band is sent by reference and band changes are listed", async ({ page }) => {
+    await withKey(page);
+    const mock = await mockProvider(page, { explanation: "Kept the band together and added a note.", ops: [
+      { op: "add", path: "@reportFooter/keepTogether", value: true },
+      { op: "add", path: "@reportFooter/children/-", value: { type: "text", value: "Thank you" } },
+    ] });
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+    await page.evaluate(() => {
+      const store = (window as any).__designer.getState();
+      store.loadDoc({ ...store.doc, id: "band-ai", sections: [{ type: "detail", children: [{ type: "text", id: "body", value: "Body" }] }, { type: "reportFooter", children: [] }] });
+      store.set({ selection: [], selectedBand: 1 });
+    });
+    await page.keyboard.press("Control+j");
+    await expect(page.getByTestId("ai-scope")).toContainText("Band @reportFooter");
+    await page.getByTestId("ai-prompt").fill("keep this band together and thank the reader");
+    await page.getByTestId("ai-send").click();
+    await expect(page.getByTestId("ai-changes")).toContainText("changed band @reportFooter: keepTogether");
+    expect(mock.body()).toContain("SELECTED band @reportFooter");
+    expect(mock.body()).toContain("@detail [detail]");
+    await page.getByTestId("ai-accept").click();
+    const footer = (await doc(page)).sections[1];
+    expect(footer.keepTogether).toBe(true);
+    expect(footer.children[0].value).toBe("Thank you");
+  });
+
   test("Reject leaves the report untouched", async ({ page }) => {
     await withKey(page);
     await mockProvider(page, { explanation: "Removed it.", ops: [{ op: "remove", path: "#company" }] });

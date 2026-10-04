@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "../store";
+import { bandRefs } from "@reporting/ai-tools";
 import { loadAiSettings, requestProposal, saveAiSettings, type AiSettings } from "../lib/ai";
 
 /** Selection-scoped, BYOK AI editing. The model only ever returns JSON Patch ops against the report; the engine does all calculation and rendering. */
 export function AiBar() {
-  const { aiOpen, aiBusy, aiProposal, selection, engine } = useStore();
+  const { aiOpen, aiBusy, aiProposal, selection, selectedBand, engine, doc } = useStore();
+  const band = !selection.length && selectedBand !== null && doc.sections?.[selectedBand] ? bandRefs(doc.sections)[selectedBand] : undefined;
   const set = useStore((s) => s.set);
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState("");
@@ -27,7 +29,7 @@ export function AiBar() {
     setError("");
     st.set({ aiBusy: true, aiProposal: null });
     try {
-      const proposal = await requestProposal(settings, prompt.trim(), st.doc, st.sample, st.selection, st.engine.problems);
+      const proposal = await requestProposal(settings, prompt.trim(), st.doc, st.sample, st.selection, st.engine.problems, st.selectedBand);
       st.set({ aiProposal: proposal });
       st.refresh();
     } catch (e) {
@@ -71,13 +73,13 @@ export function AiBar() {
       {aiOpen && (
         <div className="ai-input">
           <span className="ai-scope" data-testid="ai-scope" title="The AI only sees and edits this scope">
-            {selection.length ? `✦ ${selection.length} selected` : "✦ Whole report"}
+            {selection.length ? `✦ ${selection.length} selected` : band ? `✦ Band ${band}` : "✦ Whole report"}
           </span>
           <input
             ref={input}
             data-testid="ai-prompt"
             aria-label="Ask AI to change the report"
-            placeholder={selection.length ? "e.g. make this a bold red heading" : "e.g. add a signature block at the end"}
+            placeholder={selection.length ? "e.g. make this a bold red heading" : band ? "e.g. add a total and keep this band together" : "e.g. add a signature block at the end"}
             value={prompt}
             disabled={aiBusy}
             onChange={(e) => setPrompt(e.target.value)}

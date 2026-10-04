@@ -40,6 +40,26 @@ describe("MCP server", () => {
     await c.close();
   }, 30_000);
 
+  it("an agent can read a report's bands and edit one by reference - through MCP", async () => {
+    const c = await connect();
+    const ex = JSON.parse(textOf(await c.callTool({ name: "get_example", arguments: { name: "lab-report" } })).split("\n")[1]!);
+    const outline = textOf(await c.callTool({ name: "describe_report", arguments: { report: ex } }));
+    expect(outline).toMatch(/^@pageHeader \[pageHeader\]/m);
+    expect(outline).toMatch(/^@detail/m);
+    const patched = await c.callTool({ name: "patch_report", arguments: { report: ex, ops: [
+      { op: "add", path: "/sections/-", value: { type: "reportFooter", printAtBottom: true, children: [{ type: "text", value: "Signed by the agent" }] } },
+    ] } });
+    expect(patched.isError).toBeFalsy();
+    expect(textOf(patched)).toContain("added band @reportFooter");
+    const report = JSON.parse(textOf(patched).split("\n")[1]!).report;
+    const moved = await c.callTool({ name: "patch_report", arguments: { report, ops: [{ op: "replace", path: "@reportFooter/children/0/value", value: "Signed" }], analyze: false } });
+    expect(textOf(moved)).toContain("Applied 1 op(s)");
+    const bad = await c.callTool({ name: "patch_report", arguments: { report, ops: [{ op: "add", path: "@summary/children/-", value: {} }] } });
+    expect(bad.isError).toBe(true);
+    expect(textOf(bad)).toContain("No summary band");
+    await c.close();
+  }, 30_000);
+
   it("--read-only hides write tools", async () => {
     const c = await connect(["--read-only"]);
     const names = (await c.listTools()).tools.map((t) => t.name);

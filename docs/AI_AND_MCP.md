@@ -18,7 +18,8 @@ Add `--read-only` to hide the tools that write (`save_template`, `publish_templa
 | `get_report_schema`, `list_capabilities` | What a report may contain; formats, fonts, secret **names**, plugin extras |
 | `list_examples`, `get_example` | Start from an invoice, lab report, label, sticker sheet… |
 | `analyze_report`, `validate_report` | Validate **and** paginate: page count, pagination decisions (why content moved + suggested fixes), warnings |
-| `patch_report` | The only way to change a report: atomic RFC 6902 JSON Patch with id-addressed paths (`#title/style/fontSize`) |
+| `describe_report` | Plain-text outline: datasets, groups, every band in print order with its print rules, and the component ids inside it |
+| `patch_report` | The only way to change a report: atomic RFC 6902 JSON Patch with id-addressed paths (`#title/style/fontSize`) and band references (`@groupFooter:byRegion/children/-`) |
 | `render_report` | PDF / HTML / XLSX / CSV / ZPL, inline or by stored template |
 | `list_templates`, `get_template`, `save_template`, `publish_template` | Versioned storage (published versions are immutable) |
 
@@ -26,12 +27,14 @@ Resources: `report://schema`, `report://capabilities`, `report://guide`, `report
 
 Why id-addressed patches: array indexes shift as soon as something is inserted; component ids don't. A patch with one bad operation changes nothing and says which operation failed, so the agent can fix and retry.
 
+Bands (report sections) usually have no id, so they are addressed by reference: `@type`, then `:qualifier` where a type can occur more than once (the group id for group headers and footers, the `appliesTo` variant for page headers, footers and backgrounds, the parent id for child bands), then `#n` for the n-th of otherwise identical bands. Examples: `@detail/keepTogether`, `@pageFooter:last/children/-`, `@groupHeader:byRegion/repeatEveryPage`, `@detail#2`. A band with an id is `#id`. An ambiguous or unknown reference fails with the list of valid ones. `describe_report` starts every band line with its reference, and patch summaries report band changes (`added band @reportFooter`, `changed band @detail: keepTogether`). The authoring guide explains what each band type prints and its print rules.
+
 ## 2. The designer's AI bar (Ctrl+J)
 1. Open **✦ AI**, add your key under ⚙ (Anthropic, or any OpenAI-compatible endpoint including local models).
-2. Select components (or nothing for the whole report) and describe the change.
+2. Select components, a band (the scope chip then reads *Band @…*), or nothing for the whole report, and describe the change.
 3. The model returns a patch. The canvas shows the **proposed result**; the panel lists each change in plain language and can show the technical patch. **Accept** applies it as one undoable step; **Reject** discards it. Editing by hand also discards a pending proposal.
 
-**Privacy:** the key lives only in your browser's localStorage and goes only to the provider you chose — never to the report server. The model receives your request, the selected components (or an outline), dataset *field names and types*, and current problems. Inline sample data values are never sent. Use a local model (Ollama/LM Studio via the OpenAI-compatible option) for fully offline use.
+**Privacy:** the key lives only in your browser's localStorage and goes only to the provider you chose — never to the report server. The model receives your request, the selected components or band (or the whole report when it is small), a band-by-band outline, dataset *field names and types*, and current problems. Inline sample data values are never sent. Use a local model (Ollama/LM Studio via the OpenAI-compatible option) for fully offline use.
 
 ## 3. Safety properties (tested)
 - Patches are applied to a copy; invalid or inapplicable patches are rejected whole (`ai-tools/tests/patch.test.ts`, designer `ai.test.ts`).
