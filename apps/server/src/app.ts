@@ -1,3 +1,4 @@
+import { refreshLinkedBlocks } from "./linked-blocks.js";
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
@@ -39,10 +40,11 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   const list = (value: string | undefined) => (value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
   runtime.imageAllowedHosts = options.imageAllowedHosts ?? list(process.env.REPORT_IMAGE_ALLOWED_HOSTS);
   runtime.imageRoots = options.imageRoots ?? list(process.env.REPORT_IMAGE_ROOTS);
+  if (storage.getBlock) runtime.getBlock = (id) => storage.getBlock!(id);
   const jobs = new JobStore(runtime);
   const authHook = createAuthHook(options.apiKeys ?? []);
 
-  void app.register(cors, { origin: true, exposedHeaders: ["x-render-id", "x-render-warnings"] });
+  void app.register(cors, { origin: true, exposedHeaders: ["x-render-id", "x-render-warnings", "x-block-version"] });
   if (options.designerDist && fs.existsSync(options.designerDist)) {
     void app.register(fastifyStatic, { root: options.designerDist, wildcard: false });
   }
@@ -134,10 +136,22 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   app.get("/api/v1/blocks", async () => storage.listBlocks());
   app.put("/api/v1/blocks/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { name: string; children: unknown };
+    const body = request.body as { name: string; children: unknown; notes?: string };
     if (!body?.name || !Array.isArray(body.children)) return reply.code(400).send({ error: { code: "INVALID_BLOCK", message: "name and children[] are required." } });
-    await storage.putBlock(id, body.name, body.children);
-    reply.code(204).send();
+    const version = await storage.putBlock(id, body.name, body.children, typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : undefined);
+    // 204 is the established contract; the new version number travels in a header.
+    if (typeof version === "number") reply.header("x-block-version", String(version));
+    return reply.code(204).send();
+  });
+  app.get("/api/v1/blocks/:id/versions", async (request, reply) => {
+    if (!storage.listBlockVersions) return reply.code(501).send({ error: { code: "BLOCK_VERSIONS_UNAVAILABLE", message: "This storage backend does not keep block versions." } });
+    return storage.listBlockVersions((request.params as { id: string }).id);
+  });
+  app.get("/api/v1/blocks/:id/versions/:version", async (request, reply) => {
+    if (!storage.getBlock) return reply.code(501).send({ error: { code: "BLOCK_VERSIONS_UNAVAILABLE", message: "This storage backend does not keep block versions." } });
+    const { id, version } = request.params as { id: string; version: string };
+    const block = await storage.getBlock(id, Number(version));
+    return block ? block : reply.code(404).send({ error: { code: "BLOCK_VERSION_NOT_FOUND", message: `Block "${id}" has no version ${version}.` } });
   });
   app.delete("/api/v1/blocks/:id", async (request, reply) => {
     await storage.deleteBlock((request.params as { id: string }).id);
@@ -202,13 +216,15 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   // --- Analyze: validation + real pagination, without producing a file. Built for the designer and AI tools. ---
   app.post("/api/v1/analyze", async (request, reply) => {
     const body = request.body as { report: unknown; parameters?: Record<string, unknown>; data?: Record<string, unknown>; includeLayout?: boolean };
-    const parsed = parseReportDefinition(body?.report);
+    const linked = await refreshLinkedBlocks(body?.report, runtime.getBlock);
+    const parsed = parseReportDefinition(linked.report);
     if (!parsed.valid) return reply.send({ valid: false, stage: "schema", issues: parsed.issues.map((i) => ({ ...i, severity: "error" as const })) });
     const validation = validateReport(parsed.report);
     const extra = Object.entries(body.data ?? {}).filter(([id]) => !parsed.report.datasets.some((d) => d.id === id)).map(([id, value]) => ({ id, source: "inline" as const, query: { data: value } }));
     const report = extra.length ? { ...parsed.report, datasets: [...parsed.report.datasets, ...extra] } : parsed.report;
     try {
       const pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: body.parameters ?? {}, tolerant: true, functions: runtime.functions, customComponents: runtime.customComponents });
+      pipeline.resolved.warnings.push(...linked.warnings);
       const imageSources = await materializeLinkedImages(pipeline.resolved, { allowedHosts: runtime.imageAllowedHosts, roots: runtime.imageRoots });
       const resolvePageSection = (section: Parameters<typeof pipeline.resolvePageSection>[0], page: Parameters<typeof pipeline.resolvePageSection>[1]) => {
         const children = pipeline.resolvePageSection(section, page);

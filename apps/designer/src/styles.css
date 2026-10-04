@@ -2417,3 +2417,9 @@ kbd {
 .table-style-part { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .table-style-part legend { padding: 0 4px; color: var(--muted); font-size: 11px; }
 .table-style-part input[type="number"] { width: 64px; }
+
+/* Library blocks */
+.block-mode { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 12px; }
+.block-item .muted { margin-left: auto; }
+.fragment-props { display: grid; gap: 8px; }
+.fragment-history ol { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }

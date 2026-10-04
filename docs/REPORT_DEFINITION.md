@@ -138,6 +138,16 @@ Table merge coordinates are zero-based. Body `row` positions refer to resolved r
 - **Measurement.** Row heights are measured with the weight and slant each row is drawn with.
 - **Tables without styles.** They keep their previous look. Grey stripes from `alternateRowStyle` now follow the row's position in the whole table, so they continue consistently across pages.
 
+## Reusable blocks
+
+- **Report-local blocks.** `fragments` holds reusable component groups for one report. A `{ "type": "fragment", "ref": "<id>" }` component prints one.
+- **Library blocks.** The server's block library (`/api/v1/blocks`) stores blocks shared across reports.
+  - Every save creates an immutable version. The new number is returned in the `x-block-version` header; history is at `/api/v1/blocks/:id/versions` and each version at `/versions/:n`.
+- **Placing a library block.** It is placed as a fragment with `source: { block, version, mode }` and a snapshot of that version in `children`:
+  - **`linked`** follows the library. The designer updates the snapshot when the report opens, and renders and analyses use the library's latest version. If the library can't supply the block, the snapshot is used with a `BLOCK_UNAVAILABLE` warning.
+  - **`pinned`** always renders its own snapshot until it is deliberately updated.
+  - A **detached** block is an ordinary copy with no link.
+
 ## Conditional rules
 
 Any component and any band may declare `rules`. A rule changes properties of the object it is declared on when its condition holds. Rules run in order; when two rules set the same property, the later one wins.

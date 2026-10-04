@@ -76,6 +76,9 @@ export type Guide = z.infer<typeof guideSchema>;
 export const fragmentDefinitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().optional(),
+  /** `children` is a snapshot of this library block version. Linked blocks render the library's latest version
+   * (the snapshot is the fallback when the library is unavailable); pinned blocks always render their own version. */
+  source: z.object({ block: z.string().min(1), version: z.number().int().positive(), mode: z.enum(["linked", "pinned"]) }).strict().optional(),
   children: z.array(componentSchema).default([]),
 });
 

@@ -1,3 +1,4 @@
+import { placeBlock, syncLinkedBlocks, type BlockMode } from "./lib/blocks";
 import { parseGrid, parseSnapTargets, type GridSettings, type SnapTargets } from "./lib/grid";
 import { create } from "zustand";
 import * as ops from "./model/ops";
@@ -36,6 +37,8 @@ export interface ViewOptions {
 export interface Block {
   id: string;
   name: string;
+  /** Latest library version. */
+  version: number;
   children: Comp[];
 }
 
@@ -158,8 +161,11 @@ interface State {
   restore(index: number): void;
   loadCapabilities(): Promise<void>;
   loadBlocks(): Promise<void>;
-  saveBlock(name: string): Promise<void>;
-  insertBlock(id: string): void;
+  saveBlock(name: string, notes?: string): Promise<void>;
+  /** Places a library block: linked (follows new versions), pinned (stays on this version) or detached (a copy). */
+  insertBlock(id: string, mode?: BlockMode): void;
+  /** Brings linked blocks in the open report up to the library's latest versions. */
+  syncLinkedBlocks(): void;
   acceptAi(): void;
   rejectAi(): void;
 }
@@ -167,6 +173,9 @@ interface State {
 let toastId = 1;
 let engineRun = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
+
+/** Library block id for a name; saving under an existing name adds a version to that block. */
+export const blockIdFor = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "block";
 
 function pref(key: string, fallback: string): string {
   try {
@@ -313,6 +322,7 @@ export const useStore = create<State>((set, get) => ({
     set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
     persistDraft(d, sample);
     get().refresh();
+    get().syncLinkedBlocks();
   },
 
   undo() {
@@ -597,38 +607,40 @@ export const useStore = create<State>((set, get) => ({
 
   async loadBlocks() {
     try {
-      set({ blocks: (await api.listBlocks()) as Block[] });
+      set({ blocks: (await api.listBlocks()).map((block) => ({ ...block, version: block.version ?? 1 })) as Block[] });
+      get().syncLinkedBlocks();
     } catch {
       /* ignore */
     }
   },
 
-  async saveBlock(name) {
+  syncLinkedBlocks() {
+    const s = get();
+    if (!s.blocks.length || !s.doc.fragments?.length) return;
+    const { doc, updated } = syncLinkedBlocks(s.doc, s.blocks);
+    if (!updated.length) return;
+    s.setDoc(doc);
+    s.toast(`Updated linked block${updated.length === 1 ? "" : "s"} to the latest version: ${updated.join(", ")}`, "info");
+  },
+
+  async saveBlock(name, notes) {
     const s = get();
     const comps = s.selection.map((id) => ops.find(s.doc, id)?.comp).filter(Boolean) as Comp[];
     if (!comps.length) return;
     try {
-      await api.putBlock(name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "block", name, structuredClone(comps));
+      const version = await api.putBlock(blockIdFor(name), name, structuredClone(comps), notes);
       await get().loadBlocks();
-      get().toast(`Saved "${name}" to My Components`, "success");
+      get().toast(`Saved "${name}"${version ? ` as version ${version}` : ""} to My Components`, "success");
     } catch (e) {
       get().toast((e as Error).message, "error");
     }
   },
 
-  insertBlock(id) {
+  insertBlock(id, mode = (pref("blockMode", "linked") as BlockMode)) {
     const s = get();
     const b = s.blocks.find((x) => x.id === id);
     if (!b) return;
-    let doc = s.doc;
-    let target = s.selection[s.selection.length - 1];
-    const ids: string[] = [];
-    for (const c of b.children) {
-      const copy = ops.reId(doc, structuredClone(c));
-      doc = ops.insert(doc, copy, target, "after");
-      target = copy.id;
-      ids.push(copy.id);
-    }
+    const { doc, ids } = placeBlock(s.doc, b, mode, s.selection[s.selection.length - 1]);
     get().setDoc(doc);
     set({ selection: ids });
   },

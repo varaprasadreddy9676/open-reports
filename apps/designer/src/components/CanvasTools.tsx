@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useStore } from "../store";
+import { blockIdFor, useStore } from "../store";
 import * as ops from "../model/ops";
 
 /** Right-click menu for the canvas and the layers tree. */
@@ -155,14 +155,21 @@ export function InlineEditor({ id, box, k }: { id: string; box: { x: number; y: 
 
 export function SaveBlockDialogBody() {
   const [name, setName] = useState("");
+  const [notes, setNotes] = useState("");
   const set = useStore((s) => s.set);
+  const existing = useStore((s) => s.blocks.find((block) => block.id === blockIdFor(name.trim())));
   return (
     <>
       <h2>Save as reusable component</h2>
       <p className="muted">Saved components appear under “My Components” in the Components panel and can be inserted into any report.</p>
       <label className="field wide">
         <span className="field-label">Name</span>
-        <input autoFocus data-testid="block-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Hospital letterhead" />
+        <input autoFocus data-testid="block-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Company letterhead" />
+      </label>
+      {existing && <p className="muted small" data-testid="block-version-hint">Saves version {existing.version + 1} of “{existing.name}”. Reports that link it pick up the change; pinned reports keep their version.</p>}
+      <label className="field wide">
+        <span className="field-label">What changed (optional)</span>
+        <input data-testid="block-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. New registered address" />
       </label>
       <div className="dialog-actions">
         <button className="btn" onClick={() => set({ dialog: null })}>Cancel</button>
@@ -172,11 +179,11 @@ export function SaveBlockDialogBody() {
           data-testid="block-save"
           disabled={!name.trim()}
           onClick={async () => {
-            await useStore.getState().saveBlock(name.trim());
+            await useStore.getState().saveBlock(name.trim(), notes.trim() || undefined);
             set({ dialog: null });
           }}
         >
-          Save component
+          {existing ? "Save new version" : "Save component"}
         </button>
       </div>
     </>

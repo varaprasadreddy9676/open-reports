@@ -58,10 +58,14 @@ export interface StorageProvider {
   getVersion(templateId: string, version: number): Promise<TemplateVersionRecord | undefined>;
   getLatestPublishedVersion(templateId: string): Promise<TemplateVersionRecord | undefined>;
 
-  /** Reusable blocks ("My Components"). */
-  listBlocks(): Promise<{ id: string; name: string; children: unknown; updatedAt: string }[]>;
-  putBlock(id: string, name: string, children: unknown): Promise<void>;
+  /** Reusable blocks ("My Components"). Each save creates a new immutable version. */
+  listBlocks(): Promise<BlockRecord[]>;
+  /** Returns the new version number (older storage plugins may return nothing). */
+  putBlock(id: string, name: string, children: unknown, notes?: string): Promise<number | void>;
   deleteBlock(id: string): Promise<void>;
+  /** Optional for storage plugins written before block versions: the latest or a specific version. */
+  getBlock?(id: string, version?: number): Promise<BlockRecord | undefined>;
+  listBlockVersions?(id: string): Promise<{ version: number; name: string; notes?: string; createdAt: string }[]>;
   /** Optional for storage plugins written before printer profiles were introduced. */
   listPrinterProfiles?(): Promise<SavedPrinterProfile[]>;
   putPrinterProfile?(id: string, name: string, print: PrintProfile, page: PageConfig): Promise<SavedPrinterProfile>;
@@ -98,4 +102,14 @@ export class VersionImmutableError extends Error {
     super(`Template "${id}" version ${version} is already published and cannot be modified.`);
     this.name = "VersionImmutableError";
   }
+}
+
+export interface BlockRecord {
+  id: string;
+  name: string;
+  children: unknown;
+  /** Latest version (1 for blocks saved before versioning). */
+  version: number;
+  notes?: string;
+  updatedAt: string;
 }

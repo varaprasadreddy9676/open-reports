@@ -132,11 +132,17 @@ export const api = {
     const result = await (await request(`/api/v1/resources/image?src=${encodeURIComponent(src)}`, { cache: "no-store" })).json() as { dataUrl: string };
     return result.dataUrl;
   },
-  async listBlocks(): Promise<{ id: string; name: string; children: any[] }[]> {
+  async listBlocks(): Promise<{ id: string; name: string; version?: number; children: any[] }[]> {
     return (await request("/api/v1/blocks")).json();
   },
-  async putBlock(id: string, name: string, children: unknown[]): Promise<void> {
-    await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ name, children }) });
+  /** Saves a new version of a library block and returns its number. */
+  async putBlock(id: string, name: string, children: unknown[], notes?: string): Promise<number | undefined> {
+    const response = await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ name, children, ...(notes ? { notes } : {}) }) });
+    const version = Number(response.headers.get("x-block-version"));
+    return Number.isInteger(version) && version > 0 ? version : undefined;
+  },
+  async listBlockVersions(id: string): Promise<{ version: number; name: string; notes?: string; createdAt: string }[]> {
+    return (await request(`/api/v1/blocks/${encodeURIComponent(id)}/versions`)).json();
   },
   async deleteBlock(id: string): Promise<void> {
     await request(`/api/v1/blocks/${encodeURIComponent(id)}`, { method: "DELETE" });

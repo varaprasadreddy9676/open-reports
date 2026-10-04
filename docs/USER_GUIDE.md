@@ -47,6 +47,14 @@ While moving an element in a free-position layout, smart guides compare it with 
 - **Snap to** turns each target on or off: grid, other objects, band and page edges, guides, equal spacing and text baselines.
 - These settings are saved for you and are not stored in the report.
 
+**Reusable blocks.** **My Components** in the Components panel holds blocks shared by every report on the server.
+- **Saving:** **+ Save selection** saves the selected components. Saving under an existing name creates its next version, with an optional note about what changed.
+- **Inserting:** choose **Insert as**:
+  - **Linked** follows new versions automatically;
+  - **Pinned** stays on the inserted version;
+  - **Editable copy** is independent.
+- **Managing a placed block:** select it to see its source, version and history. From there you can follow updates, pin it, update a pinned block to the newest version, or detach it to edit it in this report only.
+
 **Nested lists.** A list inside each record (for example each order's `lines`) can be dragged from the data tree:
 - **Into a row of its parent list** (for example inside a repeater over `orders`): it shows that record's own list.
 - **Anywhere else:** the designer wraps it automatically in a repeater over the parent list, so one drag builds a master-detail layout. The drop dialog says which of the two will happen.

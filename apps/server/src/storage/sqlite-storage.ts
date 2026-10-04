@@ -3,6 +3,7 @@ import {
   TemplateNotFoundError,
   VersionImmutableError,
   VersionNotFoundError,
+  type BlockRecord,
   type CreateTemplateInput,
   type StorageProvider,
   type SavedPrinterProfile,
@@ -56,6 +57,23 @@ export class SqliteStorage implements StorageProvider {
     `);
     const columns = this.db.pragma("table_info(template_versions)") as { name: string }[];
     if (!columns.some((column) => column.name === "notes")) this.db.exec("ALTER TABLE template_versions ADD COLUMN notes TEXT");
+    // Block versions: every save is kept; blocks saved before versioning become version 1.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS block_versions (
+        blockId TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        children TEXT NOT NULL,
+        notes TEXT,
+        createdAt TEXT NOT NULL,
+        PRIMARY KEY (blockId, version)
+      );
+    `);
+    const blockColumns = this.db.pragma("table_info(blocks)") as { name: string }[];
+    if (!blockColumns.some((column) => column.name === "version")) this.db.exec("ALTER TABLE blocks ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
+    this.db.exec(`INSERT INTO block_versions (blockId, version, name, children, createdAt)
+      SELECT b.id, b.version, b.name, b.children, b.updatedAt FROM blocks b
+      WHERE NOT EXISTS (SELECT 1 FROM block_versions v WHERE v.blockId = b.id)`);
   }
 
   async createTemplate(input: CreateTemplateInput): Promise<TemplateRecord> {
@@ -139,19 +157,42 @@ export class SqliteStorage implements StorageProvider {
   }
 
   /** Reusable blocks ("My Components"): shared fragments organizations insert into many reports. */
-  async listBlocks(): Promise<{ id: string; name: string; children: unknown; updatedAt: string }[]> {
-    const rows = this.db.prepare(`SELECT * FROM blocks ORDER BY name`).all() as { id: string; name: string; children: string; updatedAt: string }[];
+  async listBlocks(): Promise<BlockRecord[]> {
+    const rows = this.db.prepare(`SELECT * FROM blocks ORDER BY name`).all() as { id: string; name: string; children: string; version: number; updatedAt: string }[];
     return rows.map((r) => ({ ...r, children: JSON.parse(r.children) }));
   }
 
-  async putBlock(id: string, name: string, children: unknown): Promise<void> {
-    this.db
-      .prepare(`INSERT INTO blocks (id, name, children, updatedAt) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, children = excluded.children, updatedAt = excluded.updatedAt`)
-      .run(id, name, JSON.stringify(children), new Date().toISOString());
+  async putBlock(id: string, name: string, children: unknown, notes?: string): Promise<number> {
+    const now = new Date().toISOString();
+    const json = JSON.stringify(children);
+    return this.db.transaction(() => {
+      const current = this.db.prepare(`SELECT MAX(version) AS version FROM block_versions WHERE blockId = ?`).get(id) as { version: number | null };
+      const version = (current.version ?? 0) + 1;
+      this.db.prepare(`INSERT INTO block_versions (blockId, version, name, children, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(id, version, name, json, notes ?? null, now);
+      this.db
+        .prepare(`INSERT INTO blocks (id, name, children, version, updatedAt) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, children = excluded.children, version = excluded.version, updatedAt = excluded.updatedAt`)
+        .run(id, name, json, version, now);
+      return version;
+    })();
+  }
+
+  async getBlock(id: string, version?: number): Promise<BlockRecord | undefined> {
+    const row = (version === undefined
+      ? this.db.prepare(`SELECT * FROM block_versions WHERE blockId = ? ORDER BY version DESC LIMIT 1`).get(id)
+      : this.db.prepare(`SELECT * FROM block_versions WHERE blockId = ? AND version = ?`).get(id, version)) as { blockId: string; version: number; name: string; children: string; notes: string | null; createdAt: string } | undefined;
+    return row ? { id: row.blockId, name: row.name, children: JSON.parse(row.children), version: row.version, ...(row.notes ? { notes: row.notes } : {}), updatedAt: row.createdAt } : undefined;
+  }
+
+  async listBlockVersions(id: string): Promise<{ version: number; name: string; notes?: string; createdAt: string }[]> {
+    const rows = this.db.prepare(`SELECT version, name, notes, createdAt FROM block_versions WHERE blockId = ? ORDER BY version DESC`).all(id) as { version: number; name: string; notes: string | null; createdAt: string }[];
+    return rows.map((r) => ({ version: r.version, name: r.name, ...(r.notes ? { notes: r.notes } : {}), createdAt: r.createdAt }));
   }
 
   async deleteBlock(id: string): Promise<void> {
-    this.db.prepare(`DELETE FROM blocks WHERE id = ?`).run(id);
+    this.db.transaction(() => {
+      this.db.prepare(`DELETE FROM blocks WHERE id = ?`).run(id);
+      this.db.prepare(`DELETE FROM block_versions WHERE blockId = ?`).run(id);
+    })();
   }
 
   async listPrinterProfiles(): Promise<SavedPrinterProfile[]> {

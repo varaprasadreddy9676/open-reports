@@ -1,3 +1,4 @@
+import type { BlockMode } from "../lib/blocks";
 import React, { useEffect, useMemo, useState } from "react";
 import { savePref, useStore } from "../store";
 import * as ops from "../model/ops";
@@ -75,6 +76,9 @@ function PluginComponents({ q }: { q: string }) {
 
 function BlocksSection({ q }: { q: string }) {
   const blocks = useStore((s) => s.blocks);
+  const [mode, setMode] = useState<BlockMode>(() => {
+    try { return (localStorage.getItem("designer.blockMode") as BlockMode) || "linked"; } catch { return "linked"; }
+  });
   const filtered = blocks.filter((b) => b.name.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="palette-group" data-testid="my-components">
@@ -85,11 +89,20 @@ function BlocksSection({ q }: { q: string }) {
         </button>
       </div>
       {filtered.length === 0 && <p className="muted small">Save headers, letterheads, signature blocks and totals once - reuse them in every report.</p>}
+      {filtered.length > 0 && <label className="block-mode" title="Linked blocks follow new versions of the block; pinned blocks stay on the version you insert; a copy can be edited freely in this report.">
+        Insert as{" "}
+        <select data-testid="block-insert-mode" aria-label="Insert library blocks as" value={mode} onChange={(e) => { savePref("blockMode", e.target.value); setMode(e.target.value as BlockMode); }}>
+          <option value="linked">Linked (follows updates)</option>
+          <option value="pinned">Pinned to this version</option>
+          <option value="detached">Editable copy</option>
+        </select>
+      </label>}
       {filtered.map((b) => (
         <div key={b.id} className="block-row">
-          <button className="block-item" data-testid={`block-${b.id}`} onClick={() => useStore.getState().insertBlock(b.id)}>
+          <button className="block-item" data-testid={`block-${b.id}`} onClick={() => useStore.getState().insertBlock(b.id, mode)}>
             <Icon name="group" small />
             <span>{b.name}</span>
+            <span className="muted small">v{b.version}</span>
           </button>
           <button
             className="mini danger"

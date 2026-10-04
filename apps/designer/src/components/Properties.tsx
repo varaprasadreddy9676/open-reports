@@ -11,6 +11,7 @@ import { InspectorSection as Section } from "./InspectorSection";
 import { removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
 import { textStyleFromStyle } from "../lib/theme-edit";
+import { FragmentProps } from "./FragmentProps";
 import { fitZoom } from "../lib/zoom";
 import { SpacingFields } from "./SpacingFields";
 import { InspectorActions } from "./InspectorActions";
@@ -1360,7 +1361,7 @@ function MultiProps({ ids }: { ids: string[] }) {
   );
 }
 
-const CONTENT_TYPES = new Set(["text", "richText", "field", "table", "chart", "labelSheet", "qrcode", "barcode", "image", "group", "pageBreak", "line"]);
+const CONTENT_TYPES = new Set(["text", "richText", "field", "table", "chart", "labelSheet", "qrcode", "barcode", "image", "group", "pageBreak", "line", "fragment"]);
 
 function ComponentProps({ id }: { id: string }) {
   const { doc } = useStore();
@@ -1399,6 +1400,7 @@ function ComponentProps({ id }: { id: string }) {
       <InspectorTabs label="Element properties" tabs={tabs} active={tab} onChange={setTab} testIdPrefix="element-tab">
       {tab === "content" && textLike && <TextProps comp={comp} />}
       {tab === "content" && t === "table" && <TableProps comp={comp} />}
+      {tab === "content" && t === "fragment" && <Section title="Library block"><FragmentProps comp={comp} /></Section>}
       {tab === "content" && t === "chart" && <ChartProps comp={comp} />}
       {tab === "content" && t === "labelSheet" && <LabelSheetProps comp={comp} />}
       {tab === "content" && (t === "qrcode" || t === "barcode") && <CodeProps comp={comp} />}

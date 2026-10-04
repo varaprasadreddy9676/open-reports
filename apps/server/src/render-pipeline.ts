@@ -1,3 +1,4 @@
+import { refreshLinkedBlocks, type BlockLookup } from "./linked-blocks.js";
 import { randomUUID } from "node:crypto";
 import { parseReportDefinition, type ReportDefinition } from "@reporting/schema";
 import { DataSourceRegistry, resolveReport, validateReport } from "@reporting/core";
@@ -40,6 +41,8 @@ export interface RenderRuntime {
   imageAllowedHosts?: string[];
   /** Server folders whose files linked images may read; empty refuses every local path. */
   imageRoots?: string[];
+  /** Latest version of a library block, for linked blocks. */
+  getBlock?: BlockLookup;
 }
 
 export function createRuntime(plugins?: PluginRegistry): RenderRuntime {
@@ -74,7 +77,8 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
     throw new RenderPipelineError(`Unsupported format "${input.format}". Supported formats: ${Object.keys(runtime.renderers).join(", ")}.`, "UNSUPPORTED_FORMAT", 400);
   }
 
-  const parsed = parseReportDefinition(input.report);
+  const linked = await refreshLinkedBlocks(input.report, runtime.getBlock);
+  const parsed = parseReportDefinition(linked.report);
   if (!parsed.valid) {
     throw new RenderPipelineError("Report definition failed schema validation.", "INVALID_REPORT", 400, parsed.issues);
   }
@@ -89,6 +93,7 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
   let pipeline;
   try {
     pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: input.parameters ?? {}, functions: runtime.functions, customComponents: runtime.customComponents });
+    pipeline.resolved.warnings.push(...linked.warnings);
   } catch (err) {
     throw new RenderPipelineError(describeError(err), "REPORT_RESOLVE_FAILED", 422, { renderId });
   }
