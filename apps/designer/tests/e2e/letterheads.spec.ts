@@ -75,9 +75,10 @@ test("a real two-logo letterhead is composed and exported entirely through desig
   await page.getByTestId("properties").getByLabel("Width").fill("22mm");
   await page.getByTestId("properties").getByLabel("Height").fill("27mm");
 
+  // Uploaded files are read asynchronously; wait until both images hold their data.
+  await expect.poll(async () => (await report()).sections[headerIndex].children[0].children.filter((item: any) => item.type === "image").every((item: any) => String(item.src ?? "").startsWith("data:image/png;base64,"))).toBe(true);
   const header = (await report()).sections[headerIndex];
   expect(header.children[0].children.map((item: any) => item.type)).toEqual(["image", "text", "image"]);
-  expect(header.children[0].children.filter((item: any) => item.type === "image").every((item: any) => item.src.startsWith("data:image/png;base64,"))).toBe(true);
   await expect(page.locator(".page img[data-cid]")).toHaveCount(2);
   for (const image of await page.locator(".page img[data-cid]").all()) await expect(image).toBeInViewport({ ratio: 0.8 });
   expect(await page.evaluate(() => (window as any).__designer.getState().engine.problems.filter((problem: any) => problem.severity === "error"))).toEqual([]);
