@@ -47,6 +47,11 @@ While moving an element in a free-position layout, smart guides compare it with 
 - **Snap to** turns each target on or off: grid, other objects, band and page edges, guides, equal spacing and text baselines.
 - These settings are saved for you and are not stored in the report.
 
+**Comparing versions visually.** **⋯ → Compare versions… → Visual** renders both versions to PDF with the current sample data and compares every page (up to 30) pixel by pixel.
+- It lists the pages that changed, with the share of each page that changed, plus pages that were added or removed.
+- Each changed page is shown before, after, and with the changes marked in red.
+- Small anti-aliasing differences are ignored.
+
 **Reusable blocks.** **My Components** in the Components panel holds blocks shared by every report on the server.
 - **Saving:** **+ Save selection** saves the selected components. Saving under an existing name creates its next version, with an optional note about what changed.
 - **Inserting:** choose **Insert as**:

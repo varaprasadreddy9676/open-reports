@@ -2423,3 +2423,11 @@ kbd {
 .block-item .muted { margin-left: auto; }
 .fragment-props { display: grid; gap: 8px; }
 .fragment-history ol { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
+
+/* Visual version comparison */
+.visual-compare { display: grid; gap: 10px; }
+.visual-pages { display: grid; gap: 14px; max-height: 60vh; overflow: auto; }
+.visual-images { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.visual-images figure { margin: 0; display: grid; gap: 4px; }
+.visual-images img { width: 100%; border: 1px solid var(--border); background: #fff; }
+.visual-images figcaption { color: var(--muted); font-size: 11px; text-align: center; }

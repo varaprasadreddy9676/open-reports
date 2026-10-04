@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { api, type VersionRecord } from "../lib/api";
 import { diffDocs } from "../lib/diff";
+import { VisualCompare } from "./VisualCompare";
 
 export function CompareDialogBody() {
   const { meta, doc } = useStore();
@@ -26,7 +27,7 @@ export function CompareDialogBody() {
   const fromVersion = versions.find((v) => v.version === from);
   const toVersion = to === "current" ? undefined : versions.find((v) => v.version === to);
   const changes = a && b ? diffDocs(a, b) : [];
-  const [side, setSide] = useState(false);
+  const [view, setView] = useState<"changes" | "json" | "visual">("changes");
   return (
     <>
       <h2>Compare versions</h2>
@@ -49,13 +50,15 @@ export function CompareDialogBody() {
             ))}
           </select>
         </label>
-        <button className="btn small" onClick={() => setSide(!side)}>{side ? "Change list" : "Side-by-side JSON"}</button>
+        <div className="seg small" role="tablist" aria-label="Comparison view">
+          {([["changes", "Change list"], ["visual", "Visual"], ["json", "Side-by-side JSON"]] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={view === id} className={view === id ? "active" : ""} data-testid={`compare-view-${id}`} onClick={() => setView(id)}>{label}</button>)}
+        </div>
       </div>
       {(fromVersion?.notes || toVersion?.notes) && <div className="version-notes" data-testid="version-notes">
         {fromVersion?.notes && <p><strong>v{fromVersion.version} notes:</strong> {fromVersion.notes}</p>}
         {toVersion?.notes && toVersion.version !== fromVersion?.version && <p><strong>v{toVersion.version} notes:</strong> {toVersion.notes}</p>}
       </div>}
-      {!side && (
+      {view === "changes" && (
         <ul className="change-list" data-testid="compare-changes">
           {changes.length === 0 && <li className="muted">No differences.</li>}
           {changes.map((c, i) => (
@@ -65,7 +68,8 @@ export function CompareDialogBody() {
           ))}
         </ul>
       )}
-      {side && (
+      {view === "visual" && a && b && <VisualCompare key={`${from}-${to}`} before={a} after={b} beforeLabel={`v${from}`} afterLabel={to === "current" ? "Current" : `v${to}`} />}
+      {view === "json" && (
         <div className="side-by-side">
           <pre>{JSON.stringify(a, null, 2)}</pre>
           <pre>{JSON.stringify(b, null, 2)}</pre>
