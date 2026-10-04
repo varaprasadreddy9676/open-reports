@@ -10,7 +10,9 @@ Open source (MIT) · self-hosted · no seats, no per-document fees
 
 [Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation)
 
-![The Open Reports designer](docs/images/designer.png)
+[![Open Reports in 42 seconds](docs/media/open-reports-launch.gif)](docs/media/open-reports-launch.mp4)
+
+**[Watch the 42-second tour with sound](docs/media/open-reports-launch.mp4)**
 
 </div>
 
@@ -37,6 +39,8 @@ No Docker? Node 22 and `pnpm` work too: `pnpm install && pnpm doctor && pnpm bui
 | **Easy to move in** | Coming from JasperReports? Import your `.jrxml` files, or a whole folder of them, and keep editing in the designer. [Migration guide](docs/JRXML_MIGRATION.md) |
 
 ## A quick tour
+
+![The Open Reports designer](docs/images/designer.png)
 
 **Build the structure your report needs.** Report, page, group and detail bands; nested groups with subtotals; a no-data band; different first and last pages.
 
