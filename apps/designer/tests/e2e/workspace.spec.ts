@@ -1078,3 +1078,12 @@ test("table body grid: merge and split rows using resolved sample data", async (
   await page.getByTestId("table-designer-done").click();
   await expect(page.locator(".cn-table tbody td[rowspan='2']")).toHaveCount(0);
 });
+
+test("the more menu links to the feedback form", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.getByTestId("btn-more").click();
+  const link = page.getByTestId("menu-feedback");
+  await expect(link).toHaveAttribute("href", /\/issues\/new\?template=1-feedback\.yml$/);
+  await expect(link).toHaveAttribute("target", "_blank");
+});

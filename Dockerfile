@@ -17,7 +17,14 @@ RUN pnpm -r --filter "./packages/**" build && pnpm --filter @reporting/server bu
 RUN pnpm --filter @reporting/server deploy --legacy --prod /out/server \
  && cp -r apps/designer/dist /out/designer
 
-# ---------------------------------------------------------------- api
+# ---------------------------------------------------------------- designer (static)
+FROM nginx:1.27-alpine AS designer
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /out/designer /usr/share/nginx/html
+EXPOSE 3000
+HEALTHCHECK --interval=15s --timeout=3s CMD wget -qO- http://localhost:3000/ >/dev/null || exit 1
+
+# ---------------------------------------------------------------- api (last, so a plain `docker build .` and one-click hosts build it)
 FROM node:22-bookworm-slim AS api
 # Noto fonts are required for correct Latin, Indic and Arabic text in PDFs (pagination depends on real glyph metrics).
 RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-core curl && rm -rf /var/lib/apt/lists/* \
@@ -32,10 +39,3 @@ VOLUME ["/data"]
 EXPOSE 4000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD curl -fsS http://localhost:4000/health || exit 1
 CMD ["node", "dist/index.js"]
-
-# ---------------------------------------------------------------- designer (static)
-FROM nginx:1.27-alpine AS designer
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /out/designer /usr/share/nginx/html
-EXPOSE 3000
-HEALTHCHECK --interval=15s --timeout=3s CMD wget -qO- http://localhost:3000/ >/dev/null || exit 1

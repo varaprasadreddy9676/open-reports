@@ -4,15 +4,17 @@
 
 **Design data-driven documents in your browser. Render them anywhere.**
 
-Invoices, statements, grouped business reports, labels, receipts and sticker sheets from one template, delivered as PDF, HTML, Excel, CSV, Zebra labels (ZPL) or receipt-printer output (ESC/POS).
+Design invoices, statements, grouped reports, labels, receipts and sticker sheets. Render documents as PDF or HTML, export data as Excel or CSV, and create printer-specific ZPL or ESC/POS output.
 
 Open source (MIT) · self-hosted · no seats, no per-document fees
 
-[Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation)
+[Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation) · [Give feedback](https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml)
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/varaprasadreddy9676/open-reports) [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/varaprasadreddy9676/open-reports)
 
 [![Open Reports in 64 seconds](docs/media/open-reports-launch.gif)](docs/media/open-reports-launch.mp4)
 
-**[Download the 64-second film with sound (MP4, 14 MB)](https://raw.githubusercontent.com/varaprasadreddy9676/open-reports/claude/upbeat-volta-pe84n7/docs/media/open-reports-launch.mp4)**
+**[Watch the 64-second film with sound (MP4, 14 MB)](docs/media/open-reports-launch.mp4)**
 
 </div>
 
@@ -25,6 +27,8 @@ docker compose up --build
 
 Open **http://localhost:3000**, pick **Invoice** from the starters, and press **Preview**. You are looking at a real PDF.
 
+Nothing to install: open it in **GitHub Codespaces** (button above; the app opens in your browser after a few minutes of setup), or deploy your own free demo with **Deploy to Render**.
+
 No Docker? Node 22 and `pnpm` work too: `pnpm install && pnpm doctor && pnpm build:all && pnpm start` (details in [Getting started](docs/GETTING_STARTED.md)).
 
 ## Why Open Reports
@@ -32,11 +36,11 @@ No Docker? Node 22 and `pnpm` work too: `pnpm install && pnpm doctor && pnpm bui
 | | |
 |---|---|
 | **A designer anyone can use** | Drag fields from your data onto the page, arrange bands and groups, set conditions with plain expressions. It runs in the browser: nothing to install for report authors. |
-| **Pagination you can trust** | Repeating headers, page X of Y, groups that keep together, rows that split cleanly, first/last/odd/even page layouts. When something moves to the next page, the designer tells you why and offers the fix. |
-| **One template, every output** | The same report renders to PDF, HTML, Excel and CSV. Label and receipt layouts print to Zebra (ZPL) and thermal (ESC/POS) printers, in real millimetres. |
+| **Pagination you can inspect** | Repeating headers, page X of Y, group and row pagination, and first/last/odd/even page layouts. The designer shows page-break diagnostics so you can review where content moved. |
+| **Several output formats** | Render reports as PDF or HTML, export data as Excel or CSV, and design printer-specific layouts for Zebra (ZPL) and thermal (ESC/POS) printers in real millimetres. |
 | **Templates are plain JSON** | Review them in pull requests, generate them from code, edit them with AI. A published JSON Schema documents every field. |
 | **Your server, your data** | Self-hosted. Database credentials stay on the server; templates only reference `{{secrets.NAME}}`. Formulas run in a sandbox, never as code. |
-| **Easy to move in** | Coming from JasperReports? Import your `.jrxml` files, or a whole folder of them, and keep editing in the designer. [Migration guide](docs/JRXML_MIGRATION.md) |
+| **Bring in JRXML source** | Import one `.jrxml` file or a folder as editable drafts. The importer lists features that need review; data bindings and PDF output must be checked before production use. [Migration guide](docs/JRXML_MIGRATION.md) |
 
 ## A quick tour
 
@@ -50,7 +54,7 @@ No Docker? Node 22 and `pnpm` work too: `pnpm install && pnpm doctor && pnpm bui
 
 ![Table conditions with a live sample](docs/images/table-rules.png)
 
-**See why a page broke.** Every page break is explained, with the space that was left and a one-click fix.
+**Inspect page breaks.** Pagination diagnostics show why content moved, including the space left on the page, and offer fixes for supported cases.
 
 ![Pagination decisions explained](docs/images/pagination.png)
 
@@ -131,11 +135,15 @@ Data can come from inline JSON, CSV, REST APIs, PostgreSQL or MySQL. Everything 
 
 ## Quality
 
-Every change runs nearly 1,000 automated tests in CI, against real PostgreSQL and MySQL: pagination boundaries on real PDFs, visual comparisons of rendered reports and of the designer, security tests (formula sandbox, SSRF, injection, path traversal), the MCP server end to end, and over 170 browser tests that drive the designer. As a rough guide, a 100,000-row Excel export takes about 8 seconds on a laptop-class CPU.
+The [CI workflow](.github/workflows/ci.yml) runs unit, integration, browser and visual tests, exercises PostgreSQL and MySQL, builds the Docker image, and runs a quick benchmark. These checks cover rendering, pagination, data sources and security boundaries; verify each report with its own data and target printer before relying on its output.
 
 ## Status
 
-Open Reports is young (v0.x) and moving fast: well tested, but expect rough edges. Not yet supported: PDF/A and digital signatures, crosstabs, and importing Word or InDesign layouts. Page breaks are measured with the bundled Noto fonts, so a different font changes line breaks, and label and receipt output is verified as ZPL and ESC/POS bytes rather than on every printer model. The roadmap lives on the issue tracker.
+Open Reports is young (v0.x) and moving fast: expect rough edges. Not yet supported: PDF/A and digital signatures, crosstabs, and importing Word or InDesign layouts. JRXML import creates drafts, not guaranteed Jasper-equivalent PDFs. Page breaks are measured with the bundled Noto fonts, so a different font changes line breaks; label and receipt output is verified as ZPL and ESC/POS bytes rather than on every printer model. The roadmap lives on the issue tracker.
+
+## Tried it? Tell us
+
+Two minutes of feedback shapes what gets built next: [share what you tried, what worked and where you got stuck](https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml). You can also use **More → Send feedback** inside the app.
 
 ## Contributing
 

@@ -1,0 +1,41 @@
+name: "I tried Open Reports"
+description: Two minutes of feedback after trying it. Every answer is read.
+title: "Feedback: "
+labels: [feedback]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for trying Open Reports. Short answers are perfect; skip anything you like.
+  - type: dropdown
+    id: tried
+    attributes:
+      label: How did you try it?
+      options: [Live demo, Codespaces, Docker, From source, Only read the README]
+    validations: { required: true }
+  - type: textarea
+    id: goal
+    attributes:
+      label: What were you trying to build?
+      placeholder: e.g. a monthly statement with grouped totals, 50 × 30 mm product labels, a receipt
+  - type: textarea
+    id: worked
+    attributes:
+      label: What worked well?
+  - type: textarea
+    id: confusing
+    attributes:
+      label: Where did you get stuck or confused?
+  - type: input
+    id: today
+    attributes:
+      label: What do you use for this today?
+      placeholder: JasperReports, Crystal Reports, SSRS, HTML-to-PDF, a SaaS, custom code…
+  - type: dropdown
+    id: likely
+    attributes:
+      label: Would you use it for real work?
+      options: ["Yes, already am", "Probably", "Not yet: missing something", "No"]
+  - type: textarea
+    id: missing
+    attributes:
+      label: What would make it a yes?

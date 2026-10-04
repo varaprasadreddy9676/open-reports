@@ -17,6 +17,9 @@ import { fitZoom } from "../lib/zoom";
 import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 import { JrxmlFolderImport } from "./JrxmlFolderImport";
 
+/** Opens the "I tried Open Reports" issue form on the upstream repository. */
+const FEEDBACK_URL = "https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml";
+
 // ------------------------------------------------------------------ toolbar
 function useOutsideClose(open: boolean, close: () => void) {
   useEffect(() => {
@@ -138,6 +141,7 @@ export function Toolbar() {
               </label>
               <hr />
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "settings" }))}>Settings…</button>
+              <a role="menuitem" data-testid="menu-feedback" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(null)}>Send feedback ↗</a>
               <hr />
               <button role="menuitem" className="danger" disabled={!meta.id} onClick={() => (setMenu(null), deleteReport())}>Delete report</button>
             </div>

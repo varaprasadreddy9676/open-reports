@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  @font-face { font-family: Display; src: url("../launch-video/assets/fonts/NotoSansDisplay-Bold.ttf"); font-weight: 700; }
+  @font-face { font-family: Display; src: url("../launch-video/assets/fonts/NotoSansDisplay-Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: Accent; src: url("../launch-video/assets/fonts/NotoSerifDisplay-Italic.ttf"); font-style: italic; }
+  @font-face { font-family: Mono; src: url("../launch-video/assets/fonts/NotoSansMono-Regular.ttf"); }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 640px; overflow: hidden; background: #0b1220; font-family: Display; color: #fff; position: relative; }
+  .brand { position: absolute; left: 64px; top: 56px; display: flex; align-items: center; gap: 18px; font: 700 40px/1 Display; letter-spacing: -0.02em; }
+  h1 { position: absolute; left: 64px; top: 168px; width: 620px; font: 700 62px/1.04 Display; letter-spacing: -0.03em; }
+  .accent { font: italic 400 68px/1 Accent; color: #fde68a; }
+  .tags { position: absolute; left: 64px; bottom: 60px; font: 400 22px/1.5 Mono; color: #94a3b8; width: 600px; }
+  .shot { position: absolute; left: 720px; top: 96px; width: 720px; border-radius: 14px; box-shadow: 0 40px 100px rgba(0,0,0,.5); transform: rotate(-4deg); border: 1px solid #26344d; }
+</style></head><body>
+  <div class="brand"><svg width="46" height="46" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="#2563eb"/><path d="M7 8h10M7 12h10M7 16h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>Open Reports</div>
+  <h1>Design documents<br>in your browser.<br>Render them <span class="accent">anywhere.</span></h1>
+  <div class="tags">Open source · self-hosted<br>PDF · HTML · Excel · CSV · ZPL · ESC/POS</div>
+  <img class="shot" src="../../docs/images/designer.png">
+</body></html>

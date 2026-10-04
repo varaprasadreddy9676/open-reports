@@ -1,0 +1,18 @@
+name: Feature request
+description: Something you need that Open Reports doesn't do yet
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the document or workflow; the "why" matters more than a proposed solution.
+    validations: { required: true }
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you do it today?
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?

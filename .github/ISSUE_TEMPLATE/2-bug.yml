@@ -1,0 +1,26 @@
+name: Bug report
+description: Wrong output, a crash, or something that broke
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Attaching the report JSON (with private data removed) helps the most.
+    validations: { required: true }
+  - type: dropdown
+    id: format
+    attributes:
+      label: Output involved
+      multiple: true
+      options: [Designer canvas, PDF, HTML, Excel, CSV, ZPL label, ESC/POS receipt, API, Not output related]
+  - type: input
+    id: env
+    attributes:
+      label: How are you running it?
+      placeholder: Docker image tag / commit, OS, browser; output of `pnpm doctor` if from source

@@ -1,0 +1,11 @@
+{
+  "name": "Open Reports",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
+  "features": {},
+  "hostRequirements": { "cpus": 2, "memory": "4gb" },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y fonts-noto-core && corepack enable && pnpm install --frozen-lockfile && pnpm build:all",
+  "postAttachCommand": { "app": "pnpm start" },
+  "forwardPorts": [4000],
+  "portsAttributes": { "4000": { "label": "Open Reports", "onAutoForward": "openBrowser" } },
+  "customizations": { "codespaces": { "openFiles": ["README.md"] } }
+}

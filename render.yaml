@@ -1,0 +1,15 @@
+# One-click demo on Render (https://render.com/deploy). Free instances sleep when idle and keep no data between
+# restarts, which suits a public try-it demo. For real use, add API_KEYS and a disk (see docs/DEPLOYMENT.md).
+services:
+  - type: web
+    name: open-reports-demo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "4000"
+      - key: DB_PATH
+        value: /tmp/reporting.sqlite
