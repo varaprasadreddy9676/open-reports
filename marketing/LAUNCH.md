@@ -118,6 +118,23 @@ Title: *"Why does my PDF have one lonely row on the last page? Building a report
 
 Outline: the classic report-engine pains (orphaned rows, headers that don't repeat, mysterious breaks) → how Open Reports measures with real font metrics and records every page-break decision → a short walkthrough (JSON sample → report → PDF and a Zebra label) → what's next and how to give feedback. End with the demo and repo links.
 
+### Reddit plan (paste manually; one subreddit every day or two)
+
+Posting the same link to many subreddits in one day trips Reddit's spam filters and can get the account suspended. Space them out, change the angle for each audience, read each subreddit's rules and flair first, and stay in the comments for the first hours.
+
+| Order | Subreddit | Angle | Title |
+|---|---|---|---|
+| 1 | r/selfhosted | One container, no telemetry, MIT | Use the r/selfhosted post above |
+| 2 | r/SideProject | The story: why you built it | I spent months building an open-source report designer because I was tired of fighting JasperReports. Here it is. |
+| 3 | r/opensource | Looking for contributors and starter templates | Open Reports: MIT report designer (PDF, Excel, ZPL labels, receipts). Looking for feedback and contributors |
+| 4 | r/coolgithubprojects | The repo itself | Open Reports: design invoices, labels and receipts in the browser; render PDF, Excel, ZPL and ESC/POS |
+| 5 | r/node | The engine: one layout core in browser and server | I built a report engine in TypeScript whose browser canvas and PDF share the same pagination code |
+| 6 | r/webdev | Only on Showoff Saturday | [Showoff Saturday] Drag data onto a page, get PDFs, Excel, labels and receipts |
+| 7 | r/typescript | Monorepo, Zod schema as the contract, 1,000 tests | Open Reports: a TypeScript monorepo for report design and rendering (feedback welcome) |
+| Niche | r/healthIT, r/msp, r/ERP, r/smallbusiness | Only as an answer where someone asks about invoices, labels or report tools | — |
+
+Body for each: two or three sentences in that subreddit's angle, the bullets from the r/selfhosted post, the repo link, and one honest question ("what do you generate documents with today?"). Never post links in other people's threads unless they asked for a tool like this.
+
 ## 4. Turning attention into feedback
 
 - The app's **More → Send feedback** and the README link both open the "I tried Open Reports" form (`.github/ISSUE_TEMPLATE/1-feedback.yml`): how they tried it, what they built, where they got stuck, what they use today, would they switch.
