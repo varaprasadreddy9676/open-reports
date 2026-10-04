@@ -14,7 +14,8 @@ import { CompareDialogBody } from "./CompareDialog";
 import { PublishDialogBody } from "./PublishDialog";
 import { AiSettingsBody } from "./AiBar";
 import { fitZoom } from "../lib/zoom";
-import { importJrxml, importJrxmlFolder, type ImportResult, type JrxmlFolderResult } from "@reporting/jrxml-import";
+import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
+import { JrxmlFolderImport } from "./JrxmlFolderImport";
 
 // ------------------------------------------------------------------ toolbar
 function useOutsideClose(open: boolean, close: () => void) {
@@ -489,6 +490,7 @@ function NewDialog() {
 function JrxmlImportDialog() {
   const set = useStore((s) => s.set);
   const [scope, setScope] = useState<"single" | "folder">("single");
+  const [folderBusy, setFolderBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [filename, setFilename] = useState("");
   const [error, setError] = useState("");
@@ -509,10 +511,10 @@ function JrxmlImportDialog() {
     state.toast("JRXML draft imported. Review migration issues before using the output.");
   };
   const pending = result?.issues.filter((issue) => issue.status !== "converted") ?? [];
-  return <Modal wide onClose={() => set({ dialog: null })}>
+  return <Modal wide onClose={() => { if (!folderBusy) set({ dialog: null }); }}>
     <h2>Import JasperReports source</h2>
     <p className="muted">Import one JRXML file or a folder. Converted reports stay as drafts; data connections and unsupported expressions need review.</p>
-    <div className="tabs" aria-label="JRXML import scope"><button aria-pressed={scope === "single"} className={scope === "single" ? "active" : ""} onClick={() => setScope("single")}>One file</button><button aria-pressed={scope === "folder"} className={scope === "folder" ? "active" : ""} onClick={() => setScope("folder")}>Folder</button></div>
+    <div className="tabs" aria-label="JRXML import scope"><button aria-pressed={scope === "single"} className={scope === "single" ? "active" : ""} disabled={folderBusy} onClick={() => setScope("single")}>One file</button><button aria-pressed={scope === "folder"} className={scope === "folder" ? "active" : ""} disabled={folderBusy} onClick={() => setScope("folder")}>Folder</button></div>
     {scope === "single" ? <>
     <input type="file" accept=".jrxml,application/xml,text/xml" data-testid="jrxml-file" aria-label="JRXML file" onChange={(event) => void read(event.target.files?.[0])} />
     {error && <p className="err" role="alert">{error}</p>}
@@ -526,84 +528,8 @@ function JrxmlImportDialog() {
       {pending.length > 100 && <p className="muted">Showing the first 100 issues here. All issues will be available after import.</p>}
     </div>}
     <div className="dialog-actions"><button className="btn" onClick={() => set({ dialog: null })}>Cancel</button><button className="btn primary" data-testid="apply-jrxml" disabled={!result?.report} onClick={apply}>Open editable draft</button></div>
-    </> : <FolderImportSection />}
+    </> : <JrxmlFolderImport onBusyChange={setFolderBusy} />}
   </Modal>;
-}
-
-function FolderImportSection() {
-  const set = useStore((s) => s.set);
-  const [bundle, setBundle] = useState<JrxmlFolderResult | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState("");
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState<Set<string>>(new Set());
-  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-
-  const readFolder = async (selected: FileList | null) => {
-    setBundle(null); setSaved(new Set()); setSaveErrors({}); setError("");
-    const files = Array.from(selected ?? []).filter((file) => /\.jrxml$/i.test(file.name));
-    if (!files.length) { setError("Choose a folder containing .jrxml files."); return; }
-    setBusy(true);
-    try {
-      const sources: { path: string; xml: string }[] = [];
-      for (let index = 0; index < files.length; index += 20) {
-        const slice = files.slice(index, index + 20);
-        sources.push(...await Promise.all(slice.map(async (file) => ({ path: file.webkitRelativePath || file.name, xml: await file.text() }))));
-        setProgress(`Reading ${Math.min(index + 20, files.length)} of ${files.length} JRXML files…`);
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      }
-      setProgress(`Converting ${files.length} JRXML files…`);
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      setBundle(importJrxmlFolder(sources, { idPrefix: `jrxml-${crypto.randomUUID()}` }));
-      setProgress("");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
-    finally { setBusy(false); }
-  };
-
-  const saveDrafts = async () => {
-    if (!bundle) return;
-    setSaving(true); setError("");
-    const done = new Set(saved);
-    const errors: Record<string, string> = {};
-    const pending = bundle.entries.filter((entry) => entry.report && !done.has(entry.report.id));
-    for (let index = 0; index < pending.length; index += 4) {
-      await Promise.all(pending.slice(index, index + 4).map(async (entry) => {
-        try {
-          await api.createTemplate(entry.report!.id, entry.report!.name, entry.report);
-          done.add(entry.report!.id);
-        } catch (cause) { errors[entry.path] = cause instanceof Error ? cause.message : String(cause); }
-      }));
-      setSaved(new Set(done)); setSaveErrors({ ...errors });
-      setProgress(`Saved ${done.size} of ${bundle.converted} drafts…`);
-    }
-    setProgress(""); setSaving(false);
-    if (done.size) useStore.getState().toast(`${done.size} JRXML reports saved as editable drafts.`, "success");
-  };
-
-  const visibleEntries = bundle ? [
-    ...bundle.entries.filter((entry) => entry.error || saveErrors[entry.path]),
-    ...bundle.entries.filter((entry) => !entry.error && !saveErrors[entry.path]),
-  ].slice(0, 100) : [];
-
-  return <section className="jrxml-folder-import" aria-label="Import JRXML folder">
-    <h3>Folder of reports</h3>
-    <p className="muted small">Select a folder to convert every .jrxml file into an Open Reports JSON draft. Child sources in the folder are linked by name. Source SQL and Java code are never run.</p>
-    <input type="file" multiple ref={(node) => { node?.setAttribute("webkitdirectory", ""); }} data-testid="jrxml-folder" aria-label="JRXML folder" onChange={(event) => void readFolder(event.target.files)} disabled={busy || saving} />
-    {progress && <p role="status" className="muted">{progress}</p>}
-    {error && <p className="err" role="alert">{error}</p>}
-    {bundle && <div data-testid="jrxml-folder-review" className="jrxml-review">
-      <p><strong>{bundle.converted} drafts ready</strong> · {bundle.failed} files could not convert · {Object.keys(saveErrors).length} save failures · {bundle.entries.reduce((count, entry) => count + entry.summary["needs-review"], 0)} review items</p>
-      <div className="jrxml-review-list">{visibleEntries.map((entry) => <div key={entry.path} className="migration-row">
-        <span className={`migration-status ${entry.error ? "unsupported" : entry.summary.unsupported ? "needs-review" : "converted"}`}>{entry.error ? "failed" : saved.has(entry.report?.id ?? "") ? "saved" : "draft"}</span>
-        <span>{entry.path}{entry.error ? ` — ${entry.error}` : saveErrors[entry.path] ? ` — Save failed: ${saveErrors[entry.path]}` : ""}</span>
-        {entry.report && saved.has(entry.report.id) && <button className="btn" onClick={() => void useStore.getState().openTemplate(entry.report!.id)}>Open</button>}
-      </div>)}</div>
-      {bundle.entries.length > 100 && <p className="muted small">Showing 100 files, with failures first. Every converted draft retains its own migration issues.</p>}
-      <div className="dialog-actions"><button className="btn primary" data-testid="save-jrxml-folder" disabled={saving || busy || !bundle.converted || saved.size === bundle.converted} onClick={() => void saveDrafts()}>{saving ? "Saving…" : saved.size ? `Retry unsaved drafts (${bundle.converted - saved.size})` : `Save ${bundle.converted} drafts`}</button></div>
-    </div>}
-    <div className="dialog-actions"><button className="btn" onClick={() => set({ dialog: null })} disabled={saving}>Close</button></div>
-  </section>;
 }
 
 const SAMPLE_JSON = `{

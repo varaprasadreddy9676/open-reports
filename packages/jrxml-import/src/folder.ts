@@ -21,23 +21,25 @@ function eachSubreport(report: ReportDefinition, visit: (node: Record<string, un
   report.sections.forEach((section) => section.children.forEach(walk));
 }
 
-/** Converts a selected folder in memory. Only JRXML is read; source queries and code are never run. */
-export function importJrxmlFolder(sources: JrxmlFolderSource[], options: { idPrefix?: string } = {}): JrxmlFolderResult {
-  const prefix = slug(options.idPrefix ?? `jrxml-${Date.now().toString(36)}`);
-  const seen = new Set<string>();
-  const entries: JrxmlFolderEntry[] = sources.filter((source) => /\.jrxml$/i.test(source.path)).map((source, index) => {
-    const path = normalized(source.path);
-    const key = path.toLowerCase();
-    if (seen.has(key)) return { path, issues: [], summary: { converted: 0, "needs-review": 0, unsupported: 0 }, error: "Duplicate JRXML path in selected folder." };
-    seen.add(key);
-    try {
-      const result = importJrxml(source.xml, { id: `${prefix}-${index + 1}-${slug(stem(path))}`, sourceName: fileName(path) });
-      return { path, ...result, ...(!result.report ? { error: "JRXML could not be converted into a valid report." } : {}) };
-    } catch (cause) {
-      return { path, issues: [], summary: { converted: 0, "needs-review": 0, unsupported: 0 }, error: cause instanceof Error ? cause.message : String(cause) };
-    }
-  });
+/** Converts one file; callers may run this in a Worker to report real progress. */
+export function importJrxmlFolderFile(source: JrxmlFolderSource, index: number, idPrefix: string): JrxmlFolderEntry {
+  const path = normalized(source.path);
+  try {
+    const result = importJrxml(source.xml, { id: `${slug(idPrefix)}-${index + 1}-${slug(stem(path))}`, sourceName: fileName(path) });
+    return { path, ...result, ...(!result.report ? { error: "JRXML could not be converted into a valid report." } : {}) };
+  } catch (cause) {
+    return { path, issues: [], summary: { converted: 0, "needs-review": 0, unsupported: 0 }, error: cause instanceof Error ? cause.message : String(cause) };
+  }
+}
 
+/** Links child JRXML sources after every file has been converted. */
+export function finishJrxmlFolderImport(entries: JrxmlFolderEntry[]): JrxmlFolderResult {
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    const key = normalized(entry.path).toLowerCase();
+    if (seen.has(key)) { entry.report = undefined; entry.error = "Duplicate JRXML path in selected folder."; }
+    seen.add(key);
+  }
   const byStem = new Map<string, JrxmlFolderEntry[]>();
   for (const entry of entries) {
     if (!entry.report) continue;
@@ -71,4 +73,10 @@ export function importJrxmlFolder(sources: JrxmlFolderSource[], options: { idPre
     }
   }
   return { entries, converted: entries.filter((entry) => !!entry.report).length, failed: entries.filter((entry) => !entry.report).length };
+}
+
+/** Converts a selected folder in memory. Only JRXML is read; source queries and code are never run. */
+export function importJrxmlFolder(sources: JrxmlFolderSource[], options: { idPrefix?: string } = {}): JrxmlFolderResult {
+  const prefix = options.idPrefix ?? `jrxml-${Date.now().toString(36)}`;
+  return finishJrxmlFolderImport(sources.filter((source) => /\.jrxml$/i.test(source.path)).map((source, index) => importJrxmlFolderFile(source, index, prefix)));
 }

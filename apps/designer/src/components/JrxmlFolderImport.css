@@ -1,0 +1,13 @@
+.jrxml-folder-import { padding-top: 14px; }
+.jrxml-folder-import .migration-row span:nth-child(2) { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.jrxml-folder-import .migration-row .btn { flex: none; }
+.jrxml-progress { display: grid; gap: 8px; margin-top: 14px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2); }
+.jrxml-progress-heading, .jrxml-progress-meta { display: flex; justify-content: space-between; gap: 12px; }
+.jrxml-progress-heading { font-size: 13px; }
+.jrxml-progress-meta { color: var(--muted); font-size: 12px; }
+.jrxml-progress progress { width: 100%; height: 8px; accent-color: var(--accent); }
+.jrxml-progress p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jrxml-progress .btn { justify-self: start; }
+.jrxml-folder-filters, .jrxml-folder-pages { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+.jrxml-folder-filters input { min-width: 0; flex: 1; }
+.jrxml-folder-pages span { margin-right: auto; }

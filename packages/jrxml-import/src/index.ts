@@ -2,7 +2,7 @@ import { SaxesParser } from "saxes";
 import { Parser, type Expr } from "@reporting/expressions";
 import { parseReportDefinition, type ReportDefinition } from "@reporting/schema";
 
-export { importJrxmlFolder } from "./folder.js";
+export { finishJrxmlFolderImport, importJrxmlFolder, importJrxmlFolderFile } from "./folder.js";
 export type { JrxmlFolderSource, JrxmlFolderEntry, JrxmlFolderResult } from "./folder.js";
 
 export type MigrationStatus = "converted" | "needs-review" | "unsupported";
