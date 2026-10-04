@@ -136,7 +136,17 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       target: { kind: "band", id: raw.id, path: `sections[${index}]` },
       visibleWhenErrors: "show",
     });
-    return band.hidden && !options.design ? [] : resolveComponents(band.children as any, ctx, env);
+    if (band.hidden && !options.design) return [];
+    const children = resolveComponents(band.children as any, ctx, env);
+    if (band.type === "background") return children;
+    // A page master has one layout root. Its children must obey the band's
+    // layout mode; feeding them directly to layoutBlock always stacks them.
+    return [{
+      type: "container",
+      layout: band.layout,
+      height: band.height || undefined,
+      children,
+    } as ResolvedComponent];
   };
 
   // Page-level bands (page header/footer masters, backgrounds) keep their own resolved section so they can be

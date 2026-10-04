@@ -136,7 +136,12 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
   };
 
   let instanceCounter = 0;
-  const emitStatic = (entry: Entry) => out.push(...band(entry, baseCtx, { allowSplit: true }));
+  // Static bands after a data region (notably reportFooter) can read the final
+  // value of row variables accumulated by that region.
+  const emitStatic = (entry: Entry) => out.push(...band(entry, {
+    ...baseCtx,
+    vars: { ...baseCtx.vars, ...deps.rowVarAccumulator },
+  }, { allowSplit: true }));
 
   const emitRegion = (bands: Entry[]) => {
     const ownDataset = bands.find((b) => b.s.dataset)?.s.dataset;

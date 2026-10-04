@@ -161,6 +161,9 @@ describe("formatDate month names", () => {
     expect(engine.evaluate('formatDate(row.d, "dd MMM yyyy")', { row: { d: "2025-01-15T12:00:00Z" } })).toBe("15 Jan 2025");
     expect(engine.evaluate('formatDate(row.d, "MMMM yyyy")', { row: { d: "2025-03-15T12:00:00Z" } })).toBe("March 2025");
   });
+  it("supports unpadded receipt dates", () => {
+    expect(formatDate(new Date("2026-10-01T00:00:00Z"), "d/M/yyyy", "en-US", "UTC")).toBe("1/10/2026");
+  });
 });
 
 describe("formatDate time zones", () => {

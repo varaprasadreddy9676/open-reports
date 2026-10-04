@@ -29,6 +29,14 @@ describe("row variables", () => {
     expect(sectionChildren(out.resolved, 0).map((n) => n.text)).toEqual(["East 10", "East 15", "West 22", "West 23", "West 25"]);
   });
 
+  it("exposes the final running value in the report footer", async () => {
+    const out = await resolveReport(report([running()], [
+      detail,
+      { type: "reportFooter", children: [{ type: "text", expression: "vars.running" }] },
+    ]), { registry });
+    expect(sectionChildren(out.resolved, 1).map((n) => n.text)).toEqual(["25"]);
+  });
+
   it("restart at each instance of the group named by resetOn", async () => {
     const out = await resolveReport(report([running("byRegion")], [
       { type: "groupHeader", groupId: "byRegion", children: [{ type: "text", expression: "group.key" }] },

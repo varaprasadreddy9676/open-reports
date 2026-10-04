@@ -27,13 +27,13 @@ export const borderSideSchema = z.object({
 export type BorderSide = z.infer<typeof borderSideSchema>;
 
 export const borderSchema = z.union([
-  borderSideSchema,
   z.object({
     top: borderSideSchema.optional(),
     right: borderSideSchema.optional(),
     bottom: borderSideSchema.optional(),
     left: borderSideSchema.optional(),
-  }),
+  }).strict(),
+  borderSideSchema,
 ]);
 
 const spacingValueSchema = z.union([z.number(), tokenRefSchema]);

@@ -57,6 +57,22 @@ const invoiceReport = {
 };
 
 describe("resolveReport (full pipeline)", () => {
+  it("keeps absolute page-header children in one page-master layout", async () => {
+    const parsed = parseReportDefinition({ schemaVersion: "1.0", id: "header", name: "Header", sections: [
+      { type: "pageHeader", layout: "absolute", height: 20, children: [
+        { type: "text", value: "Left", x: "0pt", y: "0pt", width: "100pt", height: "20pt" },
+        { type: "text", value: "Right", x: "100pt", y: "0pt", width: "100pt", height: "20pt" },
+      ] },
+    ] });
+    if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
+    const out = await resolveReport(parsed.report, { registry: registry() });
+    expect(out.resolved.sections[0]?.children).toMatchObject([{
+      type: "container", layout: "absolute", height: 20,
+      children: [{ text: "Left", x: "0pt" }, { text: "Right", x: "100pt" }],
+    }]);
+    expect(out.resolvePageSection(out.resolved.sections[0]!, { number: 1, total: 1 })[0]).toMatchObject({ type: "container", layout: "absolute" });
+  });
+
   it("preserves table minimum-row rules for pagination", async () => {
     const parsed = parseReportDefinition({ ...invoiceReport, sections: [invoiceReport.sections[0], {
       type: "detail", children: [{ ...invoiceReport.sections[1]!.children[0], minRowsBeforeBreak: 2, minRowsAfterBreak: 3, keepFooterTogether: false }],
@@ -81,7 +97,7 @@ describe("resolveReport (full pipeline)", () => {
 
     expect(issues).toEqual([]);
 
-    const header = sectionChildren(resolved, 0)[0] as ResolvedTextComponent;
+    const header = (resolved.sections[0]?.children[0] as any)?.children[0] as ResolvedTextComponent;
     expect(header.text).toBe("Invoice #1001");
 
     const table = sectionChildren(resolved, 1)[0] as ResolvedTableComponent;
