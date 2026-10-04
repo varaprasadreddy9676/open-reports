@@ -12,9 +12,9 @@ Open source (MIT) · self-hosted · no seats, no per-document fees
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/varaprasadreddy9676/open-reports) [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/varaprasadreddy9676/open-reports)
 
-[![Open Reports in 64 seconds](docs/media/open-reports-launch.gif)](https://cdn.jsdelivr.net/gh/varaprasadreddy9676/open-reports/docs/media/open-reports-launch.mp4)
+[![Open Reports in 64 seconds](docs/media/open-reports-launch.gif)](https://www.youtube.com/watch?v=_7LTG0cLO80)
 
-**[Play the 64-second video with sound](https://cdn.jsdelivr.net/gh/varaprasadreddy9676/open-reports/docs/media/open-reports-launch.mp4)**
+**[Watch the 64-second tour with sound](https://www.youtube.com/watch?v=_7LTG0cLO80)**
 
 </div>
 

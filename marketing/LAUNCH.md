@@ -1,13 +1,13 @@
 # Launch kit
 
-Everything needed to put Open Reports in front of people and turn their first look into feedback. Posts are written in the maintainer's voice; replace `[DEMO_URL]` once the demo is live.
+Everything needed to put Open Reports in front of people and turn their first look into feedback. Posts are written in the maintainer's voice. Live demo: https://open-reports-demo.onrender.com. Tour: https://www.youtube.com/watch?v=_7LTG0cLO80.
 
 ## 1. Before posting (one hour, in this order)
 
 1. **Live demo.** Click the "Deploy to Render" button in the README (free plan). Paste the URL into the README's "Try it live" line and into the posts below. Free instances sleep when idle; the first visit takes about a minute, so mention "give it a moment to wake up".
 2. **Repository settings** (Settings → General):
    - Description: `Open-source report designer: design documents in your browser and render PDF, HTML, Excel, CSV, ZPL labels and ESC/POS receipts. A self-hosted alternative to JasperReports and Crystal Reports.`
-   - Website: `[DEMO_URL]`
+   - Website: `https://open-reports-demo.onrender.com`
    - Topics: `reporting` `report-designer` `pdf-generation` `jasperreports` `crystal-reports` `invoice` `label-printing` `zpl` `escpos` `self-hosted` `low-code` `typescript`
    - Social preview: upload `docs/images/social-preview.png` (Settings → General → Social preview). This is the card people see when the link is shared.
    - Features: turn on **Discussions** (the issue chooser links to it).
@@ -50,9 +50,9 @@ Open Reports is my attempt at the tool I wanted:
 - Templates are plain JSON with a published schema, so they diff in git, and an AI assistant (bring your own key, or any MCP client) edits the template as a reviewable patch rather than generating numbers.
 - It imports JasperReports `.jrxml` files, whole folders at a time, as editable drafts with a list of what needs review.
 
-It's MIT and self-hosted (one `docker compose up`). It's v0.2, well tested (about 1,000 tests in CI against real Postgres and MySQL), but young.
+It's MIT and self-hosted (one `docker compose up`). It's v0.2 and young; imported JRXML drafts and their output still need review before production use.
 
-Demo: [DEMO_URL] (free instance, may take a moment to wake up)
+Demo: https://open-reports-demo.onrender.com (free instance, may take a moment to wake up)
 Code: https://github.com/varaprasadreddy9676/open-reports
 
 I'd love blunt feedback, especially from anyone who has fought JasperReports, Crystal or SSRS: what would stop you from switching?
@@ -70,7 +70,7 @@ I've been building an open-source alternative to JasperReports / Crystal Reports
 - Runs as one container: `git clone … && docker compose up`, designer on :3000.
 - No telemetry, no accounts, MIT.
 
-64-second tour: [link to the release video or the README]
+64-second tour: https://www.youtube.com/watch?v=_7LTG0cLO80
 Repo: https://github.com/varaprasadreddy9676/open-reports
 
 It's v0.2, so I'm mainly after feedback: what do you generate documents with today, and what would you need to move?
@@ -96,7 +96,7 @@ It's v0.2, so I'm mainly after feedback: what do you generate documents with tod
 > Open source (MIT), self-hosted, no per-seat fees.
 >
 > 64-second tour ↓ [attach docs/media/open-reports-launch.mp4]
-> Try it: [DEMO_URL]
+> Try it: https://open-reports-demo.onrender.com
 > Code: github.com/varaprasadreddy9676/open-reports
 >
 > Tell me what breaks.
