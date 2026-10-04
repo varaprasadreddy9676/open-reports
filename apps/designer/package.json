@@ -22,6 +22,7 @@
     "@reporting/core": "workspace:*",
     "@reporting/expressions": "workspace:*",
     "@reporting/layout": "workspace:*",
+    "@reporting/jrxml-import": "workspace:*",
     "@reporting/renderer-csv": "workspace:*",
     "@reporting/renderer-html": "workspace:*",
     "@reporting/renderer-zpl": "workspace:*",

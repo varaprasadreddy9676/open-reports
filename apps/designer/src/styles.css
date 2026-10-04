@@ -1843,6 +1843,16 @@ kbd {
   background: var(--panel);
   border-top: 1px solid var(--border);
 }
+.jrxml-review { margin-top: 14px; }
+.jrxml-review-list { max-height: 34vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.migration-panel { max-height: 200px; overflow: auto; }
+.migration-row { display: flex; gap: 10px; align-items: baseline; padding: 7px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.migration-row .problem-main { min-width: 0; align-items: baseline; }
+.migration-row details { max-width: 38%; overflow: auto; flex: none; }
+.migration-row code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.migration-status { text-transform: uppercase; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.migration-status.unsupported { color: var(--danger); }
+.migration-status.needs-review { color: var(--warn); }
 .problem {
   display: flex;
   align-items: center;

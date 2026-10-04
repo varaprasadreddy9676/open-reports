@@ -9,11 +9,12 @@ import type { Proposal } from "./lib/ai";
 import { blankReport } from "./lib/templates";
 import { api, ApiError } from "./lib/api";
 import { loadCanvasFonts } from "./lib/fonts";
+import type { MigrationIssue } from "@reporting/jrxml-import";
 
 export type Mode = "design" | "data" | "code" | "preview";
 export type LeftTab = "insert" | "layers" | "data" | "pages";
 export type ReportInspectorTab = "page" | "print" | "details";
-export type BottomPanel = null | "problems" | "pagination" | "history";
+export type BottomPanel = null | "problems" | "pagination" | "history" | "migration";
 export type CanvasView = "structure" | "pages";
 export type RulerUnit = "mm" | "cm" | "in" | "pt" | "px" | "dots";
 export type RulerOrigin = "page" | "printable" | "section" | "selection";
@@ -102,6 +103,7 @@ interface State {
   view: ViewOptions;
   split: boolean;
   bottom: BottomPanel;
+  migrationIssues: MigrationIssue[];
   target: string;
   sampleRows: number;
   saveState: SaveState;
@@ -123,7 +125,7 @@ interface State {
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "ai-settings" | "open" | "new" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme";
+  dialog: null | "ai-settings" | "open" | "new" | "import-jrxml" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;
@@ -269,6 +271,7 @@ export const useStore = create<State>((set, get) => ({
   view: { grid: false, rulers: true, guides: true, margins: true, boundaries: false, diagnostics: true },
   split: false,
   bottom: null,
+  migrationIssues: [],
   target: "pdf",
   sampleRows: 0,
   saveState: "saved",
@@ -319,7 +322,7 @@ export const useStore = create<State>((set, get) => ({
     const d = ops.ensureIds(doc);
     const hasStructure = (d.sections ?? []).length > 1 || (d.groups ?? []).length > 0 || (d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
     const printFirst = !!d.print?.printerType && d.print.printerType !== "document";
-    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
+    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], migrationIssues: d.migration?.issues ?? [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
     persistDraft(d, sample);
     get().refresh();
     get().syncLinkedBlocks();

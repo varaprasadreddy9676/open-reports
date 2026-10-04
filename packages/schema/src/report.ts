@@ -84,6 +84,22 @@ export const fragmentDefinitionSchema = z.object({
   children: z.array(componentSchema).default([]),
 });
 
+/** Durable review record for source imports. Original expressions remain in the source file. */
+export const migrationRecordSchema = z.object({
+  sourceFormat: z.literal("jrxml"),
+  sourceName: z.string().optional(),
+  format: z.enum(["v6-style", "v7-style"]),
+  summary: z.object({ converted: z.number().int().nonnegative(), "needs-review": z.number().int().nonnegative(), unsupported: z.number().int().nonnegative() }),
+  issues: z.array(z.object({
+    status: z.enum(["needs-review", "unsupported"]),
+    feature: z.string(),
+    source: z.string(),
+    line: z.number().int().nonnegative(),
+    message: z.string(),
+    targetId: z.string().optional(),
+  })),
+});
+
 export const reportDefinitionSchema = z.object({
   schemaVersion: z.enum(SUPPORTED_SCHEMA_VERSIONS),
   id: z.string().min(1),
@@ -99,6 +115,7 @@ export const reportDefinitionSchema = z.object({
   groups: z.array(groupDefinitionSchema).default([]),
   sections: z.array(sectionSchema).default([]),
   fragments: z.array(fragmentDefinitionSchema).default([]),
+  migration: migrationRecordSchema.optional(),
   print: printProfileSchema.optional(),
   watermark: watermarkSchema.optional(),
   guides: z.array(guideSchema).default([]),

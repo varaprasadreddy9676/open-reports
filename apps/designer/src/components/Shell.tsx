@@ -14,6 +14,7 @@ import { CompareDialogBody } from "./CompareDialog";
 import { PublishDialogBody } from "./PublishDialog";
 import { AiSettingsBody } from "./AiBar";
 import { fitZoom } from "../lib/zoom";
+import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 
 // ------------------------------------------------------------------ toolbar
 function useOutsideClose(open: boolean, close: () => void) {
@@ -120,6 +121,7 @@ export function Toolbar() {
             <div className="menu right" role="menu">
               <button role="menuitem" data-testid="btn-new" onClick={() => (setMenu(null), set({ dialog: "new" }))}>New report…</button>
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "open" }))}>Open…</button>
+              <button role="menuitem" data-testid="menu-import-jrxml" onClick={() => (setMenu(null), set({ dialog: "import-jrxml" }))}>Import JRXML…</button>
               <button role="menuitem" data-testid="menu-duplicate" onClick={() => (setMenu(null), duplicateReport())}>Duplicate report</button>
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "compare", compareVersion: null }))} disabled={!meta.id}>Compare versions…</button>
               <hr />
@@ -238,6 +240,9 @@ export function BottomBar() {
         <button role="tab" aria-selected={bottom === "history"} className={bottom === "history" ? "active" : ""} data-testid="toggle-history" onClick={() => toggle("history")}>
           History
         </button>
+        {useStore.getState().migrationIssues.length > 0 && <button role="tab" aria-selected={bottom === "migration"} className={bottom === "migration" ? "active" : ""} data-testid="toggle-migration" onClick={() => toggle("migration")}>
+          Migration ({useStore.getState().migrationIssues.filter((issue) => issue.status !== "converted").length})
+        </button>}
       </div>
       <div className="counts" data-testid="problem-counts">
         <span className={errors ? "err" : ""}>{errors} errors</span>
@@ -257,8 +262,34 @@ export function BottomPanel() {
       {bottom === "problems" && <ProblemsPanel />}
       {bottom === "pagination" && <PaginationPanel />}
       {bottom === "history" && <HistoryPanel />}
+      {bottom === "migration" && <MigrationPanel />}
     </div>
   );
+}
+
+function MigrationPanel() {
+  const { migrationIssues: issues, doc } = useStore();
+  const pending = issues.filter((issue) => issue.status !== "converted");
+  return <div className="migration-panel" data-testid="migration-panel">
+    <div className="pg-summary"><strong>JRXML migration</strong><span className="muted">{pending.length} items need review; {doc.migration?.summary.converted ?? issues.filter((issue) => issue.status === "converted").length} converted</span></div>
+    {pending.map((issue, index) => <div className="migration-row" key={index}>
+      <button className="problem-main" data-testid="migration-issue" onClick={() => {
+        const state = useStore.getState();
+        if (issue.targetId) {
+          const band = state.doc.sections?.findIndex((section: { id?: string }) => section.id === issue.targetId) ?? -1;
+          if (band >= 0) state.set({ selectedBand: band, selection: [], mode: "design" });
+          else state.select([issue.targetId]);
+          state.set({ mode: "design" });
+          requestAnimationFrame(() => document.querySelector(`[data-cid="${issue.targetId}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
+        }
+      }}>
+        <span className={`migration-status ${issue.status}`}>{issue.status}</span>
+        <span>{issue.feature}: {issue.message}</span>
+        <span className="muted small">line {issue.line}</span>
+      </button>
+      {issue.original && <details><summary>Original expression</summary><code>{issue.original}</code></details>}
+    </div>)}
+  </div>;
 }
 
 export function ProblemsPanel() {
@@ -427,6 +458,10 @@ function NewDialog() {
           <strong>From sample JSON</strong>
           <span>Paste data - fields, tables and layout are generated</span>
         </button>
+        <button className="starter blank" data-testid="starter-jrxml" onClick={() => set({ dialog: "import-jrxml" })}>
+          <strong>Import JRXML</strong>
+          <span>Open a JasperReports source file and review conversion issues</span>
+        </button>
       </div>
       <input className="search" data-testid="starter-search" placeholder="Search templates (invoice, label, wristband…)" aria-label="Search templates" value={q} onChange={(e) => setQ(e.target.value)} />
       {groups.filter((g) => STARTERS.some((t) => t.group === g && `${t.name} ${t.description}`.toLowerCase().includes(q.toLowerCase()))).map((g) => (
@@ -449,6 +484,46 @@ function NewDialog() {
       ))}
     </Modal>
   );
+}
+
+function JrxmlImportDialog() {
+  const set = useStore((s) => s.set);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [filename, setFilename] = useState("");
+  const [error, setError] = useState("");
+  const read = async (file?: File) => {
+    setResult(null); setError("");
+    if (!file) return;
+    setFilename(file.name);
+    if (!file.name.toLowerCase().endsWith(".jrxml")) { setError("Choose a .jrxml source file."); return; }
+    if (file.size > 10_000_000) { setError("JRXML exceeds the 10 MB import limit."); return; }
+    try { setResult(importJrxml(await file.text(), { sourceName: file.name })); }
+    catch (cause) { setError((cause as Error).message); }
+  };
+  const apply = () => {
+    if (!result?.report) return;
+    const state = useStore.getState();
+    state.loadDoc(result.report);
+    state.set({ migrationIssues: result.issues, bottom: "migration", dialog: null, mode: "design" });
+    state.toast("JRXML draft imported. Review migration issues before using the output.");
+  };
+  const pending = result?.issues.filter((issue) => issue.status !== "converted") ?? [];
+  return <Modal wide onClose={() => set({ dialog: null })}>
+    <h2>Import JasperReports source</h2>
+    <p className="muted">Choose a JRXML file. The import stays a draft; data connections, Java expressions, and subreports need review.</p>
+    <input type="file" accept=".jrxml,application/xml,text/xml" data-testid="jrxml-file" aria-label="JRXML file" onChange={(event) => void read(event.target.files?.[0])} />
+    {error && <p className="err" role="alert">{error}</p>}
+    {result && <div className="jrxml-review" data-testid="jrxml-review">
+      <p><strong>{filename}</strong> · {result.format ?? "invalid"} · {result.summary.converted} converted · {result.summary["needs-review"]} need review · {result.summary.unsupported} unsupported</p>
+      <div className="jrxml-review-list">{pending.slice(0, 100).map((issue, index) => <div key={index} className="migration-row">
+        <span className={`migration-status ${issue.status}`}>{issue.status}</span>
+        <span>{issue.feature}: {issue.message}</span>
+        <span className="muted small">line {issue.line}</span>
+      </div>)}</div>
+      {pending.length > 100 && <p className="muted">Showing the first 100 issues here. All issues will be available after import.</p>}
+    </div>}
+    <div className="dialog-actions"><button className="btn" onClick={() => set({ dialog: null })}>Cancel</button><button className="btn primary" data-testid="apply-jrxml" disabled={!result?.report} onClick={apply}>Open editable draft</button></div>
+  </Modal>;
 }
 
 const SAMPLE_JSON = `{
@@ -658,6 +733,7 @@ export function Dialogs() {
   const set = useStore((s) => s.set);
   if (!dialog) return null;
   if (dialog === "new") return <NewDialog />;
+  if (dialog === "import-jrxml") return <JrxmlImportDialog />;
   if (dialog === "open") return <OpenDialog />;
   if (dialog === "settings") return <SettingsDialog />;
   if (dialog === "generate") return <GenerateDialog />;
