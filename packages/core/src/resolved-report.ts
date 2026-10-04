@@ -106,6 +106,8 @@ export interface BandMeta {
   instance?: number;
   /** Design view: the band's visibility rule currently hides it (shown dimmed). */
   hiddenByRule?: boolean;
+  /** Anchor this band to the bottom of the page body; content after it starts a new page. */
+  printAtBottom?: boolean;
   /** True when this node is a copy of a group header repeated on a continuation page. */
   repeated?: boolean;
 }
@@ -194,6 +196,10 @@ export interface ResolvedTableRow {
   formatted: Record<string, string>;
   /** Style overrides from the table's rowStyleWhen rules that matched this row. */
   style?: Record<string, unknown>;
+  /** Set by pagination when rows were split: the source row whose zebra stripe this row uses. */
+  stripeIndex?: number;
+  /** Set by pagination on the continuation part of a row split across pages. */
+  continued?: boolean;
 }
 
 export interface ResolvedTableComponent extends ResolvedComponentBase {
@@ -208,6 +214,8 @@ export interface ResolvedTableComponent extends ResolvedComponentBase {
   keepFooterTogether: boolean;
   repeatHeaderOnPageBreak: boolean;
   keepRowTogether: boolean;
+  /** Rows may break across pages at a line boundary; otherwise a whole row always moves. */
+  allowRowSplit?: boolean;
   minRowsBeforeBreak: number;
   minRowsAfterBreak: number;
   alternateRowStyle?: boolean;

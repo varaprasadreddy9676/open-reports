@@ -60,7 +60,7 @@ export function enclosingId(text: string, pos: number): string | undefined {
 const PROPS: Record<string, string[]> = {
   common: ["id", "type", "name", "width", "height", "x", "y", "style", "visibleWhen", "keepTogether", "keepWithNext", "pageBreakBefore", "pageBreakAfter", "locked", "hidden", "grow", "gap", "alignItems", "justifyContent", "minWidth", "maxWidth", "minHeight", "maxHeight"],
   text: ["value", "binding", "expression", "format", "minLinesAtTop", "minLinesAtBottom"],
-  table: ["dataset", "columns", "showHeader", "showFooter", "keepFooterTogether", "repeatHeaderOnPageBreak", "alternateRowStyle", "rowStyleWhen", "emptyState", "emptyMessage", "minRowsBeforeBreak", "minRowsAfterBreak", "filterWhen", "sortBy"],
+  table: ["dataset", "columns", "showHeader", "showFooter", "keepFooterTogether", "repeatHeaderOnPageBreak", "alternateRowStyle", "rowStyleWhen", "emptyState", "emptyMessage", "minRowsBeforeBreak", "minRowsAfterBreak", "allowRowSplit", "filterWhen", "sortBy"],
   container: ["children", "layout", "columns"],
   barcode: ["value", "expression", "symbology"],
   qrcode: ["value", "expression"],

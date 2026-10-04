@@ -60,6 +60,7 @@ export function pageFacts(page: { number: number; total: number }) {
 export async function resolveReport(report: ReportDefinition, options: RenderPipelineOptions): Promise<RenderPipelineResult> {
   const locale = report.locale ?? report.theme?.locale ?? "en-US";
   const currency = report.theme?.currency ?? "USD";
+  const timeZone = report.theme?.timezone || undefined;
 
   const { values: parameters, issues: parameterIssues } = resolveParameters(report.parameters, options.parameters ?? {});
 
@@ -83,7 +84,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     }
   }
 
-  const engine = new ExpressionEngine({ locale, currency, functions: options.functions });
+  const engine = new ExpressionEngine({ locale, currency, timeZone, functions: options.functions });
 
   const baseCtx: ResolveContext = {
     params: parameters,
@@ -115,6 +116,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     engine,
     locale,
     currency,
+    timeZone,
     variables: report.variables,
     rowVarAccumulator,
     warnings,
@@ -183,6 +185,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       engine,
       locale,
       currency,
+      timeZone,
       variables: report.variables,
       rowVarAccumulator: { ...rowVarAccumulator },
       warnings,

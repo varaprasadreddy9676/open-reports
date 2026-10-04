@@ -23,6 +23,8 @@ const BLOCKED_PROPERTY_NAMES = new Set(["__proto__", "prototype", "constructor"]
 export interface EvaluateOptions {
   locale?: string;
   currency?: string;
+  /** IANA time zone for formatDate(); the host's local time when omitted. */
+  timeZone?: string;
   functions?: Record<string, ExpressionFunction>;
   maxDepth?: number;
 }
@@ -43,7 +45,7 @@ export class ExpressionEngine {
   private maxDepth: number;
 
   constructor(options: EvaluateOptions = {}) {
-    this.functions = { ...buildDefaultFunctions({ locale: options.locale, currency: options.currency }), ...options.functions };
+    this.functions = { ...buildDefaultFunctions({ locale: options.locale, currency: options.currency, timeZone: options.timeZone }), ...options.functions };
     this.maxDepth = options.maxDepth ?? 64;
   }
 

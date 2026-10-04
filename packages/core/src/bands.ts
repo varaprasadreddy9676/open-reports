@@ -4,7 +4,7 @@ import type { GroupDefinition, ReportDefinition, ReportSection } from "@reportin
 import { DATA_BAND_TYPES, PAGE_BAND_TYPES } from "@reporting/schema";
 import type { ExpressionEngine } from "@reporting/expressions";
 import type { ResolveContext } from "./context.js";
-import { computeGroupVariables } from "./variables.js";
+import { computeGroupVariables, evaluateRowVariables } from "./variables.js";
 import { lookupDataset, resolveComponents, themeStyle, type ResolveEnv } from "./resolve-component.js";
 import type { BandMeta, ResolvedComponent } from "./resolved-report.js";
 
@@ -121,10 +121,11 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       style: themeStyle(s.style, env, s.id),
       pageBreakBefore: s.newPageBefore,
       pageBreakAfter: s.newPageAfter,
-      keepTogether: s.keepTogether,
+      // A band printed at the bottom moves whole, so it can be anchored as one block.
+      keepTogether: s.keepTogether || s.printAtBottom,
       keepWithNext: s.keepWithNext,
       children,
-      band: { ...meta, sectionIndex: index, sectionId: s.id, type: s.type, name: s.name, allowSplit: s.allowSplit ?? meta.allowSplit, ...(hiddenByRule ? { hiddenByRule } : {}) } as BandMeta,
+      band: { ...meta, sectionIndex: index, sectionId: s.id, type: s.type, name: s.name, allowSplit: s.allowSplit ?? meta.allowSplit, ...(s.printAtBottom ? { printAtBottom: true } : {}), ...(hiddenByRule ? { hiddenByRule } : {}) } as BandMeta,
     };
     const result: ResolvedComponent[] = [node];
     for (const child of childrenOf.get(s.id ?? "") ?? []) {
@@ -213,6 +214,17 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       return ctx;
     };
 
+    // Row variables accumulate once per detail record; resetOn names the group whose instances restart them.
+    const resetVariables = new Map<string, string[]>();
+    for (const v of report.variables) if (v.scope === "row" && v.resetOn) resetVariables.set(v.resetOn, [...(resetVariables.get(v.resetOn) ?? []), v.id]);
+    const accumulateRowVariables = (row: Record<string, unknown>) => {
+      try {
+        evaluateRowVariables(report.variables, engine, { ...baseCtx, row, vars: { ...baseCtx.vars } }, deps.rowVarAccumulator);
+      } catch (err) {
+        if (!deps.design) throw err;
+      }
+    };
+
     for (const b of ofType("dataHeader")) out.push(...band(b, ctxFor(rows[0])));
 
     const details = bands.filter((b) => b.s.type === "detail" || (b.s.type === "child" && !attached.has(b)));
@@ -233,6 +245,7 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
           return;
         }
         levelRows.forEach((row, rowIndex) => {
+          accumulateRowVariables(row);
           const ctx = ctxFor(row, parentGroup, parentGroup?.rows);
           for (const d of details) out.push(...band(d, ctx, { rowIndex, level: parentGroup?.level, groupId: parentGroup?.id, groupKey: parentGroup?.key, instance: parentInstance }));
         });
@@ -249,6 +262,7 @@ export function expandBodyBands(deps: BandDeps): ResolvedComponent[] {
       }
       parts.forEach((part, index) => {
         const gctx: GroupContext = { id: g.id, key: part.key, level, index, count: part.rows.length, rows: part.rows, first: part.rows[0], last: part.rows[part.rows.length - 1] };
+        for (const v of resetVariables.get(g.id) ?? []) deps.rowVarAccumulator[v] = undefined;
         const start = out.length;
         const instance = ++instanceCounter;
         const headers = ofType("groupHeader", g.id);

@@ -3,7 +3,8 @@ import { sliceTableSpans } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
 import { defaultTextMeasurer, ellipsizeText, wrapTextLines } from "./measure.js";
 import { resolvePageGeometry, toPoints } from "./units.js";
-import { edgesOf, layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode } from "./box-layout.js";
+import { edgesOf, layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode, styleFontSize } from "./box-layout.js";
+import { splitTableRow } from "./table-row-split.js";
 import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
 
 export interface PaginateOptions {
@@ -55,7 +56,8 @@ function paginateContinuous(report: ResolvedReport, continuous: { minLength?: nu
   const toUnit = (points: number) => points / toPoints(1, unit);
   const maxPoints = continuous.maxLength ? toPoints(continuous.maxLength, unit) : CONTINUOUS_LIMIT;
   const tall = { ...page, size: "custom" as const, width: toUnit(width), height: toUnit(maxPoints), orientation: "portrait" as const };
-  const result = paginateFixed({ ...report, page: tall }, options);
+  // A roll has no page bottom to anchor to, so bands marked printAtBottom print where they fall.
+  const result = paginateFixed({ ...report, page: tall }, options, false);
   if (result.pages.length !== 1) return result;
   const only = result.pages[0]!;
   const footerHeight = only.zones.footer.height;
@@ -80,7 +82,7 @@ function paginateContinuous(report: ResolvedReport, continuous: { minLength?: nu
   };
 }
 
-function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}): PaginatedReport {
+function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}, anchorBottom = true): PaginatedReport {
   const measurer = options.measurer ?? defaultTextMeasurer;
   const geometry = resolvePageGeometry(report.page);
   const warnings: PaginatedReport["warnings"] = [...report.warnings];
@@ -106,10 +108,10 @@ function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}): P
   // The master of the last page depends on the total page count, which depends
   // on the masters' heights: iterate until the count is stable.
   let guess = Number.POSITIVE_INFINITY;
-  let run = layoutContentIntoPages(contentComponents, geometry.contentWidth, (i) => bodyHeightFor(i + 1, guess), measurer);
+  let run = layoutContentIntoPages(contentComponents, geometry.contentWidth, (i) => bodyHeightFor(i + 1, guess), measurer, anchorBottom);
   for (let i = 0; i < 4 && run.pages.length !== guess; i++) {
     guess = run.pages.length;
-    run = layoutContentIntoPages(contentComponents, geometry.contentWidth, (idx) => bodyHeightFor(idx + 1, guess), measurer);
+    run = layoutContentIntoPages(contentComponents, geometry.contentWidth, (idx) => bodyHeightFor(idx + 1, guess), measurer, anchorBottom);
   }
   const total = run.pages.length;
 
@@ -386,7 +388,8 @@ function layoutContentIntoPages(
   input: ResolvedComponent[],
   width: number,
   pageHeightAt: (pageIndex: number) => number,
-  measurer: TextMeasurer
+  measurer: TextMeasurer,
+  anchorBottom = true,
 ): ContentRun {
   // work on a copy: containers that cannot fit a page are replaced by their children while we paginate
   const components: ResolvedComponent[] = [...input];
@@ -704,6 +707,16 @@ function layoutContentIntoPages(
       }
     }
 
+    if (anchorBottom && anyC.band?.printAtBottom) {
+      const node = currentPage().find((n) => n.component === component);
+      const free = remaining();
+      if (node && free > 0.01) {
+        shiftNode(node, 0, free);
+        y = pageHeight();
+        decide({ kind: "print-at-bottom", componentId: anyC.id, ...source, message: `${label(component)} prints at the bottom of page ${pages.length}, so the content after it starts a new page.`, actions: [{ label: "Print directly after the content", target: "band", patch: { printAtBottom: false } }] });
+      }
+    }
+
     if (band?.type === "groupHeader" && band.repeatEveryPage) {
       let entry = repeatStack.find((e) => e.instance === band.instance && e.level === (band.level ?? 0));
       if (!entry) repeatStack.push((entry = { level: band.level ?? 0, instance: band.instance ?? -1, comps: [] }));
@@ -767,13 +780,15 @@ interface TablePlacer {
 }
 
 function placeTable(
-  table: ResolvedTableComponent,
+  input: ResolvedTableComponent,
   width: number,
   measurer: TextMeasurer,
   placer: TablePlacer
 ): void {
+  // Splitting a row (allowRowSplit) replaces the table with one that has an extra row, so these are reassigned.
+  let table = input;
   const columnWidths = resolveColumnWidths(table, width);
-  const rowHeights = measureTableRowHeights(table, columnWidths, measurer);
+  let rowHeights = measureTableRowHeights(table, columnWidths, measurer);
   const headerRowHeights = table.showHeader ? measureHeaderRowHeights(table, columnWidths, measurer) : [];
   const headerHeight = headerRowHeights.reduce((sum, height) => sum + height, 0);
   const footerHeight = table.showFooter ? measureFooterHeight(table, measurer) : 0;
@@ -833,6 +848,21 @@ function placeTable(
   while (rowIndex < table.rows.length) {
     const rowHeight = rowHeights[rowIndex]!;
     const wouldOverflow = sliceHeight + rowHeight > placer.remaining();
+
+    if (wouldOverflow && table.allowRowSplit) {
+      const split = splitTableRow(table, rowIndex, placer.remaining() - sliceHeight, columnWidths, measurer, styleFontSize(table));
+      if (split) {
+        placer.decide({
+          kind: "row-split", componentId: tid, rowIndex,
+          required: rowHeight, available: Math.max(0, placer.remaining() - sliceHeight),
+          message: `Row ${rowIndex + 1} of table ${tid ? `"${tid}" ` : ""}needs ${pt(rowHeight)} but ${pt(Math.max(0, placer.remaining() - sliceHeight))} is left, so its remaining lines continue on the next page.`,
+          actions: [{ label: "Keep rows whole", target: "component", patch: { allowRowSplit: false } }],
+        });
+        table = split;
+        rowHeights = measureTableRowHeights(table, columnWidths, measurer);
+        continue;
+      }
+    }
 
     if (wouldOverflow && rowIndex > sliceStart) {
       const roomRows = rowIndex - sliceStart;
@@ -905,7 +935,9 @@ function placeTable(
         rowIndex: breakPoint,
         required: ordinarySplit ? required : undefined,
         available: ordinarySplit ? available : undefined,
-        message: ordinarySplit
+        message: table.rows[breakPoint]?.continued
+          ? `Table ${tid ? `"${tid}" ` : ""}continues on the next page with the rest of a split row.`
+          : ordinarySplit
           ? `Table ${tid ? `"${tid}" ` : ""}continues on the next page: row ${breakPoint + 1} needs ${pt(required)} but only ${pt(Math.max(0, available))} is left. Rows are never cut in half.`
           : `Table ${tid ? `"${tid}" ` : ""}continues on the next page at row ${breakPoint + 1} after its minimum-row or merged-cell rule moved the break.`,
       });
@@ -921,7 +953,7 @@ function placeTable(
         placer.newPage();
         sliceHeight = isFirstSlice ? (table.showHeader ? headerHeight : 0) : startHeight();
       } else {
-        throw new Error(`Table row ${rowIndex + 1} is taller than a whole page.`);
+        throw new Error(`Table row ${rowIndex + 1} is taller than a whole page. Set allowRowSplit on the table to let a row continue on the next page.`);
       }
     }
 

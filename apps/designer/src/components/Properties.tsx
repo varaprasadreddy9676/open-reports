@@ -21,6 +21,15 @@ import { PrintCalibration } from "./PrintCalibration";
 import { PageMasters } from "./PageMasters";
 
 // ------------------------------------------------------------------ small controls
+/** IANA time zones offered for date formatting; any other valid name can be typed. */
+const TIME_ZONES: string[] = (() => {
+  try {
+    return (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
+  } catch {
+    return [];
+  }
+})();
+
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <label className={`field ${wide ? "wide" : ""}`}>
@@ -455,6 +464,13 @@ function Typography({ comp }: { comp: ops.Comp }) {
           </button>
         ))}
       </div>
+      <Field label="Vertical">
+        <select aria-label="Vertical align" data-testid="vertical-align" value={st.verticalAlign ?? ""} onChange={(e) => set({ verticalAlign: e.target.value || undefined })}>
+          <option value="">Top</option>
+          <option value="middle">Middle</option>
+          <option value="bottom">Bottom</option>
+        </select>
+      </Field>
     </>
   );
 }
@@ -487,6 +503,9 @@ function Appearance({ comp }: { comp: ops.Comp }) {
           <Color label="Border color" value={border.color} onChange={(v) => set({ border: { ...border, color: v ?? "#000000" } })} />
         </Field>
       )}
+      {(st.background || border) && <Field label="Corner radius">
+        <Num label="Corner radius" min={0} step={0.5} value={st.borderRadius} onChange={(v) => set({ borderRadius: v || undefined })} />
+      </Field>}
     </>
   );
 }
@@ -903,7 +922,7 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
   return (
     <>
       <Section title="Layout" summary={summary}>
-        {isContainer && (
+        {isContainer && comp.type !== "repeater" && (
           <Field label="Arrange children">
             <select aria-label="Layout" value={layout} onChange={(e) => patch(comp.id, { layout: e.target.value })}>
               <option value="flow">Stacked (flow)</option>
@@ -913,12 +932,12 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
             </select>
           </Field>
         )}
-        {isContainer && layout === "grid" && (
+        {isContainer && comp.type !== "repeater" && layout === "grid" && (
           <Field label="Columns">
             <Num label="Grid columns" min={1} value={comp.columns} onChange={(v) => patch(comp.id, { columns: v ?? 1 })} />
           </Field>
         )}
-        {comp.type === "repeater" && (
+        {comp.type === "repeater" && (<>
           <Field label="Dataset">
             <select aria-label="Repeater dataset" value={comp.dataset ?? ""} onChange={(e) => patch(comp.id, { dataset: e.target.value })}>
               <option value="">Choose...</option>
@@ -927,7 +946,19 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
               ))}
             </select>
           </Field>
-        )}
+          <div className="grid2">
+            <Field label="Items">
+              <select aria-label="Item layout" data-testid="repeater-item-layout" value={comp.itemLayout ?? "flow"} onChange={(e) => patch(comp.id, { itemLayout: e.target.value === "flow" ? undefined : e.target.value, columns: e.target.value === "grid" ? comp.columns ?? 2 : undefined })}>
+                <option value="flow">Stacked</option>
+                <option value="row">Side by side</option>
+                <option value="grid">Grid</option>
+              </select>
+            </Field>
+            {comp.itemLayout === "grid" && <Field label="Per row">
+              <Num label="Items per row" min={1} value={comp.columns} onChange={(v) => patch(comp.id, { columns: v ?? 2 })} />
+            </Field>}
+          </div>
+        </>)}
         {isContainer && layout !== "absolute" && (
           <>
             <div className="grid2">
@@ -1290,6 +1321,10 @@ function PageProps() {
         </Field>
         <Field label="Currency">
           <input aria-label="Currency" value={doc.theme?.currency ?? ""} placeholder="USD" onChange={(e) => setTheme({ currency: e.target.value || undefined })} />
+        </Field>
+        <Field label="Time zone">
+          <input aria-label="Time zone" list="time-zones" value={doc.theme?.timezone ?? ""} placeholder="Server local time" onChange={(e) => setTheme({ timezone: e.target.value || undefined })} />
+          <datalist id="time-zones">{TIME_ZONES.map((zone) => <option key={zone} value={zone} />)}</datalist>
         </Field>
         <Field label="Body font">
           <input aria-label="Body font" value={doc.theme?.fonts?.body ?? ""} placeholder="Noto Sans" onChange={(e) => setTheme({ fonts: { ...(doc.theme?.fonts ?? {}), body: e.target.value || undefined } })} />

@@ -239,3 +239,31 @@ describe("watermark", () => {
     expect((await html("horizontal")).match(/border-bottom:[^;]*#ff0000/g)?.length).toBe(3);
   });
 });
+
+describe("box styles", () => {
+  const report = (children: unknown[]) => ({ schemaVersion: "1.0", id: "box", name: "Box", sections: [{ type: "detail", children }] });
+  it("moves bottom-aligned text down with extra top padding", async () => {
+    const html = (await renderReport(report([{ type: "text", id: "t", value: "LOW", height: 60, style: { padding: 4, verticalAlign: "bottom" } }]))).content.toString();
+    const top = Number(html.match(/padding-top:([\d.]+)px[^>]*>LOW</)?.[1]);
+    // 60pt box, 4pt padding each side, one ~12pt line: about 44pt (58.7px) above the line.
+    expect(top).toBeGreaterThan(50);
+    expect(top).toBeLessThan(65);
+  });
+  it("rounds corners with border-radius", async () => {
+    const html = (await renderReport(report([{ type: "rectangle", width: 80, height: 40, style: { background: "#e0f2fe", borderRadius: 6 } }]))).content.toString();
+    expect(html).toContain("border-radius:8px");
+  });
+});
+
+describe("table rows split across pages", () => {
+  it("prints each part of a split row with its line breaks", async () => {
+    const note = Array.from({ length: 80 }, (_, i) => `line${i}`).join("\n");
+    const html = (await renderReport({ schemaVersion: "1.0", id: "split", name: "Split",
+      datasets: [{ id: "notes", source: "inline", query: { data: [{ note }] } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "notes", allowRowSplit: true, columns: [{ id: "note", header: "Note", binding: "row.note" }] }] }],
+    })).content.toString();
+    expect(html.match(/class="page"/g)!.length).toBeGreaterThan(1);
+    expect(html).toContain("white-space:pre-wrap");
+    for (const i of [0, 40, 79]) expect(html).toContain(`line${i}`);
+  });
+});

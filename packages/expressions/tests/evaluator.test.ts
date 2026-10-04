@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ExpressionEngine } from "../src/evaluator.js";
 import { ExpressionError } from "../src/errors.js";
+import { formatDate } from "../src/functions.js";
 
 const engine = new ExpressionEngine({ locale: "en-US", currency: "USD" });
 
@@ -159,5 +160,19 @@ describe("formatDate month names", () => {
   it("supports MMM and MMMM", () => {
     expect(engine.evaluate('formatDate(row.d, "dd MMM yyyy")', { row: { d: "2025-01-15T12:00:00Z" } })).toBe("15 Jan 2025");
     expect(engine.evaluate('formatDate(row.d, "MMMM yyyy")', { row: { d: "2025-03-15T12:00:00Z" } })).toBe("March 2025");
+  });
+});
+
+describe("formatDate time zones", () => {
+  it("formats in the engine's time zone when one is set", () => {
+    const kolkata = new ExpressionEngine({ timeZone: "Asia/Kolkata" });
+    const newYork = new ExpressionEngine({ timeZone: "America/New_York" });
+    const row = { d: "2025-01-15T22:30:00Z" };
+    expect(kolkata.evaluate('formatDate(row.d, "yyyy-MM-dd HH:mm")', { row })).toBe("2025-01-16 04:00");
+    expect(newYork.evaluate('formatDate(row.d, "yyyy-MM-dd HH:mm")', { row })).toBe("2025-01-15 17:30");
+    expect(newYork.evaluate('formatDate(row.d, "MMMM")', { row: { d: "2025-02-01T02:00:00Z" } })).toBe("January");
+  });
+  it("formats midnight as 00 in 24-hour patterns", () => {
+    expect(formatDate(new Date("2025-06-01T00:00:00Z"), "HH:mm:ss", "en-US", "UTC")).toBe("00:00:00");
   });
 });

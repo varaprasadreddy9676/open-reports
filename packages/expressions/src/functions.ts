@@ -70,24 +70,37 @@ export const dateFunctions: Record<string, ExpressionFunction> = {
   },
 };
 
-export function formatDate(date: Date, pattern: string, locale = "en-US"): string {
+interface DateParts { year: number; month: number; day: number; hour: number; minute: number; second: number }
+
+/** Calendar fields of `date` in `timeZone`, or in the host's local time when none is given. */
+function dateParts(date: Date, timeZone?: string): DateParts {
+  if (!timeZone) return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate(), hour: date.getHours(), minute: date.getMinutes(), second: date.getSeconds() };
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { year: part("year"), month: part("month"), day: part("day"), hour: part("hour") % 24, minute: part("minute"), second: part("second") };
+}
+
+/** Formats with yyyy, MMMM, MMM, MM, dd, HH, mm and ss; `timeZone` is an IANA name such as "Asia/Kolkata". */
+export function formatDate(date: Date, pattern: string, locale = "en-US", timeZone?: string): string {
   const pad = (n: number, len = 2) => String(n).padStart(len, "0");
-  const month = (style: "long" | "short") => new Intl.DateTimeFormat(locale, { month: style, timeZone: "UTC" }).format(new Date(Date.UTC(2000, date.getMonth(), 1)));
+  const d = dateParts(date, timeZone);
+  const month = (style: "long" | "short") => new Intl.DateTimeFormat(locale, { month: style, timeZone: "UTC" }).format(new Date(Date.UTC(2000, d.month - 1, 1)));
   const map: Record<string, () => string> = {
-    yyyy: () => String(date.getFullYear()),
+    yyyy: () => String(d.year),
     MMMM: () => month("long"),
     MMM: () => month("short"),
-    MM: () => pad(date.getMonth() + 1),
-    dd: () => pad(date.getDate()),
-    HH: () => pad(date.getHours()),
-    mm: () => pad(date.getMinutes()),
-    ss: () => pad(date.getSeconds()),
+    MM: () => pad(d.month),
+    dd: () => pad(d.day),
+    HH: () => pad(d.hour),
+    mm: () => pad(d.minute),
+    ss: () => pad(d.second),
   };
   return pattern.replace(/yyyy|MMMM|MMM|MM|dd|HH|mm|ss/g, (token) => map[token]?.() ?? token);
 }
 
-export function createFormatFunctions(locale: string, currency: string): Record<string, ExpressionFunction> {
+export function createFormatFunctions(locale: string, currency: string, timeZone?: string): Record<string, ExpressionFunction> {
   return {
+    formatDate: (v, pattern, loc) => formatDate(toDate(v), toStr(pattern ?? "yyyy-MM-dd"), loc ? toStr(loc) : locale, timeZone),
     formatCurrency: (v, cur) =>
       new Intl.NumberFormat(locale, { style: "currency", currency: toStr(cur || currency) }).format(toNumber(v)),
     formatNumber: (v, digits) =>
@@ -138,12 +151,12 @@ export const aggregationFunctions: Record<string, ExpressionFunction> = {
   maxBy: (arr, field) => Math.max(...pluck(arr, field)),
 };
 
-export function buildDefaultFunctions(options?: { locale?: string; currency?: string }): Record<string, ExpressionFunction> {
+export function buildDefaultFunctions(options?: { locale?: string; currency?: string; timeZone?: string }): Record<string, ExpressionFunction> {
   return {
     ...stringFunctions,
     ...numberFunctions,
     ...dateFunctions,
-    ...createFormatFunctions(options?.locale ?? "en-US", options?.currency ?? "USD"),
+    ...createFormatFunctions(options?.locale ?? "en-US", options?.currency ?? "USD", options?.timeZone),
     ...aggregationFunctions,
   };
 }

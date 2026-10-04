@@ -22,15 +22,7 @@ const DESIGN_ONLY = {
 };
 
 /** Known inert fields (gap analysis P0-7): implement them or remove them from the schema, designer and docs, then delete the entry. */
-const PLANNED = {
-  allowRowSplit: "table rows are always kept whole; the designer hides the toggle",
-  borderRadius: "no renderer draws rounded corners (plugin-clinic-pack statusBadge sets it)",
-  itemLayout: "repeater itemLayout is ignored by layout",
-  printAtBottom: "offered in section properties, but layout never anchors the band to the page bottom",
-  resetOn: "variable reset scopes are not evaluated",
-  timezone: "theme.timezone is not used by date formatting",
-  verticalAlign: "no renderer applies vertical text alignment",
-};
+const PLANNED = {};
 
 const CONSUMER_DIRS = [
   "packages/core/src",

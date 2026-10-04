@@ -1,6 +1,6 @@
 import { isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type TextMeasurer } from "@reporting/layout";
+import { measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, stripeOf, textVerticalOffset, type TextMeasurer } from "@reporting/layout";
 import { renderChartSvg } from "@reporting/renderer-html";
 // @ts-expect-error -- svg-to-pdfkit ships no types
 import SVGtoPDF from "svg-to-pdfkit";
@@ -53,14 +53,17 @@ function startsRtl(text: string): boolean {
 function drawBoxDecoration(ctx: DrawContext, box: PositionedNode["box"], style: any): void {
   if (!style) return;
   const { doc } = ctx;
+  const radius = Math.min(Math.max(0, Number(style.borderRadius) || 0), box.width / 2, box.height / 2);
+  const outline = () => (radius > 0 ? doc.roundedRect(box.x, box.y, box.width, box.height, radius) : doc.rect(box.x, box.y, box.width, box.height));
   if (style.background) {
-    doc.rect(box.x, box.y, box.width, box.height).fill(style.background);
+    outline().fill(style.background);
   }
   if (style.border) {
     const b = style.border;
     const width = b.width ?? 1;
     const color = b.color ?? "#000000";
-    doc.lineWidth(width).strokeColor(color).rect(box.x, box.y, box.width, box.height).stroke();
+    doc.lineWidth(width).strokeColor(color);
+    outline().stroke();
   }
 }
 
@@ -98,19 +101,20 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
       const innerY = node.box.y + pad.top;
       const innerWidth = Math.max(0, node.box.width - pad.left - pad.right);
       const innerHeight = Math.max(0, node.box.height - pad.top - pad.bottom);
+      const shift = textVerticalOffset(node);
       const constrained = component.height !== undefined || component.maxHeight !== undefined || ["clip", "hidden", "ellipsis"].includes(style.overflow);
       const options: Record<string, any> = {
         width: innerWidth,
         align: style.align ?? (startsRtl(text) ? "right" : "left"),
         underline: Boolean(style.underline),
         strike: Boolean(style.strikethrough),
-        ...(constrained ? { height: innerHeight } : {}),
+        ...(constrained ? { height: innerHeight - shift } : {}),
       };
       if (constrained) {
         doc.save();
         doc.rect(innerX, innerY, innerWidth, innerHeight).clip();
       }
-      if (innerWidth > 0 && innerHeight > 0) drawRuns(ctx, text, innerX, innerY, options, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight);
+      if (innerWidth > 0 && innerHeight > 0) drawRuns(ctx, text, innerX, innerY + shift, options, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight);
       if (constrained) doc.restore();
       break;
     }
@@ -222,7 +226,7 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
 
   for (let i = start; i < end; i++) {
     const rowHeight = rowHeights[i]!;
-    const rowStyle = tableRowStyle(styles, i, table.rows[i]!.style as Record<string, unknown> | undefined);
+    const rowStyle = tableRowStyle(styles, stripeOf(table.rows[i], i), table.rows[i]!.style as Record<string, unknown> | undefined);
     rowYs.set(i, bodyEnd);
     if (rowStyle.background) doc.rect(left, bodyEnd, node.box.width, rowHeight).fill(rowStyle.background as string);
     bodyEnd += rowHeight;
@@ -230,7 +234,7 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
 
   for (let i = start; i < end; i++) {
     const row = table.rows[i]!;
-    const rowStyle = tableRowStyle(styles, i, row.style as Record<string, unknown> | undefined);
+    const rowStyle = tableRowStyle(styles, stripeOf(row, i), row.style as Record<string, unknown> | undefined);
     let x = left;
     doc.fontSize(fontSize);
     table.columns.forEach((col, ci) => {

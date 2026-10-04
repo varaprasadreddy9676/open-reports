@@ -293,12 +293,16 @@ function DataTab() {
       {(doc.variables ?? []).map((v: any, i: number) => (
         <div key={i} className="param-row var">
           <input aria-label="Variable id" value={v.id} onChange={(e) => updateVar(i, { id: e.target.value })} />
-          <select aria-label="Scope" value={v.scope} onChange={(e) => updateVar(i, { scope: e.target.value })}>
+          <select aria-label="Scope" value={v.scope} onChange={(e) => updateVar(i, { scope: e.target.value, ...(e.target.value === "row" ? {} : { resetOn: undefined }) })}>
             {["report", "group", "row", "page"].map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
           <input aria-label="Variable expression" className="mono" placeholder="expression" value={v.expression} onChange={(e) => updateVar(i, { expression: e.target.value })} />
+          {v.scope === "row" && (doc.groups ?? []).length > 0 && <select aria-label="Reset on" title="Restart this running value at each instance of a group" value={v.resetOn ?? ""} onChange={(e) => updateVar(i, { resetOn: e.target.value || undefined })}>
+            <option value="">Never reset</option>
+            {(doc.groups ?? []).map((g: any) => <option key={g.id} value={g.id}>{`Reset per ${g.id}`}</option>)}
+          </select>}
           <button className="mini danger" aria-label="Remove variable" onClick={() => useStore.getState().setDoc({ ...doc, variables: (doc.variables ?? []).filter((_: any, j: number) => j !== i) })}>
             ×
           </button>

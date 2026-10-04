@@ -1,6 +1,6 @@
 import { tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault, type ResolvedChartComponent, type ResolvedTableComponent } from "@reporting/core";
 import type { PositionedNode } from "@reporting/layout";
-import { defaultTextMeasurer, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths } from "@reporting/layout";
+import { defaultTextMeasurer, edgesOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, stripeOf, textVerticalOffset } from "@reporting/layout";
 import { escapeHtml } from "./escape.js";
 import { barcodeDataUrl, qrCodeDataUrl } from "./codes.js";
 import { chartTitle, renderChartSvg } from "./chart.js";
@@ -14,8 +14,11 @@ export async function renderNode(node: PositionedNode): Promise<string> {
   switch (component.type) {
     case "text":
     case "richText":
-    case "field":
-      return `<div style="${boxStyle}white-space:pre-wrap;line-height:${ptToPx(node.textMetrics?.lineHeight ?? 13).toFixed(2)}px;${style}">${escapeHtml(node.renderText ?? node.textFragment?.text ?? component.text ?? "")}</div>`;
+    case "field": {
+      const shift = textVerticalOffset(node);
+      const alignTop = shift > 0 ? `;padding-top:${ptToPx(edgesOf(component.style?.padding).top + shift).toFixed(2)}px` : "";
+      return `<div style="${boxStyle}white-space:pre-wrap;line-height:${ptToPx(node.textMetrics?.lineHeight ?? 13).toFixed(2)}px;${style}${alignTop}">${escapeHtml(node.renderText ?? node.textFragment?.text ?? component.text ?? "")}</div>`;
+    }
 
     case "image":
       return component.src
@@ -86,14 +89,14 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
     .slice(start, end)
     .map((row, i) => {
       const index = start + i;
-      const rowStyle = tableRowStyle(styles, index, row.style as Record<string, unknown> | undefined);
+      const rowStyle = tableRowStyle(styles, stripeOf(row, index), row.style as Record<string, unknown> | undefined);
       const rowRule = lines === "horizontal" && index < end - 1 ? `border-bottom:${rule};` : "";
       return `<tr style="height:${ptToPx(rowHeights[index]!).toFixed(2)}px;${styleToCss(rowStyle)}">${table.columns
         .map((c, column) => {
           const slot = spanGrid.get(index)?.get(column);
           if (slot && !slot.anchor) return "";
           const cellRule = lines === "all" || (slot && lines !== "none") ? `border:${rule};` : rowRule;
-          return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;${cellRule}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
+          return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;white-space:pre-wrap;${cellRule}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
         })
         .join("")}</tr>`;
     })

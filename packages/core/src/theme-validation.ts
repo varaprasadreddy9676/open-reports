@@ -45,6 +45,7 @@ export function validateRuleThemeValues(rules: Rule[] | undefined, theme: Theme 
 
 /** The theme's own text styles may only use tokens the theme defines. */
 export function validateTheme(theme: Theme | undefined, issues: ValidationIssue[]): void {
+  if (theme?.timezone && !isTimeZone(theme.timezone)) issues.push({ severity: "error", code: "UNKNOWN_TIMEZONE", path: "theme.timezone", message: `"${theme.timezone}" is not a known IANA time zone; use a name such as "Europe/London" or "Asia/Kolkata".` });
   for (const [name, style] of Object.entries(theme?.textStyles ?? {})) validateStyleTokens(style as Record<string, unknown>, theme, `theme.textStyles.${name}`, issues);
 }
 
@@ -66,4 +67,13 @@ function validateTableStyleTokens(styles: Record<string, any> | undefined, theme
 
 export function validateThemeTableStyles(theme: Theme | undefined, issues: ValidationIssue[]): void {
   for (const [name, styles] of Object.entries((theme as { tableStyles?: Record<string, Record<string, any>> } | undefined)?.tableStyles ?? {})) validateTableStyleTokens(styles, theme, `theme.tableStyles.${name}`, issues);
+}
+
+function isTimeZone(name: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: name });
+    return true;
+  } catch {
+    return false;
+  }
 }

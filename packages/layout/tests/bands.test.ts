@@ -315,3 +315,88 @@ describe("design structure view", () => {
     expect(layoutStructure(r.resolved, p.report.sections).bands.map((b) => b.type)).toEqual(["groupHeader", "detail"]);
   });
 });
+
+describe("print at bottom", () => {
+  const bandNode = (pag: Awaited<ReturnType<typeof run>>["pag"], page: number, type: string) => pag.pages[page]!.content.find((n) => (n.component as any).band?.type === type)!;
+
+  it("anchors a report footer to the bottom of the body on the last page", async () => {
+    const { pag } = await run({ data: rows(3), sections: [
+      { type: "detail", dataset: "d", children: [B("row.id")] },
+      { type: "reportFooter", printAtBottom: true, children: [T("Signature")] },
+    ] });
+    expect(pag.pages).toHaveLength(1);
+    const footer = bandNode(pag, 0, "reportFooter");
+    expect(footer.box.y + footer.box.height).toBeCloseTo(pag.pages[0]!.zones.body.y + pag.pages[0]!.zones.body.height, 3);
+    expect(pag.decisions.filter((d) => d.kind === "print-at-bottom")).toEqual([]);
+  });
+
+  it("anchors each group footer, so the next group starts on a new page", async () => {
+    const { pag } = await run({ data: rows(4, 2), groups: [{ id: "g", dataset: "d", by: "row.g" }], sections: [
+      { type: "detail", dataset: "d", children: [B("row.id")] },
+      { type: "groupFooter", groupId: "g", printAtBottom: true, children: [X('"Total " + group.key')] },
+    ] });
+    expect(pageTexts(pag)).toEqual([["1", "3", "Total G1"], ["2", "4", "Total G2"]]);
+    expect(pag.decisions.find((d) => d.page === 2)).toMatchObject({ kind: "print-at-bottom", actions: [{ patch: { printAtBottom: false }, target: "band" }] });
+    for (const page of [0, 1]) {
+      const footer = bandNode(pag, page, "groupFooter");
+      expect(footer.box.y + footer.box.height).toBeCloseTo(pag.pages[page]!.zones.body.y + pag.pages[page]!.zones.body.height, 3);
+    }
+  });
+
+  it("prints where it falls on continuous media, which has no page bottom", async () => {
+    const page = { size: "custom", width: 300, height: 300, unit: "pt", margin: { top: 0, right: 0, bottom: 0, left: 0 }, continuous: { maxLength: 2000 } };
+    const { pag } = await run({ data: rows(3), extra: { page }, sections: [
+      { type: "detail", dataset: "d", children: [B("row.id")] },
+      { type: "reportFooter", printAtBottom: true, children: [T("Signature")] },
+    ] });
+    expect(pag.pageSize.height).toBeLessThan(100);
+  });
+
+  it("moves the band whole to a new page when it does not fit below the content", async () => {
+    const { pag } = await run({ data: rows(20), height: 300, sections: [
+      { type: "detail", dataset: "d", children: [B("row.id")] },
+      { type: "reportFooter", printAtBottom: true, allowSplit: true, children: [T("Line A"), T("Line B"), T("Line C"), T("Line D")] },
+    ] });
+    const last = pag.pages[pag.pages.length - 1]!;
+    expect(textsOf(last.content)).toEqual(["Line A", "Line B", "Line C", "Line D"]);
+  });
+});
+
+describe("repeater item layout", () => {
+  const items = [{ n: "A" }, { n: "B" }, { n: "C" }, { n: "D" }, { n: "E" }];
+  const card = [B("row.n"), T("card")];
+  const boxes = (pag: Awaited<ReturnType<typeof run>>["pag"]) => [...all(pag.pages[0]!.content)].filter((n) => ["A", "B", "C", "D", "E"].includes((n.component as any).text)).map((n) => n.box);
+
+  it("stacks each item's components by default", async () => {
+    const { pag } = await run({ data: items, sections: [{ type: "detail", children: [{ type: "repeater", dataset: "d", children: card }] }] });
+    expect(flat(pag)).toEqual(["A", "card", "B", "card", "C", "card", "D", "card", "E", "card"]);
+    expect(new Set(boxes(pag).map((b) => b.x)).size).toBe(1);
+  });
+
+  it("places items side by side in a row", async () => {
+    const { pag } = await run({ data: items.slice(0, 3), sections: [{ type: "detail", children: [{ type: "repeater", dataset: "d", itemLayout: "row", gap: 6, children: card }] }] });
+    const [a, b, c] = boxes(pag);
+    expect(a!.y).toBe(b!.y);
+    expect(b!.y).toBe(c!.y);
+    expect(b!.x - (a!.x + a!.width)).toBeCloseTo(6, 3);
+    expect(a!.width).toBeCloseTo((300 - 12) / 3, 3);
+  });
+
+  it("arranges items in a grid with the given columns, one row of items at a time", async () => {
+    const { pag } = await run({ data: items, sections: [{ type: "detail", children: [{ type: "repeater", dataset: "d", itemLayout: "grid", columns: 2, gap: 4, children: card }] }] });
+    const [a, b, c, , e] = boxes(pag);
+    expect(a!.y).toBe(b!.y);
+    expect(c!.y).toBeGreaterThan(a!.y);
+    expect(c!.x).toBe(a!.x);
+    expect(e!.x).toBe(a!.x);
+    expect(b!.x).toBeCloseTo(a!.x + (300 - 4) / 2 + 4, 3);
+  });
+
+  it("breaks a long grid between rows of items, never through a row", async () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ n: `I${i}` }));
+    const { pag } = await run({ data: many, height: 200, sections: [{ type: "detail", children: [{ type: "repeater", dataset: "d", itemLayout: "grid", columns: 2, children: [B("row.n")] }] }] });
+    expect(pag.pages.length).toBeGreaterThan(1);
+    for (const page of pageTexts(pag)) expect(page.length % 2).toBe(0);
+    expect(pageTexts(pag).flat()).toEqual(many.map((m) => m.n));
+  });
+});

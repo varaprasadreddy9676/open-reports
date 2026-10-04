@@ -34,6 +34,8 @@ Bands also accept `hidden: true` to omit them from rendered output while keeping
 
 A band with no `height` hugs its content; `height` fixes the band's height in points. `layout: "flow"` stacks children, `"row"` places them side by side, `"grid"` uses `columns`, and `"absolute"` uses each child's coordinates. `gap`, `style.padding`, `alignItems`, and row `justifyContent` control the space between and around children. In a row, children without a width fill remaining space according to `grow`; text with `width: "auto"` hugs its measured longest line, while an explicit dimension fixes its width. `wrap: true` moves children onto additional lines when their preferred widths cannot fit together. A child's `shrink` weight allows its assigned width to decrease toward `minWidth` when a line is crowded. Text reflows within the assigned width.
 
+`printAtBottom: true` anchors a band to the bottom of the page body (just above the page footer) on the page where it prints, which suits signatures and totals. The band moves as one block, and anything after it starts on a new page, so a group footer marked this way gives each group its own page. Continuous media has no page bottom, so the band prints where it falls there.
+
 ## Expressions
 Reference data as `data.<dataset>.<path>`, `params.x`, `vars.x`, `row.x` (inside tables/repeaters), `parent.x`, `page.number`, `page.total`, `report.name`. Operators: `+ - * / %`, comparison, `&& || !`, `a ? b : c`. Functions include `upper lower trim concat substring replace contains startsWith endsWith round ceil floor abs min max formatDate addDays difference now formatCurrency formatNumber formatPercent sum avg count first last sumBy avgBy minBy maxBy sumProduct`. Unknown names fail with a suggestion. No assignment, no statements, no arbitrary calls.
 
@@ -43,9 +45,10 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 | Type | Key props |
 |---|---|
 | `text`, `richText`, `field` | `value` \| `binding` \| `expression`, `format` (`currency`, `date:dd MMM yyyy`, `number`, `percent`), `minLinesAtTop/Bottom`; auto-height flow text continues across pages unless `allowSplit: false` or `keepTogether: true` |
-| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, mergeRepeated?, footer:{aggregate}}]`, optional `headerRows[[{column, text, colSpan?, rowSpan?, align?}]]` for a complete multi-level header grid, optional `cellSpans[{row \| match:{field, value}, column, colSpan?, rowSpan?}]` for body merges (see *Table merges*), `showHeader/Footer`, `repeatHeaderOnPageBreak`, `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
+| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, mergeRepeated?, footer:{aggregate}}]`, optional `headerRows[[{column, text, colSpan?, rowSpan?, align?}]]` for a complete multi-level header grid, optional `cellSpans[{row \| match:{field, value}, column, colSpan?, rowSpan?}]` for body merges (see *Table merges*), `showHeader/Footer`, `repeatHeaderOnPageBreak`, `allowRowSplit` (a row that does not fit continues its remaining lines on the next page; without it rows stay whole and a row taller than a page is an error), `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
 | `container`, `row`, `column`, `grid` | `children`, `layout` (`flow\|row\|grid\|absolute`), `columns` |
-| `repeater`, `group` | `dataset`, `groupBy`, group header/footer |
+| `repeater` | `dataset`, `children` = one item; `itemLayout`: `flow` (default, items stacked), `row` (items side by side, sharing the width), `grid` (`columns` items per row, default 2; pages break between rows of items); `gap` |
+| `group` | `dataset`, `groupBy`, group header/footer |
 | `image`, `qrcode`, `barcode`, `chart`, `line`, `rectangle`, `spacer`, `pageBreak` | `src`/`value`/`symbology`/`series` … |
 | `labelSheet` | `columns`, `rows`, `labelWidth`, `labelHeight` (mm), `gapX`, `gapY`, `startPosition`, `dataset` \| `copies`, `outlines`, `children` = **one label** |
 | `fragment` | `ref` to `fragments[]` (reusable blocks) |
@@ -86,6 +89,14 @@ An image `src` can be an embedded PNG/JPEG/WebP data URL, a file path readable b
 
 Linked files and URLs are limited to 5 MB and must contain PNG, JPEG, or WebP image bytes. A linked file path must be inside a folder listed in `REPORT_IMAGE_ROOTS` on the reporting server (comma-separated); symlinks may not lead outside those folders, and every local path is refused when the setting is empty. A refused path and a missing file return the same error. Public URLs work by default. Private/internal URL hosts require `REPORT_IMAGE_ALLOWED_HOSTS`, a comma-separated list of permitted hostnames; when this is set, other URL hosts are rejected. Every redirect is checked again (at most 3), an https URL may not redirect to http, and connections are made only to the address that was checked. The preview endpoint requires the same API authentication as rendering.
 
+### Styles
+
+Every component accepts `style`: `fontFamily`, `fontSize`, `fontWeight`, `italic`, `underline`, `strikethrough`, `align`, `verticalAlign` (`top`, `middle`, `bottom`: where text sits in a box taller than its lines, such as a fixed `height` or a stretched row), `lineHeight`, `letterSpacing`, `color`, `background`, `padding`, `margin`, `border`, `borderRadius` (points; rounds the background and border), `overflow`, `direction`.
+
+### Variables
+
+`variables[]` take `id`, `scope` and `expression`, and are read as `vars.<id>`. `report` variables are computed once; `group` variables once per group instance over that group's rows; `row` variables once per detail record, in print order, so they can accumulate: `"(vars.balance ?? 0) + row.amount"` is a running balance. Set `resetOn` to a group id to restart a row variable at each instance of that group (a running total per region). Row variables also accumulate over table rows.
+
 ## Datasets
 - `inline`: `{ "data": [...] }`
 - `json`: sandboxed file read.
@@ -114,6 +125,7 @@ Table merge coordinates are zero-based. Body `row` positions refer to resolved r
 `theme` holds reusable values:
 - `colors`, `fonts` (font families), `fontSizes` and `spacing` (points), each a name → value table;
 - `textStyles`: named partial styles;
+- `locale`, `currency`, and `timezone`: an IANA name such as `"Europe/London"` used by `date:` formats and `formatDate()`. Without it, dates use the server's local time. An unknown name is a validation error;
 - `locale`, `currency` and `timezone`.
 
 **Using tokens.**

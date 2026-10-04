@@ -39,6 +39,7 @@ export function styleToCss(style: Record<string, unknown> | undefined): string {
   if (s.direction) out.push(`direction:${s.direction}`);
   if (s.padding !== undefined) out.push(`padding:${spacingToCss(s.padding)}`);
   if (s.border) out.push(borderToCss(s.border));
+  if (s.borderRadius) out.push(`border-radius:${ptToPx(s.borderRadius)}px`);
   if (s.overflow === "ellipsis") out.push("overflow:hidden;white-space:nowrap;text-overflow:ellipsis");
   else if (s.overflow === "hidden" || s.overflow === "clip") out.push("overflow:hidden");
   return out.join(";");

@@ -142,10 +142,8 @@ export const tableComponentSchema = componentBaseSchema.extend({
   showFooter: z.boolean().optional().default(false),
   repeatHeaderOnPageBreak: z.boolean().optional().default(true),
   keepRowTogether: z.boolean().optional().default(true),
-  /** Whether rows may be split across a page break at all; false (the
-   * default behavior today) always moves a whole row to the next page. True
-   * is accepted by the schema for forward compatibility but is not yet
-   * implemented by the layout engine (a row is still kept atomic). */
+  /** Whether a row may break across pages at a line boundary. False (the default) always moves a whole row to the
+   * next page and rejects a row taller than a page; true continues the row's remaining lines on the next page. */
   allowRowSplit: z.boolean().optional().default(false),
   /** Keep at least one data row with totals when both fit on a fresh page.
    * If minRowsAfterBreak is higher, move that many rows when they fit. */
@@ -241,7 +239,10 @@ export const gridComponentSchema = componentBaseSchema.extend({
 export const repeaterComponentSchema = componentBaseSchema.extend({
   type: z.literal("repeater"),
   dataset: z.string(),
+  /** flow stacks every item's components; row places items side by side; grid places `columns` items per row. */
   itemLayout: z.enum(["flow", "row", "grid"]).optional().default("flow"),
+  /** Items per row when itemLayout is "grid". */
+  columns: z.number().int().positive().optional(),
   children: z.array(componentSchema).default([]),
 });
 

@@ -26,6 +26,7 @@ export function cssFrom(style: Record<string, any> | undefined, k: number, caps?
     if (b.width !== undefined || b.style || b.color) css.border = `${px(b.width ?? 1)} ${b.style ?? "solid"} ${b.color ?? "#000"}`;
     else for (const side of ["top", "right", "bottom", "left"]) if (b[side]) css[`border${side[0]!.toUpperCase()}${side.slice(1)}`] = `${px(b[side].width ?? 1)} ${b[side].style ?? "solid"} ${b[side].color ?? "#000"}`;
   }
+  if (style.borderRadius) css.borderRadius = px(style.borderRadius);
   if (style.overflow === "ellipsis") Object.assign(css, { overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" });
   return css;
 }

@@ -4,3 +4,4 @@ export * from "./types.js";
 export * from "./design.js";
 export * from "./box-layout.js";
 export * from "./paginate.js";
+export { stripeOf } from "./table-row-split.js";

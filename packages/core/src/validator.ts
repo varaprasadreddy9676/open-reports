@@ -49,6 +49,12 @@ export function validateReport(report: ReportDefinition, options: ValidateOption
   checkDuplicates(report.parameters.map((p) => p.id), "parameters", issues);
   checkDuplicates(report.variables.map((v) => v.id), "variables", issues);
   for (const p of report.parameters) parameterIds.add(p.id);
+  report.variables.forEach((v, index) => {
+    if (!v.resetOn) return;
+    const path = `variables[${index}].resetOn`;
+    if (v.scope !== "row") issues.push({ severity: "error", code: "RESET_ON_NOT_ROW", path, message: `Variable "${v.id}" has resetOn, but only row variables accumulate; remove resetOn or make it a row variable.` });
+    else if (!report.groups.some((g) => g.id === v.resetOn)) issues.push({ severity: "error", code: "UNKNOWN_RESET_GROUP", path, message: `Variable "${v.id}" resets on group "${v.resetOn}", which is not declared in report.groups.${report.groups.length ? ` Declared: ${report.groups.map((g) => g.id).join(", ")}.` : ""}` });
+  });
 
   report.sections.forEach((section, sIndex) => {
     const sectionPath = `sections[${sIndex}]`;

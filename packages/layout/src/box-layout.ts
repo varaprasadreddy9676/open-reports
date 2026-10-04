@@ -8,6 +8,7 @@ import { isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesO
 import type { TextMeasurer } from "./measure.js";
 import { wrapLineCount, type TextStyleHint } from "./measure.js";
 import { resolveDimension } from "./units.js";
+import { stripeOf } from "./table-row-split.js";
 import type { Box, PositionedNode } from "./types.js";
 
 const DEFAULT_FONT_SIZE = 10;
@@ -35,7 +36,7 @@ function styleHint(component: ResolvedComponent): TextStyleHint {
   return { family: s.fontFamily, bold: s.fontWeight === "bold" || (typeof s.fontWeight === "number" && s.fontWeight >= 700), italic: Boolean(s.italic), lineHeight: s.lineHeight };
 }
 
-function styleFontSize(component: ResolvedComponent): number {
+export function styleFontSize(component: ResolvedComponent): number {
   return (component.style?.fontSize as number | undefined) ?? DEFAULT_FONT_SIZE;
 }
 
@@ -50,6 +51,21 @@ function clamp(v: number, min: number | undefined, max: number | undefined): num
   if (max !== undefined) r = Math.min(r, max);
   if (min !== undefined) r = Math.max(r, min);
   return r;
+}
+
+/** Distance to move a text node's lines down so they sit at its `style.verticalAlign` inside the padded box.
+ * Renderers add it to the top padding; it is never negative, so overflowing text still starts at the top. */
+export function textVerticalOffset(node: PositionedNode): number {
+  const style = (node.component as { style?: Record<string, unknown> }).style;
+  const align = style?.verticalAlign;
+  if (align !== "middle" && align !== "bottom") return 0;
+  const lines = node.textFragment ? node.textFragment.endLine - node.textFragment.startLine : node.textMetrics?.lines;
+  const lineHeight = node.textMetrics?.lineHeight;
+  if (!lines || !lineHeight) return 0;
+  const pad = edgesOf(style?.padding);
+  const free = node.box.height - pad.top - pad.bottom - lines * lineHeight;
+  if (free <= 0) return 0;
+  return align === "middle" ? free / 2 : free;
 }
 
 /** Lays out one component (and, recursively, its children) inside the given
@@ -80,7 +96,7 @@ function layoutIntrinsic(component: ResolvedComponent, box: Box, measurer: TextM
       const lines = (component.style as any)?.overflow === "ellipsis" ? 1 : wrapLineCount((component as any).text, Math.max(1, width - pad.left - pad.right), fontSize, measurer, hint);
       const lineHeight = measurer.lineHeight(fontSize, hint);
       const height = resolveDimension(component.height, box.height, DEFAULT_UNIT) ?? lines * lineHeight + pad.top + pad.bottom;
-      return { component, box: { x: box.x, y: box.y, width, height }, textMetrics: { lineHeight } };
+      return { component, box: { x: box.x, y: box.y, width, height }, textMetrics: { lineHeight, lines } };
     }
 
     case "image":
@@ -381,7 +397,7 @@ export function measureTableRowHeights(table: ResolvedTableComponent, columnWidt
   // Measure with the weight and slant each row is drawn with (body, stripes, rule styles).
   const styles = tableStylesOrDefault(table);
   const hintFor = (rowIndex: number): TextStyleHint => {
-    const style = tableRowStyle(styles, rowIndex, table.rows[rowIndex]?.style as Record<string, unknown> | undefined);
+    const style = tableRowStyle(styles, stripeOf(table.rows[rowIndex], rowIndex), table.rows[rowIndex]?.style as Record<string, unknown> | undefined);
     return { bold: isBold(style), italic: Boolean(style.italic) };
   };
   const heights = table.rows.map((row, rowIndex) => {

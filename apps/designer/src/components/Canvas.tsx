@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { defaultTextMeasurer, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
+import { defaultTextMeasurer, edgesOf, stripeOf, textVerticalOffset, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
 import { isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault } from "@reporting/core";
 import { renderChartSvg } from "@reporting/renderer-html/chart";
 import { useStore } from "../store";
@@ -95,7 +95,9 @@ function ImageView({ component, style }: { component: any; style: React.CSSPrope
 
 function TextNodeView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
   const c = node.component as any;
-  return <div data-cid={c.id} className="cn cn-text" style={{ ...boxStyle(node, k), ...cssFrom(c.style, k, capabilities), lineHeight: node.textMetrics ? `${node.textMetrics.lineHeight * k}px` : undefined, whiteSpace: c.style?.overflow === "ellipsis" ? "nowrap" : "pre-wrap", overflow: "hidden" }}>
+  const shift = textVerticalOffset(node);
+  const alignTop = shift > 0 ? { paddingTop: `${(edgesOf(c.style?.padding).top + shift) * k}px` } : {};
+  return <div data-cid={c.id} className="cn cn-text" style={{ ...boxStyle(node, k), ...cssFrom(c.style, k, capabilities), ...alignTop, lineHeight: node.textMetrics ? `${node.textMetrics.lineHeight * k}px` : undefined, whiteSpace: c.style?.overflow === "ellipsis" ? "nowrap" : "pre-wrap", overflow: "hidden" }}>
     <span className="text-content"><span className="text-baseline-probe" aria-hidden="true" />{node.renderText ?? node.textFragment?.text ?? c.text}</span>
   </div>;
 }
@@ -196,12 +198,12 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
       )}
       <tbody>
         {t.rows.slice(start, end).map((row: any, i: number) => (
-          <tr key={start + i} style={{ height: rowHeights[start + i]! * k, ...part(tableRowStyle(styles, start + i)), ...cssFrom(row.style, k, capabilities) }}>
+          <tr key={start + i} style={{ height: rowHeights[start + i]! * k, ...part(tableRowStyle(styles, stripeOf(row, start + i))), ...cssFrom(row.style, k, capabilities) }}>
             {t.columns.map((c: any, column: number) => {
               const slot = spanGrid.get(start + i)?.get(column);
               if (slot && !slot.anchor) return null;
               const cellRule = lines === "all" || (slot && lines !== "none") ? { border: rule } : lines === "horizontal" && start + i < end - 1 ? { borderBottom: rule } : {};
-              return <td key={c.id} colSpan={slot?.span.colSpan} rowSpan={slot?.span.rowSpan} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "nowrap", ...cellRule }}>
+              return <td key={c.id} colSpan={slot?.span.colSpan} rowSpan={slot?.span.rowSpan} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "pre-wrap", ...cellRule }}>
                 {row.formatted[c.id]}
               </td>;
             })}

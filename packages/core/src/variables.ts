@@ -17,7 +17,8 @@ export function computeReportVariables(
 /** Row-scope variables are evaluated once per row, in document order, with
  * `vars` pre-seeded from the running accumulator so an expression can
  * reference its own previous value (`vars.runningBalance + row.amount`),
- * enabling running-total/running-balance patterns. The accumulator is
+ * enabling running-total/running-balance patterns; `resetOn` restarts one at each
+ * instance of the named group (see bands.ts). The accumulator is
  * mutated in place and returned for convenience. */
 export function evaluateRowVariables(
   definitions: VariableDefinition[],
@@ -26,8 +27,10 @@ export function evaluateRowVariables(
   accumulator: Record<string, unknown>
 ): Record<string, unknown> {
   const rowVars = definitions.filter((v) => v.scope === "row");
+  // Before its first record a row variable reads as undefined, so `(vars.total ?? 0) + row.amount` starts at 0.
+  for (const def of rowVars) if (!(def.id in accumulator)) accumulator[def.id] = undefined;
   for (const def of rowVars) {
-    accumulator[def.id] = engine.evaluate(def.expression, { ...ctx, vars: accumulator });
+    accumulator[def.id] = engine.evaluate(def.expression, { ...ctx, vars: { ...ctx.vars, ...accumulator } });
   }
   return accumulator;
 }

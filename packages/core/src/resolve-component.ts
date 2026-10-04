@@ -27,6 +27,7 @@ export interface ResolveEnv {
   engine: ExpressionEngine;
   locale: string;
   currency: string;
+  timeZone?: string;
   variables: VariableDefinition[];
   rowVarAccumulator: Record<string, unknown>;
   warnings: ResolvedWarning[];
@@ -247,8 +248,22 @@ function resolveComponent(definition: Component, ctx: ResolveContext, env: Resol
     }
     case "repeater": {
       const rows = toArray(sourceRows(component.dataset, ctx, env));
-      const children = rows.flatMap((row) => resolveComponents(component.children ?? [], toRowContext(ctx, row), env));
-      return { ...base(component), type: "repeater", children };
+      const perItem = rows.map((row) => resolveComponents(component.children ?? [], toRowContext(ctx, row), env));
+      if (component.itemLayout === "row") {
+        const items = perItem.map((children) => ({ type: "container", children }) as ResolvedComponent);
+        return { ...base(component), type: "repeater", layout: "row", wrap: component.wrap ?? true, children: items };
+      }
+      if (component.itemLayout === "grid") {
+        // One grid container per row of items, so pagination breaks between rows of items and never through one.
+        const columns = Math.max(1, Number(component.columns) || 2);
+        const rowsOfItems: ResolvedComponent[] = [];
+        for (let i = 0; i < perItem.length; i += columns) {
+          const items = perItem.slice(i, i + columns).map((children) => ({ type: "container", children }) as ResolvedComponent);
+          rowsOfItems.push({ type: "container", layout: "grid", columns, gap: component.gap, children: items } as ResolvedComponent);
+        }
+        return { ...base(component), type: "repeater", layout: "flow", children: rowsOfItems };
+      }
+      return { ...base(component), type: "repeater", children: perItem.flat() };
     }
     case "labelSheet":
       return resolveLabelSheet(component, ctx, env);
@@ -494,6 +509,7 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
       return styles ? { styles } : {};
     })(),
     keepRowTogether: component.keepRowTogether ?? true,
+    ...(component.allowRowSplit ? { allowRowSplit: true } : {}),
     minRowsBeforeBreak: component.minRowsBeforeBreak ?? 0,
     minRowsAfterBreak: component.minRowsAfterBreak ?? 0,
     alternateRowStyle: component.alternateRowStyle,

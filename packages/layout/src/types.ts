@@ -16,7 +16,7 @@ export interface PositionedNode {
   /** Measured with the paginator's font metrics; lets visual clients draw table rows at the same heights. */
   tableMetrics?: { headerRowHeights: number[]; rowHeights: number[] };
   /** Text line advance measured by the same font engine that paginated this node. */
-  textMetrics?: { lineHeight: number };
+  textMetrics?: { lineHeight: number; lines?: number };
   /** A page fragment of a long flow text component. The source component stays intact. */
   textFragment?: { text: string; startLine: number; endLine: number; totalLines: number };
   /** Measured display value for explicit one-line ellipsis; source text remains intact. */
@@ -43,7 +43,7 @@ export interface PageLayout {
 
 /** A recorded layout decision -- the answer to "why did this move to the next page?". */
 export interface PaginationDecision {
-  kind: "forced-break" | "keep-together" | "keep-with-next" | "cannot-split" | "table-split" | "text-split" | "row-split" | "orphan-control" | "widow-control" | "merged-cell" | "overflow" | "group-header-repeated" | "keep-chain" | "flow-break";
+  kind: "forced-break" | "keep-together" | "keep-with-next" | "cannot-split" | "table-split" | "text-split" | "row-split" | "orphan-control" | "widow-control" | "merged-cell" | "overflow" | "group-header-repeated" | "keep-chain" | "flow-break" | "print-at-bottom";
   /** The page the content moved onto (1-based). */
   page: number;
   componentId?: string;

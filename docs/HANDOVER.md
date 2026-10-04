@@ -210,7 +210,7 @@ Remaining spec items (from the 50-item list, none started unless noted): multipl
 - P0-2 strict render mode: data-loss warnings → HTTP 422 + warnings JSON.
 - P0-3 time-zone independent date handling (calendar-date parsing, explicit tz, injectable clock).
 - P0-4/5/6 security: **done 2026-10-05** (see verification note below). Remaining: dataset rows cut off at `maxRows` are still dropped without a warning; this needs the strict-render warning channel (P0-2).
-- P0-7: **CI guard done 2026-10-05** (`pnpm check:schema-consumers`, also in CI). Nine inert fields remain listed in `scripts/schema-consumers.mjs` → `PLANNED` and still need implementing or removing from schema, designer and docs: `allowRowSplit`, `borderRadius`, `theme.colors`, `theme.fontSizes`, `theme.timezone`, `itemLayout`, `printAtBottom` (offered in section properties, ignored by layout), `resetOn`, `verticalAlign`.
+- P0-7: **CI guard done 2026-10-05** (`pnpm check:schema-consumers`, also in CI). All formerly inert fields are implemented (2026-10-06); `PLANNED` in `scripts/schema-consumers.mjs` is empty, so any new schema field must be consumed by engine code or listed as design-only.
 - P1 bundle: designer now consumes PDF-measured pagination when online, but structure mode and fallback still use heuristic measurements; text splitting, error policy, worker pool/quotas, auth hardening, AI risky-change review, designer draft safety, XLSX/PDF parity, deps, Docker/CI verification remain.
 - Docs: update `docs/REPORT_DEFINITION.md`, `docs/USER_GUIDE.md`, `CHANGELOG.md` for the band/group/guide model and the new designer (not yet done); refresh screenshots.
 
