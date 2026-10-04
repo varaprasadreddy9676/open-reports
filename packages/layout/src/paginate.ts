@@ -581,7 +581,9 @@ function layoutContentIntoPages(
         const starts = rowPlan.children.map(() => 0);
         rowPlan.slices.forEach((slice, index) => {
           if (index > 0) {
-            decide({ kind: "row-split", componentId: anyC.id, ...source, required: minimumSpace(slice), available: remaining(), message: `Row "${rowName}" continues on page ${pages.length + 1}; its columns hold more than fits on the previous page.` });
+            decide({ kind: "row-split", componentId: anyC.id, ...source, required: minimumSpace(slice), available: remaining(), message: rowPlan.children.some((child) => child.blocks)
+              ? `Row "${rowName}" continues on page ${pages.length + 1}; its columns hold more items than fit on the previous page, and items are never cut.`
+              : `Row "${rowName}" continues on page ${pages.length + 1}; its text columns have more lines than fit on the previous page.` });
             newPage();
           }
           const rowX = m.left;

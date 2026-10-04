@@ -2431,3 +2431,12 @@ kbd {
 .visual-images figure { margin: 0; display: grid; gap: 4px; }
 .visual-images img { width: 100%; border: 1px solid var(--border); background: #fff; }
 .visual-images figcaption { color: var(--muted); font-size: 11px; text-align: center; }
+
+/* Auto-layout handles: gaps between children and inner padding edges of the selected container. */
+.al-handle { position: absolute; z-index: 6; pointer-events: auto; border-radius: 2px; background: rgba(236, 72, 153, 0.25); }
+.al-handle:hover, .al-handle:active { background: rgba(236, 72, 153, 0.75); }
+.al-gap.row { cursor: ew-resize; }
+.al-gap.column { cursor: ns-resize; }
+.al-padding.left, .al-padding.right { cursor: ew-resize; }
+.al-padding.top, .al-padding.bottom { cursor: ns-resize; }
+.al-label { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); padding: 1px 5px; border-radius: 3px; background: #db2777; color: #fff; font-size: 10px; white-space: nowrap; pointer-events: none; }

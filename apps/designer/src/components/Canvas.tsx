@@ -18,6 +18,7 @@ import { PageBreakDetails } from "./PageBreakDetails";
 import { EscPosPreview, PdfPreview } from "./Preview";
 import { fitZoom } from "../lib/zoom";
 import { useCanvasPan } from "../lib/use-canvas-pan";
+import { AutoLayoutHandles } from "./AutoLayoutHandles";
 import { minorStep, snapToGrid } from "../lib/grid";
 import { pointsPerRulerUnit } from "../lib/ruler";
 import { api } from "../lib/api";
@@ -149,6 +150,16 @@ function NodeView({ node, k, capabilities }: { node: PositionedNode; k: number; 
       );
     }
   }
+}
+
+/** Double-clicking a row child's right handle: text hugs its content, anything else fills the remaining width. */
+function fitToContent(id: string) {
+  const s = useStore.getState();
+  const located = ops.find(s.doc, id);
+  if (!located || ops.parentLayout(s.doc, id) !== "row") return;
+  const hugs = ["text", "richText", "field"].includes(located.comp.type);
+  s.patch(id, hugs ? { width: "auto", grow: undefined } : { width: undefined, grow: undefined }, `fit:${id}`);
+  s.toast(hugs ? "Width hugs the text" : "Width fills the row", "info");
 }
 
 function TableView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
@@ -646,7 +657,13 @@ export function Canvas() {
                 }}
                 onDoubleClick={(e) => {
                   // pointer capture retargets events to the page, so hit-test explicitly
-                  const target = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest("[data-cid]") as HTMLElement | null;
+                  const hit = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+                  if (hit?.closest('[data-handle="e"]')) {
+                    const selected = useStore.getState().selection[0];
+                    if (selected) fitToContent(selected);
+                    return;
+                  }
+                  const target = hit?.closest("[data-cid]") as HTMLElement | null;
                   if (!target) return;
                   const st = useStore.getState();
                   const comp = ops.find(st.doc, target.dataset.cid!)?.comp;
@@ -678,8 +695,9 @@ export function Canvas() {
                     {showHandles && n === single && !ops.find(doc, (single.component as any).id)?.comp.locked && (
                       <>
                         {(typeof ops.find(doc, (single.component as any).id)?.comp.x === "number" ? ["n", "s", "e", "w", "ne", "nw", "se", "sw"] : ["e", "s", "se"]).map((h) => (
-                          <span key={h} className={`handle ${h}`} data-handle={h} />
+                          <span key={h} className={`handle ${h}`} data-handle={h} title={h === "e" && ops.parentLayout(doc, (single.component as any).id) === "row" ? "Drag to resize; double-click to hug the content or fill the row" : undefined} />
                         ))}
+                        <AutoLayoutHandles node={single} k={k} />
                       </>
                     )}
                     {ops.find(doc, (n.component as any).id)?.comp.locked && <span className="lock-badge" title="Locked">🔒</span>}

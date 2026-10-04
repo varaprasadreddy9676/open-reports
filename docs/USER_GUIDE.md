@@ -72,6 +72,14 @@ While moving an element in a free-position layout, smart guides compare it with 
   - Choose **At row N** to fix it at a row position instead.
   - Selecting a merged cell shows how it is anchored. Automatic merges are shaded and change only through their column setting.
 
+**Auto-layout handles.** When a row or a stacked container is selected:
+- drag the pink bars between its items to change the gap;
+- drag the inner edges to change that side's padding (hold **Shift** for every side).
+
+The value is shown while dragging. Values snap to 0.5 pt (hold **Alt/Option** to place freely), and each drag is one undo step. Double-clicking the right handle of an item in a row makes text hug its content, and other items fill the remaining width.
+
+**Long rows.** A row taller than a page continues on the next page. Text columns continue line by line, and stacked columns continue item by item without cutting an item.
+
 **Panning.** Hold **Space** and drag, or drag with the middle mouse button, to pan the canvas. A pan never selects or moves anything. Space still types in text fields and activates focused buttons.
 
 In **Canvas settings → Ruler zero**, choose **Selected band** in Structure view to measure vertically from that band's top. Choose **Selection bounds** to measure from the upper-left corner of the selected element(s) visible on the first page. Clearing the selection temporarily returns the ruler to the page edge; it does not move any report content or guides.
