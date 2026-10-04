@@ -19,6 +19,14 @@ const DESIGN_ONLY = {
   printerType: "print profile: drives designer safe-area/barcode checks and preview choice",
   language: "print profile: selects the designer's PDF/ZPL/ESC-POS preview; export format is chosen per render",
   safeMargin: "print profile: designer safe-area warnings",
+  // report.migration: the JRXML import's review record, listed in the designer's Migration panel; never printed.
+  migration: "import review record shown in the designer's Migration panel",
+  sourceFormat: "import review record: format the report was converted from",
+  converted: "import review record: count of converted source elements",
+  "needs-review": "import review record: count of elements that need review",
+  unsupported: "import review record: count of unsupported source elements",
+  feature: "import review record: source feature an issue refers to",
+  targetId: "import review record: component an issue was mapped to",
 };
 
 /** Known inert fields (gap analysis P0-7): implement them or remove them from the schema, designer and docs, then delete the entry. */

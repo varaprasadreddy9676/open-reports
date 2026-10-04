@@ -105,6 +105,7 @@ write("receipt", base("receipt", "Receipt (80mm)", "Compact single-page thermal 
   } } }],
   variables: [{ id: "total", scope: "report", expression: 'sumProduct(data.sale.items, "qty", "price")' }],
   page: { size: "custom", width: 80, height: 170, unit: "mm", orientation: "portrait", margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+  print: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 },
   sections: [{ type: "detail", children: [
     B("data.sale.shop", { style: { align: "center", fontWeight: "bold", fontSize: 12 } }),
     B("data.sale.address", { style: { align: "center", fontSize: 8 } }),
@@ -452,7 +453,7 @@ write("receipt-58mm", base("receipt-58mm", "Receipt 58mm", "Narrow thermal recei
   datasets: [{ id: "sale", source: "inline", query: { data: { store: "ACME PHARMACY", number: "R-5521", date: "2025-10-01 16:40", items: [{ name: "Paracetamol 500", qty: 2, price: 24 }, { name: "ORS sachet", qty: 3, price: 18 }, { name: "Vitamin C", qty: 1, price: 95 }] } } }],
   variables: [{ id: "total", scope: "report", expression: 'sumProduct(data.sale.items, "qty", "price")' }],
   page: { size: "custom", width: 58, height: 160, unit: "mm", orientation: "portrait", margin: { top: 3, right: 3, bottom: 3, left: 3 } },
-  print: { name: "58mm thermal", printerType: "receipt", language: "pdf", dpi: 203, safeMargin: 2 },
+  print: { name: "58mm thermal", printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 },
   sections: [{ type: "detail", children: [
     B("data.sale.store", { style: { fontSize: 10, fontWeight: "bold", align: "center" } }),
     X('data.sale.number + "  " + data.sale.date', { style: { fontSize: 6, align: "center", ...muted } }),

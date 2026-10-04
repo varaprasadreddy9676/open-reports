@@ -1,9 +1,13 @@
 name: CI
 on:
-  push: { branches: [main] }
+  # The default branch is claude/upbeat-volta-pe84n7; main is kept for when the project moves to it.
+  push: { branches: [main, "claude/**"] }
   pull_request:
+  workflow_dispatch:
 
-concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -32,6 +36,8 @@ jobs:
       - run: pnpm -r --filter "./packages/**" build
       - name: Every schema field has an engine consumer
         run: pnpm check:schema-consumers
+      - name: Example reports match scripts/build-examples.mjs
+        run: node scripts/build-examples.mjs && git diff --exit-code -- examples
       - run: pnpm --filter @reporting/server build
       - name: Typecheck designer
         run: pnpm --filter @reporting/designer exec tsc --noEmit
@@ -97,7 +103,7 @@ jobs:
       - name: Smoke test the image
         run: |
           docker run -d --name api -p 4000:4000 open-reports-api:ci
-          for i in $(seq 1 30); do curl -fsS localhost:4000/health && break; sleep 1; done
+          for _ in $(seq 1 30); do curl -fsS localhost:4000/health && break; sleep 1; done
           curl -fsS localhost:4000/health
           curl -fsS -X POST localhost:4000/api/v1/render -H 'content-type: application/json' \
             -d '{"report":{"schemaVersion":"1.0","id":"s","name":"s","sections":[{"type":"detail","children":[{"type":"text","value":"नमस्ते Hello"}]}]},"format":"pdf"}' -o /tmp/s.pdf
