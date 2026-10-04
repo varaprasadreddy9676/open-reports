@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs the CI jobs from .github/workflows/ci.yml on Linux amd64 in Docker, with the same fonts, Node version and
 # Postgres/MySQL services, so failures that only happen on the CI runner show up before pushing.
-# Usage: scripts/ci-linux.sh [test|e2e|all]   (default: all)
+# Usage: scripts/ci-linux.sh [test|e2e|all|server-baselines]   (default: all)
+# server-baselines rewrites apps/server/tests/visual-baselines after an intended output change.
 # PW_ARGS="tests/e2e/x.spec.ts -g name" narrows the browser tests.
 # PLATFORM=linux/arm64 runs natively on Apple silicon: much faster for functional tests. Screenshot baselines are
 # amd64 (what CI uses), so the @visual tests run only on the default linux/amd64.
@@ -28,7 +29,7 @@ for _ in $(seq 1 90); do
 done
 
 docker run --rm --platform "$PLATFORM" --network "container:$NET-pg" \
-  -v "$ROOT:/src:ro" -e NODE_VERSION="$NODE_VERSION" -e JOB="$JOB" -e PLATFORM="$PLATFORM" -e PW_ARGS="${PW_ARGS:-}" -e CI=true -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+  -v "$ROOT:/src:ro" -v "$ROOT/apps/server/tests/visual-baselines:/baselines" -e NODE_VERSION="$NODE_VERSION" -e JOB="$JOB" -e PLATFORM="$PLATFORM" -e PW_ARGS="${PW_ARGS:-}" -e CI=true -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
   "$IMAGE" bash -euo pipefail -c '
     apt-get update -qq && apt-get install -y -qq fonts-noto-core poppler-utils xz-utils >/dev/null
     ARCH=$([ "$(uname -m)" = aarch64 ] && echo arm64 || echo x64)
@@ -49,6 +50,9 @@ docker run --rm --platform "$PLATFORM" --network "container:$NET-pg" \
       echo "== unit + integration tests"; pnpm -r --no-bail test 2>&1 | tee /tmp/test.log | grep -E "Test Files|Tests |FAIL|Error:" || true
       grep -q "FAIL\|ERR_PNPM" /tmp/test.log && status=1
       echo "== quick benchmark"; pnpm --filter @reporting/server bench:quick > /tmp/bench.log 2>&1 || { tail -30 /tmp/bench.log; status=1; }
+    fi
+    if [ "$JOB" = server-baselines ]; then
+      (cd apps/server && UPDATE_BASELINES=1 npx vitest run tests/visual.test.ts) && cp apps/server/tests/visual-baselines/*.png /baselines/ || status=1
     fi
     if [ "$JOB" = e2e ] || [ "$JOB" = all ]; then
       echo "== designer e2e"; (cd apps/designer && npx playwright test --grep-invert @visual --reporter=line $PW_ARGS) || status=1

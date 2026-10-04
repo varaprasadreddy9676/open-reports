@@ -22,7 +22,7 @@ const label = {
     {
       type: "detail",
       children: [
-        { type: "text", value: "Sai Varaprasad", style: { fontSize: 7 } },
+        { type: "text", value: "Alex Morgan", style: { fontSize: 7 } },
         { type: "barcode", value: "260100928374", symbology: "code128", height: 28 },
         { type: "qrcode", value: "ACC-1", width: 40, height: 40 },
       ],
@@ -42,7 +42,7 @@ describe("ZplRenderer", () => {
   it("emits text, a Code 128 barcode and a QR code", async () => {
     const text = (await zpl(label)).content as string;
     expect(text).toMatch(/\^XA[\s\S]*\^XZ/);
-    expect(text).toContain("^FDSai Varaprasad^FS");
+    expect(text).toContain("^FDAlex Morgan^FS");
     expect(text).toMatch(/\^BY\d+\^BCN,\d+,N,N,N\^FD260100928374\^FS/);
     expect(text).toMatch(/\^BQN,2,\d+\^FDQA,ACC-1\^FS/);
   });

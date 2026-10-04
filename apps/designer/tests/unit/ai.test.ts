@@ -3,7 +3,7 @@ import { buildContext, makeProposal, parseModelReply } from "../../src/lib/ai";
 
 const doc: any = {
   schemaVersion: "1.0", id: "r", name: "R",
-  datasets: [{ id: "p", source: "inline", query: { data: { name: "Sai Varaprasad", amount: 120.5 } } }],
+  datasets: [{ id: "p", source: "inline", query: { data: { name: "Alex Morgan", amount: 120.5 } } }],
   sections: [{ type: "detail", children: [{ type: "text", id: "title", value: "Hello", style: { fontSize: 12 } }, { type: "text", id: "who", binding: "data.p.name" }] }],
 };
 
@@ -38,7 +38,7 @@ describe("makeProposal", () => {
 describe("buildContext privacy and scope", () => {
   it("never includes inline sample values, only field names and types", () => {
     const ctx = buildContext(doc, {}, [], []);
-    expect(ctx).not.toContain("Sai Varaprasad");
+    expect(ctx).not.toContain("Alex Morgan");
     expect(ctx).not.toContain("120.5");
     expect(ctx).toContain("name:string");
     expect(ctx).toContain("amount:number");

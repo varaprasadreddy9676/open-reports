@@ -533,7 +533,7 @@ function JrxmlImportDialog() {
 }
 
 const SAMPLE_JSON = `{
-  "patient": { "name": "Sai Varaprasad", "mrn": "MRN-1042", "dob": "1994-05-12", "gender": "Male" },
+  "patient": { "name": "Alex Morgan", "mrn": "MRN-1042", "dob": "1994-05-12", "gender": "Male" },
   "invoice": {
     "number": "INV-2001",
     "date": "2025-02-10",

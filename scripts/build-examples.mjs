@@ -33,7 +33,7 @@ write("invoice", base("invoice", "Invoice", "Logo block, customer details, item 
     id: "invoice", source: "inline",
     query: { data: {
       number: "INV-1001", date: "2025-01-15", status: "Due",
-      customer: { name: "Sai Varaprasad", address: "12 MG Road, Bengaluru 560001", phone: "+91 98765 43210" },
+      customer: { name: "Alex Morgan", address: "12 MG Road, Bengaluru 560001", phone: "+91 98765 43210" },
       items: [
         { description: "Eye Examination", quantity: 1, rate: 500 },
         { description: "Progressive Lenses", quantity: 2, rate: 3200 },
@@ -183,7 +183,7 @@ write("purchase-order", base("purchase-order", "Purchase Order", "Multiple secti
   }
   write("account-statement", base("account-statement", "Account Statement", "Multi-page transaction table with repeating header; negative balances are highlighted.", {
     theme: { currency: "INR" },
-    datasets: [{ id: "account", source: "inline", query: { data: { holder: "Sai Varaprasad", number: "XXXX-4471", period: "Jan - Mar 2025", transactions: tx } } }],
+    datasets: [{ id: "account", source: "inline", query: { data: { holder: "Alex Morgan", number: "XXXX-4471", period: "Jan - Mar 2025", transactions: tx } } }],
     variables: [{ id: "credits", scope: "report", expression: 'sumBy(data.account.transactions, "credit")' }, { id: "debits", scope: "report", expression: 'sumBy(data.account.transactions, "debit")' }],
     page: A4(),
     sections: [
@@ -341,7 +341,7 @@ write("absolute-form", base("absolute-form", "Certificate (absolute layout)", "P
 
 // ---------------------------------------------------------------- lab specimen label 40x25mm
 write("specimen-label", base("specimen-label", "Specimen Label 40x25mm", "Tiny laboratory tube label with name, test, barcode and timestamp.", {
-  datasets: [{ id: "sample", source: "inline", query: { data: { patient: "Sai Varaprasad", age: "31", sex: "M", test: "CBC", accession: "260100928374", collected: "2025-10-01 16:20" } } }],
+  datasets: [{ id: "sample", source: "inline", query: { data: { patient: "Alex Morgan", age: "31", sex: "M", test: "CBC", accession: "260100928374", collected: "2025-10-01 16:20" } } }],
   page: { size: "custom", width: 40, height: 25, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 } },
   sections: [{ type: "detail", children: [
     row([T("LAB SAMPLE", { width: "*", style: { fontSize: 5, fontWeight: "bold" } }), B("data.sample.test", { style: { fontSize: 6, fontWeight: "bold", align: "right" } })]),
@@ -355,7 +355,7 @@ write("specimen-label", base("specimen-label", "Specimen Label 40x25mm", "Tiny l
 // ---------------------------------------------------------------- lab report
 write("lab-report", base("lab-report", "Laboratory Report", "Patient block, results table with out-of-range highlighting, interpretation kept with the result.", {
   datasets: [{ id: "report", source: "inline", query: { data: {
-    patient: { name: "Sai Varaprasad", age: "31 Y", sex: "Male", uhid: "UH12345", consultant: "Dr. Smith" },
+    patient: { name: "Alex Morgan", age: "31 Y", sex: "Male", uhid: "UH12345", consultant: "Dr. Smith" },
     collected: "2025-10-01 16:20", test: "Complete Blood Count",
     results: [
       { parameter: "Haemoglobin", value: 14.2, unit: "g/dL", low: 13, high: 17 },
@@ -394,7 +394,7 @@ write("lab-report", base("lab-report", "Laboratory Report", "Patient block, resu
 
 // ---------------------------------------------------------------- label & healthcare starters
 const labelPage = (w, h, extra = {}) => ({ size: "custom", width: w, height: h, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 }, ...extra });
-const patientData = { name: "Sai Varaprasad", uhid: "UH12345", age: "31", sex: "M", dob: "1994-05-12", ward: "Ward 4B", bed: "12", doctor: "Dr. Smith", allergy: "Penicillin", admitted: "2025-10-01 09:40" };
+const patientData = { name: "Alex Morgan", uhid: "UH12345", age: "31", sex: "M", dob: "1994-05-12", ward: "Ward 4B", bed: "12", doctor: "Dr. Smith", allergy: "Penicillin", admitted: "2025-10-01 09:40" };
 
 write("wristband", base("wristband", "Patient Wristband 25x250mm", "Long thin patient wristband: name, UHID, DOB and a scannable barcode.", {
   datasets: [{ id: "patient", source: "inline", query: { data: patientData } }],
@@ -409,7 +409,7 @@ write("wristband", base("wristband", "Patient Wristband 25x250mm", "Long thin pa
 }));
 
 write("pharmacy-label", base("pharmacy-label", "Pharmacy Label 50x30mm", "Medication label: drug, dose, patient, expiry and QR for dispensing records.", {
-  datasets: [{ id: "rx", source: "inline", query: { data: { drug: "Amoxicillin 500 mg", dose: "1 capsule every 8 hours after food", patient: "Sai Varaprasad", qty: "21 capsules", expiry: "2026-08", batch: "B2291", code: "RX-884201" } } }],
+  datasets: [{ id: "rx", source: "inline", query: { data: { drug: "Amoxicillin 500 mg", dose: "1 capsule every 8 hours after food", patient: "Alex Morgan", qty: "21 capsules", expiry: "2026-08", batch: "B2291", code: "RX-884201" } } }],
   page: labelPage(50, 30),
   print: { name: "Zebra ZD421 203dpi", printerType: "label", language: "zpl", dpi: 203, safeMargin: 1.5 },
   sections: [{ type: "detail", children: [
@@ -482,7 +482,7 @@ write("label-50x30", base("label-50x30", "Label 50x30mm", "Generic product / sam
 }));
 
 write("label-100x50", base("label-100x50", "Label 100x50mm", "Shipping-style label with a large title, address block and barcode.", {
-  datasets: [{ id: "ship", source: "inline", query: { data: { to: "Sai Varaprasad", address: "12 MG Road, Bengaluru 560001", ref: "SHP-2025-0098", code: "SHP20250098" } } }],
+  datasets: [{ id: "ship", source: "inline", query: { data: { to: "Alex Morgan", address: "12 MG Road, Bengaluru 560001", ref: "SHP-2025-0098", code: "SHP20250098" } } }],
   page: labelPage(100, 50, { margin: { top: 3, right: 4, bottom: 3, left: 4 } }),
   print: { name: "300 dpi label printer", printerType: "label", language: "zpl", dpi: 300, safeMargin: 2 },
   sections: [{ type: "detail", children: [
@@ -498,7 +498,7 @@ write("label-100x50", base("label-100x50", "Label 100x50mm", "Shipping-style lab
 write("prescription", base("prescription", "Prescription", "Doctor's prescription with patient block, medicine table and signature area.", {
   datasets: [{ id: "rx", source: "inline", query: { data: {
     doctor: { name: "Dr. A. Smith", reg: "KMC 48213", clinic: "ACME Health Clinic, Bengaluru" },
-    patient: { name: "Sai Varaprasad", age: "31", sex: "Male", uhid: "UH12345", date: "2025-10-01" },
+    patient: { name: "Alex Morgan", age: "31", sex: "Male", uhid: "UH12345", date: "2025-10-01" },
     diagnosis: "Acute pharyngitis",
     medicines: [
       { name: "Amoxicillin 500 mg", dose: "1-0-1", days: 5, notes: "After food" },
@@ -531,7 +531,7 @@ write("prescription", base("prescription", "Prescription", "Doctor's prescriptio
 
 write("radiology-report", base("radiology-report", "Radiology Report", "Imaging report with findings kept with their headings and an impression at the end.", {
   datasets: [{ id: "study", source: "inline", query: { data: {
-    patient: { name: "Sai Varaprasad", age: "31 Y", sex: "Male", uhid: "UH12345" },
+    patient: { name: "Alex Morgan", age: "31 Y", sex: "Male", uhid: "UH12345" },
     exam: "X-ray chest PA view", date: "2025-10-01", radiologist: "Dr. R. Rao, MD Radiology",
     sections: [
       { heading: "Technique", text: "Single frontal chest radiograph obtained in erect position at full inspiration." },
@@ -558,7 +558,7 @@ write("radiology-report", base("radiology-report", "Radiology Report", "Imaging 
 
 write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi-page hospital discharge summary with first-page letterhead and repeating patient banner.", {
   datasets: [{ id: "adm", source: "inline", query: { data: {
-    patient: { name: "Sai Varaprasad", age: "31 Y", sex: "Male", uhid: "UH12345", ward: "Ward 4B" },
+    patient: { name: "Alex Morgan", age: "31 Y", sex: "Male", uhid: "UH12345", ward: "Ward 4B" },
     admitted: "2025-09-28", discharged: "2025-10-01", doctor: "Dr. A. Smith", diagnosis: "Acute appendicitis - post laparoscopic appendicectomy",
     course: "Patient presented with right iliac fossa pain and fever. Ultrasound confirmed appendicitis. Underwent laparoscopic appendicectomy under general anaesthesia on 29 Sep. Post-operative course was uneventful. Oral intake resumed on day 1. Wounds healthy at discharge.",
     medicines: [
@@ -599,7 +599,7 @@ write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi
 
 write("sticker-sheet", base("sticker-sheet", "Sticker Sheet (A4, 2x4 labels)", "Eight 99.1x67.7 mm labels per A4 sheet (Avery L7165 style), one per patient record, with start position for partly used sheets.", {
   datasets: [{ id: "patients", source: "inline", query: { data: [
-    { name: "Sai Varaprasad", uhid: "UH12345", dob: "1994-05-12" },
+    { name: "Alex Morgan", uhid: "UH12345", dob: "1994-05-12" },
     { name: "Anita Rao", uhid: "UH12346", dob: "1988-11-02" },
     { name: "Ravi Kumar", uhid: "UH12347", dob: "1975-03-21" },
     { name: "Meena Iyer", uhid: "UH12348", dob: "2001-07-30" },

@@ -1,7 +1,7 @@
 import { definePlugin } from "@reporting/plugin-sdk";
 import { walkComponents, type ReportRenderer } from "@reporting/core";
 
-/** "Sai Varaprasad Reddy" -> "SVR" */
+/** "Alex Morgan Reed" -> "AMR" */
 const initials = (name: unknown) =>
   String(name ?? "")
     .split(/\s+/)

@@ -12,7 +12,7 @@ async function loaded() {
 describe("clinic-pack", () => {
   it("initials and maskId", async () => {
     const f = (await loaded()).expressionFunctions();
-    expect(f.initials!("sai varaprasad reddy")).toBe("SVR");
+    expect(f.initials!("alex morgan reed")).toBe("AMR");
     expect(f.initials!(null)).toBe("");
     expect(f.maskId!("UH12345", 3)).toBe("••••345");
     expect(f.maskId!("AB", 3)).toBe("AB");

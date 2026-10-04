@@ -442,7 +442,7 @@ test.describe("editing", () => {
     await expect(page.getByRole("listbox").getByRole("option").first()).toContainText("data.invoice.customer.name");
     await page.keyboard.press("Enter");
     await input.type(")");
-    await expect(page.getByTestId("canvas")).toContainText("SAI VARAPRASAD");
+    await expect(page.getByTestId("canvas")).toContainText("ALEX MORGAN");
     expect((await doc(page)).sections[0].children[0].children[0].expression).toBe("upper(data.invoice.customer.name)");
 
     await input.fill("1 +");
@@ -478,7 +478,7 @@ test.describe("data, code and problems", () => {
     await page.goto("/");
     await page.getByTestId("starter-json").click();
     await page.getByTestId("generate-create").click();
-    await expect(page.getByTestId("canvas")).toContainText("Sai Varaprasad");
+    await expect(page.getByTestId("canvas")).toContainText("Alex Morgan");
     await expect(page.getByTestId("canvas")).toContainText("Blood test (CBC)");
     await expect(page.getByTestId("canvas")).toContainText("Items");
   });

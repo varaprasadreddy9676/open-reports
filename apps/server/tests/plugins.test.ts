@@ -15,7 +15,7 @@ const report = {
   id: "plug",
   name: "Plugin demo",
   datasets: [
-    { id: "p", source: "inline", query: { data: { name: "Sai Varaprasad Reddy", uhid: "UH12345" } } },
+    { id: "p", source: "inline", query: { data: { name: "Alex Morgan Reed", uhid: "UH12345" } } },
     { id: "nums", source: "plugin:number-range", query: { from: 1, to: 3 } },
   ],
   sections: [
@@ -53,7 +53,7 @@ describe("plugins through the server", () => {
     const txt = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report, format: "txt" } });
     expect(txt.statusCode, txt.payload).toBe(200);
     expect(txt.headers["content-type"]).toContain("text/plain");
-    expect(txt.payload).toContain("SVR / ••••345");
+    expect(txt.payload).toContain("AMR / ••••345");
     expect(txt.payload).toContain("DISCHARGED");
     expect(txt.payload).toMatch(/N\n1\n2\n3|N\s*\n1 *\n2 *\n3/);
 

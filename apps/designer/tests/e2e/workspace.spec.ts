@@ -838,7 +838,7 @@ test.describe("AI assistant (BYOK, mocked provider)", () => {
     // nothing committed yet
     expect((await doc(page)).sections[0].children[0].children[0].style.fontSize).not.toBe(28);
     // the model never saw sample data values
-    expect(mock.body()).not.toContain("Sai Varaprasad");
+    expect(mock.body()).not.toContain("Alex Morgan");
     expect(mock.body()).toContain("claude-test");
     await page.getByTestId("ai-accept").click();
     expect(JSON.stringify(await doc(page))).toContain('"fontSize":28');
