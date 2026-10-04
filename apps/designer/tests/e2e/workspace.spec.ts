@@ -78,7 +78,7 @@ test.describe("workspace", () => {
     await page.getByTestId("btn-more").click();
     await expect(page.getByTestId("btn-new")).toBeFocused();
     await page.getByTestId("btn-new").press("End");
-    await expect(page.getByRole("menuitem", { name: "Settings…" })).toBeFocused();
+    await expect(page.getByTestId("menu-feedback")).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("btn-more")).toBeFocused();
     await expect(page.getByRole("menu")).toHaveCount(0);

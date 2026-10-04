@@ -113,10 +113,10 @@ export function Toolbar() {
             return;
           }
           if (e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement || !["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
-          const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)'));
+          const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)'));
           if (!items.length) return;
           e.preventDefault();
-          const at = items.indexOf(document.activeElement as HTMLButtonElement);
+          const at = items.indexOf(document.activeElement as HTMLElement);
           const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : (at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
           items[next]?.focus();
         }}>
