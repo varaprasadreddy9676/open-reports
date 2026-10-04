@@ -257,6 +257,16 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
       add("needs-review", "page/column break", node, "Jasper break imported as a page break; column behavior needs review.", targetId);
       return { ...base, type: "pageBreak" };
     }
+    if (kind === "subreport") {
+      const source = content(expressionNode(node, "subreportExpression")).trim();
+      const name = source.match(/"([^"\r\n]+\.jasper)"/i)?.[1]?.split(/[/\\]/).pop();
+      const mode = child(node, "dataSourceExpression") ? "data-source-backed" : child(node, "connectionExpression") ? "connection-backed" : "source unspecified";
+      const count = children(node, "subreportParameter").length;
+      add("unsupported", "subreport", node,
+        `${name ?? "Dynamic subreport"} is ${mode} with ${count} parameter${count === 1 ? "" : "s"}; import its JRXML source, bind its data, and review nested pagination.`,
+        targetId, source);
+      return { ...base, type: "text", value: "[Migration review: subreport]", style: { ...((g.style as object) ?? {}), color: "#b91c1c", fontSize: 9 } };
+    }
     if (kind === "component" || kind === "componentElement") {
       const nested = node.children.find((item) => local(item.name) === "component") ?? node.children.find((item) => ["table", "list", "barbecue", "barcode4j"].includes(local(item.name)));
       const feature = nested?.attrs.kind ?? (nested ? local(nested.name) : kind);

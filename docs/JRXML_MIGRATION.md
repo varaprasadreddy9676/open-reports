@@ -49,6 +49,8 @@ No crosstab or chart component was found in this 975-file sample. That does not 
 
 For the 771 subreport uses, 573 quoted `.jasper` names have a matching `.jrxml` in the same directory, 76 have a same-named JRXML elsewhere in the repository, 112 have no literal filename to resolve statically, and 10 named references have no same-named JRXML in the repository. These counts show that a source-first subreport resolver is plausible for most, but must handle dynamic paths and genuine missing sources explicitly.
 
+Of those 771 uses, 734 pass a Jasper database connection, 31 pass a data-source expression, and 6 declare neither. This is why linking child layouts alone cannot migrate most bills: each connection-backed child needs an Open Reports dataset binding and its parameter contract. The import issue now records the quoted child filename, source mode, and parameter count for review, while keeping the child visible as a placeholder until nested rendering exists.
+
 The inventory command is `python3 scripts/jrxml-inventory.py /path/to/jrxml/files`. It reads a local corpus and emits feature counts only. It does not copy source report contents.
 
 ## Receipt PDF pilot (synthetic input)
