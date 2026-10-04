@@ -8,7 +8,7 @@ Design invoices, statements, grouped reports, labels, receipts and sticker sheet
 
 Open source (MIT) · self-hosted · no seats, no per-document fees
 
-[Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation) · [Give feedback](https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml)
+[Try the live demo](https://open-reports-demo.onrender.com) · [Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation) · [Give feedback](https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml)
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/varaprasadreddy9676/open-reports) [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/varaprasadreddy9676/open-reports)
 
@@ -19,6 +19,8 @@ Open source (MIT) · self-hosted · no seats, no per-document fees
 </div>
 
 ## Quick start
+
+**Want to try it first?** [Open the live demo](https://open-reports-demo.onrender.com), choose **Invoice**, change something, and press **Preview**. It runs on a free instance, so the first load after inactivity can take about a minute. The demo is shared and resets; use sample data only.
 
 ```bash
 git clone https://github.com/varaprasadreddy9676/open-reports.git && cd open-reports
