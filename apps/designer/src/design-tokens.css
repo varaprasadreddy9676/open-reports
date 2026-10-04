@@ -6,16 +6,65 @@
   --border: #dfe5ee;
   --border-strong: #c8d2df;
   --text: #1a2b49;
-  --muted: #65748a;
+  --muted: #5d6c82;
   --accent: #2563eb;
   --accent-soft: #eaf1ff;
   --danger: #dc2626;
   --warn: #b45309;
   --ok: #047857;
   --canvas: #e9edf4;
+  --on-accent: #ffffff;
+  /* Text on saturated status and overlay fills (toasts, badges, guide labels): white in both modes. */
+  --on-strong: #ffffff;
+  --hover: var(--accent-soft);
+
+  /* Status tones: soft backgrounds with readable text, for chips, banners and badges. */
+  --ok-soft: #dcfce7;
+  --ok-text: #166534;
+  --warn-soft: #fef3c7;
+  --warn-softer: #fffbeb;
+  --warn-strong: #b45309;
+  --warn-text: #92400e;
+  --danger-soft: #fee2e2;
+  --danger-line: #f3c4c4;
+  --danger-text: #991b1b;
+
+  /* Printed paper is white in light and dark mode alike, so these never switch theme. */
+  --paper: #ffffff;
+  --paper-ink: #000000;
+  --paper-subtle: #f1f5f9;
+  --paper-line: #94a3b8;
+  --paper-muted: #64748b;
+  --paper-block: #cbd5e1;
+  --paper-block-strong: #aeb6c6;
+  --paper-block-soft: #c3c8d2;
+  --translucent-panel: rgba(255, 255, 255, 0.95);
+
+  /* Canvas overlays drawn over the page: snap guides, ruler guides, page breaks and handle labels. */
+  --overlay-snap: #e11d48;
+  --overlay-guide: #e11d8f;
+  --overlay-guide-text: #a21d67;
+  --overlay-handle: #db2777;
+  --overlay-break: #ef4444;
+  --overlay-flow-break: #ea580c;
+  --overlay-flow-break-label: #9a3412;
+
+  /* Type scale (px). */
+  --text-2xs: 9px;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-md: 12px;
+  --text-base: 13px;
+  --text-lg: 14px;
+  --text-xl: 16px;
+  --text-2xl: 18px;
+  --text-3xl: 20px;
+
+  --radius-xs: 4px;
   --radius: 8px;
   --radius-sm: 6px;
   --radius-lg: 12px;
+  --radius-pill: 999px;
   --shadow: 0 1px 2px rgba(22, 42, 73, 0.05), 0 6px 20px rgba(22, 42, 73, 0.06);
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
   --space-1: 4px;
@@ -39,7 +88,17 @@
     --muted: #a4b1c3;
     --accent: #7aa5ff;
     --accent-soft: #21395f;
+    --on-accent: #0b1730;
     --canvas: #111b28;
+    --ok-soft: #12372a;
+    --ok-text: #86efac;
+    --warn-soft: #3d2e0f;
+    --warn-softer: #2f2610;
+    --warn-text: #fcd34d;
+    --danger-soft: #3f1d1d;
+    --danger-line: #7f2d2d;
+    --danger-text: #fca5a5;
+    --translucent-panel: rgba(27, 37, 50, 0.95);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 24px rgba(0, 0, 0, 0.32);
     color-scheme: dark;
   }

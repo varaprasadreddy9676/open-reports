@@ -71,7 +71,7 @@ function Color({ value, onChange, label }: { value: string | undefined; onChange
   const shown = value?.startsWith("$") ? colors[value.slice(1)] : value;
   return (
     <span className="color">
-      <input type="color" aria-label={label} value={shown && /^#[0-9a-f]{6}$/i.test(shown) ? shown : "#000000"} onChange={(e) => onChange(e.target.value)} />
+      <input type="color" aria-label={label} className={shown && /^#[0-9a-f]{6}$/i.test(shown) ? undefined : "empty"} title={value ? undefined : "No colour"} value={shown && /^#[0-9a-f]{6}$/i.test(shown) ? shown : "#000000"} onChange={(e) => onChange(e.target.value)} />
       <input aria-label={`${label} value`} placeholder="none" value={value ?? ""} onChange={(e) => onChange(e.target.value || undefined)} />
       {Object.keys(colors).length > 0 && <select aria-label={`${label} theme colour`} value={value?.startsWith("$") ? value : ""} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">Theme…</option>
@@ -1195,7 +1195,7 @@ function PrintProfilePanel() {
         </Field>
         <Field label="Length" wide>
           <span className="row-inline">
-            <label className="check"><input type="checkbox" data-testid="page-continuous" checked={!!doc.page?.continuous} onChange={(e) => setDoc({ ...doc, page: { ...(doc.page ?? {}), continuous: e.target.checked ? {} : undefined } })} />Continuous roll: as long as the content</label>
+            <label className="check" title="Make the page as long as its content, for label and receipt rolls"><input type="checkbox" data-testid="page-continuous" checked={!!doc.page?.continuous} onChange={(e) => setDoc({ ...doc, page: { ...(doc.page ?? {}), continuous: e.target.checked ? {} : undefined } })} />Continuous</label>
           </span>
         </Field>
         {doc.page?.continuous && <div className="grid2">

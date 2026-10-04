@@ -96,7 +96,7 @@ export function TableDesigner({ id }: { id: string }) {
         <div className="table-designer-preview" ref={preview} style={{ gridTemplateColumns: columnTemplate }} data-testid="table-live-preview">
           {table.showHeader !== false && tableHeaderRows(table as any).flatMap((cells, rowIndex) => cells.map((cell) => <div className="table-designer-preview-head" key={`h-${rowIndex}-${cell.column}`} style={{ gridColumn: `${cell.column + 1} / span ${cell.colSpan ?? 1}`, gridRow: `${rowIndex + 1} / span ${cell.rowSpan ?? 1}` }}><span>{cell.text}</span></div>))}
           {tab === "columns" && widths.slice(0, -1).map((_, index) => <span key={`grip-${index}`} className="table-column-grip" role="separator" aria-label={`Resize ${table.columns[index]?.header || `column ${index + 1}`}`} aria-orientation="vertical" style={{ left: `${(widths.slice(0, index + 1).reduce((sum, item) => sum + item.width, 0) / totalWidth) * 100}%` }} onPointerDown={(event) => resizeStart(event, index)} onPointerMove={resizeMove} onPointerUp={resizeEnd} onLostPointerCapture={resizeEnd} />)}
-          {(resolved?.rows ?? []).slice(0, 8).flatMap((row: any, rowIndex: number) => (resolved?.columns ?? table.columns).map((column: any, columnIndex: number) => <div className="table-designer-preview-cell" key={`${rowIndex}-${columnIndex}`} style={{ gridColumn: columnIndex + 1, gridRow: (table.showHeader === false ? 0 : tableHeaderRows(table as any).length) + rowIndex + 1 }}>{row.formatted?.[column.id] ?? ""}</div>))}
+          {(resolved?.rows ?? []).slice(0, 8).flatMap((row: any, rowIndex: number) => (resolved?.columns ?? table.columns).map((column: any, columnIndex: number) => <div className="table-designer-preview-cell" key={`${rowIndex}-${columnIndex}`} data-testid={`preview-cell-${rowIndex}-${columnIndex}`} style={{ gridColumn: columnIndex + 1, gridRow: (table.showHeader === false ? 0 : tableHeaderRows(table as any).length) + rowIndex + 1, ...ruleAppearance(row.style, row.cellStyles?.[column.id]) }}>{row.formatted?.[column.id] ?? ""}</div>))}
           {!resolved?.rows?.length && <div className="table-designer-empty" style={{ gridColumn: `span ${table.columns.length}` }}>Add sample records to preview table rows.</div>}
         </div>
         <p className="muted small">The sample shows up to eight rows. Preview the report to check page layout and every row.</p>
@@ -132,4 +132,17 @@ export function TableDesigner({ id }: { id: string }) {
       </aside>
     </div>
   </div>;
+}
+
+/** The colours and emphasis that row and cell rules set, so the live sample shows which rows a condition matches. */
+function ruleAppearance(rowStyle?: Record<string, unknown>, cellStyle?: Record<string, unknown>): React.CSSProperties {
+  const style = { ...(rowStyle ?? {}), ...(cellStyle ?? {}) };
+  const css: React.CSSProperties = {};
+  if (typeof style.color === "string") css.color = style.color;
+  if (typeof style.background === "string") css.backgroundColor = style.background;
+  if (style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 600)) css.fontWeight = 700;
+  if (style.italic) css.fontStyle = "italic";
+  const decoration = [style.underline && "underline", style.strikethrough && "line-through"].filter(Boolean).join(" ");
+  if (decoration) css.textDecoration = decoration;
+  return css;
 }

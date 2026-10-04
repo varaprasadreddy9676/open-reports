@@ -31,11 +31,14 @@ Fastify 5 + better-sqlite3 (swappable via a storage plugin). Templates have **ve
 ## Designer
 The designer runs `core` and `layout` **in the browser** against sample data for immediate feedback, then replaces its paginated page tree with `/api/v1/analyze` output measured by the PDF renderer when the server responds. The browser loads the server's installed font faces and uses the returned text line advance; it labels the local estimate when analysis is unavailable. The Preview tab uses the server's PDF renderer for exact output. Edits are pure functions over the JSON (`model/ops.ts`); undo/redo and the labelled history are snapshots of the JSON. The code editor and the canvas stay in sync through the same store.
 
+**Design system.** `apps/designer/src/design-tokens.css` holds every colour, the type scale (`--text-2xs` … `--text-3xl`), radii and spacing, with a dark-mode override for each themed surface. `styles.css` uses only tokens. Groups: surfaces and text (`--bg`, `--panel`, `--text`, `--muted`, `--accent`, `--on-accent`); status tones (`--ok|warn|danger-soft` with matching `-text`); `--paper*` for the printed page, which stays white in dark mode; and `--overlay-*` for guides, page breaks and handle labels drawn over the page. `tests/unit/design-tokens.test.ts` fails on a raw hex colour in `styles.css`, an undefined `var(--…)`, a themed token without a dark value, and text/surface pairs below WCAG AA (4.5:1) in either mode.
+
 ## Extension points
 Plugins (`@reporting/plugin-sdk`) can add: output formats, data sources, expression functions, `custom` components that expand into ordinary components (so all renderers support them), and a storage backend. See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md).
 
 ## Determinism and testing strategy
 - Layout/pagination: unit tests plus a real-PDF boundary suite.
 - Output stability: rasterised visual baselines.
+- Designer UI: screenshot tests tagged `@visual` (`apps/designer/tests/e2e/visual.spec.ts`) for the start screen, workspace, inspector, Table Designer, data workspace and theme dialog, in light and dark mode. CI runs them inside the official Playwright image. After an intended UI change, regenerate the Linux baselines with `scripts/update-visual-baselines.sh` (Docker) and the local ones with `playwright test --grep @visual --update-snapshots`. Review the new images before committing.
 - Safety: sandbox, SSRF, injection, traversal tests.
 - Performance: repeatable benchmark script, run in CI as a smoke test.

@@ -60,11 +60,31 @@ jobs:
       - run: pnpm -r --filter "./packages/**" build
       - run: pnpm --filter @reporting/server build
       - run: pnpm --filter @reporting/designer exec playwright install --with-deps chromium
-      - run: pnpm --filter @reporting/designer exec playwright test
+      - run: pnpm --filter @reporting/designer exec playwright test --grep-invert @visual
         env: { CI: "true" }
       - uses: actions/upload-artifact@v4
         if: failure()
         with: { name: playwright-report, path: apps/designer/test-results, if-no-files-found: ignore }
+
+  # Screenshot tests run in the official Playwright image, the same one scripts/update-visual-baselines.sh uses,
+  # so baselines match pixel for pixel. Keep the image tag in step with @playwright/test.
+  designer-visual:
+    runs-on: ubuntu-latest
+    container: { image: "mcr.microsoft.com/playwright:v1.63.0-noble" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22.22.1, cache: pnpm }
+      - run: apt-get update && apt-get install -y fonts-noto-core poppler-utils
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --filter "./packages/**" build
+      - run: pnpm --filter @reporting/server build
+      - run: pnpm --filter @reporting/designer exec playwright test --grep @visual
+        env: { CI: "true", HOME: /root }
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: visual-diffs, path: apps/designer/test-results, if-no-files-found: ignore }
 
   docker:
     runs-on: ubuntu-latest

@@ -53,6 +53,10 @@ test("cell rules colour a column's cells and replace their text", async ({ page 
   const amount = (await table(page)).columns[1];
   expect(amount.rules).toEqual([{ when: "value < 0", set: { "style.color": "#b91c1c", "style.fontWeight": "bold", text: "credit" } }]);
   await expect.poll(async () => (await resolvedTable(page))?.rows[1].formatted.amount).toBe("credit");
+  // The live sample shows the rule's effect on exactly the matching cell.
+  await expect(page.getByTestId("preview-cell-1-1")).toHaveCSS("color", "rgb(185, 28, 28)");
+  await expect(page.getByTestId("preview-cell-1-1")).toHaveText("credit");
+  await expect(page.getByTestId("preview-cell-0-1")).not.toHaveCSS("color", "rgb(185, 28, 28)");
   await page.getByTestId("table-designer-done").click();
   await expect(page.locator(".cn-table tbody tr").nth(1).locator("td").nth(1)).toHaveCSS("color", "rgb(185, 28, 28)");
   await expect(page.locator(".cn-table tbody tr").nth(0).locator("td").nth(1)).not.toHaveCSS("color", "rgb(185, 28, 28)");

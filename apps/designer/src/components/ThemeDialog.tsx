@@ -82,7 +82,7 @@ export function ThemeDialogBody() {
         <DeleteButton uses={uses(name)} label={name} onDelete={() => remove(name)} />
       </div>)}
     </div>
-    <div className="modal-actions">
+    <div className="dialog-actions">
       <button className="btn" data-testid="theme-add" onClick={add}>+ Add {noun}</button>
       <span className="spacer" />
       <button className="btn primary" data-testid="theme-done" onClick={() => set({ dialog: null })}>Done</button>
