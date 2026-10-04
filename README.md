@@ -10,9 +10,9 @@ Open source (MIT) · self-hosted · no seats, no per-document fees
 
 [Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation)
 
-[![Open Reports in 42 seconds](docs/media/open-reports-launch.gif)](docs/media/open-reports-launch.mp4)
+https://github.com/user-attachments/assets/602d0782-7a48-439d-adfd-4c1161e852b1
 
-**[Download the 42-second film with sound (MP4, 8 MB)](https://raw.githubusercontent.com/varaprasadreddy9676/open-reports/claude/upbeat-volta-pe84n7/docs/media/open-reports-launch.mp4)**
+Open Reports in 42 seconds (turn the sound on)
 
 </div>
 
