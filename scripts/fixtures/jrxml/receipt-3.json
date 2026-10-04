@@ -1,0 +1,8 @@
+{
+  "parameters": {"pRid": 1, "entityrid": "DEMO", "paramBillRID": "BILL-DEMO-1"},
+  "rows": [
+    {"rh_printable_no": "R-1001", "rh_date": "2026-10-01", "rh_total_amt": 120.50},
+    {"rh_printable_no": "R-1002", "rh_date": "2026-10-02", "rh_total_amt": 75.25},
+    {"rh_printable_no": "R-1003", "rh_date": "2026-10-03", "rh_total_amt": 30.00}
+  ]
+}
