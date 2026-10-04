@@ -67,6 +67,8 @@ function mapOwner<T extends Record<string, any>>(owner: T, visit: Visit): T {
   if (owner.styleWhen) next.styleWhen = owner.styleWhen.map((r: any) => ({ ...r, style: mapStyle(r.style, visit) }));
   if (owner.rowStyleWhen) next.rowStyleWhen = owner.rowStyleWhen.map((r: any) => ({ ...r, style: mapStyle(r.style, visit) }));
   if (owner.rules) next.rules = mapRules(owner.rules, visit);
+  if (owner.rowRules) next.rowRules = mapRules(owner.rowRules, visit);
+  if (owner.type === "table" && Array.isArray(owner.columns)) next.columns = owner.columns.map((column: any) => (column.rules ? { ...column, rules: mapRules(column.rules, visit) } : column));
   for (const key of CHILD_KEYS) if (Array.isArray(owner[key])) next[key] = owner[key].map((child: any) => mapOwner(child, visit));
   return next as T;
 }

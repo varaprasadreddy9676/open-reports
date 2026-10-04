@@ -242,13 +242,18 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
       const cellWidth = slot ? widths.slice(ci, ci + (slot.span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0) : widths[ci]!.width;
       const cellHeight = slot ? rowHeights.slice(i, i + (slot.span.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0) : rowHeights[i]!;
       if (slot && !slot.anchor) { x += widths[ci]!.width; return; }
+      const own = row.cellStyles?.[col.id];
+      const cellStyle = own ? { ...rowStyle, ...own } : rowStyle;
+      if (own?.background) doc.rect(x, rowYs.get(i)!, cellWidth, cellHeight).fill(own.background as string);
       if (lines === "all" || (slot && lines !== "none")) { stroke(); doc.rect(x, rowYs.get(i)!, cellWidth, cellHeight).stroke(); }
-      doc.fillColor((rowStyle.color as string | undefined) ?? "#000000");
+      doc.fillColor((cellStyle.color as string | undefined) ?? "#000000");
       drawRuns(ctx, row.formatted[col.id] ?? "", x + 2, rowYs.get(i)! + 2, {
         width: Math.max(1, cellWidth - 4),
         height: Math.max(1, cellHeight - 2),
         align: (col.align as any) ?? "left",
-      }, ctx.defaultFamily, isBold(rowStyle), Boolean(rowStyle.italic));
+        underline: Boolean(cellStyle.underline),
+        strike: Boolean(cellStyle.strikethrough),
+      }, ctx.defaultFamily, isBold(cellStyle), Boolean(cellStyle.italic));
       x += widths[ci]!.width;
     });
     if (lines === "horizontal" && i < end - 1) { stroke(); doc.moveTo(left, rowYs.get(i)! + rowHeights[i]!).lineTo(right, rowYs.get(i)! + rowHeights[i]!).stroke(); }

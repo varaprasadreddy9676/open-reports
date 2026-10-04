@@ -888,23 +888,24 @@ test("table: highlight rows rule and empty-state options write to the report", a
   await page.evaluate(() => (window as any).__designer.getState().select(["results"]));
   await page.getByTestId("open-table-designer").click();
   await page.getByTestId("table-tab-conditions").click();
-  await page.getByTestId("table-designer-row-rules-add").click();
+  await page.getByTestId("table-row-rules-add").click();
   await page.getByLabel("Rule 2 field").selectOption("row.value");
   await page.getByLabel("Rule 2 operator").selectOption("gt");
   await page.getByLabel("Rule 2 value").fill("100");
-  await page.getByTestId("table-designer-row-rules-add").click();
+  await page.getByTestId("table-row-rules-add").click();
   await page.getByLabel("Rule 3 field").selectOption("row.value");
   await page.getByLabel("Rule 3 operator").selectOption("lt");
   await page.getByLabel("Rule 3 value").fill("0");
   await page.getByLabel("Rule 3 text colour value").fill("#1d4ed8");
-  const rules = (await page.evaluate(() => (window as any).__designer.getState().doc)).sections.flatMap((section: any) => section.children).find((child: any) => child.id === "results").rowStyleWhen;
-  expect(rules).toMatchObject([
-    { when: "row.value < row.low || row.value > row.high", style: { color: "#b91c1c", fontWeight: "bold" } },
-    { when: "row.value > 100", style: { color: "#b91c1c", fontWeight: "bold" } },
-    { when: "row.value < 0", style: { color: "#1d4ed8", fontWeight: "bold" } },
+  const rules = (await page.evaluate(() => (window as any).__designer.getState().doc)).sections.flatMap((section: any) => section.children).find((child: any) => child.id === "results");
+  expect(rules.rowStyleWhen).toBeUndefined();
+  expect(rules.rowRules).toMatchObject([
+    { when: "row.value < row.low || row.value > row.high", set: { "style.color": "#b91c1c", "style.fontWeight": "bold" } },
+    { when: "row.value > 100", set: { "style.color": "#b91c1c", "style.fontWeight": "bold" } },
+    { when: "row.value < 0", set: { "style.color": "#1d4ed8", "style.fontWeight": "bold" } },
   ]);
   await page.getByRole("button", { name: "Move rule 3 up" }).click();
-  const reordered = (await page.evaluate(() => (window as any).__designer.getState().doc)).sections.flatMap((section: any) => section.children).find((child: any) => child.id === "results").rowStyleWhen;
+  const reordered = (await page.evaluate(() => (window as any).__designer.getState().doc)).sections.flatMap((section: any) => section.children).find((child: any) => child.id === "results").rowRules;
   expect(reordered.map((rule: any) => rule.when)).toEqual(["row.value < row.low || row.value > row.high", "row.value < 0", "row.value > 100"]);
   await page.getByTestId("table-tab-rows").click();
   await page.getByLabel("Empty state").selectOption("message");

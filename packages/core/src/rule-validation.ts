@@ -5,7 +5,7 @@ import type { ValidationIssue } from "./validator.js";
 
 /** Structure and identity cannot be changed by a rule. */
 const RESERVED_TARGETS = new Set([
-  "id", "type", "name", "locked", "rules", "styleWhen", "visibleWhen", "rowStyleWhen",
+  "id", "type", "name", "locked", "rules", "styleWhen", "visibleWhen", "rowStyleWhen", "rowRules",
   "children", "dataset", "groupId", "groupBy", "parent", "appliesTo",
 ]);
 

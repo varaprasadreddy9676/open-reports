@@ -126,9 +126,11 @@ For a custom hospital header, add Image components to the Page Header. **Embed i
 - **Sticker sheets**: insert **Label sheet**, pick a stock (e.g. A4 2×4), design **one** label inside it, fill from a dataset (one label per record) or repeat the same label. *Start at position* reuses a partly used sheet. Print at **Actual size**; use *Draw label outlines* on plain paper to check alignment.
 
 ## 5b. Watermarks, bookmarks, highlighting
-**Page → Watermark** (DRAFT/CONFIDENTIAL…), element *Advanced → PDF bookmark*, **Table Designer → Conditions** (e.g. out-of-range results in red), and **Table Designer → Rows & cells → When there is no data** (headers / message / hide).
+**Page → Watermark** (DRAFT/CONFIDENTIAL…), element *Advanced → PDF bookmark*, **Table Designer → Conditions**, and **Table Designer → Rows & cells → When there is no data** (headers / message / hide).
 
 For band visibility, element visibility, and conditional appearance, choose **Builder** for a simple field/operator/value rule or **Code** to type a JavaScript-style expression such as `row.quantity > 0 && row.status == "Ready"`. Both tabs edit the same report expression. Code offers field suggestions and syntax errors; it supports expressions and built-in functions, not arbitrary JavaScript statements. A condition too complex for the simple Builder stays editable in Code.
+
+**Table conditions.** *Rows* rules colour a whole row or leave it out (*Leave the row out*); hidden rows also drop out of the totals. *Cells* rules work on one column at a time: pick the column, then colour its cells or set *Print instead* (for example "credit" for negative amounts). `value` is the cell's own value. *Hide column when* hides the whole column for a run, e.g. `!params.showCost`. Rules that the cards cannot show (several cases, computed values) appear as *Advanced rule*; edit them in Code. Older tables' row conditions are listed as rules and are converted when you change them.
 
 ## 6. Reuse
 Select elements → right-click → **Save as reusable component**. They appear under *My Components* for every report on that server.

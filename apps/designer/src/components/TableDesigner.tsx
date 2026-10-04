@@ -10,7 +10,8 @@ import { FormulaInput } from "./FormulaInput";
 import { TableHeaderEditor } from "./TableHeaderEditor";
 import { TableBodyEditor } from "./TableBodyEditor";
 import { TableStyleEditor } from "./TableStyleEditor";
-import { ColumnEditor, StyleRulesEditor } from "./Properties";
+import { ColumnEditor } from "./Properties";
+import { TableRulesEditor } from "./TableRulesEditor";
 
 type Tab = "columns" | "header" | "rows" | "style" | "groups" | "totals" | "pagination" | "conditions";
 const TABS: { id: Tab; label: string }[] = [
@@ -127,7 +128,7 @@ export function TableDesigner({ id }: { id: string }) {
         </> : <><p className="muted">This table has no report group yet.</p><button className="btn" onClick={() => useStore.getState().set({ tableEditId: null, leftOpen: true, leftTab: "layers", dialog: "group" })}>Create group</button></>)}
         {tab === "totals" && <>{flag("showFooter", "Show table totals row")}{Boolean(table.showFooter) && flag("keepFooterTogether", "Keep totals with a data row", true)}{table.columns.map((column: any, index: number) => <label className="field" key={column.id ?? index}><span className="field-label">{column.header || `Column ${index + 1}`}</span><select aria-label={`${column.header || `Column ${index + 1}`} total`} value={column.footer?.aggregate ?? ""} onChange={(event) => { const aggregate = event.target.value; patch(id, { columns: table.columns.map((item: any, position: number) => position === index ? { ...item, footer: aggregate ? { aggregate } : undefined } : item), ...(aggregate ? { showFooter: true } : {}) }); }}><option value="">None</option>{["sum", "avg", "min", "max", "count"].map((item) => <option key={item} value={item}>{item}</option>)}</select></label>)}</>}
         {tab === "pagination" && <>{flag("repeatHeaderOnPageBreak", "Repeat header on every page", true)}{flag("allowRowSplit", "Allow rows to break across pages")}<p className="muted small">{table.allowRowSplit ? "A row that does not fit continues its remaining lines on the next page, under the repeated header." : "Rows stay whole: a row that does not fit moves to the next page, and a row taller than a page is an error."}</p><label className="field"><span className="field-label">Min rows before break</span><input type="number" min={0} value={table.minRowsBeforeBreak ?? ""} onChange={(event) => patch(id, { minRowsBeforeBreak: event.target.value === "" ? undefined : Number(event.target.value) })} /></label><label className="field"><span className="field-label">Min rows after break</span><input type="number" min={0} value={table.minRowsAfterBreak ?? ""} onChange={(event) => patch(id, { minRowsAfterBreak: event.target.value === "" ? undefined : Number(event.target.value) })} /></label></>}
-        {tab === "conditions" && <StyleRulesEditor comp={table} property="rowStyleWhen" dataset={table.dataset} testId="table-designer-row-rules" />}
+        {tab === "conditions" && <TableRulesEditor table={table} />}
       </aside>
     </div>
   </div>;

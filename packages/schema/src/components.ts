@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ruleSchema } from "./rules.js";
 import { componentBaseSchema, dimensionSchema, styleWhenSchema, tableStylesSchema } from "./common.js";
 
 const valueOrBindingOrExpression = z.object({
@@ -94,6 +95,8 @@ export const tableColumnSchema = z.object({
   format: z.string().optional(),
   /** Merge consecutive rows with the same value into one cell, inside the merges of columns to the left; continues across pages. */
   mergeRepeated: z.boolean().optional(),
+  /** Per-cell rules (the cell's raw value is `value`): set `style.*` or `text`. A rule setting `visible` hides the whole column and cannot depend on the row. */
+  rules: z.array(ruleSchema).optional(),
   footer: z.object({
     aggregate: z.enum(["sum", "avg", "min", "max", "count", "first", "last"]).optional(),
     expression: z.string().optional(),
@@ -159,8 +162,10 @@ export const tableComponentSchema = componentBaseSchema.extend({
   /** Name of a preset in `theme.tableStyles`; `styles` overrides it part by part. */
   tableStyle: z.string().optional(),
   styles: tableStylesSchema.optional(),
-  /** Conditional row styling, e.g. { when: "row.balance < 0", style: { color: "#b91c1c" } }. */
+  /** Legacy conditional row styling, e.g. { when: "row.balance < 0", style: { color: "#b91c1c" } }; prefer rowRules. */
   rowStyleWhen: styleWhenSchema.optional(),
+  /** Per-row rules: set `style.*` for the row or `visible: false` to leave it out (and out of the totals). Run after rowStyleWhen. */
+  rowRules: z.array(ruleSchema).optional(),
   /** What to render when the dataset has no rows. */
   emptyState: z.enum(["hide", "headers", "message"]).optional(),
   emptyMessage: z.string().optional(),

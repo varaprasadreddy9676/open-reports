@@ -396,14 +396,15 @@ export function measureTableRowHeights(table: ResolvedTableComponent, columnWidt
   const grid = tableCellSpanGrid(spans);
   // Measure with the weight and slant each row is drawn with (body, stripes, rule styles).
   const styles = tableStylesOrDefault(table);
-  const hintFor = (rowIndex: number): TextStyleHint => {
-    const style = tableRowStyle(styles, stripeOf(table.rows[rowIndex], rowIndex), table.rows[rowIndex]?.style as Record<string, unknown> | undefined);
+  const hintFor = (rowIndex: number, columnId?: string): TextStyleHint => {
+    const row = table.rows[rowIndex];
+    const style = { ...tableRowStyle(styles, stripeOf(row, rowIndex), row?.style as Record<string, unknown> | undefined), ...(columnId ? row?.cellStyles?.[columnId] ?? {} : {}) };
     return { bold: isBold(style), italic: Boolean(style.italic) };
   };
   const heights = table.rows.map((row, rowIndex) => {
     let maxLines = 1;
-    const hint = hintFor(rowIndex);
     table.columns.forEach((column, columnIndex) => {
+      const hint = hintFor(rowIndex, column.id);
       const slot = grid.get(rowIndex)?.get(columnIndex);
       if (slot && (!slot.anchor || (slot.span.rowSpan ?? 1) > 1)) return;
       const width = slot ? columnWidths.slice(columnIndex, columnIndex + (slot.span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0) : columnWidths[columnIndex]!.width;
@@ -415,7 +416,7 @@ export function measureTableRowHeights(table: ResolvedTableComponent, columnWidt
     if ((span.rowSpan ?? 1) <= 1) continue;
     const width = columnWidths.slice(span.column, span.column + (span.colSpan ?? 1)).reduce((sum, part) => sum + part.width, 0);
     const text = table.rows[span.row]!.formatted[table.columns[span.column]!.id] ?? "";
-    const required = wrapLineCount(text, Math.max(1, width - 4), fontSize, measurer, hintFor(span.row)) * lineHeight + ROW_PADDING;
+    const required = wrapLineCount(text, Math.max(1, width - 4), fontSize, measurer, hintFor(span.row, table.columns[span.column]!.id)) * lineHeight + ROW_PADDING;
     const current = heights.slice(span.row, span.row + (span.rowSpan ?? 1)).reduce((sum, height) => sum + height, 0);
     if (required > current) heights[span.row + (span.rowSpan ?? 1) - 1]! += required - current;
   }

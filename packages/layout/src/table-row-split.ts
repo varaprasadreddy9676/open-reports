@@ -24,7 +24,6 @@ export function splitTableRow(table: ResolvedTableComponent, rowIndex: number, r
   if (fit < 1) return undefined;
 
   const style = tableRowStyle(tableStylesOrDefault(table), stripeOf(row, rowIndex), row.style as Record<string, unknown> | undefined);
-  const hint = { bold: isBold(style), italic: Boolean(style.italic) };
   const grid = tableCellSpanGrid(spans);
   const top: Record<string, string> = {};
   const rest: Record<string, string> = {};
@@ -37,6 +36,8 @@ export function splitTableRow(table: ResolvedTableComponent, rowIndex: number, r
       rest[column.id] = "";
       return;
     }
+    const cellStyle = { ...style, ...(row.cellStyles?.[column.id] ?? {}) };
+    const hint = { bold: isBold(cellStyle), italic: Boolean(cellStyle.italic) };
     const lines = wrapTextLines(text, Math.max(1, columnWidths[columnIndex]!.width - CELL_INSET), fontSize, measurer, hint);
     longest = Math.max(longest, lines.length);
     top[column.id] = lines.slice(0, fit).join("\n");

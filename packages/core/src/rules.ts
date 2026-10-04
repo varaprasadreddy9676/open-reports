@@ -88,6 +88,15 @@ function rootsOf(expr: Expr, roots: Set<string>): void {
   }
 }
 
+/** Root names (row, params, page, …) that a rule's expressions reference. Unparseable expressions are skipped. */
+export function ruleRoots(rule: Rule): Set<string> {
+  const roots = new Set<string>();
+  for (const { expression } of ruleExpressions(rule)) {
+    try { rootsOf(Parser.parse(expression), roots); } catch { continue; }
+  }
+  return roots;
+}
+
 /** The earliest phase at which everything the rule references is known. Unparseable expressions count as data. */
 export function inferRulePhase(rule: Rule): RulePhase {
   let phase: RulePhase = "data";

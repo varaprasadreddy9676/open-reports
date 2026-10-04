@@ -26,9 +26,9 @@ export function validateTextStyleRef(name: unknown, theme: Theme | undefined, pa
 }
 
 /** Theme values written by rules: "style.*" tokens and "textStyle" names. */
-export function validateRuleThemeValues(rules: Rule[] | undefined, theme: Theme | undefined, path: string, issues: ValidationIssue[], componentId?: string): void {
+export function validateRuleThemeValues(rules: Rule[] | undefined, theme: Theme | undefined, path: string, issues: ValidationIssue[], componentId?: string, field = "rules"): void {
   rules?.forEach((rule, index) => {
-    const rulePath = `${path}.rules[${index}]`;
+    const rulePath = `${path}.${field}[${index}]`;
     const sets: [string, Record<string, unknown>][] = ruleCases(rule).map((c, caseIndex) => ["cases" in rule ? `cases[${caseIndex}].set` : "set", c.set]);
     if (rule.else) sets.push(["else", rule.else]);
     for (const [where, set] of sets) for (const [key, value] of Object.entries(set)) {

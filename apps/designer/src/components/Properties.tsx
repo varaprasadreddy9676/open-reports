@@ -296,15 +296,17 @@ function ConditionBuilder({ comp }: { comp: ops.Comp }) {
 
 type StyleRule = { when: string; style: Record<string, any> };
 
-function StyleRuleCard({ rule, index, count, candidates, onChange, onMove, onRemove, testId }: {
-  rule: StyleRule;
+export function StyleRuleCard<R extends StyleRule>({ rule, index, count, candidates, onChange, onMove, onRemove, testId, children }: {
+  rule: R;
   index: number;
   count: number;
   candidates: Candidate[];
-  onChange: (rule: StyleRule) => void;
+  onChange: (rule: R) => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
   testId: string;
+  /** Extra "Then" fields after the style controls. */
+  children?: React.ReactNode;
 }) {
   const condition = expressionToCondition(rule.when);
   const [view, setView] = useState<"builder" | "code">("builder");
@@ -352,6 +354,7 @@ function StyleRuleCard({ rule, index, count, candidates, onChange, onMove, onRem
         <label className="check">
           <input type="checkbox" aria-label={`Rule ${index + 1} bold`} checked={rule.style.fontWeight === "bold"} onChange={(e) => setStyle({ fontWeight: e.target.checked ? "bold" : undefined })} /> Bold
         </label>
+        {children}
       </div>
     </div>
   );

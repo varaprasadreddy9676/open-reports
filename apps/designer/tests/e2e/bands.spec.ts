@@ -138,16 +138,16 @@ test("A4 authoring keeps grouped investigation rows once from data binding throu
   await page.getByTestId("column-2").getByRole("button", { name: "Remove column" }).click();
   expect((await doc(page)).sections[detailIndex].children[0].columns.map((column: any) => column.header)).toEqual(["Investigation", "Result"]);
   await page.getByTestId("table-tab-conditions").click();
-  await page.getByTestId("table-designer-row-rules-add").click();
+  await page.getByTestId("table-row-rules-add").click();
   await page.getByLabel("Rule 1 field").selectOption("row.flag");
   await page.getByLabel("Rule 1 value").fill("H");
-  await page.getByTestId("table-designer-row-rules-add").click();
+  await page.getByTestId("table-row-rules-add").click();
   await page.getByLabel("Rule 2 field").selectOption("row.flag");
   await page.getByLabel("Rule 2 value").fill("L");
   await page.getByLabel("Rule 2 text colour value").fill("#1d4ed8");
-  expect((await doc(page)).sections[detailIndex].children[0].rowStyleWhen).toMatchObject([
-    { when: 'row.flag == "H"', style: { color: "#b91c1c", fontWeight: "bold" } },
-    { when: 'row.flag == "L"', style: { color: "#1d4ed8", fontWeight: "bold" } },
+  expect((await doc(page)).sections[detailIndex].children[0].rowRules).toMatchObject([
+    { when: 'row.flag == "H"', set: { "style.color": "#b91c1c", "style.fontWeight": "bold" } },
+    { when: 'row.flag == "L"', set: { "style.color": "#1d4ed8", "style.fontWeight": "bold" } },
   ]);
   const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-02");
   fs.mkdirSync(screenshots, { recursive: true });

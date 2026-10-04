@@ -96,7 +96,7 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
           const slot = spanGrid.get(index)?.get(column);
           if (slot && !slot.anchor) return "";
           const cellRule = lines === "all" || (slot && lines !== "none") ? `border:${rule};` : rowRule;
-          return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;white-space:pre-wrap;${cellRule}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
+          return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;white-space:pre-wrap;${cellRule}${row.cellStyles?.[c.id] ? `${styleToCss(row.cellStyles[c.id])};` : ""}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
         })
         .join("")}</tr>`;
     })

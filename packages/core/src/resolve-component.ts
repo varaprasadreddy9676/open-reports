@@ -16,6 +16,7 @@ import type {
 import { aggregate } from "./aggregate.js";
 import { combineTableSpans, repeatedValueSpans, tableCellSpanErrors, tableCellSpanGrid, type TableCellSpanDefinition } from "./table-cell-spans.js";
 import { evaluateRowVariables, computeGroupVariables } from "./variables.js";
+import { applyCellRules, applyRowRules, hiddenColumns, withoutColumns } from "./table-rules.js";
 import type { VariableDefinition } from "@reporting/schema";
 
 // The schema package intentionally keeps the component tree loosely typed
@@ -373,7 +374,9 @@ function resolveLabelSheet(component: Component, ctx: ResolveContext, env: Resol
   return sheets;
 }
 
-function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | null {
+function resolveTable(definition: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | null {
+  const ruleEnv = { engine: env.engine, warnings: env.warnings, decisions: env.decisions, path: env.path, componentId: definition.id };
+  const component = withoutColumns(definition as Component & { columns: any[] }, hiddenColumns(definition.columns ?? [], ctx, ruleEnv));
   const rawRows = toArray(sourceRows(component.dataset, ctx, env));
   let rows = rawRows.map((row) => row as Record<string, unknown>);
 
@@ -409,7 +412,8 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
     format: col.format,
   }));
 
-  const resolvedRows: ResolvedTableRow[] = rows.map((row) => {
+  const kept: Record<string, unknown>[] = [];
+  const resolvedRows: ResolvedTableRow[] = rows.flatMap((row) => {
     const rowCtx = toRowContext(ctx, row);
     evaluateRowVariables(env.variables, env.engine, rowCtx, env.rowVarAccumulator);
     const raw: Record<string, unknown> = {};
@@ -424,10 +428,24 @@ function resolveTable(component: Component, ctx: ResolveContext, env: ResolveEnv
       raw[id] = value;
       formatted[id] = formatValue(value, col.format, env);
     });
-    const style = component.rowStyleWhen?.length ? applyStyleWhen(component.rowStyleWhen, undefined, { ...rowCtx, vars: env.rowVarAccumulator }, env) : undefined;
+    const ruleCtx = { ...rowCtx, vars: { ...rowCtx.vars, ...env.rowVarAccumulator } };
+    const legacy = component.rowStyleWhen?.length ? applyStyleWhen(component.rowStyleWhen, undefined, ruleCtx, env) : undefined;
+    const rowOutcome = applyRowRules(component.rowRules, ruleCtx, ruleEnv);
+    if (rowOutcome.hidden) return [];
+    const style = rowOutcome.style ? { ...(legacy ?? {}), ...rowOutcome.style } : legacy;
     const themedRowStyle = themeStyle(style, env, component.id);
-    return { raw, formatted, style: themedRowStyle && Object.keys(themedRowStyle).length ? themedRowStyle : undefined };
+    const cellStyles: Record<string, Record<string, unknown>> = {};
+    (component.columns ?? []).forEach((col: any, i: number) => {
+      const id = columns[i]!.id;
+      const cell = applyCellRules(col.rules, ruleCtx, raw[id], ruleEnv, i);
+      if (cell.text !== undefined) formatted[id] = cell.text;
+      const cellStyle = themeStyle(cell.style, env, component.id);
+      if (cellStyle && Object.keys(cellStyle).length) cellStyles[id] = cellStyle;
+    });
+    kept.push(row);
+    return [{ raw, formatted, style: themedRowStyle && Object.keys(themedRowStyle).length ? themedRowStyle : undefined, ...(Object.keys(cellStyles).length ? { cellStyles } : {}) }];
   });
+  rows = kept;
 
   const configuredSpans: TableCellSpanDefinition[] = component.cellSpans ?? [];
   const spanErrors = tableCellSpanErrors(columns.length, configuredSpans);

@@ -45,7 +45,7 @@ Common props: `id`, `name`, `width`, `height`, `x`/`y` (free position), `style`,
 | Type | Key props |
 |---|---|
 | `text`, `richText`, `field` | `value` \| `binding` \| `expression`, `format` (`currency`, `date:dd MMM yyyy`, `number`, `percent`), `minLinesAtTop/Bottom`; auto-height flow text continues across pages unless `allowSplit: false` or `keepTogether: true` |
-| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, mergeRepeated?, footer:{aggregate}}]`, optional `headerRows[[{column, text, colSpan?, rowSpan?, align?}]]` for a complete multi-level header grid, optional `cellSpans[{row \| match:{field, value}, column, colSpan?, rowSpan?}]` for body merges (see *Table merges*), `showHeader/Footer`, `repeatHeaderOnPageBreak`, `allowRowSplit` (a row that does not fit continues its remaining lines on the next page; without it rows stay whole and a row taller than a page is an error), `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
+| `table` | `dataset`, `columns[{id, header, binding\|expression, width, align, format, mergeRepeated?, footer:{aggregate}}]`, optional `headerRows[[{column, text, colSpan?, rowSpan?, align?}]]` for a complete multi-level header grid, optional `cellSpans[{row \| match:{field, value}, column, colSpan?, rowSpan?}]` for body merges (see *Table merges*), `showHeader/Footer`, `repeatHeaderOnPageBreak`, `allowRowSplit` (a row that does not fit continues its remaining lines on the next page; without it rows stay whole and a row taller than a page is an error), `rowRules` and `columns[].rules` (see *Table rules*), legacy `rowStyleWhen`, `emptyState`, `minRowsBeforeBreak/AfterBreak`, `filterWhen`, `sortBy` |
 | `container`, `row`, `column`, `grid` | `children`, `layout` (`flow\|row\|grid\|absolute`), `columns` |
 | `repeater` | `dataset`, `children` = one item; `itemLayout`: `flow` (default, items stacked), `row` (items side by side, sharing the width), `grid` (`columns` items per row, default 2; pages break between rows of items); `gap` |
 | `group` | `dataset`, `groupBy`, group header/footer |
@@ -74,6 +74,25 @@ A `table`, `repeater`, `list`, `chart` or `group` normally takes its records fro
   - `row` fixes the merge at a row position, whatever record is there.
   - Exactly one of `row` or `match` is required. Explicit merges keep their rows on one page.
   - An explicit merge overrides an overlapping automatic merge, with a `TABLE_AUTO_MERGE_CONFLICT` warning. Explicit merges that collide in the output are reported as `TABLE_SPAN_CONFLICT`.
+
+### Table rules
+
+Tables take rules in the same shape as component rules (`{ when, set, else? }` or `{ cases, else? }`), decided before pagination:
+
+- `rowRules` run once per row. They can set `style.*` for the whole row (`color`, `background`, `fontWeight`, `italic`, …) or `visible: false` to leave the row out of the table and its totals.
+- `columns[].rules` run once per cell, with the cell's raw value available as `value`. They can set `style.*` for that cell, or `text` to print something else (`{ "expr": "\"(\" + formatNumber(-value, 2) + \")\"" }` for accounting negatives). A column rule that sets `visible` hides the whole column; its condition is decided once per run and cannot use `row`, `value`, `parent` or `group`. Header groups and merges stay aligned when a column is hidden.
+
+```json
+{ "type": "table", "dataset": "lines",
+  "rowRules": [{ "when": "row.status == \"void\"", "set": { "visible": false } }],
+  "columns": [
+    { "id": "amount", "binding": "row.amount", "format": "number:2",
+      "rules": [{ "when": "value < 0", "set": { "style.color": "#b91c1c" } }] },
+    { "id": "cost", "binding": "row.cost", "rules": [{ "when": "!params.showCost", "set": { "visible": false } }] }
+  ] }
+```
+
+`rowStyleWhen` (`[{ when, style }]`) still works and runs before `rowRules`. The designer converts it to `rowRules` the first time you edit a table's conditions.
 
 ### Text overflow and strict output
 

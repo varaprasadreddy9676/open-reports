@@ -1090,11 +1090,11 @@
           "style": {
             "fontSize": 8
           },
-          "rowStyleWhen": [
+          "rowRules": [
             {
               "when": "row.balance < 30000",
-              "style": {
-                "color": "#b91c1c"
+              "set": {
+                "style.color": "#b91c1c"
               }
             }
           ],

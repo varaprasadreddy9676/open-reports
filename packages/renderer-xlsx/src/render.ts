@@ -79,11 +79,11 @@ function argb(color: unknown): string | undefined {
 
 /**
  * Paints cells of a styled table as they are written (the streaming writer cannot change committed rows).
- * Returns undefined for tables without table styles, which keep the historical look.
+ * Tables without table styles keep the historical look; only their row and cell rule styles are painted.
  */
 function tablePainter(table: ResolvedTableComponent, headerCount: number) {
   const styles = table.styles;
-  if (!styles) return undefined;
+  if (!styles) return overridePainter(table);
   const side = { style: "thin" as const, color: { argb: argb(styles.grid.color) ?? "FF000000" } };
   const all = { top: side, right: side, bottom: side, left: side };
   const lines = styles.grid.lines;
@@ -100,12 +100,37 @@ function tablePainter(table: ResolvedTableComponent, headerCount: number) {
       eachCell(row, (cell) => paint(cell, styles.header as Record<string, unknown>, lines === "all" ? all : lines === "none" ? {} : headerRow === headerCount ? { bottom: side } : {}));
     },
     body(row: ExcelJS.Row, index: number) {
-      const style = tableRowStyle(styles, index, table.rows[index]!.style as Record<string, unknown> | undefined);
+      const source = table.rows[index]!;
+      const style = tableRowStyle(styles, index, source.style as Record<string, unknown> | undefined);
       const border = lines === "all" ? all : lines === "horizontal" && index < table.rows.length - 1 ? { bottom: side } : {};
-      eachCell(row, (cell) => paint(cell, style, border));
+      eachCell(row, (cell) => {
+        const own = source.cellStyles?.[table.columns[Number(cell.col) - 1]!.id];
+        paint(cell, own ? { ...style, ...own } : style, border);
+      });
     },
     footer(row: ExcelJS.Row) {
       eachCell(row, (cell) => paint(cell, styles.footer as Record<string, unknown>, lines === "all" ? all : lines === "none" ? {} : { top: side }));
+    },
+  };
+}
+
+/** Paints only the styles that row and column rules set, for tables without table styles. */
+function overridePainter(table: ResolvedTableComponent) {
+  if (!table.rows.some((row) => row.style || row.cellStyles)) return undefined;
+  return {
+    header() {},
+    footer() {},
+    body(row: ExcelJS.Row, index: number) {
+      const source = table.rows[index]!;
+      table.columns.forEach((column, columnIndex) => {
+        const style = { ...(source.style ?? {}), ...(source.cellStyles?.[column.id] ?? {}) };
+        if (!Object.keys(style).length) return;
+        const cell = row.getCell(columnIndex + 1);
+        const color = argb(style.color);
+        cell.font = { ...(cell.font ?? {}), bold: isBold(style), italic: Boolean(style.italic), ...(color ? { color: { argb: color } } : {}) };
+        const fill = argb(style.background);
+        if (fill) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
+      });
     },
   };
 }

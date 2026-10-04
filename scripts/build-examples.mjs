@@ -193,7 +193,7 @@ write("purchase-order", base("purchase-order", "Purchase Order", "Multiple secti
         X('"Total credits " + formatCurrency(vars.credits) + "    Total debits " + formatCurrency(vars.debits)', { style: { fontSize: 9, ...muted } }),
         spacer(8),
         { type: "table", id: "transactions", dataset: "account.transactions", repeatHeaderOnPageBreak: true, minRowsAfterBreak: 3, style: { fontSize: 8 },
-          rowStyleWhen: [{ when: "row.balance < 30000", style: { color: "#b91c1c" } }],
+          rowRules: [{ when: "row.balance < 30000", set: { "style.color": "#b91c1c" } }],
           columns: [
             { id: "date", header: "Date", binding: "row.date", format: "date:dd/MM/yyyy", width: 62 },
             { id: "narration", header: "Narration", binding: "row.narration", width: "*" },
@@ -266,9 +266,9 @@ write("conditional", base("conditional", "Conditional Report", "Rows and section
   sections: [{ type: "detail", children: [
     T("Customer balances", { style: { fontSize: 16, fontWeight: "bold" } }), spacer(8),
     { type: "table", id: "balances", dataset: "accounts",
-      rowStyleWhen: [
-        { when: "row.balance < 0", style: { color: "#b91c1c", fontWeight: "bold", background: "#fef2f2" } },
-        { when: "row.balance == 0", style: { color: "#6b7280" } },
+      rowRules: [
+        { when: "row.balance < 0", set: { "style.color": "#b91c1c", "style.fontWeight": "bold", "style.background": "#fef2f2" } },
+        { when: "row.balance == 0", set: { "style.color": "#6b7280" } },
       ],
       columns: [
         { id: "customer", header: "Customer", binding: "row.customer", width: "*" },
@@ -376,7 +376,7 @@ write("lab-report", base("lab-report", "Laboratory Report", "Patient block, resu
       spacer(10),
       B("data.report.test", { style: { fontSize: 12, fontWeight: "bold" }, keepWithNext: true }),
       { type: "table", id: "results", dataset: "report.results", minRowsAfterBreak: 2,
-        rowStyleWhen: [{ when: "row.value < row.low || row.value > row.high", style: { fontWeight: "bold", color: "#b91c1c" } }],
+        rowRules: [{ when: "row.value < row.low || row.value > row.high", set: { "style.fontWeight": "bold", "style.color": "#b91c1c" } }],
         columns: [
           { id: "parameter", header: "Parameter", binding: "row.parameter", width: "*" },
           { id: "value", header: "Result", binding: "row.value", width: 70, align: "right" },

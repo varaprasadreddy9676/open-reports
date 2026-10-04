@@ -196,6 +196,8 @@ export interface ResolvedTableRow {
   formatted: Record<string, string>;
   /** Style overrides from the table's rowStyleWhen rules that matched this row. */
   style?: Record<string, unknown>;
+  /** Per-cell style from column rules, keyed by column id; applied over the row style. */
+  cellStyles?: Record<string, Record<string, unknown>>;
   /** Set by pagination when rows were split: the source row whose zebra stripe this row uses. */
   stripeIndex?: number;
   /** Set by pagination on the continuation part of a row split across pages. */

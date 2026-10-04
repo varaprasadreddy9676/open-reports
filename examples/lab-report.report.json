@@ -210,12 +210,12 @@
           "id": "results",
           "dataset": "report.results",
           "minRowsAfterBreak": 2,
-          "rowStyleWhen": [
+          "rowRules": [
             {
               "when": "row.value < row.low || row.value > row.high",
-              "style": {
-                "fontWeight": "bold",
-                "color": "#b91c1c"
+              "set": {
+                "style.fontWeight": "bold",
+                "style.color": "#b91c1c"
               }
             }
           ],

@@ -203,7 +203,7 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
               const slot = spanGrid.get(start + i)?.get(column);
               if (slot && !slot.anchor) return null;
               const cellRule = lines === "all" || (slot && lines !== "none") ? { border: rule } : lines === "horizontal" && start + i < end - 1 ? { borderBottom: rule } : {};
-              return <td key={c.id} colSpan={slot?.span.colSpan} rowSpan={slot?.span.rowSpan} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "pre-wrap", ...cellRule }}>
+              return <td key={c.id} colSpan={slot?.span.colSpan} rowSpan={slot?.span.rowSpan} style={{ textAlign: c.align ?? "left", padding: `${2 * k}px ${4 * k}px`, overflow: "hidden", whiteSpace: "pre-wrap", ...cellRule, ...cssFrom(row.cellStyles?.[c.id], k, capabilities) }}>
                 {row.formatted[c.id]}
               </td>;
             })}

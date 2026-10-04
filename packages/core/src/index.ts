@@ -19,3 +19,4 @@ export * from "./theme.js";
 export * from "./table-styles.js";
 export * from "./table-header.js";
 export * from "./table-cell-spans.js";
+export * from "./table-rules.js";

@@ -267,3 +267,17 @@ describe("table rows split across pages", () => {
     for (const i of [0, 40, 79]) expect(html).toContain(`line${i}`);
   });
 });
+
+describe("table rules", () => {
+  it("styles rows and single cells", async () => {
+    const html = (await renderReport({ schemaVersion: "1.0", id: "rules", name: "Rules",
+      datasets: [{ id: "lines", source: "inline", query: { data: [{ item: "Rent", amount: 10 }, { item: "Refund", amount: -5 }] } }],
+      sections: [{ type: "detail", children: [{ type: "table", dataset: "lines",
+        rowRules: [{ when: "row.amount < 0", set: { "style.background": "#fee2e2" } }],
+        columns: [{ id: "item", header: "Item", binding: "row.item" }, { id: "amount", header: "Amount", binding: "row.amount", rules: [{ when: "value < 0", set: { "style.color": "#b91c1c", text: "(5)" } }] }],
+      }] }],
+    })).content.toString();
+    expect(html).toMatch(/<tr style="[^"]*background-color:#fee2e2[^"]*">/);
+    expect(html).toMatch(/<td[^>]*color:#b91c1c[^>]*>\(5\)<\/td>/);
+  });
+});

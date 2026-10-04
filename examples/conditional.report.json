@@ -68,19 +68,19 @@
           "type": "table",
           "id": "balances",
           "dataset": "accounts",
-          "rowStyleWhen": [
+          "rowRules": [
             {
               "when": "row.balance < 0",
-              "style": {
-                "color": "#b91c1c",
-                "fontWeight": "bold",
-                "background": "#fef2f2"
+              "set": {
+                "style.color": "#b91c1c",
+                "style.fontWeight": "bold",
+                "style.background": "#fef2f2"
               }
             },
             {
               "when": "row.balance == 0",
-              "style": {
-                "color": "#6b7280"
+              "set": {
+                "style.color": "#6b7280"
               }
             }
           ],

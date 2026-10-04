@@ -71,4 +71,13 @@ describe("theme editing", () => {
     expect(Object.keys(renamed.theme.tableStyles)).toEqual(["accounts"]);
     expect(renamed.sections[0].children[0].tableStyle).toBe("accounts");
   });
+
+  it("renames colours inside table row and column rules", () => {
+    const base = doc();
+    base.sections[0].children.push({ id: "t", type: "table", rowRules: [{ when: "true", set: { "style.background": "$brand" } }], columns: [{ id: "x", rules: [{ when: "value < 0", set: { "style.color": "$brand" } }] }] });
+    const next = renameToken(base, "colors", "brand", "primary");
+    const t = next.sections[0].children.find((c: any) => c.id === "t");
+    expect(t.rowRules[0].set["style.background"]).toBe("$primary");
+    expect(t.columns[0].rules[0].set["style.color"]).toBe("$primary");
+  });
 });

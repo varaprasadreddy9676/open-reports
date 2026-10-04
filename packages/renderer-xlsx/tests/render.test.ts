@@ -169,4 +169,11 @@ describe("XlsxRenderer", () => {
     const plain = (await loadWorkbook((await new XlsxRenderer().render({ resolved: report([table()]) })).content as Buffer)).worksheets[0]!;
     expect((plain.getRow(1).getCell(1).fill as ExcelJS.FillPattern).fgColor).toEqual({ argb: "FFE5E7EB" });
   });
+
+  it("paints cells styled by column rules", async () => {
+    const rows = table().rows.map((row, i) => (i === 1 ? { ...row, cellStyles: { amount: { color: "#b91c1c", fontWeight: "bold" } } } : row));
+    const sheet = (await loadWorkbook((await new XlsxRenderer().render({ resolved: report([table({ rows })]) })).content as Buffer)).worksheets[0]!;
+    expect(sheet.getRow(3).getCell(2).font).toMatchObject({ bold: true, color: { argb: "FFB91C1C" } });
+    expect(sheet.getRow(3).getCell(1).font?.bold).toBeFalsy();
+  });
 });
