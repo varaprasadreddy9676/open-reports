@@ -15,7 +15,7 @@ export interface McpOptions {
  */
 export function createMcpServer(options: McpOptions): Server {
   const tools = TOOLS.filter((t) => !options.readOnly || t.readOnly);
-  const server = new Server({ name: "open-reports", version: options.version ?? "0.1.0" }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
+  const server = new Server({ name: "open-reports", version: options.version ?? "0.2.0" }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema as any, annotations: { readOnlyHint: t.readOnly, destructiveHint: false, idempotentHint: t.readOnly } })),

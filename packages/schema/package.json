@@ -1,6 +1,6 @@
 {
   "name": "@reporting/schema",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Versioned, renderer-neutral Report Definition schema (types + JSON Schema + validation)",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@reporting/plugin-clinic-pack",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Example plugin: patient-ID helpers, a status badge component, a plain-text renderer and a number-range datasource",
   "license": "MIT",
   "type": "module",

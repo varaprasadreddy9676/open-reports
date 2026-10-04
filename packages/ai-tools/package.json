@@ -1,6 +1,6 @@
 {
   "name": "@reporting/ai-tools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tool definitions that let any AI (MCP clients, the designer's AI bar) inspect, patch, analyze and render reports. The AI only ever edits report JSON; it never calculates or renders.",
   "license": "MIT",
   "type": "module",

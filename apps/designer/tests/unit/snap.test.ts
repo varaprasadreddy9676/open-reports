@@ -57,6 +57,16 @@ describe("snapBox", () => {
     expect(result.snapped.y).toBe(true);
     expect(snapBox(moving, [other], bounds, false, extra).y).toBe(130);
   });
+  it("prefers a sibling's baseline over a nearer box edge when both are in range", () => {
+    // Text baselines depend on font metrics, so an edge can land a point closer than the baseline the author aims for.
+    const other = { x: 100, y: 100, width: 50, height: 40 };
+    const moving = { x: 200, y: 117, width: 50, height: 24 };
+    const extra = { x: [], y: [], baseline: { movingOffset: 10, targets: [{ pos: 124, box: other }] } };
+    const result = snapBox(moving, [other], bounds, true, extra);
+    // The moving bottom (141) is 1pt from the sibling's bottom edge (140); its baseline (127) is 3pt from 124.
+    expect(result.y).toBe(114);
+    expect(result.guides).toContainEqual(expect.objectContaining({ axis: "y", pos: 124, kind: "baseline" }));
+  });
   it("snaps only active resize edges to sibling geometry", () => {
     const other = { x: 200, y: 200, width: 40, height: 30 };
     const east = snapResizeBox({ x: 100, y: 200, width: 98, height: 30 }, "e", [other], bounds, true);

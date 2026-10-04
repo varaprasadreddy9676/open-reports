@@ -1,6 +1,6 @@
 {
   "name": "@reporting/jrxml-import",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Safe JRXML source importer with explicit migration diagnostics",
   "license": "MIT",
   "type": "module",

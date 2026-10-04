@@ -1,6 +1,6 @@
 {
   "name": "@reporting/datasource-json",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "JSON datasource: resolves a dataset from an embedded object/array, a local JSON file (sandboxed to an allowed root), or a JSON string",
   "license": "MIT",
   "type": "module",

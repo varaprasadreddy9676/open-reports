@@ -1,6 +1,6 @@
 {
   "name": "@reporting/layout",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pagination and box layout engine: turns a Resolved Report Tree into pages of positioned boxes (flow/row/column/grid/absolute), with repeated headers/footers, keep-together and real page numbers",
   "license": "MIT",
   "type": "module",

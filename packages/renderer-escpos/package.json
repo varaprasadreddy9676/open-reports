@@ -1,6 +1,6 @@
 {
   "name": "@reporting/renderer-escpos",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ESC/POS renderer: continuous receipts for thermal receipt printers (Epson-compatible): text, alignment, bold, double size, tables, barcodes, QR, cut",
   "license": "MIT",
   "type": "module",

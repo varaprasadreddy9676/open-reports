@@ -1,6 +1,6 @@
 {
   "name": "@reporting/expressions",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Safe, sandboxed expression language for report bindings (no eval, no Function, no arbitrary JS execution)",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@reporting/renderer-xlsx",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "XLSX renderer: writes each table in a Resolved Report Tree as a worksheet (streaming writer, typed cells, header styling, totals, freeze panes, autofilter)",
   "license": "MIT",
   "type": "module",

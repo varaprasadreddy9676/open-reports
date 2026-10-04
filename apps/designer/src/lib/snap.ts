@@ -121,11 +121,15 @@ export function snapBox(moving: Box, others: Box[], bounds: Box, enabled: boolea
   let bestY: { d: number; delta: number; at: number; source?: Box; kind?: "baseline" } = { d: THRESHOLD + 1, delta: 0, at: 0 };
   for (const mine of ys({ ...moving, y })) for (const target of targetsY) if (Math.abs(target.pos - mine) < bestY.d) bestY = { d: Math.abs(target.pos - mine), delta: target.pos - mine, at: target.pos, source: target.box };
   if (extra.baseline) {
+    // Text aligns on baselines: a sibling baseline in range wins over box edges, which can sit a point closer by
+    // accident of font metrics. The closest baseline wins among several.
     const mine = y + extra.baseline.movingOffset;
+    let bestBaseline: typeof bestY | undefined;
     for (const target of extra.baseline.targets) {
       const d = Math.abs(target.pos - mine);
-      if (d <= THRESHOLD && d <= bestY.d) bestY = { d, delta: target.pos - mine, at: target.pos, source: target.box, kind: "baseline" };
+      if (d <= THRESHOLD && d < (bestBaseline?.d ?? Infinity)) bestBaseline = { d, delta: target.pos - mine, at: target.pos, source: target.box, kind: "baseline" };
     }
+    if (bestBaseline) bestY = bestBaseline;
   }
   const spacingY = useSpacing ? spacingMatch(moving, others, bounds, "y") : undefined;
   const equalY = spacingY && Math.abs(spacingY.pos - y) <= bestY.d ? spacingY : undefined;

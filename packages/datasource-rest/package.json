@@ -1,6 +1,6 @@
 {
   "name": "@reporting/datasource-rest",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "REST datasource: GET/POST with headers/query/body parameter interpolation, SSRF protection, timeouts and response size limits",
   "license": "MIT",
   "type": "module",

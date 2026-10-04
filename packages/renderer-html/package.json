@@ -1,6 +1,6 @@
 {
   "name": "@reporting/renderer-html",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "HTML renderer: draws a paginated Resolved Report Tree as a print-ready, paginated HTML document",
   "license": "MIT",
   "type": "module",

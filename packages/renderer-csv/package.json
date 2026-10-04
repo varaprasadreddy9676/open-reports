@@ -1,6 +1,6 @@
 {
   "name": "@reporting/renderer-csv",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CSV renderer: streams one table dataset from a Resolved Report Tree to correctly-escaped, configurable-delimiter CSV",
   "license": "MIT",
   "type": "module",

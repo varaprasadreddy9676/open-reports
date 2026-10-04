@@ -1,6 +1,6 @@
 {
   "name": "@reporting/mcp-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server for the reporting platform: lets Claude, Codex, Cursor or any MCP client author, analyze and render reports with their own model (BYOK - no model keys here)",
   "license": "MIT",
   "type": "module",

@@ -8,3 +8,10 @@ apps/designer/test-results
 apps/designer/playwright-report
 *.sqlite*
 .env*
+output
+docs
+.claude
+*.png
+!apps/**/*.png
+!packages/**/*.png
+!examples/**/*.png

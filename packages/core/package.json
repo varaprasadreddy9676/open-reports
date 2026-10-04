@@ -1,6 +1,6 @@
 {
   "name": "@reporting/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Rendering pipeline core: validation, parameter/dataset resolution, expression evaluation, and the Resolved Report Tree that renderers consume",
   "license": "MIT",
   "type": "module",

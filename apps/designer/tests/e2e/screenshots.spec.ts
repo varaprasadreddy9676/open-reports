@@ -72,3 +72,20 @@ test("banded structure view", async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: out("bands.png") });
 });
+
+test("table conditions", async ({ page }) => {
+  await open(page, "lab-report");
+  await page.evaluate(() => (window as any).__designer.getState().set({ tableEditId: "results" }));
+  await page.getByTestId("table-tab-conditions").click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: out("table-rules.png") });
+});
+
+test("real PDF preview", async ({ page }) => {
+  await open(page, "account-statement");
+  await page.getByTestId("mode-preview").click();
+  await page.getByTestId("pdf-document-view").waitFor();
+  await page.locator(".pdfViewer .page canvas").first().waitFor();
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: out("preview.png") });
+});

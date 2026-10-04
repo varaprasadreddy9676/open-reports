@@ -434,7 +434,7 @@ function sendRenderError(reply: import("fastify").FastifyReply, err: unknown): v
 function buildOpenApiDocument(): Record<string, unknown> {
   return {
     openapi: "3.0.3",
-    info: { title: "Reporting Platform API", version: "0.1.0", description: "Render deterministic PDF/HTML/XLSX/CSV/ZPL documents from a renderer-neutral JSON report definition. Send the API key in the `x-api-key` header." },
+    info: { title: "Reporting Platform API", version: "0.2.0", description: "Render deterministic PDF/HTML/XLSX/CSV/ZPL documents from a renderer-neutral JSON report definition. Send the API key in the `x-api-key` header." },
     security: [{ apiKey: [] }],
     paths: {
       "/health": { get: { summary: "Liveness probe (no auth)", security: [] } },

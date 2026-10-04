@@ -1,6 +1,6 @@
 {
   "name": "@reporting/plugin-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Extension API: write plugins that add renderers, datasources, expression functions, reusable components and storage backends",
   "license": "MIT",
   "type": "module",

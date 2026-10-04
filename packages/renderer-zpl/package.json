@@ -1,6 +1,6 @@
 {
   "name": "@reporting/renderer-zpl",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ZPL renderer: draws a paginated Resolved Report Tree as Zebra ZPL II label commands in printer dots, using the physical size and DPI of the report's print profile",
   "license": "MIT",
   "type": "module",
