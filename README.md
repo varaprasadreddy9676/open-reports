@@ -12,7 +12,7 @@ Open source (MIT) · self-hosted · no seats, no per-document fees
 
 [![Open Reports in 42 seconds](docs/media/open-reports-launch.gif)](docs/media/open-reports-launch.mp4)
 
-**[Download the 42-second film with sound (MP4, 12 MB)](https://raw.githubusercontent.com/varaprasadreddy9676/open-reports/claude/upbeat-volta-pe84n7/docs/media/open-reports-launch.mp4)**
+**[Download the 42-second film with sound (MP4, 8 MB)](https://raw.githubusercontent.com/varaprasadreddy9676/open-reports/claude/upbeat-volta-pe84n7/docs/media/open-reports-launch.mp4)**
 
 </div>
 
