@@ -353,6 +353,42 @@ describe("paginate: long flow text", () => {
     expect(fragments.flatMap((node) => node.children ?? []).filter((node) => (node.component as any).id === "right").flatMap((node) => node.textFragment!.text.split("\n"))).toEqual(right);
   });
 
+  it("continues a stacked column beside text across pages, moving whole items and never cutting one", () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({ type: "text", id: `item-${i + 1}`, text: `ITEM${String(i + 1).padStart(3, "0")}` }));
+    const notes = Array.from({ length: 24 }, (_, i) => `NOTE${String(i + 1).padStart(3, "0")}`);
+    const row = { type: "row", id: "split-row", gap: 10, children: [
+      { type: "container", id: "stack", width: 130, gap: 2, style: { padding: 3, border: { width: 1, style: "solid", color: "#000000" } }, children: items },
+      { type: "text", id: "notes", width: 130, text: notes.join("\n") },
+    ] } as any;
+    const result = paginate(reportWithContentHeight(160, [{ type: "detail", children: [row] }]));
+    expect(result.pages.length).toBeGreaterThan(2);
+    expect(result.warnings.filter((warning) => isDataLossWarningCode(warning.code))).toEqual([]);
+    const fragments = result.pages.map((page) => page.content.find((node) => (node.component as any).id === "split-row")!).filter(Boolean);
+    const stackSlices = fragments.flatMap((node) => node.children ?? []).filter((node) => (node.component as any).id === "stack");
+    const placed = stackSlices.flatMap((slice) => (slice.children ?? []).map((child) => (child.component as any).id));
+    expect(placed).toEqual(items.map((item) => item.id));
+    const bottom = result.pageSize.height - result.margin.bottom + 0.01;
+    for (const slice of stackSlices) {
+      expect(slice.box.y + slice.box.height).toBeLessThanOrEqual(bottom);
+      for (const child of slice.children ?? []) {
+        expect(child.box.y).toBeGreaterThanOrEqual(slice.box.y - 0.01);
+        expect(child.box.y + child.box.height).toBeLessThanOrEqual(slice.box.y + slice.box.height + 0.01);
+      }
+    }
+    // Continuation slices restart at the column's top padding.
+    expect(stackSlices[1]!.children![0]!.box.y - stackSlices[1]!.box.y).toBeCloseTo(3, 1);
+    expect(fragments.flatMap((node) => node.children ?? []).filter((node) => (node.component as any).id === "notes").flatMap((node) => node.textFragment!.text.split("\n"))).toEqual(notes);
+  });
+
+  it("keeps the overflow warning when one item in a column is taller than a page", () => {
+    const row = { type: "row", id: "too-tall", children: [
+      { type: "container", id: "stack", width: 130, children: [{ type: "rectangle", id: "huge", height: 400 }] },
+      { type: "text", id: "notes", width: 130, text: Array.from({ length: 40 }, (_, i) => `N${i}`).join("\n") },
+    ] } as any;
+    const result = paginate(reportWithContentHeight(160, [{ type: "detail", children: [row] }]));
+    expect(result.warnings.some((warning) => isDataLossWarningCode(warning.code))).toBe(true);
+  });
+
   it("uses remaining space on the first page before continuing a tall row", () => {
     const lines = Array.from({ length: 32 }, (_, i) => `ITEM${String(i + 1).padStart(3, "0")}`);
     const row = { type: "row", id: "details", children: [{ type: "text", id: "items", width: 130, text: lines.join("\n") }] } as any;

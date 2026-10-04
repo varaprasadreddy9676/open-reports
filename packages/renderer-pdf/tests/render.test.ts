@@ -311,6 +311,23 @@ describe("PdfRenderer", () => {
     expect(plain.count(0xfd, 0xe6, 0x8a)).toBe(0);
   });
 
+  it("splits a tall row whose column stacks many items, printing every item exactly once", async () => {
+    const items = Array.from({ length: 60 }, (_, i) => ({ type: "text", value: `STACKITEM${String(i + 1).padStart(3, "0")}` }));
+    const result = await renderPdf({
+      schemaVersion: "1.0", id: "tall-row", name: "Tall row",
+      sections: [{ type: "detail", children: [{ type: "row", gap: 12, children: [
+        { type: "container", width: "45%", gap: 4, style: { padding: 4, border: { width: 0.5, style: "solid", color: "#64748b" } }, children: items },
+        { type: "text", width: "45%", value: Array.from({ length: 50 }, (_, i) => `Note line ${i + 1}`).join("\n") },
+      ] }] }],
+    });
+    expect(result.warnings.filter((w) => ["CONTENT_OVERFLOWS_PAGE", "CONTAINER_CONTENT_EXCEEDS_HEIGHT"].includes(w.code))).toEqual([]);
+    const pages = await extractPdfPages(result.content as Buffer);
+    expect(pages.length).toBeGreaterThan(1);
+    const all = pages.join("\n");
+    for (let i = 1; i <= 60; i++) expect(all.split(`STACKITEM${String(i).padStart(3, "0")}`).length - 1).toBe(1);
+    expect(all).toContain("Note line 50");
+  });
+
   it("never reads a local file path itself; linked files are resolved by the server first", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-local-image-"));
     const file = path.join(dir, "secret.png");

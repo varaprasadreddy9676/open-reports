@@ -234,7 +234,12 @@ interface RowSplitChild {
   lines?: string[];
   lineHeight?: number;
   padding?: ReturnType<typeof edgesOf>;
+  /** A vertically stacked container: its children move to later pages whole, never cut. */
+  blocks?: { node: PositionedNode; top: number; height: number }[];
 }
+
+/** Vertically stacked containers whose content can continue on the next page. */
+const STACKS = new Set(["container", "column"]);
 
 interface RowSlice {
   take: number[];
@@ -258,7 +263,13 @@ function planTallRow(
   for (const node of probe.children ?? []) {
     const child = node.component as any;
     const part: RowSplitChild = { node, x: node.box.x - probe.box.x, y: node.box.y - probe.box.y };
-    if (["text", "richText", "field"].includes(child.type)) {
+    if (STACKS.has(child.type) && (!child.layout || child.layout === "flow" || child.layout === "column") && node.children?.length) {
+      const style = child.style ?? {};
+      if (child.height !== undefined || child.minHeight !== undefined || child.maxHeight !== undefined || child.keepTogether
+          || child.allowSplit === false || ["clip", "hidden", "ellipsis"].includes(style.overflow)) return undefined;
+      part.padding = edgesOf(style.padding);
+      part.blocks = [...node.children].sort((a, b) => a.box.y - b.box.y).map((block) => ({ node: block, top: block.box.y - node.box.y, height: block.box.height }));
+    } else if (["text", "richText", "field"].includes(child.type)) {
       const style = child.style ?? {};
       if (child.height !== undefined || child.minHeight !== undefined || child.maxHeight !== undefined || child.keepTogether
           || child.allowSplit === false || ["clip", "hidden", "ellipsis"].includes(style.overflow)
@@ -271,7 +282,13 @@ function planTallRow(
     }
     children.push(part);
   }
-  if (!children.some((child) => child.lines)) return undefined;
+  if (!children.some((child) => child.lines || child.blocks)) return undefined;
+  // Where each continuing column's next slice starts, measured from the top of the column.
+  const offsetFor = (child: RowSplitChild, start: number) => (start === 0 || !child.blocks ? 0 : child.blocks[start]!.top - child.padding!.top);
+  const blockSpan = (child: RowSplitChild, start: number, count: number) => {
+    const last = child.blocks![start + count - 1]!;
+    return last.top + last.height - offsetFor(child, start) + child.padding!.bottom;
+  };
 
   const starts = children.map(() => 0);
   const slices: RowSlice[] = [];
@@ -281,13 +298,21 @@ function planTallRow(
   while (slices.length < maxPages) {
     const room = availableAt(pageOffset) - outer.top - outer.bottom;
     const take = children.map((child, index) => {
+      if (child.blocks) {
+        const start = starts[index]!;
+        let count = 0;
+        while (start + count < child.blocks.length && child.y + blockSpan(child, start, count + 1) + pad.bottom <= room + 0.01) count++;
+        return count;
+      }
       if (!child.lines) return slices.length === 0 ? 1 : 0;
       const left = child.lines.length - starts[index]!;
       if (left <= 0) return 0;
       const inner = room - pad.bottom - child.y - child.padding!.top - child.padding!.bottom;
       return Math.min(left, Math.max(0, Math.floor((inner + 0.01) / child.lineHeight!)));
     });
-    const canPlace = children.every((child, index) => child.lines
+    const canPlace = children.every((child, index) => child.blocks
+      ? starts[index]! >= child.blocks.length || take[index]! > 0
+      : child.lines
       ? starts[index]! >= child.lines.length || take[index]! > 0
       : slices.length > 0 || child.y + child.node.box.height + pad.bottom <= room + 0.01);
     if (!canPlace) {
@@ -296,12 +321,12 @@ function planTallRow(
     }
     const bottom = Math.max(pad.top, ...children.map((child, index) => {
       if (!take[index]) return 0;
-      const height = child.lines ? take[index]! * child.lineHeight! + child.padding!.top + child.padding!.bottom : child.node.box.height;
+      const height = child.blocks ? blockSpan(child, starts[index]!, take[index]!) : child.lines ? take[index]! * child.lineHeight! + child.padding!.top + child.padding!.bottom : child.node.box.height;
       return child.y + height;
     }));
     slices.push({ take, height: bottom + pad.bottom });
-    children.forEach((child, index) => { if (child.lines) starts[index] = starts[index]! + take[index]!; });
-    if (children.every((child, index) => !child.lines || starts[index]! >= child.lines.length)) return { children, slices, startOnNext };
+    children.forEach((child, index) => { if (child.lines || child.blocks) starts[index] = starts[index]! + take[index]!; });
+    if (children.every((child, index) => (child.blocks ? starts[index]! >= child.blocks.length : !child.lines || starts[index]! >= child.lines.length))) return { children, slices, startOnNext };
     pageOffset++;
   }
   return undefined;
@@ -547,7 +572,7 @@ function layoutContentIntoPages(
         const rowName = (component as any).band?.name ?? bandType ?? anyC.id ?? component.type;
         const minimumSpace = (slice: RowSlice) => m.top + m.bottom + edgesOf(anyC.style?.padding).bottom + Math.max(0, ...rowPlan.children.map((child, index) => {
           if (!slice.take[index]) return 0;
-          return child.y + (child.lines ? child.lineHeight! + child.padding!.top + child.padding!.bottom : child.node.box.height);
+          return child.y + (child.blocks ? Math.min(...child.blocks.map((block) => block.height)) + child.padding!.top + child.padding!.bottom : child.lines ? child.lineHeight! + child.padding!.top + child.padding!.bottom : child.node.box.height);
         }));
         if (rowPlan.startOnNext) {
           decide({ kind: "row-split", componentId: anyC.id, ...source, required: minimumSpace(rowPlan.slices[0]!), available: remaining(), message: `Row "${rowName}" starts on the next page so its side-by-side content has room for at least one line.` });
@@ -556,7 +581,7 @@ function layoutContentIntoPages(
         const starts = rowPlan.children.map(() => 0);
         rowPlan.slices.forEach((slice, index) => {
           if (index > 0) {
-            decide({ kind: "row-split", componentId: anyC.id, ...source, required: minimumSpace(slice), available: remaining(), message: `Row "${rowName}" continues on page ${pages.length + 1}; its text columns have more lines than fit on the previous page.` });
+            decide({ kind: "row-split", componentId: anyC.id, ...source, required: minimumSpace(slice), available: remaining(), message: `Row "${rowName}" continues on page ${pages.length + 1}; its columns hold more than fits on the previous page.` });
             newPage();
           }
           const rowX = m.left;
@@ -565,7 +590,16 @@ function layoutContentIntoPages(
           rowPlan.children.forEach((child, childIndex) => {
             const count = slice.take[childIndex]!;
             if (!count) return;
-            if (child.lines) {
+            if (child.blocks) {
+              const start = starts[childIndex]!;
+              const taken = child.blocks.slice(start, start + count);
+              const offset = start === 0 ? 0 : taken[0]!.top - child.padding!.top;
+              const last = taken[taken.length - 1]!;
+              const dx = rowX + child.x - child.node.box.x;
+              const dy = rowY + child.y - child.node.box.y - offset;
+              children.push({ ...child.node, box: { ...child.node.box, x: rowX + child.x, y: rowY + child.y, height: last.top + last.height - offset + child.padding!.bottom }, children: offsetNodes(taken.map((block) => block.node), dx, dy) });
+              starts[childIndex] = start + count;
+            } else if (child.lines) {
               const start = starts[childIndex]!;
               const end = start + count;
               children.push({ ...child.node, box: { ...child.node.box, x: rowX + child.x, y: rowY + child.y, height: count * child.lineHeight! + child.padding!.top + child.padding!.bottom }, textFragment: { text: child.lines.slice(start, end).join("\n"), startLine: start, endLine: end, totalLines: child.lines.length } });
