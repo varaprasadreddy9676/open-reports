@@ -667,6 +667,7 @@ function GenerateDialog() {
 
 function OpenDialog() {
   const set = useStore((s) => s.set);
+  const home = useStore((s) => s.home);
   const [items, setItems] = useState<TemplateRecord[] | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -692,6 +693,7 @@ function OpenDialog() {
       </ul>
       <div className="dialog-actions">
         <button className="btn" onClick={() => set({ dialog: null })}>Close</button>
+        {!home && <button className="btn" onClick={() => set({ dialog: null, home: true })}>Go Home</button>}
         <span className="spacer" />
         <button className="btn" onClick={() => set({ dialog: "new" })}>New report</button>
       </div>
