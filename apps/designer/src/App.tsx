@@ -10,6 +10,8 @@ import { DataMode } from "./components/DataMode";
 import { AiBar } from "./components/AiBar";
 import { TableDesigner } from "./components/TableDesigner";
 import { BandBar } from "./components/BandLayer";
+import { arrayRefs, datasetFields, scalarFields } from "./lib/fields";
+import { titleCase } from "./lib/lowcode";
 import * as ops from "./model/ops";
 
 function isTyping(t: EventTarget | null): boolean {
@@ -19,14 +21,33 @@ function isTyping(t: EventTarget | null): boolean {
 }
 
 function GettingStartedHint() {
-  const { doc, demoHint, mode } = useStore();
+  const { doc, sample, selection, demoHint, mode } = useStore();
   const set = useStore((s) => s.set);
   if (mode !== "design") return null;
+  const selected = selection.length === 1 ? ops.find(doc, selection[0]!)?.comp : null;
+  const table = selected?.type === "table" && !selected.dataset ? selected : null;
+  const refs = table ? arrayRefs(doc, sample) : [];
   const blank = (doc.sections?.length ?? 0) === 1 && !doc.sections?.[0]?.children?.length && !doc.groups?.length;
-  if (!demoHint && !blank) return null;
+  if (!demoHint && !blank && !table) return null;
+  const useDataset = (ref: string) => {
+    if (!table) return;
+    const fields = scalarFields(datasetFields(doc, sample, ref));
+    useStore.getState().patch(table.id, {
+      dataset: ref,
+      columns: fields.slice(0, 10).map((field) => ({
+        id: field.name,
+        header: titleCase(field.name),
+        binding: `row.${field.path}`,
+        format: field.kind === "date" ? "date:dd MMM yyyy" : field.kind === "number" && /amount|price|total|rate|cost|balance/i.test(field.name) ? "currency" : undefined,
+        align: field.kind === "number" ? "right" : undefined,
+      })),
+      headerRows: undefined,
+      cellSpans: undefined,
+    });
+  };
   return <div className="getting-started" role="status" data-testid="getting-started">
-    <div><strong>{demoHint === "edit" ? "Try one edit" : demoHint === "preview" ? "See the printable result" : "Start on the page"}</strong><span>{demoHint === "edit" ? "Click text on the invoice, then change it in the Content panel." : demoHint === "preview" ? "Your change is on the canvas. Check the PDF it produces." : "Add text from Components, or drag an item onto the page."}</span></div>
-    {demoHint === "preview" ? <button className="btn primary" onClick={() => set({ mode: "preview", demoHint: null })}>Preview PDF →</button> : blank ? <button className="btn primary" onClick={() => useStore.getState().addComponent("text")}>Add text</button> : <button className="mini" onClick={() => set({ demoHint: null })}>Dismiss</button>}
+    <div><strong>{table ? "Connect table data" : demoHint === "edit" ? "Try one edit" : demoHint === "preview" ? "See the printable result" : "Start on the page"}</strong><span>{table ? refs.length ? "Choose data to fill this table and create its columns." : "Create a dataset to fill this table." : demoHint === "edit" ? "Click text on the invoice, then change it in the Content panel." : demoHint === "preview" ? "Your change is on the canvas. Check the PDF it produces." : "Add text from Components, or drag an item onto the page."}</span></div>
+    {table ? refs.length ? <select aria-label="Table data" data-testid="canvas-table-data" defaultValue="" onChange={(event) => useDataset(event.target.value)}><option value="" disabled>Choose data…</option>{refs.map((ref) => <option key={ref} value={ref}>{ref}</option>)}</select> : <button className="btn primary" data-testid="canvas-create-dataset" onClick={() => set({ dialog: "dataset", editingDataset: null })}>Create dataset</button> : demoHint === "preview" ? <button className="btn primary" onClick={() => set({ mode: "preview", demoHint: null })}>Preview PDF →</button> : blank ? <button className="btn primary" onClick={() => useStore.getState().addComponent("text")}>Add text</button> : <button className="mini" onClick={() => set({ demoHint: null })}>Dismiss</button>}
   </div>;
 }
 

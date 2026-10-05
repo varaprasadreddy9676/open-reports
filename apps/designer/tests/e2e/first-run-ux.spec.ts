@@ -35,17 +35,18 @@ test("a local edit is protected when opening a different starter", async ({ page
 });
 
 test("an empty table leads to a valid dataset and generated columns", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
   await page.getByTestId("starter-blank").click();
   await expect(page.getByTestId("getting-started")).toContainText("Start on the page");
   await page.getByTestId("palette-table").click();
-  await page.getByRole("button", { name: "Create dataset" }).click();
+  await expect(page.getByTestId("getting-started")).toContainText("Connect table data");
+  await page.getByTestId("canvas-create-dataset").click();
   await page.getByTestId("dataset-json").fill("{bad");
   await expect(page.getByTestId("dataset-json-error")).toBeVisible();
   await expect(page.getByTestId("dataset-save")).toBeDisabled();
   await page.getByTestId("dataset-json").fill('[{"item":"Consultation","amount":120}]');
   await page.getByTestId("dataset-save").click();
-  await page.getByTestId("table-dataset").selectOption("dataset1");
-  await page.getByTestId("generate-columns").click();
+  await page.getByTestId("canvas-table-data").selectOption("dataset1");
   await expect(page.getByTestId("canvas")).toContainText("Consultation");
 });
