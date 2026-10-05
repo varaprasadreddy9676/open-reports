@@ -156,7 +156,7 @@ export const api = {
   async deletePrinterProfile(id: string): Promise<void> {
     await request(`/api/v1/printer-profiles/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
-  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos", parameters?: Record<string, unknown>): Promise<{ blob: Blob; renderId: string | null; warningCount: number }> {
+  async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "docx" | "zpl" | "escpos", parameters?: Record<string, unknown>): Promise<{ blob: Blob; renderId: string | null; warningCount: number }> {
     const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format, parameters }) });
     return { blob: await res.blob(), renderId: res.headers.get("x-render-id"), warningCount: Number(res.headers.get("x-render-warnings") ?? 0) };
   },

@@ -204,9 +204,16 @@ describe("POST /api/v1/render (inline)", () => {
   });
 
   it("rejects an unsupported format", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: invoiceReport, format: "docx" } });
+    const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: invoiceReport, format: "pptx" } });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.code).toBe("UNSUPPORTED_FORMAT");
+  });
+
+  it("renders an editable Word document", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/v1/render", payload: { report: invoiceReport, format: "docx" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("wordprocessingml");
+    expect(res.rawPayload.subarray(0, 2).toString()).toBe("PK");
   });
 
   it("rejects an invalid report with a structured error", async () => {

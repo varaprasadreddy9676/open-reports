@@ -75,6 +75,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
         { id: "html", mimeType: "text/html", supports: ["*"] },
         { id: "xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", supports: ["table", "text", "field"] },
         { id: "csv", mimeType: "text/csv", supports: ["table"] },
+        { id: "docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", supports: ["*"] },
         ...[...(options.plugins?.renderers.values() ?? [])].map((r) => ({ id: r.format, mimeType: r.mimeType, supports: r.supports, plugin: true })),
         { id: "escpos", mimeType: "application/octet-stream", supports: ["text", "richText", "field", "line", "spacer", "barcode", "qrcode", "table", "container", "row", "column", "grid", "repeater", "group", "keepTogether"] },
         { id: "zpl", mimeType: "text/plain", supports: ["text", "richText", "field", "line", "rectangle", "spacer", "barcode", "qrcode", "table", "container", "row", "column", "grid", "repeater", "group", "keepTogether", "pageBreak"] },

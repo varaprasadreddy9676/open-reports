@@ -26,7 +26,7 @@ export function downloadBlob(blob: Blob, filename: string) {
   }, 500);
 }
 
-export async function exportReport(format: PreviewTab) {
+export async function exportReport(format: PreviewTab | "docx") {
   const s = useStore.getState();
   try {
     const { blob } = await api.render(withSampleData(s.doc, s.sample), format, s.parameters);

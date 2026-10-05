@@ -44,8 +44,8 @@ interface Place {
   toggled: Map<string, Set<string>>;
 }
 
-const LABELS: Record<OutputFormat, string> = { pdf: "PDF", html: "HTML", xlsx: "Excel", csv: "CSV", zpl: "ZPL", escpos: "ESC/POS" };
-const EXTENSIONS: Record<OutputFormat, string> = { pdf: "pdf", html: "html", xlsx: "xlsx", csv: "csv", zpl: "zpl", escpos: "bin" };
+const LABELS: Record<OutputFormat, string> = { pdf: "PDF", html: "HTML", xlsx: "Excel", csv: "CSV", docx: "Word", zpl: "ZPL", escpos: "ESC/POS" };
+const EXTENSIONS: Record<OutputFormat, string> = { pdf: "pdf", html: "html", xlsx: "xlsx", csv: "csv", docx: "docx", zpl: "zpl", escpos: "bin" };
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, attributes: Record<string, string> = {}, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);

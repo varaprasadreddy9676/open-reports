@@ -26,6 +26,7 @@
     "@reporting/layout": "workspace:*",
     "@reporting/plugin-sdk": "workspace:*",
     "@reporting/renderer-csv": "workspace:*",
+    "@reporting/renderer-docx": "workspace:*",
     "@reporting/renderer-html": "workspace:*",
     "@reporting/renderer-pdf": "workspace:*",
     "@reporting/renderer-xlsx": "workspace:*",

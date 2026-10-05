@@ -7,7 +7,7 @@ export interface ServerOptions {
   apiKey?: string;
 }
 
-export type OutputFormat = "pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos";
+export type OutputFormat = "pdf" | "html" | "xlsx" | "csv" | "docx" | "zpl" | "escpos";
 
 export interface TemplateVersion {
   version: number;

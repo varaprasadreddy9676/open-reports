@@ -152,9 +152,9 @@ export function Toolbar() {
           {menu === "export" && <div className="menu right" role="menu">
             <button role="menuitem" onClick={() => setMenu("more")}>← Report actions</button>
             <hr />
-            {(["pdf", "html", "xlsx", "csv", ...(printerFormat ? [printerFormat] : [])] as ("pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos")[]).map((f) => (
+            {(["pdf", "docx", "html", "xlsx", "csv", ...(printerFormat ? [printerFormat] : [])] as ("pdf" | "docx" | "html" | "xlsx" | "csv" | "zpl" | "escpos")[]).map((f) => (
               <button key={f} role="menuitem" data-testid={`export-${f}`} onClick={() => (setMenu(null), exportReport(f))}>
-                {f === "zpl" ? "ZPL label" : f === "escpos" ? "ESC/POS receipt" : f.toUpperCase()}
+                {f === "zpl" ? "ZPL label" : f === "escpos" ? "ESC/POS receipt" : f === "docx" ? "Word (DOCX)" : f.toUpperCase()}
               </button>
             ))}
             <hr />
@@ -783,7 +783,7 @@ function useCommands(): Command[] {
       ...(s().mode === "design" ? [] : [{ id: "design", label: "Switch to Design", run: () => s().set({ mode: "design" }) }]),
       { id: "code", label: "Open report JSON", run: () => s().set({ mode: "code" }) },
       { id: "preview", label: "Preview PDF", run: () => s().set({ mode: "preview" }) },
-      ...(["pdf", "html", "xlsx", "csv", "zpl"] as const).map((f) => ({ id: `export-${f}`, label: `Export ${f.toUpperCase()}`, run: () => exportReport(f) })),
+      ...(["pdf", "docx", "html", "xlsx", "csv", "zpl"] as const).map((f) => ({ id: `export-${f}`, label: f === "docx" ? "Export Word (DOCX)" : `Export ${f.toUpperCase()}`, run: () => exportReport(f) })),
       { id: "landscape", label: "Change page to landscape", run: () => s().setDoc({ ...s().doc, page: { ...s().doc.page, orientation: "landscape" } }) },
       { id: "portrait", label: "Change page to portrait", run: () => s().setDoc({ ...s().doc, page: { ...s().doc.page, orientation: "portrait" } }) },
       { id: "grid", label: "Toggle grid", run: () => s().set({ showGrid: !s().showGrid }) },
