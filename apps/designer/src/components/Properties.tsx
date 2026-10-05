@@ -900,15 +900,15 @@ function SpacingEditor({ comp, prop, label }: { comp: ops.Comp; prop: "margin" |
 
 function QuickGeometry({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
-  const absolute = typeof comp.x === "number" || typeof comp.y === "number";
+  const absolute = comp.x !== undefined || comp.y !== undefined;
   return <div className="quick-geometry" data-testid="quick-geometry">
     <div className="grid2">
       <Field label="Width"><Dim label="Width" value={comp.width} onChange={(value) => patch(comp.id, { width: value })} /></Field>
       <Field label="Height"><Dim label="Height" value={comp.height} onChange={(value) => patch(comp.id, { height: value })} /></Field>
     </div>
     {absolute && <div className="grid2">
-      <Field label="X"><Num label="X position" value={typeof comp.x === "number" ? comp.x : undefined} onChange={(value) => patch(comp.id, { x: value })} /></Field>
-      <Field label="Y"><Num label="Y position" value={typeof comp.y === "number" ? comp.y : undefined} onChange={(value) => patch(comp.id, { y: value })} /></Field>
+      <Field label="X"><Dim label="X position" value={comp.x} onChange={(value) => patch(comp.id, { x: value })} /></Field>
+      <Field label="Y"><Dim label="Y position" value={comp.y} onChange={(value) => patch(comp.id, { y: value })} /></Field>
     </div>}
   </div>;
 }
@@ -916,7 +916,7 @@ function QuickGeometry({ comp }: { comp: ops.Comp }) {
 function LayoutProps({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
   const isContainer = ["container", "row", "column", "grid", "repeater", "keepTogether"].includes(comp.type);
-  const absolute = typeof comp.x === "number" || typeof comp.y === "number";
+  const absolute = comp.x !== undefined || comp.y !== undefined;
   const parentLayout = ops.parentLayout(useStore.getState().doc, comp.id);
   const layout = comp.layout ?? (comp.type === "row" ? "row" : comp.type === "grid" ? "grid" : "flow");
   const textChild = ["text", "richText", "field"].includes(comp.type);
@@ -986,24 +986,24 @@ function LayoutProps({ comp }: { comp: ops.Comp }) {
             </>}
           </>
         )}
-        {parentLayout === "row" && <Field label="Width in row">
+        {parentLayout === "row" && !absolute && <Field label="Width in row">
           <select aria-label="Width in row" data-testid="row-width-mode" value={widthMode} onChange={(event) => patch(comp.id, { width: event.target.value === "hug" ? "auto" : event.target.value === "fixed" ? 100 : undefined, grow: undefined })}>
             <option value="fill">Fill available space</option>
             {textChild && <option value="hug">Hug text</option>}
             <option value="fixed">Fixed width</option>
           </select>
         </Field>}
-        {parentLayout === "row" && widthMode === "fixed" && <p className="field-hint">Set the exact width above. Distribution uses space left after fixed and hugged children.</p>}
-        {parentLayout === "row" && widthMode !== "fill" && <Field label="Shrink (when crowded)">
+        {parentLayout === "row" && !absolute && widthMode === "fixed" && <p className="field-hint">Set the exact width above. Distribution uses space left after fixed and hugged children.</p>}
+        {parentLayout === "row" && !absolute && widthMode !== "fill" && <Field label="Shrink (when crowded)">
           <Num label="Shrink" min={0} value={comp.shrink} onChange={(v) => patch(comp.id, { shrink: v })} />
         </Field>}
-        {!absolute && parentLayout === "absolute" && <button className="btn" onClick={() => patch(comp.id, { x: 0, y: 0 })}>Position freely</button>}
-        {!absolute && parentLayout === "absolute" ? null : absolute && (
+        {!absolute && parentLayout !== "absolute" && <p className="field-hint">Drag this element on the canvas to place it freely within its section.</p>}
+        {absolute && parentLayout !== "absolute" && (
           <button className="btn" onClick={() => patch(comp.id, { x: undefined, y: undefined })}>Return to flow</button>
         )}
         <SpacingEditor comp={comp} prop="margin" label="Margin" />
         <SpacingEditor comp={comp} prop="padding" label="Padding" />
-        {parentLayout === "row" && widthMode === "fill" && (
+        {parentLayout === "row" && !absolute && widthMode === "fill" && (
           <Field label="Grow (share extra width)">
             <Num label="Grow" min={0} value={comp.grow} onChange={(v) => patch(comp.id, { grow: v })} />
           </Field>

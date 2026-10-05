@@ -271,5 +271,5 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
     });
     y += footerHeight;
   }
-  if (lines === "all") { stroke(); doc.rect(left, node.box.y, node.box.width, y - node.box.y).stroke(); }
+  if (lines === "all") { stroke(); doc.rect(left, node.box.y, node.box.width, node.box.height).stroke(); }
 }

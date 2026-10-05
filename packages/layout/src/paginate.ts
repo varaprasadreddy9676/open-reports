@@ -2,7 +2,7 @@ import type { ResolvedComponent, ResolvedReport, ResolvedTableComponent, Resolve
 import { sliceTableSpans } from "@reporting/core";
 import type { TextMeasurer } from "./measure.js";
 import { defaultTextMeasurer, ellipsizeText, wrapTextLines } from "./measure.js";
-import { resolvePageGeometry, toPoints } from "./units.js";
+import { resolveDimension, resolvePageGeometry, toPoints } from "./units.js";
 import { edgesOf, layoutComponent, marginOf, measureFooterHeight, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, shiftNode, styleFontSize } from "./box-layout.js";
 import { splitTableRow } from "./table-row-split.js";
 import type { PageLayout, PaginatedReport, PaginationDecision, PositionedNode } from "./types.js";
@@ -17,7 +17,7 @@ export interface PaginateOptions {
 
 /** Warnings that mean a generated document may omit or misplace report data. */
 export const isDataLossWarningCode = (code: string): boolean =>
-  code === "CONTENT_OVERFLOWS_PAGE" || code === "CONTENT_EXCEEDS_PRINTABLE_WIDTH" || code === "TEXT_EXCEEDS_HEIGHT" || code === "CONTAINER_CONTENT_EXCEEDS_HEIGHT" || code === "SUBREPORT_NOT_RENDERED";
+  code === "CONTENT_OVERFLOWS_PAGE" || code === "CONTENT_EXCEEDS_PRINTABLE_WIDTH" || code === "TEXT_EXCEEDS_HEIGHT" || code === "CONTAINER_CONTENT_EXCEEDS_HEIGHT" || code === "FREE_ELEMENT_OUTSIDE_PAGE" || code === "SUBREPORT_NOT_RENDERED";
 
 /**
  * Page masters: a report may declare several pageHeader / pageFooter sections,
@@ -199,12 +199,20 @@ function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}, an
           warnings.push({ code, path: c.id ?? c.type, message });
         }
       }
-      if (node.children?.length && (c.height !== undefined || c.maxHeight !== undefined)) {
+      if (node.children?.length && !c.freeOverlay && (c.height !== undefined || c.maxHeight !== undefined)) {
         const excess = Math.max(0, ...node.children.map((child) => deepestBottom(child) - node.box.y - node.box.height));
         const key = c.id ?? `${c.type}:${node.box.x}:${node.box.y}`;
         if (excess > 0.5 && !seenOverflows.has(key)) {
           seenOverflows.add(key);
           warnings.push({ code: "CONTAINER_CONTENT_EXCEEDS_HEIGHT", path: c.id ?? c.type, message: `Container ${label(node.component)} has content extending ${pt(excess)} below its fixed height; it may overlap or be clipped.` });
+        }
+      }
+      if (c.freeOverlay) for (const child of node.children ?? []) {
+        const outside = child.box.x < 0 || child.box.y < 0 || child.box.x + child.box.width > geometry.width + 0.5 || child.box.y + child.box.height > geometry.height + 0.5;
+        const key = `free:${(child.component as any).id ?? child.component.type}`;
+        if (outside && !seenOverflows.has(key)) {
+          seenOverflows.add(key);
+          warnings.push({ code: "FREE_ELEMENT_OUTSIDE_PAGE", path: (child.component as any).id ?? child.component.type, message: `Free-positioned ${label(child.component)} extends beyond the page after its band splits; move it into a suitable page band or reduce its position.` });
         }
       }
       if (node.children?.length && (c.layout === "row" || c.type === "row" && !c.layout)) {
@@ -248,13 +256,18 @@ function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}, an
 function layoutBlock(components: ResolvedComponent[], width: number, measurer: TextMeasurer, origin = { x: 0, y: 0 }) {
   let y = origin.y;
   const nodes: PositionedNode[] = [];
+  let freeBottom = origin.y;
   for (const component of components) {
     const m = marginOf(component);
-    const node = layoutComponent(component, { x: origin.x + m.left, y: y + m.top, width: Math.max(1, width - m.left - m.right), height: 0 }, measurer);
+    const free = component.x !== undefined || component.y !== undefined;
+    const x = free ? origin.x + (resolveDimension(component.x, width, "pt") ?? 0) : origin.x + m.left;
+    const top = free ? origin.y + (resolveDimension(component.y, 0, "pt") ?? 0) : y + m.top;
+    const node = layoutComponent(component, { x, y: top, width: Math.max(1, width - m.left - m.right), height: 0 }, measurer);
     nodes.push(node);
-    y = node.box.y + node.box.height + m.bottom;
+    if (free) freeBottom = Math.max(freeBottom, node.box.y + node.box.height);
+    else y = node.box.y + node.box.height + m.bottom;
   }
-  return { nodes, height: y - origin.y };
+  return { nodes, height: Math.max(y, freeBottom) - origin.y };
 }
 
 function offsetNodes(nodes: PositionedNode[], dx: number, dy: number): PositionedNode[] {
@@ -460,7 +473,7 @@ function layoutContentIntoPages(
 
     // Containers (and bands, groups, repeaters) are laid out as one box. When one cannot fit a page, dissolve it into
     // its children so they paginate individually: nothing is ever drawn below the page edge.
-    const parts = flowParts(component);
+    const parts = flowParts(component, innerWidth, measurer);
     if (parts) {
       const probe = layoutComponent(component, { x: 0, y: 0, width: innerWidth, height: 0 }, measurer);
       const needed = probe.box.height + m.top + m.bottom;
@@ -792,6 +805,10 @@ function placeTable(
   const headerRowHeights = table.showHeader ? measureHeaderRowHeights(table, columnWidths, measurer) : [];
   const headerHeight = headerRowHeights.reduce((sum, height) => sum + height, 0);
   const footerHeight = table.showFooter ? measureFooterHeight(table, measurer) : 0;
+  // Explicit table height reserves space after the measured rows. A table may
+  // grow beyond it when data requires more room; rows are never compressed.
+  const naturalHeight = (table.showHeader ? headerHeight : 0) + rowHeights.reduce((sum, height) => sum + height, 0) + footerHeight;
+  const extraHeight = Math.max(0, (resolveDimension(table.height, 0, "pt") ?? 0) - naturalHeight);
   const tid = (table as any).id as string | undefined;
 
   const minBefore = table.minRowsBeforeBreak ?? 0;
@@ -823,6 +840,9 @@ function placeTable(
     let height = showHeaderOnThisSlice ? headerHeight : 0;
     for (let i = sliceStart; i < end; i++) height += rowHeights[i]!;
     if (includeFooter) height += footerHeight;
+    if (end === table.rows.length && (includeFooter || !table.showFooter)) height += extraHeight;
+
+    if (height > placer.remaining() && height <= placer.freshRoom() && !placer.isFresh()) placer.newPage();
 
     const node: PositionedNode = {
       component: { ...table, showHeader: showHeaderOnThisSlice, showFooter: includeFooter, ...(table.cellSpans?.length ? { cellSpans: sliceTableSpans(table.cellSpans, sliceStart, end) } : {}) },
@@ -1005,7 +1025,7 @@ function placeTable(
 
 
 /** The children a container can be dissolved into without changing what is printed (flow layout, no fixed size, no decoration). */
-function flowParts(component: ResolvedComponent): ResolvedComponent[] | undefined {
+function flowParts(component: ResolvedComponent, width: number, measurer: TextMeasurer): ResolvedComponent[] | undefined {
   const c = component as any;
   if (c.type === "group") {
     return (c.groups ?? []).flatMap((g: any) => [...(g.header ?? []), ...(g.children ?? []), ...(g.footer ?? [])]);
@@ -1015,5 +1035,17 @@ function flowParts(component: ResolvedComponent): ResolvedComponent[] | undefine
   if (c.height !== undefined || c.minHeight !== undefined) return undefined;
   const st = c.style ?? {};
   if (st.background || st.border || st.padding) return undefined;
-  return Array.isArray(c.children) ? c.children : undefined;
+  if (!Array.isArray(c.children)) return undefined;
+  const free = c.children.filter((child: any) => child.x !== undefined || child.y !== undefined);
+  if (!free.length) return c.children;
+  if (!c.children.some((child: any) => child.x === undefined && child.y === undefined)) return undefined;
+  // A tall band can still paginate its flowing content. Place its free items
+  // over the first band fragment. Spacers retain their original flow slots.
+  const overlay = { type: "container", layout: "absolute", height: 0, children: free, freeOverlay: true, band: c.band } as ResolvedComponent;
+  const parts = c.children.map((child: ResolvedComponent) => {
+    if (child.x === undefined && child.y === undefined) return child;
+    const measured = layoutComponent({ ...child, x: undefined, y: undefined } as ResolvedComponent, { x: 0, y: 0, width, height: 0 }, measurer);
+    return { type: "spacer", height: measured.box.height, style: { margin: (child.style as any)?.margin } } as ResolvedComponent;
+  });
+  return [overlay, ...parts];
 }

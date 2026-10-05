@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { defaultTextMeasurer, edgesOf, stripeOf, textVerticalOffset, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
+import { defaultTextMeasurer, edgesOf, marginOf, stripeOf, textVerticalOffset, measureHeaderRowHeights, measureTableRowHeights, resolveColumnWidths, type PositionedNode } from "@reporting/layout";
 import { isBold, tableCellSpanGrid, tableHeaderRows, tableRowStyle, tableStylesOrDefault } from "@reporting/core";
 import { renderChartSvg } from "@reporting/renderer-html/chart";
 import { useStore } from "../store";
@@ -181,7 +181,8 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
     fontWeight: isBold(style) ? 700 : 400, fontStyle: style.italic ? "italic" : undefined,
   });
   return (
-    <table data-cid={t.id} className="cn cn-table" style={{ ...boxStyle(node, k), borderCollapse: "collapse", fontSize: fs, tableLayout: "fixed", ...cssFrom(t.style, k, capabilities), ...(lines === "all" ? { border: rule } : {}) }}>
+    <div data-cid={t.id} className="cn cn-table" style={{ ...boxStyle(node, k), ...(lines === "all" ? { outline: rule } : {}) }}>
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: fs, tableLayout: "fixed", ...cssFrom(t.style, k, capabilities) }}>
       <colgroup>
         {widths.map((w, i) => (
           <col key={i} style={{ width: w.width * k }} />
@@ -229,6 +230,7 @@ function TableView({ node, k, capabilities }: { node: PositionedNode; k: number;
         </tfoot>
       )}
     </table>
+    </div>
   );
 }
 
@@ -383,6 +385,34 @@ export function Canvas() {
     return { others, bounds, extra, baselines, rules: { bounds: targets.bounds, spacing: targets.spacing } };
   }
 
+  function parentContentOrigin(sourceDoc: ops.Doc, id: string, page: number) {
+    const loc = ops.find(sourceDoc, id);
+    const p = paginated?.pages[page];
+    if (!loc || !p) return null;
+    const nodes = [...flat([...p.header, ...p.content, ...p.footer])];
+    const parent = loc.parent.startsWith("section:")
+      ? nodes.find((n) => (n.component as any).band?.sectionIndex === Number(loc.parent.slice(8)) && n.children?.some((child) => (child.component as any).id === id))
+      : nodes.find((n) => (n.component as any).id === loc.parent);
+    if (!parent && loc.parent.startsWith("section:")) {
+      const index = Number(loc.parent.slice(8));
+      const section = sourceDoc.sections?.[index];
+      if (section?.type === "pageHeader") return { x: paginated!.margin.left, y: p.zones.header.y };
+      if (section?.type === "pageFooter") return { x: paginated!.margin.left, y: p.zones.footer.y };
+      if (section?.type === "background") return { x: 0, y: 0 };
+      const visibleBand = structure?.bands.find((band) => band.sectionIndex === index && !band.ghost);
+      if (visibleBand) return { x: paginated!.margin.left, y: visibleBand.y };
+      const first = (section?.children ?? []).map((child: any) => nodes.find((n) => (n.component as any).id === child.id)).find(Boolean);
+      if (first) {
+        const margin = marginOf(first.component);
+        return { x: first.box.x - margin.left, y: first.box.y - margin.top };
+      }
+      return { x: paginated!.margin.left, y: p.zones.body.y };
+    }
+    if (!parent) return null;
+    const pad = edgesOf((parent.component.style as any)?.padding);
+    return { x: parent.box.x + pad.left, y: parent.box.y + pad.top };
+  }
+
   // ---- pointer interactions (select, move/reorder, resize)
   function onPointerDown(e: React.PointerEvent, page: number) {
     if (e.button !== 0) return;
@@ -393,7 +423,8 @@ export function Canvas() {
       const id = store.selection[0]!;
       const loc = ops.find(store.doc, id);
       const node = [...flat([...paginated!.pages[page]!.header, ...paginated!.pages[page]!.content, ...paginated!.pages[page]!.footer])].find((n) => (n.component as any).id === id);
-      drag.current = { id, mode: "resize", handle: handle.dataset.handle, sx: e.clientX, sy: e.clientY, moved: false, orig: { w: node?.box.width ?? 0, h: node?.box.height ?? 0, x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: typeof loc?.comp.x === "number", box: node?.box ? { ...node.box } : undefined }, page };
+      const origin = parentContentOrigin(store.doc, id, page);
+      drag.current = { id, mode: "resize", handle: handle.dataset.handle, sx: e.clientX, sy: e.clientY, moved: false, orig: { w: node?.box.width ?? 0, h: node?.box.height ?? 0, x: origin && node ? node.box.x - origin.x : Number(loc?.comp.x) || 0, y: origin && node ? node.box.y - origin.y : Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || loc?.comp.x !== undefined || loc?.comp.y !== undefined, box: node?.box ? { ...node.box } : undefined }, page };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
@@ -421,7 +452,8 @@ export function Canvas() {
     const probe = el.querySelector<HTMLElement>(".text-baseline-probe");
     const pageEl = pageEls.current[page];
     const baselineOffset = probe && pageEl && node ? (probe.getBoundingClientRect().top - pageEl.getBoundingClientRect().top) / k - node.box.y : undefined;
-    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: Number(loc?.comp.x) || 0, y: Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || typeof loc?.comp.x === "number", box: node?.box ? { ...node.box } : undefined, baselineOffset }, page };
+    const origin = parentContentOrigin(store.doc, id, page);
+    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: origin && node ? node.box.x - origin.x : Number(loc?.comp.x) || 0, y: origin && node ? node.box.y - origin.y : Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || loc?.comp.x !== undefined || loc?.comp.y !== undefined, box: node?.box ? { ...node.box } : undefined, baselineOffset }, page };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -519,6 +551,22 @@ export function Canvas() {
       store.patch(d.id, { x: snapped.x ? Math.round(x * 10) / 10 : snapTo(x, e.altKey, origin.x), y: snapped.y ? Math.round(y * 10) / 10 : snapTo(y, e.altKey, origin.y) }, `move:${d.id}`);
       return;
     }
+    const origin = parentContentOrigin(store.doc, d.id, page);
+    const located = ops.find(store.doc, d.id);
+    if (origin && d.orig.box && located) {
+      // Dragging a flow child converts only that child to free placement.
+      // Preserve its measured size and its starting page position first.
+      d.orig.x = d.orig.box.x - origin.x;
+      d.orig.y = d.orig.box.y - origin.y;
+      d.orig.absolute = true;
+      store.patch(d.id, {
+        x: snapTo(d.orig.x + dx, e.altKey, origin.x),
+        y: snapTo(d.orig.y + dy, e.altKey, origin.y),
+        ...(located.comp.width === undefined || located.comp.width === "auto" || located.comp.width === "*" ? { width: Math.round(d.orig.box.width * 10) / 10 } : {}),
+      }, `move:${d.id}`);
+      setIndicator(null);
+      return;
+    }
     const pt = pagePoint(e.clientX, e.clientY, page);
     setIndicator(findTarget(page, pt.x, pt.y, subtreeIds(d.id)));
   }
@@ -575,9 +623,15 @@ export function Canvas() {
     setIndicator(null);
     const targetId = target?.id;
     const position = target?.position ?? "after";
+    const placeInserted = (id: string) => {
+      const origin = parentContentOrigin(useStore.getState().doc, id, page);
+      if (!origin) return;
+      useStore.getState().patch(id, { x: snapTo(pt.x - origin.x, e.altKey, origin.x), y: snapTo(pt.y - origin.y, e.altKey, origin.y) }, `drop:${id}`);
+    };
 
     if (payload.kind === "component") {
-      store.addComponent(payload.type, targetId, position, {}, bandIndex);
+      const id = store.addComponent(payload.type, targetId, position, {}, bandIndex);
+      if (id) placeInserted(id);
     } else if (payload.kind === "field") {
       const comp: any = { type: "text", binding: payload.binding };
       if (payload.fieldKind === "date") comp.format = "date:dd MMM yyyy";
@@ -586,8 +640,12 @@ export function Canvas() {
       const rowDataset = ops.rowDatasetAt(store.doc, targetId) ?? (bandIndex === null ? undefined : ops.rowDatasetAtBand(store.doc, bandIndex));
       if (payload.rowDataset && rowDataset !== payload.rowDataset) {
         // A field of an array dropped outside any row context: list that field once per row.
-        store.insertComponent({ type: "repeater", dataset: payload.rowDataset, children: [comp] }, targetId, position, bandIndex);
-      } else store.insertComponent(comp, targetId, position, bandIndex);
+        const id = store.insertComponent({ type: "repeater", dataset: payload.rowDataset, children: [comp] }, targetId, position, bandIndex);
+        placeInserted(id);
+      } else {
+        const id = store.insertComponent(comp, targetId, position, bandIndex);
+        placeInserted(id);
+      }
     } else if (payload.kind === "array") {
       if (payload.rowRef) {
         // A record's own list: inside a row of its parent list it becomes row.<list>; elsewhere it is wrapped in a repeater over the parent.
@@ -696,7 +754,7 @@ export function Canvas() {
                   <div key={`sel${i}`} className="selbox" style={boxStyle(n, k)}>
                     {showHandles && n === single && !ops.find(doc, (single.component as any).id)?.comp.locked && (
                       <>
-                        {(typeof ops.find(doc, (single.component as any).id)?.comp.x === "number" ? ["n", "s", "e", "w", "ne", "nw", "se", "sw"] : ["e", "s", "se"]).map((h) => (
+                        {(typeof ops.find(doc, (single.component as any).id)?.comp.x === "number" || typeof ops.find(doc, (single.component as any).id)?.comp.y === "number" ? ["n", "s", "e", "w", "ne", "nw", "se", "sw"] : ["e", "s", "se"]).map((h) => (
                           <span key={h} className={`handle ${h}`} data-handle={h} title={h === "e" && ops.parentLayout(doc, (single.component as any).id) === "row" ? "Drag to resize; double-click to hug the content or fill the row" : undefined} />
                         ))}
                         <AutoLayoutHandles node={single} k={k} />

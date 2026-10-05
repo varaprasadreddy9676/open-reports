@@ -151,7 +151,9 @@ export interface FlowOptions {
 export function layoutFlow(components: ResolvedComponent[], box: Box, measurer: TextMeasurer, opts: FlowOptions = {}): { nodes: PositionedNode[]; height: number } {
   const nodes: PositionedNode[] = [];
   let y = box.y;
-  components.forEach((component, i) => {
+  const free = components.filter((component) => component.x !== undefined || component.y !== undefined);
+  const slots = free.length ? components.map((component) => component.x !== undefined || component.y !== undefined ? { ...component, x: undefined, y: undefined } as ResolvedComponent : component) : components;
+  slots.forEach((component, i) => {
     const m = marginOf(component);
     if (i > 0) y += opts.gap ?? 0;
     const availW = Math.max(1, box.width - m.left - m.right);
@@ -165,7 +167,10 @@ export function layoutFlow(components: ResolvedComponent[], box: Box, measurer: 
     nodes.push(node);
     y = node.box.y + node.box.height + m.bottom;
   });
-  return { nodes, height: y - box.y };
+  if (!free.length) return { nodes, height: y - box.y };
+  const positioned = layoutAbsolute(free, box, measurer);
+  const freeNodes = new Map(positioned.nodes.map((node) => [node.component, node]));
+  return { nodes: components.map((component, i) => freeNodes.get(component) ?? nodes[i]!), height: Math.max(y - box.y, positioned.height) };
 }
 
 export interface RowOptions extends FlowOptions {
@@ -336,15 +341,25 @@ function layoutContainer(component: ResolvedContainerComponent, box: Box, measur
   const pad = edgesOf((component.style as any)?.padding);
   const inner: Box = { x: box.x + pad.left, y: box.y + pad.top, width: Math.max(1, width - pad.left - pad.right), height: box.height };
 
+  // A child with coordinates is free within this container. Keep its flow
+  // siblings in their chosen row/grid/stack layout instead of changing the
+  // layout mode of the entire band when one item is dragged.
+  const free = mode === "absolute" ? [] : component.children.filter((child) => child.x !== undefined || child.y !== undefined);
+  const slots = free.length ? component.children.map((child) => child.x !== undefined || child.y !== undefined ? { ...child, x: undefined, y: undefined } as ResolvedComponent : child) : component.children;
   let result: { nodes: PositionedNode[]; height: number };
   if (mode === "absolute") {
     result = layoutAbsolute(component.children, inner, measurer);
   } else if (mode === "row") {
-    result = layoutRow(component.children, inner, measurer, { gap: component.gap, alignItems: component.alignItems, justifyContent: component.justifyContent, wrap: component.wrap });
+    result = layoutRow(slots, inner, measurer, { gap: component.gap, alignItems: component.alignItems, justifyContent: component.justifyContent, wrap: component.wrap });
   } else if (mode === "grid") {
-    result = layoutGrid(component.children, component.columns ?? 1, inner, measurer, component.gap ?? 0);
+    result = layoutGrid(slots, component.columns ?? 1, inner, measurer, component.gap ?? 0);
   } else {
-    result = layoutFlow(component.children, inner, measurer, { gap: component.gap, alignItems: component.alignItems });
+    result = layoutFlow(slots, inner, measurer, { gap: component.gap, alignItems: component.alignItems });
+  }
+  if (free.length) {
+    const positioned = layoutAbsolute(free, inner, measurer);
+    const freeNodes = new Map(positioned.nodes.map((node) => [node.component, node]));
+    result = { nodes: component.children.map((child, i) => freeNodes.get(child) ?? result.nodes[i]!), height: Math.max(result.height, positioned.height) };
   }
 
   const intrinsic = result.height + pad.top + pad.bottom;
@@ -354,15 +369,21 @@ function layoutContainer(component: ResolvedContainerComponent, box: Box, measur
 
 function layoutGroup(component: ResolvedGroupComponent, box: Box, measurer: TextMeasurer, width: number): PositionedNode {
   const children: PositionedNode[] = [];
+  const free: ResolvedComponent[] = [];
   let y = box.y;
   for (const group of component.groups) {
     for (const part of [group.header, group.children, group.footer]) {
-      const r = layoutFlow(part, { ...box, y, width }, measurer);
-      children.push(...r.nodes);
+      const freeInPart = part.filter((child) => child.x !== undefined || child.y !== undefined);
+      free.push(...freeInPart);
+      const slots = part.map((child) => child.x !== undefined || child.y !== undefined ? { ...child, x: undefined, y: undefined } as ResolvedComponent : child);
+      const r = layoutFlow(slots, { ...box, y, width }, measurer);
+      children.push(...r.nodes.filter((_, i) => part[i]!.x === undefined && part[i]!.y === undefined));
       y += r.height;
     }
   }
-  return { component, box: { x: box.x, y: box.y, width, height: y - box.y }, children };
+  const positioned = layoutAbsolute(free, { ...box, width }, measurer);
+  children.push(...positioned.nodes);
+  return { component, box: { x: box.x, y: box.y, width, height: Math.max(y - box.y, positioned.height) }, children };
 }
 
 export interface ColumnWidth {
@@ -457,7 +478,7 @@ function layoutTable(table: ResolvedTableComponent, box: Box, measurer: TextMeas
 
   return {
     component: table,
-    box: { x: box.x, y: box.y, width, height: y - box.y },
+    box: { x: box.x, y: box.y, width, height: Math.max(y - box.y, resolveDimension(table.height, box.height, DEFAULT_UNIT) ?? 0) },
     rowRange: { start: 0, end: table.rows.length },
   };
 }

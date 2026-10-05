@@ -107,5 +107,5 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
     ? `<tfoot><tr style="height:${ptToPx(measureFooterHeight(table, defaultTextMeasurer)).toFixed(2)}px">${table.columns.map((c) => `<td style="${footerBorder}padding:2px 4px;${styleToCss(styles.footer as Record<string, unknown>)}">${escapeHtml(c.footer?.value ?? "")}</td>`).join("")}</tr></tfoot>`
     : "";
 
-  return `<table style="${boxStyle}border-collapse:collapse;width:${ptToPx(node.box.width).toFixed(2)}px;${lines === "all" ? `border:${rule};` : ""}">${colgroup}${headerRow}<tbody>${bodyRows}</tbody>${footerRow}</table>`;
+  return `<div style="${boxStyle}${lines === "all" ? `outline:${rule};` : ""}"><table style="border-collapse:collapse;width:100%;">${colgroup}${headerRow}<tbody>${bodyRows}</tbody>${footerRow}</table></div>`;
 }
