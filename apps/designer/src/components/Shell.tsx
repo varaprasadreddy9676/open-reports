@@ -523,6 +523,7 @@ export function HomeScreen() {
   const interfaceTheme = useStore((s) => s.interfaceTheme);
   const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const hasDraft = Boolean(loadDraft()?.doc);
+  const isPublicDemo = window.location.hostname === "open-reports-demo.onrender.com";
   const tryExample = (key: string) => {
     const example = STARTERS.find((item) => item.key === key);
     if (!example) return;
@@ -536,7 +537,7 @@ export function HomeScreen() {
       <div className="home-brand"><span className="logo" aria-hidden="true">▤</span><strong>Open Reports</strong></div>
       <div className="home-header-actions">
         <label className="home-appearance">Appearance <select aria-label="Interface appearance" data-testid="home-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
-        {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing ↗</button>}
+        {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing →</button>}
         <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
       </div>
     </header>
@@ -544,6 +545,7 @@ export function HomeScreen() {
       <p className="home-eyebrow">REPORT DESIGNER</p>
       <h1>Start with a working report</h1>
       <p className="home-intro">Choose an example, change it in the designer, then run Preview to see the printable result.</p>
+      {isPublicDemo && <p className="home-demo-note">Public demo: saved reports are shared and may reset when this service restarts. Export the report definition to keep your own copy.</p>}
       <div className="home-featured" aria-label="Quick start examples">
         <div className="home-featured-copy">
           <span className="home-featured-label">RECOMMENDED FIRST TRY</span>
@@ -563,7 +565,6 @@ export function HomeScreen() {
           <strong>Continue {doc.name || "Untitled report"}</strong><span>{meta.id ? "Saved report" : "Local draft"} · Return to the designer →</span>
         </button>}
         <button className="home-workspace-card" data-testid="home-open" onClick={() => set({ dialog: "open" })}><strong>Open a saved report</strong><span>Browse reports saved on this server →</span></button>
-        <button className="home-workspace-card" onClick={() => set({ dialog: "import-jrxml" })}><strong>Import JRXML</strong><span>Bring a JasperReports source file or folder →</span></button>
       </div>
       <div className="home-section-head"><div><h2>Create something new</h2><p>Start blank, use your data, or browse the examples below.</p></div></div>
       <StarterChoices />

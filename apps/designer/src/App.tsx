@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useStore, loadDraft } from "./store";
 import { Canvas } from "./components/Canvas";
 import { LeftPanel } from "./components/LeftPanel";
@@ -46,14 +46,32 @@ function GettingStartedHint() {
     });
   };
   return <div className="getting-started" role="status" data-testid="getting-started">
-    <div><strong>{table ? "Connect table data" : demoHint === "edit" ? "Try one edit" : demoHint === "preview" ? "See the printable result" : "Start on the page"}</strong><span>{table ? refs.length ? "Choose data to fill this table and create its columns." : "Create a dataset to fill this table." : demoHint === "edit" ? "Click text on the invoice, then change it in the Content panel." : demoHint === "preview" ? "Your change is on the canvas. Check the PDF it produces." : "Add text from Components, or drag an item onto the page."}</span></div>
+    <div><strong>{table ? "Connect table data" : demoHint === "edit" ? "Try one edit" : demoHint === "preview" ? "See the printable result" : "Start on the page"}</strong><span>{table ? refs.length ? "Choose data to fill this table and create its columns." : "Create a dataset to fill this table." : demoHint === "edit" ? "Double-click “ACME HEALTH” at the top, type a name, then press Enter." : demoHint === "preview" ? "Your change is on the canvas. Check the PDF it produces." : "Add text from Components, or drag an item onto the page."}</span></div>
     {table ? refs.length ? <select aria-label="Table data" data-testid="canvas-table-data" defaultValue="" onChange={(event) => useDataset(event.target.value)}><option value="" disabled>Choose data…</option>{refs.map((ref) => <option key={ref} value={ref}>{ref}</option>)}</select> : <button className="btn primary" data-testid="canvas-create-dataset" onClick={() => set({ dialog: "dataset", editingDataset: null })}>Create dataset</button> : demoHint === "preview" ? <button className="btn primary" onClick={() => set({ mode: "preview", demoHint: null })}>Preview PDF →</button> : blank ? <button className="btn primary" onClick={() => useStore.getState().addComponent("text")}>Add text</button> : <button className="mini" onClick={() => set({ demoHint: null })}>Dismiss</button>}
   </div>;
+}
+
+function MobileDesignerGate() {
+  const name = useStore((s) => s.doc.name);
+  const set = useStore((s) => s.set);
+  return <main className="mobile-designer-gate" data-testid="mobile-designer-gate">
+    <div className="mobile-gate-card">
+      <div className="mobile-gate-brand"><span className="logo" aria-hidden="true">▤</span> Open Reports</div>
+      <h1>Design on a larger screen</h1>
+      <p>The canvas, rulers, and properties need room to work accurately. Your {name || "report"} draft is still here when you return on a desktop.</p>
+      <div className="mobile-gate-actions">
+        <a className="btn primary" href="https://www.youtube.com/watch?v=_7LTG0cLO80" target="_blank" rel="noopener noreferrer">Watch the 64-second tour ↗</a>
+        <a className="btn" href="/sample-invoice.pdf" target="_blank" rel="noopener noreferrer">View a sample invoice PDF ↗</a>
+      </div>
+      <button className="mobile-gate-home" onClick={() => set({ home: true })}>← Back to examples</button>
+    </div>
+  </main>;
 }
 
 export default function App() {
   const { mode, home, leftOpen, rightOpen, split, tableEditId } = useStore();
   const set = useStore((s) => s.set);
+  const [phone, setPhone] = useState(() => window.matchMedia("(max-width: 700px)").matches);
   const showsLeft = mode === "design" && leftOpen;
   const showsRight = (mode === "design" || mode === "code") && rightOpen;
 
@@ -76,6 +94,13 @@ export default function App() {
       const theme = useStore.getState().interfaceTheme;
       if (theme === "system") useStore.getState().setInterfaceTheme(theme);
     };
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 700px)");
+    const update = () => setPhone(media.matches);
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
@@ -173,7 +198,7 @@ export default function App() {
 
   return (
     <div className="app" data-testid="app">
-      {home ? <HomeScreen /> : <>
+      {home ? <HomeScreen /> : phone ? <MobileDesignerGate /> : <>
       <Toolbar />
       {mode === "design" && tableEditId ? <TableDesigner id={tableEditId} /> : <div className={`main ${showsLeft ? "" : "no-left"} ${showsRight ? "" : "no-right"}`}>
         {showsLeft && <LeftPanel />}
