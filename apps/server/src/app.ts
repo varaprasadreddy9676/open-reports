@@ -3,6 +3,8 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { executeDatasets } from "@reporting/core";
 import { createDefaultDataSourceRegistry, secretsFromEnv, sqlConnectionIds } from "./datasources.js";
 import { discoverFonts } from "@reporting/renderer-pdf";
@@ -48,6 +50,9 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   if (options.designerDist && fs.existsSync(options.designerDist)) {
     void app.register(fastifyStatic, { root: options.designerDist, wildcard: false });
   }
+  // <script type="module" src="https://your-server/embed/open-reports.js"> for <open-report-viewer> and <open-report-designer>.
+  const embedDist = resolveEmbedDist();
+  if (embedDist) void app.register(fastifyStatic, { root: embedDist, prefix: "/embed/", decorateReply: false, maxAge: "1h" });
   const dataSources = runtime.dataSources;
 
   app.addHook("onRequest", async (request, reply) => {
@@ -465,4 +470,14 @@ function buildOpenApiDocument(): Record<string, unknown> {
     },
     components: { securitySchemes: { apiKey: { type: "apiKey", in: "header", name: "x-api-key" } }, schemas: { ReportDefinition: getReportJsonSchema() } },
   };
+}
+
+/** Directory of the built @reporting/embed package, if it is installed and built. */
+function resolveEmbedDist(): string | undefined {
+  try {
+    const dir = path.dirname(fileURLToPath(import.meta.resolve("@reporting/embed")));
+    return fs.existsSync(path.join(dir, "open-reports.js")) ? dir : undefined;
+  } catch {
+    return undefined;
+  }
 }

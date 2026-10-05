@@ -20,6 +20,7 @@
     "@codemirror/view": "^6.43.13",
     "@reporting/ai-tools": "workspace:*",
     "@reporting/core": "workspace:*",
+    "@reporting/embed": "workspace:*",
     "@reporting/expressions": "workspace:*",
     "@reporting/layout": "workspace:*",
     "@reporting/jrxml-import": "workspace:*",

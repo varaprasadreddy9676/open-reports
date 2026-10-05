@@ -1,0 +1,25 @@
+{
+  "name": "@reporting/embed",
+  "version": "0.2.0",
+  "description": "Drop-in report viewer and designer for any web page: <open-report-viewer> and <open-report-designer> custom elements, zero dependencies",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

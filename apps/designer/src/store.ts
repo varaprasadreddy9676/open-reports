@@ -85,6 +85,8 @@ interface State {
   lastCoalesce: { key: string; at: number } | null;
   mode: Mode;
   home: boolean;
+  /** Running inside <open-report-designer> on another page: no home screen or demo links. */
+  embedded: boolean;
   interfaceTheme: InterfaceTheme;
   demoHint: "edit" | "preview" | null;
   leftTab: LeftTab;
@@ -291,6 +293,7 @@ export const useStore = create<State>((set, get) => ({
   lastCoalesce: null,
   mode: "design",
   home: true,
+  embedded: false,
   interfaceTheme: savedInterfaceTheme(),
   demoHint: null,
   leftTab: "insert",

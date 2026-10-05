@@ -22,11 +22,11 @@ async function freeLayout(page: Page) {
     const s = (window as any).__designer.getState();
     s.loadDoc({ ...s.doc, id: "canvas-keyboard", sections: [{ type: "detail", children: [
       { id: "box", type: "container", layout: "absolute", height: 200, children: [
-        { id: "a", type: "text", text: "Alpha", x: 10, y: 10, width: 60, height: 14 },
-        { id: "b", type: "text", text: "Bravo", x: 90, y: 40, width: 60, height: 14 },
-        { id: "c", type: "text", text: "Charlie", x: 170, y: 70, width: 60, height: 14 },
+        { id: "a", type: "text", value: "Alpha", x: 10, y: 10, width: 60, height: 14 },
+        { id: "b", type: "text", value: "Bravo", x: 90, y: 40, width: 60, height: 14 },
+        { id: "c", type: "text", value: "Charlie", x: 170, y: 70, width: 60, height: 14 },
       ] },
-      { id: "after", type: "text", text: "After the box" },
+      { id: "after", type: "text", value: "After the box" },
     ] }] });
     s.set({ canvasView: "pages", snap: false });
   });

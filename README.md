@@ -94,7 +94,17 @@ Step-by-step recipes: [Use cases](docs/USE_CASES.md).
 
 ## Use it from your app
 
-Render any template with one HTTP call, from any language:
+Drop a report viewer or the whole designer into your own pages, in any framework:
+
+```html
+<script type="module" src="http://localhost:4000/embed/open-reports.js"></script>
+<open-report-viewer template="invoice" parameters='{"invoiceId": 1042}'></open-report-viewer>
+<open-report-designer template="invoice"></open-report-designer>
+```
+
+The viewer shows a parameter form with Refresh, Print and PDF/Excel/CSV downloads; the designer reports saves back to your page. See [Embedding](docs/EMBEDDING.md).
+
+Or render any template with one HTTP call, from any language:
 
 ```bash
 curl -X POST http://localhost:4000/api/v1/render \
@@ -132,7 +142,7 @@ Data can come from inline JSON, CSV, REST APIs, PostgreSQL or MySQL. Everything 
 |---|---|
 | **Start** | [Getting started](docs/GETTING_STARTED.md) · [User guide](docs/USER_GUIDE.md) · [Use cases](docs/USE_CASES.md) · [Migrating from JasperReports](docs/JRXML_MIGRATION.md) |
 | **Run** | [Configuration](docs/CONFIGURATION.md) · [Deployment](docs/DEPLOYMENT.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) |
-| **Integrate** | [REST API](docs/API.md) · [Report definition](docs/REPORT_DEFINITION.md) · [AI and MCP](docs/AI_AND_MCP.md) |
+| **Integrate** | [Embedding](docs/EMBEDDING.md) · [REST API](docs/API.md) · [Report definition](docs/REPORT_DEFINITION.md) · [AI and MCP](docs/AI_AND_MCP.md) |
 | **Extend** | [Plugins](docs/PLUGIN_DEVELOPMENT.md) · [Architecture](docs/ARCHITECTURE.md) |
 
 ## Quality

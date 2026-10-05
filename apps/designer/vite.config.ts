@@ -8,7 +8,7 @@ export default defineConfig({
   // PDF.js 4 uses top-level await in its browser bundle and worker.
   build: { target: "es2022" },
   optimizeDeps: { esbuildOptions: { target: "es2022" } },
-  server: { proxy: { "/api": apiTarget, "/health": apiTarget } },
-  preview: { proxy: { "/api": apiTarget, "/health": apiTarget } },
+  server: { proxy: { "/api": apiTarget, "/health": apiTarget, "/embed": apiTarget } },
+  preview: { proxy: { "/api": apiTarget, "/health": apiTarget, "/embed": apiTarget } },
   test: { environment: "node", include: ["tests/unit/**/*.test.ts"] },
 });

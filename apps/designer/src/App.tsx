@@ -14,6 +14,7 @@ import { arrayRefs, datasetFields, scalarFields } from "./lib/fields";
 import { titleCase } from "./lib/lowcode";
 import * as ops from "./model/ops";
 import { handleShortcut } from "./lib/commands";
+import { startEmbedHost } from "./lib/embed-host";
 import { CanvasScenarioSwitch } from "./components/CanvasScenario";
 
 function GettingStartedHint() {
@@ -72,8 +73,15 @@ export default function App() {
   const showsRight = (mode === "design" || mode === "code") && rightOpen;
 
   useEffect(() => {
-    const draft = loadDraft();
     const s = useStore.getState();
+    // Embedded in another page: the host decides what to open, so skip the local draft and the home screen.
+    if (startEmbedHost()) {
+      s.refresh();
+      s.loadCapabilities();
+      s.loadBlocks();
+      return;
+    }
+    const draft = loadDraft();
     if (draft?.doc) {
       s.loadDoc(draft.doc, { dirty: draft.dirty ?? false }, draft.sample ?? {});
     } else {

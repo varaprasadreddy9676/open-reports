@@ -53,7 +53,7 @@ const TARGETS = [
 ];
 
 export function Toolbar() {
-  const { doc, meta, view, snap, past, future, engineBusy, target, mode, split } = useStore();
+  const { doc, meta, view, snap, past, future, engineBusy, target, mode, split, embedded } = useStore();
   const s = useStore.getState;
   const set = useStore((st) => st.set);
   const [menu, setMenu] = useState<null | "export" | "more" | "view">(null);
@@ -70,10 +70,10 @@ export function Toolbar() {
   return (
     <header className="toolbar" role="toolbar" aria-label="Main toolbar">
       <div className="brand">
-        <button className="home-nav" data-testid="btn-home" title="Go to Home" onClick={() => set({ home: true, dialog: null })}>
+        {!embedded && <button className="home-nav" data-testid="btn-home" title="Go to Home" onClick={() => set({ home: true, dialog: null })}>
           <span className="logo" aria-hidden="true">▤</span>
           <span>Home</span>
-        </button>
+        </button>}
         <span className="sep-slash">/</span>
         <input
           className="title-input"
@@ -144,7 +144,7 @@ export function Toolbar() {
               </label>
               <hr />
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "settings" }))}>Settings…</button>
-              <a role="menuitem" data-testid="menu-feedback" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(null)}>Send feedback ↗</a>
+              {!embedded && <a role="menuitem" data-testid="menu-feedback" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(null)}>Send feedback ↗</a>}
               <hr />
               <button role="menuitem" className="danger" disabled={!meta.id} onClick={() => (setMenu(null), deleteReport())}>Delete report</button>
             </div>
