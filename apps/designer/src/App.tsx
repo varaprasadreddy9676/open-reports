@@ -18,6 +18,18 @@ function isTyping(t: EventTarget | null): boolean {
   return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable;
 }
 
+function GettingStartedHint() {
+  const { doc, demoHint, mode } = useStore();
+  const set = useStore((s) => s.set);
+  if (mode !== "design") return null;
+  const blank = (doc.sections?.length ?? 0) === 1 && !doc.sections?.[0]?.children?.length && !doc.groups?.length;
+  if (!demoHint && !blank) return null;
+  return <div className="getting-started" role="status" data-testid="getting-started">
+    <div><strong>{demoHint === "edit" ? "Try one edit" : demoHint === "preview" ? "See the printable result" : "Start on the page"}</strong><span>{demoHint === "edit" ? "Click text on the invoice, then change it in the Content panel." : demoHint === "preview" ? "Your change is on the canvas. Check the PDF it produces." : "Add text from Components, or drag an item onto the page."}</span></div>
+    {demoHint === "preview" ? <button className="btn primary" onClick={() => set({ mode: "preview", demoHint: null })}>Preview PDF →</button> : blank ? <button className="btn primary" onClick={() => useStore.getState().addComponent("text")}>Add text</button> : <button className="mini" onClick={() => set({ demoHint: null })}>Dismiss</button>}
+  </div>;
+}
+
 export default function App() {
   const { mode, home, leftOpen, rightOpen, split, tableEditId } = useStore();
   const set = useStore((s) => s.set);
@@ -28,13 +40,23 @@ export default function App() {
     const draft = loadDraft();
     const s = useStore.getState();
     if (draft?.doc) {
-      s.loadDoc(draft.doc, {}, draft.sample ?? {});
+      s.loadDoc(draft.doc, { dirty: draft.dirty ?? false }, draft.sample ?? {});
     } else {
       s.refresh();
     }
     s.set({ home: true });
     s.loadCapabilities();
     s.loadBlocks();
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => {
+      const theme = useStore.getState().interfaceTheme;
+      if (theme === "system") useStore.getState().setInterfaceTheme(theme);
+    };
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
   }, []);
 
   useEffect(() => {
@@ -142,6 +164,7 @@ export default function App() {
             {rightOpen ? "›" : "‹"}
           </button>}
           {mode === "design" && <BandBar />}
+          {mode === "design" && <GettingStartedHint />}
           {mode === "design" && !split && <Canvas />}
           {mode === "design" && split && (
             <div className="split">

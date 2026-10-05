@@ -666,6 +666,7 @@ function TableProps({ comp }: { comp: ops.Comp }) {
         <button className="btn primary" data-testid="open-table-designer" onClick={() => useStore.getState().set({ tableEditId: comp.id })}>Edit table</button>
       </div>
       <Section title="Data" summary={comp.dataset || "Choose a dataset"}>
+        {refs.length === 0 && <div className="table-data-prompt"><p>No list data is available for this table yet.</p><button className="btn" data-testid="table-create-dataset" onClick={() => useStore.getState().set({ dialog: "dataset", editingDataset: null })}>Create dataset</button></div>}
         <Field label="Dataset">
           <select aria-label="Table dataset" data-testid="table-dataset" value={comp.dataset ?? ""} onChange={(e) => patch(comp.id, { dataset: e.target.value })}>
             <option value="">Choose...</option>

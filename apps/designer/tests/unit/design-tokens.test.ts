@@ -15,7 +15,7 @@ function block(css: string, selector: RegExp): Record<string, string> {
   return Object.fromEntries([...css.slice(open + 1, close).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()]));
 }
 const light = block(tokensCss, /:root\s*\{/);
-const dark = { ...light, ...block(tokensCss, /@media \(prefers-color-scheme: dark\)/) };
+const dark = { ...light, ...block(tokensCss, /:root\[data-ui-theme="dark"\]/) };
 
 function rgb(value: string): [number, number, number] {
   const hex = /^#([0-9a-f]{6})$/i.exec(value)?.[1];
@@ -47,7 +47,7 @@ describe("design tokens", () => {
   it("give every themed surface and status tone a dark-mode value", () => {
     const themed = ["--bg", "--panel", "--panel-2", "--border", "--border-strong", "--text", "--muted", "--accent", "--accent-soft", "--canvas",
       "--ok-soft", "--ok-text", "--warn-soft", "--warn-softer", "--warn-text", "--danger-soft", "--danger-line", "--danger-text", "--translucent-panel"];
-    const overridden = block(tokensCss, /@media \(prefers-color-scheme: dark\)/);
+    const overridden = block(tokensCss, /:root\[data-ui-theme="dark"\]/);
     expect(themed.filter((name) => !(name in overridden))).toEqual([]);
     // Paper is printed output and must stay white in dark mode.
     expect(Object.keys(overridden).filter((name) => name.startsWith("--paper"))).toEqual([]);

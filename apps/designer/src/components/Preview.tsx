@@ -45,6 +45,7 @@ export function PdfPreview({ compact = false }: { compact?: boolean }) {
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
+  const missingImage = error.match(/Image "([^"]+)" is not available on the reporting server/);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +105,7 @@ export function PdfPreview({ compact = false }: { compact?: boolean }) {
         {!compact && <><button className="btn" onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")} disabled={!url}>Open to print</button>
           <button className="btn" data-testid="download-pdf" disabled={!blob} onClick={() => blob && downloadBlob(blob, `${doc.id || "report"}.pdf`)}>Download PDF</button></>}
       </div>
-      {error ? <div className="field-error big" role="alert">{error}</div> : compact && url ? <iframe data-testid="structure-pdf-frame" title="PDF preview" src={url} /> : pdf ? <React.Suspense fallback={<div className="muted pad">Loading PDF viewer…</div>}><PdfDocumentView pdf={pdf} /></React.Suspense> : <div className="muted pad">Rendering...</div>}
+      {error ? <div className="preview-error" role="alert" data-testid="pdf-preview-error"><h2>{missingImage ? "Image unavailable" : "PDF preview could not be created"}</h2><p>{missingImage ? `The report server cannot read ${missingImage[1]}. Embed the image, or use a URL or server path it can reach.` : error}</p><button className="btn primary" onClick={() => useStore.getState().set({ mode: "design", bottom: "problems" })}>Back to design</button>{missingImage && <details><summary>Technical details</summary><code>{error}</code></details>}</div> : compact && url ? <iframe data-testid="structure-pdf-frame" title="PDF preview" src={url} /> : pdf ? <React.Suspense fallback={<div className="muted pad">Loading PDF viewer…</div>}><PdfDocumentView pdf={pdf} /></React.Suspense> : <div className="muted pad">Rendering...</div>}
     </div>
   );
 }
@@ -331,17 +332,19 @@ export function EscPosPreview({ design = false }: { design?: boolean }) {
 
 export function Preview() {
   const target = useStore((s) => s.target);
-  const targetTab = (["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as string[]).includes(target) ? target as PreviewTab : "pdf";
+  const printerType = useStore((s) => s.doc.print?.printerType);
+  const printerTab = printerType === "receipt" ? "escpos" : printerType === "label" || printerType === "card" || printerType === "wristband" ? "zpl" : null;
+  const targetTab = (["pdf", "html", "xlsx", "csv"] as string[]).includes(target) || target === printerTab ? target as PreviewTab : "pdf";
   const [tab, setTab] = useState<PreviewTab>(targetTab);
   useEffect(() => setTab(targetTab), [targetTab]);
   return (
     <div className="preview" data-testid="preview">
       <div className="tabs sub" role="tablist">
-        {(["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as const).map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`preview-tab-${t}`} onClick={() => setTab(t)}>
-            {t === "escpos" ? "ESC/POS" : t.toUpperCase()}
-          </button>
-        ))}
+        <span className="preview-tab-label">Document</span>
+        {(["pdf", "html"] as const).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`preview-tab-${t}`} onClick={() => setTab(t)}>{t.toUpperCase()}</button>)}
+        <span className="preview-tab-label">Data export</span>
+        {(["xlsx", "csv"] as const).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} data-testid={`preview-tab-${t}`} onClick={() => setTab(t)}>{t.toUpperCase()}</button>)}
+        {printerTab && <><span className="preview-tab-label">Printer</span><button role="tab" aria-selected={tab === printerTab} className={tab === printerTab ? "active" : ""} data-testid={`preview-tab-${printerTab}`} onClick={() => setTab(printerTab)}>{printerTab === "escpos" ? "ESC/POS" : "ZPL"}</button></>}
       </div>
       {tab === "pdf" && <PdfPreview />}
       {tab === "html" && <HtmlPreview />}

@@ -100,6 +100,10 @@ export function DatasetEditor() {
   const previewShape = parsedShape?.success ? parsedShape.data : undefined;
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  let jsonError = "";
+  if (kind === "inline" && data.trim()) {
+    try { JSON.parse(data); } catch (cause) { jsonError = `Data: ${(cause as Error).message}`; }
+  }
 
   const parseJson = (text: string, label: string) => {
     if (!text.trim()) return undefined;
@@ -190,6 +194,7 @@ export function DatasetEditor() {
           <span className="field-label">JSON (object or array)</span>
           <textarea className="mono" data-testid="dataset-json" rows={10} value={data} onChange={(e) => {
             setData(e.target.value);
+            setError("");
             setPreview(undefined);
             if (!hasSchema) {
               try {
@@ -198,6 +203,7 @@ export function DatasetEditor() {
               } catch { /* wait for valid JSON */ }
             }
           }} spellCheck={false} />
+          {jsonError && <span className="field-error" role="alert" data-testid="dataset-json-error">{jsonError}</span>}
         </label>
       )}
       {kind === "csv" && (
@@ -296,13 +302,13 @@ export function DatasetEditor() {
       {preview !== undefined && <ResultPreview value={preview} shape={previewShape} />}
       <div className="dialog-actions">
         <button className="btn" data-testid="dataset-test" onClick={test} disabled={busy}>
-          {busy ? "Testing..." : kind === "inline" ? "Preview" : "Test request"}
+          {busy ? "Testing..." : kind === "inline" ? "Preview data" : "Test request"}
         </button>
         <span className="spacer" />
         <button className="btn" onClick={() => useStore.getState().set({ dialog: null })}>
           Cancel
         </button>
-        <button className="btn primary" data-testid="dataset-save" onClick={save}>
+        <button className="btn primary" data-testid="dataset-save" onClick={save} disabled={Boolean(jsonError) || busy}>
           Save dataset
         </button>
       </div>

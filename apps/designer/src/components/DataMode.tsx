@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { datasetFields, datasetValue, type FieldNode } from "../lib/fields";
 import { DatasetEditor } from "./DatasetEditor";
@@ -25,9 +25,12 @@ export function SchemaTree({ nodes, onPick }: { nodes: FieldNode[]; onPick?: (pa
 /** Data mode: datasets as a first-class workspace, with the schema the report can bind to. */
 export function DataMode() {
   const [view, setView] = useState<"datasets" | "tests">("datasets");
-  const { doc, sample, editingDataset, parameters } = useStore();
+  const { doc, sample, editingDataset, parameters, dialog } = useStore();
   const set = useStore((s) => s.set);
   const datasets = (doc.datasets ?? []) as any[];
+  useEffect(() => {
+    if (!editingDataset && datasets.length && dialog !== "dataset") set({ editingDataset: datasets[0].id });
+  }, [dialog, editingDataset, datasets.length, set]);
   const current = datasets.find((d) => d.id === editingDataset);
   return (
     <div className="data-mode" data-testid="data-mode">

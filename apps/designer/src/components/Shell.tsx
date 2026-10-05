@@ -1,6 +1,6 @@
 import { ThemeDialogBody } from "./ThemeDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { loadDraft, useStore, type Mode } from "../store";
+import { loadDraft, requestReplaceReport, resolveReplaceReport, useStore, type Mode } from "../store";
 import { api, ApiError, settings, type TemplateRecord } from "../lib/api";
 import { STARTERS, blankReport } from "../lib/templates";
 import { generateReportFromJson } from "../lib/generate";
@@ -56,6 +56,7 @@ export function Toolbar() {
   const s = useStore.getState;
   const set = useStore((st) => st.set);
   const [menu, setMenu] = useState<null | "export" | "more" | "view">(null);
+  const printerFormat = doc.print?.printerType === "receipt" ? "escpos" : ["label", "card", "wristband"].includes(doc.print?.printerType ?? "") ? "zpl" : null;
   const close = React.useCallback(() => setMenu(null), []);
   useOutsideClose(menu !== null, close);
   useEffect(() => {
@@ -102,7 +103,7 @@ export function Toolbar() {
 
       <div className="toolbar-group right">
         <button className="btn toolbar-open" data-testid="btn-open" onClick={() => set({ dialog: "open" })}>Open</button>
-        <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview" })}>▶ Run preview</button>
+        <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview", demoHint: null })}>▶ Run preview</button>
         <button className="btn" data-testid="btn-save" onClick={() => s().save()}>Save</button>
         <button className="btn publish" data-testid="btn-publish" onClick={() => set({ dialog: "publish" })}>Publish</button>
         <div className="menu-wrap" onKeyDown={(e) => {
@@ -137,7 +138,7 @@ export function Toolbar() {
               <button role="menuitem" data-testid="btn-export" onClick={() => setMenu("export")}>Export…</button>
               <label className="menu-field">Output target
                 <select data-testid="target-select" value={target} onChange={(e) => (set({ target: e.target.value }), s().refresh())}>
-                  {TARGETS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  {TARGETS.filter((t) => t.id !== "zpl" && t.id !== "escpos" || t.id === printerFormat).map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
               </label>
               <hr />
@@ -150,7 +151,7 @@ export function Toolbar() {
           {menu === "export" && <div className="menu right" role="menu">
             <button role="menuitem" onClick={() => setMenu("more")}>← Report actions</button>
             <hr />
-            {(["pdf", "html", "xlsx", "csv", "zpl", "escpos"] as const).map((f) => (
+            {(["pdf", "html", "xlsx", "csv", ...(printerFormat ? [printerFormat] : [])] as ("pdf" | "html" | "xlsx" | "csv" | "zpl" | "escpos")[]).map((f) => (
               <button key={f} role="menuitem" data-testid={`export-${f}`} onClick={() => (setMenu(null), exportReport(f))}>
                 {f === "zpl" ? "ZPL label" : f === "escpos" ? "ESC/POS receipt" : f.toUpperCase()}
               </button>
@@ -208,8 +209,10 @@ function downloadDefinition() {
 function duplicateReport() {
   const s = useStore.getState();
   const copy = { ...structuredClone(s.doc), id: `${s.doc.id}-copy-${Date.now().toString(36).slice(-4)}`, name: `${s.doc.name} (copy)` };
-  s.loadDoc(copy);
-  s.toast("Duplicated - this copy is not saved yet");
+  requestReplaceReport(() => {
+    s.loadDoc(copy);
+    s.toast("Duplicated - this copy is not saved yet");
+  });
 }
 
 async function deleteReport() {
@@ -411,7 +414,7 @@ function Modal({ children, onClose, wide, label = "Report dialog", closable = tr
   const modal = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    (modal.current?.querySelector<HTMLElement>("[autofocus]") ?? closeButton.current)?.focus();
+    (modal.current?.querySelector<HTMLElement>("[data-default-focus]") ?? closeButton.current)?.focus();
     return () => previous?.focus();
   }, []);
   useEffect(() => {
@@ -460,8 +463,10 @@ function StarterChoices() {
   const [size, setSize] = useState(0);
   const groups = ["Documents", "Healthcare", "Printing", "Data"] as const;
   const create = (doc: any) => {
-    useStore.getState().loadDoc(doc);
-    set({ dialog: null, mode: "design" });
+    requestReplaceReport(() => {
+      useStore.getState().loadDoc(doc);
+      set({ dialog: null, mode: "design" });
+    });
   };
   const createBlank = () => {
     const selected = DOC_SIZES[size]!;
@@ -515,17 +520,22 @@ function StarterChoices() {
 export function HomeScreen() {
   const { doc, meta } = useStore();
   const set = useStore((s) => s.set);
+  const interfaceTheme = useStore((s) => s.interfaceTheme);
+  const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const hasDraft = Boolean(loadDraft()?.doc);
   const tryExample = (key: string) => {
     const example = STARTERS.find((item) => item.key === key);
     if (!example) return;
-    useStore.getState().loadDoc({ ...structuredClone(example.doc), id: `${example.doc.id}-${Date.now().toString(36).slice(-4)}` });
-    set({ mode: "design" });
+    requestReplaceReport(() => {
+      useStore.getState().loadDoc({ ...structuredClone(example.doc), id: `${example.doc.id}-${Date.now().toString(36).slice(-4)}` });
+      set({ mode: "design", demoHint: "edit" });
+    });
   };
   return <main className="home-screen" data-testid="home-screen">
     <header className="home-header">
       <div className="home-brand"><span className="logo" aria-hidden="true">▤</span><strong>Open Reports</strong></div>
       <div className="home-header-actions">
+        <label className="home-appearance">Appearance <select aria-label="Interface appearance" data-testid="home-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
         {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing ↗</button>}
         <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
       </div>
@@ -587,10 +597,12 @@ function JrxmlImportDialog() {
   };
   const apply = () => {
     if (!result?.report) return;
-    const state = useStore.getState();
-    state.loadDoc(result.report);
-    state.set({ migrationIssues: result.issues, bottom: "migration", dialog: null, mode: "design" });
-    state.toast("JRXML draft imported. Review migration issues before using the output.");
+    requestReplaceReport(() => {
+      const state = useStore.getState();
+      state.loadDoc(result.report!);
+      state.set({ migrationIssues: result.issues, bottom: "migration", dialog: null, mode: "design" });
+      state.toast("JRXML draft imported. Review migration issues before using the output.");
+    });
   };
   const pending = result?.issues.filter((issue) => issue.status !== "converted") ?? [];
   return <Modal wide label="Import JRXML" closable={!folderBusy} onClose={() => { if (!folderBusy) set({ dialog: null }); }}>
@@ -651,8 +663,10 @@ function GenerateDialog() {
           onClick={() => {
             try {
               const doc = generateReportFromJson(JSON.parse(json), name || "New report");
-              useStore.getState().loadDoc(doc);
-              useStore.getState().set({ dialog: null, mode: "design", leftTab: "data" });
+              requestReplaceReport(() => {
+                useStore.getState().loadDoc(doc);
+                useStore.getState().set({ dialog: null, mode: "design", leftTab: "data" });
+              });
             } catch (e) {
               setError((e as Error).message);
             }
@@ -703,12 +717,15 @@ function OpenDialog() {
 
 function SettingsDialog() {
   const set = useStore((s) => s.set);
+  const interfaceTheme = useStore((s) => s.interfaceTheme);
+  const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const [key, setKey] = useState(settings.apiKey);
   const [base, setBase] = useState(settings.apiBase);
   const [health, setHealth] = useState("");
   return (
     <Modal onClose={() => set({ dialog: null })}>
-      <h2>Server settings</h2>
+      <h2>Settings</h2>
+      <label className="field wide"><span className="field-label">Interface appearance</span><select aria-label="Interface appearance" data-testid="settings-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
       <label className="field wide">
         <span className="field-label">API base URL (blank = same origin / dev proxy)</span>
         <input value={base} onChange={(e) => setBase(e.target.value)} placeholder="http://localhost:4000" />
@@ -829,6 +846,7 @@ export function Dialogs() {
   const dialog = useStore((s) => s.dialog);
   const set = useStore((s) => s.set);
   if (!dialog) return null;
+  if (dialog === "replace") return <Modal label="Unsaved changes" onClose={() => resolveReplaceReport(false)}><h2>Replace this report?</h2><p className="muted">Your changes to <strong>{useStore.getState().doc.name || "Untitled report"}</strong> are saved only in this local draft. Opening another report will replace it.</p><div className="dialog-actions"><button className="btn" data-testid="replace-cancel" data-default-focus onClick={() => resolveReplaceReport(false)}>Keep editing</button><span className="spacer" /><button className="btn danger" data-testid="replace-confirm" onClick={() => resolveReplaceReport(true)}>Replace report</button></div></Modal>;
   if (dialog === "new") return <NewDialog />;
   if (dialog === "import-jrxml") return <JrxmlImportDialog />;
   if (dialog === "open") return <OpenDialog />;

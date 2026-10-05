@@ -19,6 +19,7 @@ export type CanvasView = "structure" | "pages";
 export type RulerUnit = "mm" | "cm" | "in" | "pt" | "px" | "dots";
 export type RulerOrigin = "page" | "printable" | "section" | "selection";
 export type SaveState = "saved" | "saving" | "dirty" | "error";
+export type InterfaceTheme = "light" | "dark" | "system";
 
 export interface HistoryEntry {
   doc: Doc;
@@ -80,6 +81,8 @@ interface State {
   lastCoalesce: { key: string; at: number } | null;
   mode: Mode;
   home: boolean;
+  interfaceTheme: InterfaceTheme;
+  demoHint: "edit" | "preview" | null;
   leftTab: LeftTab;
   reportInspectorTab: ReportInspectorTab;
   zoom: number;
@@ -126,7 +129,7 @@ interface State {
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "ai-settings" | "open" | "new" | "import-jrxml" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme";
+  dialog: null | "ai-settings" | "open" | "new" | "import-jrxml" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme" | "replace";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;
@@ -149,6 +152,7 @@ interface State {
   clearSample(id: string): void;
   setParameter(id: string, value: unknown): void;
   setMode(m: Mode): void;
+  setInterfaceTheme(theme: InterfaceTheme): void;
   set(partial: Partial<State>): void;
   toast(text: string, kind?: Toast["kind"]): void;
   refresh(): Promise<void>;
@@ -196,6 +200,32 @@ export function savePref(key: string, value: string): void {
   }
 }
 
+function savedInterfaceTheme(): InterfaceTheme {
+  const value = pref("interfaceTheme", "light");
+  return value === "dark" || value === "system" ? value : "light";
+}
+
+export function applyInterfaceTheme(theme: InterfaceTheme): void {
+  const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.uiTheme = dark ? "dark" : "light";
+}
+
+let pendingReplacement: { action: () => void | Promise<void>; previousDialog: State["dialog"] } | null = null;
+
+export function requestReplaceReport(action: () => void | Promise<void>): void {
+  const state = useStore.getState();
+  if (!state.meta.dirty) { void action(); return; }
+  pendingReplacement = { action, previousDialog: state.dialog };
+  state.set({ dialog: "replace" });
+}
+
+export function resolveReplaceReport(replace: boolean): void {
+  const pending = pendingReplacement;
+  pendingReplacement = null;
+  useStore.getState().set({ dialog: replace ? null : pending?.previousDialog ?? null });
+  if (replace && pending) void pending.action();
+}
+
 const DRAFT_KEY = "designer.draft";
 const CLIP_KEY = "designer.clipboard";
 
@@ -225,15 +255,15 @@ function scheduleAutosave() {
   }, 4000);
 }
 
-function persistDraft(doc: Doc, sample: Record<string, unknown>) {
+function persistDraft(doc: Doc, sample: Record<string, unknown>, dirty = false) {
   try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc, sample }));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc, sample, dirty }));
   } catch {
     /* storage unavailable */
   }
 }
 
-export function loadDraft(): { doc: Doc; sample: Record<string, unknown> } | undefined {
+export function loadDraft(): { doc: Doc; sample: Record<string, unknown>; dirty?: boolean } | undefined {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     return raw ? JSON.parse(raw) : undefined;
@@ -253,6 +283,8 @@ export const useStore = create<State>((set, get) => ({
   lastCoalesce: null,
   mode: "design",
   home: true,
+  interfaceTheme: savedInterfaceTheme(),
+  demoHint: null,
   leftTab: "insert",
   reportInspectorTab: "page",
   zoom: 1,
@@ -260,7 +292,7 @@ export const useStore = create<State>((set, get) => ({
   showGrid: false,
   snap: true,
   showRulers: true,
-  canvasView: pref("canvasView", "structure") as CanvasView,
+  canvasView: pref("canvasView", "pages") as CanvasView,
   previewSplit: false,
   showPagination: false,
   ghosts: 0,
@@ -314,8 +346,9 @@ export const useStore = create<State>((set, get) => ({
       lastCoalesce: opts.coalesce ? { key: opts.coalesce, at: now } : null,
       meta: { ...s.meta, dirty: true },
       saveState: "dirty",
+      demoHint: s.demoHint === "edit" ? "preview" : s.demoHint,
     });
-    persistDraft(doc, s.sample);
+    persistDraft(doc, s.sample, true);
     get().refresh();
     scheduleAutosave();
   },
@@ -324,8 +357,9 @@ export const useStore = create<State>((set, get) => ({
     const d = ops.ensureIds(doc);
     const hasStructure = (d.sections ?? []).length > 1 || (d.groups ?? []).length > 0 || (d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
     const printFirst = !!d.print?.printerType && d.print.printerType !== "document";
-    set({ doc: d, sample, home: false, selection: [], tableEditId: null, past: [], future: [], migrationIssues: d.migration?.issues ?? [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
-    persistDraft(d, sample);
+    const blank = !hasStructure && !(d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
+    set({ doc: d, sample, home: false, demoHint: null, selection: [], editingDataset: null, tableEditId: null, past: [], future: [], migrationIssues: d.migration?.issues ?? [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: meta.dirty ? "dirty" : "saved", showPagination: false, canvasView: blank ? "pages" : get().canvasView, fitToWidth: !blank, zoom: blank ? 0.8 : get().zoom });
+    persistDraft(d, sample, meta.dirty ?? false);
     get().refresh();
     get().syncLinkedBlocks();
   },
@@ -335,7 +369,7 @@ export const useStore = create<State>((set, get) => ({
     const prev = s.past[s.past.length - 1];
     if (!prev) return;
     set({ doc: prev.doc, past: s.past.slice(0, -1), future: [{ doc: s.doc, label: prev.label, at: Date.now() }, ...s.future], lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: "dirty" });
-    persistDraft(prev.doc, s.sample);
+    persistDraft(prev.doc, s.sample, true);
     get().refresh();
   },
 
@@ -344,7 +378,7 @@ export const useStore = create<State>((set, get) => ({
     const next = s.future[0];
     if (!next) return;
     set({ doc: next.doc, past: [...s.past, { doc: s.doc, label: next.label, at: Date.now() }], future: s.future.slice(1), lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: "dirty" });
-    persistDraft(next.doc, s.sample);
+    persistDraft(next.doc, s.sample, true);
     get().refresh();
   },
 
@@ -447,7 +481,7 @@ export const useStore = create<State>((set, get) => ({
   setSample(id, value) {
     const sample = { ...get().sample, [id]: value };
     set({ sample });
-    persistDraft(get().doc, sample);
+    persistDraft(get().doc, sample, get().meta.dirty);
     get().refresh();
   },
 
@@ -456,7 +490,7 @@ export const useStore = create<State>((set, get) => ({
     if (!(id in sample)) return;
     delete sample[id];
     set({ sample });
-    persistDraft(get().doc, sample);
+    persistDraft(get().doc, sample, get().meta.dirty);
     get().refresh();
   },
 
@@ -467,6 +501,12 @@ export const useStore = create<State>((set, get) => ({
 
   setMode(mode) {
     set({ mode, ...(mode !== "design" ? { tableEditId: null } : {}) });
+  },
+
+  setInterfaceTheme(theme) {
+    savePref("interfaceTheme", theme);
+    applyInterfaceTheme(theme);
+    set({ interfaceTheme: theme });
   },
 
   set(partial) {
@@ -512,6 +552,7 @@ export const useStore = create<State>((set, get) => ({
         }
       }
       set({ meta: { id: rec.id, version: rec.currentVersion, status: rec.status, dirty: false }, saveState: "saved" });
+      persistDraft(s.doc, s.sample, false);
       get().toast(`Saved as version ${rec.currentVersion}`, "success");
     } catch (e) {
       set({ saveState: "error" });
@@ -536,14 +577,16 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async openTemplate(id) {
-    try {
-      const tpl = await api.getTemplate(id);
-      const version = await api.getVersion(id, tpl.currentVersion);
-      get().loadDoc(version.definition, { id: tpl.id, version: tpl.currentVersion, status: version.status, dirty: false });
-      set({ dialog: null });
-    } catch (e) {
-      get().toast((e as Error).message, "error");
-    }
+    requestReplaceReport(async () => {
+      try {
+        const tpl = await api.getTemplate(id);
+        const version = await api.getVersion(id, tpl.currentVersion);
+        get().loadDoc(version.definition, { id: tpl.id, version: tpl.currentVersion, status: version.status, dirty: false });
+        set({ dialog: null });
+      } catch (e) {
+        get().toast((e as Error).message, "error");
+      }
+    });
   },
 
   openCode(id) {
