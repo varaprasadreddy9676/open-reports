@@ -198,9 +198,10 @@ Check these before assuming you broke something:
 - `apps/server/tests/server.test.ts`: "renders an editable Word document".
 - By hand: export from the designer (Export → Word) and open in Word, LibreOffice or Google Docs. Check headings in the navigation pane, header-row repeat on long tables, and live page numbers after editing.
 
-**Remaining separate feature**
+**Word document import**
 
-- **Templates designed in Word (the Carbone idea):** import a `.docx` as a starting layout. This is outside DOCX export.
+- **Starting layout:** `apps/designer/src/lib/docx-import.ts` reads a local `.docx` in the browser. It creates editable text, headings, embedded images, static tables with inline sample rows and common merges, page geometry, and standard/first/even headers and footers. Home and the report menu offer **Import Word document** and show conversion notes before replacing the current draft.
+- **Fidelity boundary:** this is a starting report, not a pixel-matched Word clone. Word fields, linked images, complex floating objects, charts, list numbering, and exact pagination require review or recreation. Import does not upload the file. A Word-authored variable-template system like Carbone is still a separate feature.
 
 ---
 

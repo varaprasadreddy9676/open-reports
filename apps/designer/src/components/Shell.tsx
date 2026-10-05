@@ -17,6 +17,7 @@ import { ShortcutSheet } from "./ShortcutSheet";
 import { COMMANDS, shortcutLabel } from "../lib/commands";
 import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 import { JrxmlFolderImport } from "./JrxmlFolderImport";
+import type { WordImportResult } from "../lib/docx-import";
 
 /** Opens the "I tried Open Reports" issue form on the upstream repository. */
 const FEEDBACK_URL = "https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml";
@@ -129,6 +130,7 @@ export function Toolbar() {
               <button role="menuitem" data-testid="btn-new" onClick={() => (setMenu(null), set({ dialog: "new" }))}>New report…</button>
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "open" }))}>Open…</button>
               <button role="menuitem" data-testid="menu-import-jrxml" onClick={() => (setMenu(null), set({ dialog: "import-jrxml" }))}>Import JRXML…</button>
+              <button role="menuitem" data-testid="menu-import-docx" onClick={() => (setMenu(null), set({ dialog: "import-docx" }))}>Import Word document…</button>
               <button role="menuitem" data-testid="menu-duplicate" onClick={() => (setMenu(null), duplicateReport())}>Duplicate report</button>
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "compare", compareVersion: null }))} disabled={!meta.id}>Compare versions…</button>
               <hr />
@@ -495,6 +497,10 @@ function StarterChoices() {
           <strong>Import JRXML</strong>
           <span>Open a JasperReports source file and review conversion issues</span>
         </button>
+        <button className="starter blank" data-testid="starter-docx" onClick={() => set({ dialog: "import-docx" })}>
+          <strong>Import Word document</strong>
+          <span>Turn a DOCX file into an editable report draft</span>
+        </button>
       </div>
       <input className="search" data-testid="starter-search" placeholder="Search templates (invoice, label, wristband…)" aria-label="Search templates" value={q} onChange={(e) => setQ(e.target.value)} />
       {groups.filter((g) => STARTERS.some((t) => t.group === g && `${t.name} ${t.description}`.toLowerCase().includes(q.toLowerCase()))).map((g) => (
@@ -625,6 +631,47 @@ function JrxmlImportDialog() {
     </div>}
     <div className="dialog-actions"><button className="btn" onClick={() => set({ dialog: null })}>Cancel</button><button className="btn primary" data-testid="apply-jrxml" disabled={!result?.report} onClick={apply}>Open editable draft</button></div>
     </> : <JrxmlFolderImport onBusyChange={setFolderBusy} />}
+  </Modal>;
+}
+
+function DocxImportDialog() {
+  const set = useStore((state) => state.set);
+  const [result, setResult] = useState<WordImportResult | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const read = async (file?: File) => {
+    setResult(null); setError("");
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { importDocx } = await import("../lib/docx-import");
+      setResult(await importDocx(file));
+    } catch (cause) {
+      setError((cause as Error).message || "This Word file could not be imported.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const apply = () => {
+    if (!result) return;
+    requestReplaceReport(() => {
+      const state = useStore.getState();
+      state.loadDoc(result.report);
+      state.set({ dialog: null, mode: "design" });
+      state.toast("Word draft imported. Review the layout and data before publishing.");
+    });
+  };
+  return <Modal wide label="Import Word document" closable={!busy} onClose={() => set({ dialog: null })}>
+    <h2>Import a Word document</h2>
+    <p className="muted">Choose a DOCX file to start an editable report. Paragraphs, tables and embedded images are converted locally in your browser. Review the result before publishing.</p>
+    <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" data-testid="docx-file" aria-label="Word document" disabled={busy} onChange={(event) => void read(event.target.files?.[0])} />
+    {busy && <p role="status">Reading Word document…</p>}
+    {error && <p className="err" role="alert">{error}</p>}
+    {result && <div className="jrxml-review" data-testid="docx-review">
+      <p><strong>{result.report.name}</strong> · {result.summary.paragraphs} paragraphs · {result.summary.tables} tables · {result.summary.images} images</p>
+      {result.warnings.length ? <div className="jrxml-review-list">{result.warnings.map((warning) => <div key={warning} className="migration-row"><span className="migration-status needs-review">Review</span><span>{warning}</span></div>)}</div> : <p className="muted">No conversion warnings. Check layout and sample data in Preview.</p>}
+    </div>}
+    <div className="dialog-actions"><button className="btn" onClick={() => set({ dialog: null })} disabled={busy}>Cancel</button><button className="btn primary" data-testid="apply-docx" disabled={!result || busy} onClick={apply}>Open editable draft</button></div>
   </Modal>;
 }
 
@@ -848,6 +895,7 @@ export function Dialogs() {
   if (dialog === "replace") return <Modal label="Unsaved changes" onClose={() => resolveReplaceReport(false)}><h2>Replace this report?</h2><p className="muted">Your changes to <strong>{useStore.getState().doc.name || "Untitled report"}</strong> are saved only in this local draft. Opening another report will replace it.</p><div className="dialog-actions"><button className="btn" data-testid="replace-cancel" data-default-focus onClick={() => resolveReplaceReport(false)}>Keep editing</button><span className="spacer" /><button className="btn danger" data-testid="replace-confirm" onClick={() => resolveReplaceReport(true)}>Replace report</button></div></Modal>;
   if (dialog === "new") return <NewDialog />;
   if (dialog === "import-jrxml") return <JrxmlImportDialog />;
+  if (dialog === "import-docx") return <DocxImportDialog />;
   if (dialog === "open") return <OpenDialog />;
   if (dialog === "settings") return <SettingsDialog />;
   if (dialog === "generate") return <GenerateDialog />;

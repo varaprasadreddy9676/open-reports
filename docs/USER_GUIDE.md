@@ -9,6 +9,8 @@ Open the designer (`http://localhost:3000`). Everything you do edits one JSON do
 4. Changing a total? Choose **fx Formula → Builder**: pick *Quantity × Rate* from dropdowns. Switch to **Formula** for the raw expression; autocomplete and errors appear as you type.
 5. **Preview** shows the real PDF. Use **Pages** for thumbnails, enter a page number, choose **Fit page**, **Fit width** or a zoom level, and use **Find** to locate text on a page. PDF text can be selected and copied in Preview, and Find highlights phrases split between PDF text items. Only the current page and nearby thumbnails are drawn in long reports. **Open to print** opens the PDF in the browser's viewer; **Download PDF** saves the same generated file shown in Preview. **More report actions → Export** also gives HTML, Excel, CSV or a ZPL label. **Save** keeps a version. **Publish** opens a review: run validation and boundary-data checks, inspect the generated PDF, review warnings, and enter version notes. Critical errors block publishing; published versions never change.
 
+**Starting from Word:** choose **Import Word document** on Home or in **More report actions**. Select a `.docx` file and review the conversion notes before opening the draft. Text, headings, embedded images, static tables, page size, and standard/first/even headers and footers become editable report content. Imported table rows are sample data; connect them to your real dataset before publishing. Word's exact spacing, columns, fields, and floating objects need review in Preview. The file is read in your browser and is not uploaded during import.
+
 ## 2. The workspace
 | Area | What it does |
 |---|---|
