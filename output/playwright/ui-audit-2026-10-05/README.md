@@ -10,7 +10,7 @@ Source: https://open-reports-demo.onrender.com/ on the Render free service.
 4. A blank A4 report opens on a page view with an Add text prompt.
 5. In a 1280px viewport, a new table has a canvas-level data prompt even when Properties is collapsed. Inline JSON can be created, selected for the table, and used to generate columns and rows.
 
-The JPG files capture key states from the live browser after the final deploy. The empty-table screenshot shows the canvas-level data prompt with Properties collapsed; the populated-table screenshot shows the generated row.
+The JPG files capture key states from the live browser. The table screenshots were refreshed after the final deploy: the empty state shows the canvas-level data prompt with Properties collapsed, and the populated state shows the generated row.
 
 ## Follow-up research
 
