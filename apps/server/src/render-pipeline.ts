@@ -2,7 +2,7 @@ import { refreshLinkedBlocks, type BlockLookup } from "./linked-blocks.js";
 import { randomUUID } from "node:crypto";
 import { parseReportDefinition, type ReportDefinition } from "@reporting/schema";
 import { importJrxml } from "@reporting/jrxml-import";
-import { DataSourceRegistry, resolveReport, validateReport, type SubreportSource } from "@reporting/core";
+import { applyViewerState, DataSourceRegistry, resolveReport, validateReport, type SubreportSource, type ViewerState } from "@reporting/core";
 import type { RenderResult } from "@reporting/core";
 import { createDefaultDataSourceRegistry } from "./datasources.js";
 import type { ReportRenderer } from "@reporting/core";
@@ -27,6 +27,8 @@ export interface RunRenderInput {
   subreports?: Record<string, { jrxml?: string; report?: unknown; data?: Record<string, unknown> }>;
   /** Reject PDF/HTML output with pagination warnings that can lose content. Defaults to true. */
   strict?: boolean;
+  /** Interactive viewer choices (sorting) applied to the definition before it is validated and resolved. */
+  viewerState?: unknown;
 }
 
 export interface RunRenderOutput {
@@ -91,7 +93,8 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
     throw new RenderPipelineError("Report definition failed validation.", "VALIDATION_FAILED", 400, validation.issues);
   }
 
-  const report = withInlineData(parsed.report, input.data);
+  // Viewer choices (sorting, drill-down) are applied after validation, to the parsed definition.
+  const report = withInlineData(applyViewerState(parsed.report, parseViewerState(input.viewerState)), input.data);
   const subreports: Record<string, SubreportSource> = {};
   for (const [id, source] of Object.entries(input.subreports ?? {})) {
     if (!source || typeof source !== "object") throw new RenderPipelineError(`Invalid subreport source "${id}".`, "INVALID_REPORT", 400);
@@ -156,4 +159,16 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
 
 function describeError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** Accepts only well-formed viewer state from a request body; anything else is ignored. */
+export function parseViewerState(value: unknown): ViewerState | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const { sort, toggle } = value as { sort?: unknown; toggle?: unknown };
+  const sorts = (Array.isArray(sort) ? sort : []).slice(0, 10).filter((entry): entry is NonNullable<ViewerState["sort"]>[number] =>
+    !!entry && typeof entry === "object" && typeof entry.component === "string" && typeof entry.column === "string" && (entry.direction === "asc" || entry.direction === "desc"));
+  const toggles = (Array.isArray(toggle) ? toggle : []).slice(0, 50).filter((entry): entry is NonNullable<ViewerState["toggle"]>[number] =>
+    !!entry && typeof entry === "object" && typeof entry.component === "string" && Array.isArray(entry.keys) && entry.keys.length <= 10_000 && entry.keys.every((key: unknown) => typeof key === "string"));
+  if (!sorts.length && !toggles.length) return undefined;
+  return { ...(sorts.length ? { sort: sorts } : {}), ...(toggles.length ? { toggle: toggles } : {}) };
 }

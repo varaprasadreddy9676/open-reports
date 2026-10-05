@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ruleSchema } from "./rules.js";
-import { componentBaseSchema, dimensionSchema, styleWhenSchema, tableStylesSchema } from "./common.js";
+import { componentBaseSchema, dimensionSchema, linkSchema, styleWhenSchema, tableStylesSchema } from "./common.js";
 
 const valueOrBindingOrExpression = z.object({
   value: z.unknown().optional(),
@@ -95,6 +95,8 @@ export const tableColumnSchema = z.object({
   format: z.string().optional(),
   /** Merge consecutive rows with the same value into one cell, inside the merges of columns to the left; continues across pages. */
   mergeRepeated: z.boolean().optional(),
+  /** Make each cell in this column a link, e.g. drill through to the record's own report. */
+  link: linkSchema.optional(),
   /** Per-cell rules (the cell's raw value is `value`): set `style.*` or `text`. A rule setting `visible` hides the whole column and cannot depend on the row. */
   rules: z.array(ruleSchema).optional(),
   footer: z.object({
@@ -257,6 +259,8 @@ export const crosstabComponentSchema = componentBaseSchema.extend({
   totalLabel: z.string().optional().default("Total"),
   /** Most column values to show; the rest are left out with a warning. */
   maxColumns: z.number().int().positive().optional().default(60),
+  /** Order the rows by a generated column instead of by row headings, e.g. [{ binding: "row.t0", direction: "desc" }] for the largest totals first. */
+  sortBy: z.array(z.object({ binding: z.string(), direction: z.enum(["asc", "desc"]).default("asc") })).optional(),
   tableStyle: z.string().optional(),
   styles: tableStylesSchema.optional(),
   repeatHeaderOnPageBreak: z.boolean().optional().default(true),
@@ -326,6 +330,8 @@ export const groupComponentSchema = componentBaseSchema.extend({
   sortDirection: z.enum(["asc", "desc"]).optional().default("asc"),
   pageBreakBeforeGroup: z.boolean().optional(),
   keepGroupTogether: z.boolean().optional(),
+  /** Let viewers expand and collapse each group's rows. Headers and footers (subtotals) always show; PDFs print the initial state. */
+  drillDown: z.enum(["expanded", "collapsed"]).optional(),
   header: z.array(componentSchema).default([]),
   children: z.array(componentSchema).default([]),
   footer: z.array(componentSchema).default([]),

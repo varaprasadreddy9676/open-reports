@@ -105,6 +105,20 @@ export const styleWhenSchema = z.array(
 );
 
 /** Common properties every component may declare, regardless of type. */
+/**
+ * Make an element (or a table column's cells) clickable. Exactly one of:
+ * - `url`: a fixed http(s), mailto or tel link;
+ * - `expression`: a link computed per record, e.g. `"https://track.example.com/" + row.awb`;
+ * - `report` (+ `parameters`, each an expression): drill through to another report in the viewer.
+ */
+export const linkSchema = z.object({
+  url: z.string().optional(),
+  expression: z.string().optional(),
+  report: z.string().optional(),
+  parameters: z.record(z.string(), z.string()).optional(),
+}).refine((link) => [link.url, link.expression, link.report].filter((part) => part !== undefined).length === 1, { message: "A link needs exactly one of url, expression or report." });
+export type LinkDefinition = z.infer<typeof linkSchema>;
+
 export const componentBaseSchema = z.object({
   id: z.string().optional(),
   /** Friendly name shown in the designer's layer tree. */
@@ -136,6 +150,7 @@ export const componentBaseSchema = z.object({
   /** Name of a text style in `theme.textStyles`, applied beneath this component's own style. */
   textStyle: z.string().optional(),
   styleWhen: styleWhenSchema.optional(),
+  link: linkSchema.optional(),
   visibleWhen: z.string().optional(),
   /** Conditional property overrides, evaluated in order (see rules.ts). */
   rules: rulesSchema.optional(),

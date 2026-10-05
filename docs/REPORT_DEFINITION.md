@@ -194,6 +194,24 @@ A `crosstab` summarises a dataset: distinct values of `rows` down the side, of `
 - **In the designer.** Add **Crosstab** from the Data group, then choose a dataset: rows, columns and a sum are filled in from its fields, and can be changed in the inspector.
 - **From JasperReports.** JRXML crosstabs import as crosstabs: row and column groups, measures (Sum, Count, Average, Lowest, Highest) and totals. Cell layouts, colours and number patterns are listed for review.
 
+### Links and drill-through
+
+Any element, and any table column (one link per cell), can take a `link` with exactly one of:
+
+```json
+"link": { "url": "https://example.com/help" }
+"link": { "expression": "\"https://track.example.com/\" + row.awb" }
+"link": { "report": "invoice", "parameters": { "invoiceId": "row.id" } }
+```
+
+- `url` and `expression` may produce `http`, `https`, `mailto` or `tel` links; anything else (`javascript:`, `data:`, `file:`) is left out with a `LINK_BLOCKED` warning. They are clickable in PDF and HTML.
+- `report` links drill through: the report viewer opens that template with the parameters evaluated for the clicked record, with a Back button. PDFs leave them out.
+- In the designer: **Content → Link** on text, fields and images.
+
+### Drill-down groups
+
+`group` takes `drillDown: "expanded"` or `"collapsed"`. The report viewer then shows ▸/▾ beside each group header; toggling re-renders with that group's rows shown or hidden, and headers and footers (subtotals) always print. PDFs and other exports use the current state. In the designer: **Grouping → In the report viewer**.
+
 ## Reusable blocks
 
 - **Report-local blocks.** `fragments` holds reusable component groups for one report. A `{ "type": "fragment", "ref": "<id>" }` component prints one.

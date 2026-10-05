@@ -21,7 +21,12 @@ Two custom elements put reports and the designer inside any web page, in any fra
 It renders the latest **published** version of the template, with:
 
 - a form for the report's parameters (text, number, date, choice lists), pre-filled from the report's defaults and the `parameters` attribute;
-- **Refresh**, **Print** and **Download** buttons (`downloads` chooses the formats: `pdf`, `xlsx`, `csv`, `html`, `zpl`, `escpos`).
+- **Refresh**, **Print** and **Download** buttons (`downloads` chooses the formats: `pdf`, `xlsx`, `csv`, `html`, `zpl`, `escpos`);
+- **Find in report**, with every match highlighted and Enter / Shift+Enter (or ‹ ›) to step through them;
+- **Contents**: a sidebar built from the report's bookmarks;
+- **Click-to-sort columns**: click a table or crosstab heading to sort ascending, again for descending. The server re-lays the report, so page breaks and totals stay right, and downloads use the same order;
+- **Drill-down**: groups with `drillDown` show ▸/▾ beside each group header to show or hide that group's rows (headers and subtotals stay);
+- **Drill-through**: elements and table cells with a `report` link open that report in the viewer, with its parameters filled in, and **← Back** returns.
 
 | Attribute | Meaning |
 |---|---|
@@ -33,7 +38,7 @@ It renders the latest **published** version of the template, with:
 | `hide-parameters` | Hide the parameter form. |
 | `api-key` | Sent as `X-API-Key` when the server has API keys enabled. Prefer a key limited to rendering. |
 
-Events (they bubble): `report-rendered` (`detail.parameters`, `detail.version`) and `report-error` (`detail.message`).
+Events (they bubble): `report-rendered` (`detail.template`, `detail.parameters`, `detail.version`, `detail.sort`), `report-drill` (`detail.template`, `detail.parameters`) and `report-error` (`detail.message`).
 
 From JavaScript:
 
@@ -42,6 +47,8 @@ const viewer = document.querySelector("open-report-viewer").viewer;
 await viewer.refresh({ invoiceId: 1043 });
 await viewer.download("pdf");
 viewer.print();
+await viewer.drill({ report: "invoice", parameters: { invoiceId: 1043 } });
+await viewer.back();
 ```
 
 Style it with CSS custom properties (`--or-accent`, `--or-border`, `--or-bg`, `--or-text`) or the `::part(toolbar)`, `::part(page)` selectors. The viewer lives in a shadow root, so your page's CSS cannot break it.

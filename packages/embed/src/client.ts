@@ -61,13 +61,15 @@ export interface RenderRequest {
   version?: number;
   parameters?: Record<string, unknown>;
   data?: Record<string, unknown>;
+  /** Interactive choices such as a column sort, applied by the server before layout. */
+  viewerState?: { sort?: { component: string; column: string; direction: "asc" | "desc" }[]; toggle?: { component: string; keys: string[] }[] };
 }
 
 export async function renderTemplate(options: ServerOptions, request: RenderRequest): Promise<Blob> {
   const response = await fetch(url(options, `/api/v1/templates/${encodeURIComponent(request.template)}/render`), {
     method: "POST",
     headers: headers(options, true),
-    body: JSON.stringify({ format: request.format, version: request.version, parameters: request.parameters, data: request.data }),
+    body: JSON.stringify({ format: request.format, version: request.version, parameters: request.parameters, data: request.data, viewerState: request.viewerState }),
   });
   if (!response.ok) throw await failure(response);
   return response.blob();

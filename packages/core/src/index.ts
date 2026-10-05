@@ -22,3 +22,5 @@ export * from "./table-header.js";
 export * from "./table-cell-spans.js";
 export * from "./table-rules.js";
 export { pivotCrosstab, type PivotResult, type CrosstabDefinition } from "./crosstab.js";
+export { resolveLink, type ResolvedLink } from "./links.js";
+export { applyViewerState, type ViewerState } from "./viewer-state.js";

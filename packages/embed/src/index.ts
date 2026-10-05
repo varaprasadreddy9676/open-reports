@@ -6,6 +6,7 @@ export { createViewer, type Viewer, type ViewerOptions } from "./viewer.js";
 export { createDesigner, type Designer, type DesignerOptions } from "./designer.js";
 export { fetchTemplateVersion, renderTemplate, ReportServerError, type OutputFormat, type ServerOptions } from "./client.js";
 export { PROTOCOL, isEmbedMessage, type DesignerToHost, type HostToDesigner } from "./protocol.js";
+export { contentsOf, highlight, clearHighlights, type ContentsEntry, type DrillTarget, type SortState } from "./interactive.js";
 
 const parseJson = (value: string | null): Record<string, unknown> | undefined => {
   if (!value) return undefined;

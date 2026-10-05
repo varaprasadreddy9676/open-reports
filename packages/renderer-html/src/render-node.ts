@@ -6,7 +6,40 @@ import { barcodeDataUrl, qrCodeDataUrl } from "./codes.js";
 import { chartTitle, renderChartSvg } from "./chart.js";
 import { cssBox, objectFitFor, ptToPx, styleToCss } from "./style.js";
 
+interface LinkLike {
+  href: string;
+  report?: { id: string; parameters: Record<string, unknown> };
+}
+
+/** Wraps already-escaped content in a link: web links open in a new tab; report links carry their target for viewers. */
+function linked(link: LinkLike | undefined, inner: string): string {
+  if (!link) return inner;
+  const href = escapeHtml(link.href);
+  if (link.report) return `<a class="or-drill" href="${href}" data-report="${escapeHtml(link.report.id)}" data-parameters="${escapeHtml(JSON.stringify(link.report.parameters))}">${inner}</a>`;
+  return `<a href="${href}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
+}
+
+/** An invisible anchor where a bookmarked element starts, for a viewer's document map. */
+function bookmarkMarker(node: PositionedNode): string {
+  const component = node.component as any;
+  if (!component.bookmark || (node.textFragment && node.textFragment.startLine !== 0)) return "";
+  const title = typeof component.bookmark === "string" ? component.bookmark : String(component.text ?? component.id ?? "").trim();
+  if (!title) return "";
+  return `<span class="or-bookmark" data-bookmark="${escapeHtml(title)}" data-bookmark-level="${Math.max(1, Math.min(4, Number(component.bookmarkLevel) || 1))}" style="position:absolute;left:${ptToPx(node.box.x).toFixed(2)}px;top:${ptToPx(node.box.y).toFixed(2)}px;width:0;height:0;"></span>`;
+}
+
+/** A drill-down group header gets an expand/collapse button; viewers attach the click (the report has no scripts). */
+function drillToggle(node: PositionedNode): string {
+  const toggle = (node.component as any).drillToggle as { component: string; key: string; collapsed: boolean } | undefined;
+  if (!toggle || (node.textFragment && node.textFragment.startLine !== 0)) return "";
+  return `<button type="button" class="or-toggle" data-group="${escapeHtml(toggle.component)}" data-key="${escapeHtml(toggle.key)}" aria-expanded="${!toggle.collapsed}" aria-label="${toggle.collapsed ? "Expand" : "Collapse"} ${escapeHtml(toggle.key)}" style="left:${(ptToPx(node.box.x) - 18).toFixed(2)}px;top:${ptToPx(node.box.y).toFixed(2)}px;">${toggle.collapsed ? "▸" : "▾"}</button>`;
+}
+
 export async function renderNode(node: PositionedNode): Promise<string> {
+  return bookmarkMarker(node) + drillToggle(node) + (await renderNodeBody(node));
+}
+
+async function renderNodeBody(node: PositionedNode): Promise<string> {
   const component = node.component as any;
   const boxStyle = cssBox(node.box);
   const style = styleToCss(component.style);
@@ -17,12 +50,12 @@ export async function renderNode(node: PositionedNode): Promise<string> {
     case "field": {
       const shift = textVerticalOffset(node);
       const alignTop = shift > 0 ? `;padding-top:${ptToPx(edgesOf(component.style?.padding).top + shift).toFixed(2)}px` : "";
-      return `<div style="${boxStyle}white-space:pre-wrap;line-height:${ptToPx(node.textMetrics?.lineHeight ?? 13).toFixed(2)}px;${style}${alignTop}">${escapeHtml(node.renderText ?? node.textFragment?.text ?? component.text ?? "")}</div>`;
+      return `<div style="${boxStyle}white-space:pre-wrap;line-height:${ptToPx(node.textMetrics?.lineHeight ?? 13).toFixed(2)}px;${style}${alignTop}">${linked(component.link, escapeHtml(node.renderText ?? node.textFragment?.text ?? component.text ?? ""))}</div>`;
     }
 
     case "image":
       return component.src
-        ? `<img src="${escapeHtml(component.src)}" alt="${escapeHtml(component.alt ?? "")}" style="${boxStyle}object-fit:${objectFitFor(component.fit)};" />`
+        ? linked(component.link, `<img src="${escapeHtml(component.src)}" alt="${escapeHtml(component.alt ?? "")}" style="${boxStyle}object-fit:${objectFitFor(component.fit)};" />`)
         : `<div style="${boxStyle}"></div>`;
 
     case "line": {
@@ -80,9 +113,13 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
   const spanGrid = tableCellSpanGrid(table.cellSpans ?? []);
 
   const headerHeights = measureHeaderRowHeights(table, widths, defaultTextMeasurer);
+  const headerGrid = tableHeaderRows(table);
+  // A header cell that sits over exactly one column and reaches the body names that column, so viewers can sort by it.
+  const sortableColumn = (cell: { column: number; colSpan?: number; rowSpan?: number }, row: number) =>
+    (cell.colSpan ?? 1) === 1 && row + (cell.rowSpan ?? 1) === headerGrid.length && table.columns[cell.column]?.id ? ` data-column="${escapeHtml(table.columns[cell.column]!.id)}"` : "";
   const headerBorder = lines === "all" || (table.headerRows && lines !== "none") ? `border:${rule};` : lines === "none" ? "border:none;" : `border-bottom:${rule};`;
   const headerRow = table.showHeader
-    ? `<thead>${tableHeaderRows(table).map((cells, row) => `<tr style="height:${ptToPx(headerHeights[row]!).toFixed(2)}px">${cells.map((cell) => `<th${cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ""}${cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ""} style="text-align:${cell.align ?? "left"};${headerBorder}padding:2px 4px;font-weight:400;${styleToCss(styles.header as Record<string, unknown>)}">${escapeHtml(cell.text)}</th>`).join("")}</tr>`).join("")}</thead>`
+    ? `<thead>${headerGrid.map((cells, row) => `<tr style="height:${ptToPx(headerHeights[row]!).toFixed(2)}px">${cells.map((cell) => `<th${sortableColumn(cell, row)}${cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ""}${cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ""} style="text-align:${cell.align ?? "left"};${headerBorder}padding:2px 4px;font-weight:400;${styleToCss(styles.header as Record<string, unknown>)}">${escapeHtml(cell.text)}</th>`).join("")}</tr>`).join("")}</thead>`
     : "";
 
   const bodyRows = table.rows
@@ -96,7 +133,7 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
           const slot = spanGrid.get(index)?.get(column);
           if (slot && !slot.anchor) return "";
           const cellRule = lines === "all" || (slot && lines !== "none") ? `border:${rule};` : rowRule;
-          return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;white-space:pre-wrap;${cellRule}${row.cellStyles?.[c.id] ? `${styleToCss(row.cellStyles[c.id])};` : ""}">${escapeHtml(row.formatted[c.id] ?? "")}</td>`;
+          return `<td${slot && (slot.span.colSpan ?? 1) > 1 ? ` colspan="${slot.span.colSpan}"` : ""}${slot && (slot.span.rowSpan ?? 1) > 1 ? ` rowspan="${slot.span.rowSpan}"` : ""} style="text-align:${c.align ?? "left"};padding:2px 4px;white-space:pre-wrap;${cellRule}${row.cellStyles?.[c.id] ? `${styleToCss(row.cellStyles[c.id])};` : ""}">${linked(row.links?.[c.id], escapeHtml(row.formatted[c.id] ?? ""))}</td>`;
         })
         .join("")}</tr>`;
     })
@@ -107,5 +144,5 @@ function renderTable(table: ResolvedTableComponent, node: PositionedNode, boxSty
     ? `<tfoot><tr style="height:${ptToPx(measureFooterHeight(table, defaultTextMeasurer)).toFixed(2)}px">${table.columns.map((c) => `<td style="${footerBorder}padding:2px 4px;${styleToCss(styles.footer as Record<string, unknown>)}">${escapeHtml(c.footer?.value ?? "")}</td>`).join("")}</tr></tfoot>`
     : "";
 
-  return `<div style="${boxStyle}${lines === "all" ? `outline:${rule};` : ""}"><table style="border-collapse:collapse;width:100%;">${colgroup}${headerRow}<tbody>${bodyRows}</tbody>${footerRow}</table></div>`;
+  return `<div style="${boxStyle}${lines === "all" ? `outline:${rule};` : ""}"><table${table.id ? ` data-component="${escapeHtml(table.id)}"` : ""} style="border-collapse:collapse;width:100%;">${colgroup}${headerRow}<tbody>${bodyRows}</tbody>${footerRow}</table></div>`;
 }

@@ -81,12 +81,19 @@ function addBookmark(ctx: DrawContext, component: any, node: PositionedNode): vo
   void node;
 }
 
+/** A clickable area for web links. Drill-through `report:` links only work in a viewer, so a PDF leaves them out. */
+function addLink(doc: DrawContext["doc"], link: { href?: string; report?: unknown } | undefined, x: number, y: number, width: number, height: number): void {
+  if (!link?.href || link.report || !/^(https?:|mailto:|tel:)/i.test(link.href)) return;
+  doc.link(x, y, width, height, link.href);
+}
+
 export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<void> {
   const component = node.component as any;
   const { doc } = ctx;
   const style = component.style ?? {};
 
   if (component.bookmark && (!node.textFragment || node.textFragment.startLine === 0)) addBookmark(ctx, component, node);
+  addLink(doc, component.link, node.box.x, node.box.y, node.box.width, node.box.height);
 
   switch (component.type) {
     case "text":
@@ -254,6 +261,7 @@ function drawTable(ctx: DrawContext, table: ResolvedTableComponent, node: Positi
         underline: Boolean(cellStyle.underline),
         strike: Boolean(cellStyle.strikethrough),
       }, ctx.defaultFamily, isBold(cellStyle), Boolean(cellStyle.italic));
+      addLink(doc, row.links?.[col.id], x, rowYs.get(i)!, cellWidth, cellHeight);
       x += widths[ci]!.width;
     });
     if (lines === "horizontal" && i < end - 1) { stroke(); doc.moveTo(left, rowYs.get(i)! + rowHeights[i]!).lineTo(right, rowYs.get(i)! + rowHeights[i]!).stroke(); }

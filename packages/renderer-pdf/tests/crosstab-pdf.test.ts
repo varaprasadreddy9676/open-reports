@@ -38,3 +38,22 @@ describe("crosstab in PDF", () => {
     expect(pages.at(-1)).toContain("Total");
   });
 });
+
+describe("links in PDF", () => {
+  it("adds clickable web links for elements and table cells, and leaves out drill-through links", async () => {
+    const parsed = parseReportDefinition({
+      schemaVersion: "1.0", id: "l", name: "l",
+      datasets: [{ id: "o", source: "inline", query: { data: [{ id: 7, site: "https://example.com/orders/7" }] } }],
+      sections: [{ type: "detail", children: [
+        { type: "text", value: "Help", link: { url: "https://example.com/help" } },
+        { type: "table", dataset: "o", columns: [{ id: "order", header: "Order", binding: "row.id", link: { expression: "row.site" } }, { id: "invoice", header: "Invoice", binding: "row.id", link: { report: "invoice", parameters: { invoiceId: "row.id" } } }] },
+      ] }],
+    });
+    if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
+    const p = await resolveReport(parsed.report, { registry, parameters: {} });
+    const pdf = ((await new PdfRenderer().render({ resolved: p.resolved, resolvePageSection: p.resolvePageSection })).content as Buffer).toString("latin1");
+    expect(pdf).toContain("https://example.com/help");
+    expect(pdf).toContain("https://example.com/orders/7");
+    expect(pdf).not.toContain("report:invoice");
+  });
+});

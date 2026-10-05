@@ -1,3 +1,4 @@
+import type { ResolvedLink } from "./links.js";
 /**
  * The Resolved Report Tree: the normalized, renderer-neutral structure
  * produced by the pipeline (schema validation -> parameter resolution ->
@@ -81,6 +82,10 @@ export interface ResolvedComponentBase {
   exports?: Record<string, unknown>;
   bookmark?: boolean | string;
   bookmarkLevel?: number;
+  /** Clickable link (see links.ts). */
+  link?: ResolvedLink;
+  /** On a drill-down group's first header element: which group and key it expands or collapses. */
+  drillToggle?: { component: string; key: string; collapsed: boolean };
   /** Present on the container that represents one printed instance of a report band. */
   band?: BandMeta;
 }
@@ -198,6 +203,8 @@ export interface ResolvedTableRow {
   style?: Record<string, unknown>;
   /** Per-cell style from column rules, keyed by column id; applied over the row style. */
   cellStyles?: Record<string, Record<string, unknown>>;
+  /** Per-cell links from column `link`s, keyed by column id. */
+  links?: Record<string, ResolvedLink>;
   /** Set by pagination when rows were split: the source row whose zebra stripe this row uses. */
   stripeIndex?: number;
   /** Set by pagination on the continuation part of a row split across pages. */

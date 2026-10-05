@@ -9,6 +9,7 @@ import { BandProps } from "./BandProps";
 import { FormulaInput } from "./FormulaInput";
 import { InspectorSection as Section } from "./InspectorSection";
 import { CrosstabProps } from "./CrosstabProps";
+import { LinkProps } from "./LinkProps";
 import { removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
 import { textStyleFromStyle } from "../lib/theme-edit";
@@ -1465,6 +1466,7 @@ function ComponentProps({ id }: { id: string }) {
       {tab === "content" && t === "labelSheet" && <LabelSheetProps comp={comp} />}
       {tab === "content" && (t === "qrcode" || t === "barcode") && <CodeProps comp={comp} />}
       {tab === "content" && t === "image" && <ImageProps comp={comp} />}
+      {tab === "content" && (textLike || t === "image") && <LinkProps comp={comp} />}
       {tab === "content" && t === "pageBreak" && <p className="inspector-empty">Content after this element starts on a new page.</p>}
       {tab === "content" && t === "line" && <p className="inspector-empty">Drag the line on the canvas to place it.</p>}
       {tab === "layout" && hasLayout && <LayoutProps comp={comp} />}
@@ -1478,6 +1480,13 @@ function ComponentProps({ id }: { id: string }) {
         <Section title="Grouping">
           <Field label="Group by (expression)">
             <FormulaInput value={comp.groupBy ?? ""} candidates={candidatesFor(doc, useStore.getState().sample, comp.id, comp.dataset)} onChange={(v) => useStore.getState().patch(comp.id, { groupBy: v })} />
+          </Field>
+          <Field label="In the report viewer">
+            <select aria-label="Drill-down" value={comp.drillDown ?? ""} onChange={(e) => useStore.getState().patch(comp.id, { drillDown: e.target.value || undefined })}>
+              <option value="">Always show rows</option>
+              <option value="expanded">Expandable, open at first</option>
+              <option value="collapsed">Expandable, closed at first</option>
+            </select>
           </Field>
         </Section>
       )}

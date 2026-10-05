@@ -50,6 +50,11 @@ export class HtmlRenderer implements ReportRenderer {
   body { margin: 0; background: #e5e5e5; font-family: ${bodyFont}; }
   .watermark { position: absolute; left: 50%; top: 50%; font-weight: bold; white-space: nowrap; pointer-events: none; user-select: none; }
   .page { position: relative; background: #fff; margin: 0 auto 16px auto; overflow: hidden; box-shadow: 0 0 4px rgba(0,0,0,0.2); }
+  a { color: inherit; }
+  a.or-drill { text-decoration: underline dotted; text-underline-offset: 2px; }
+  .or-toggle { position: absolute; width: 16px; height: 16px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: #2563eb; font: 12px/16px sans-serif; cursor: pointer; }
+  .or-toggle:hover { background: #eaf1ff; }
+  @media print { .or-toggle { display: none; } }
   @media print {
     body { background: #fff; }
     .page { margin: 0; box-shadow: none; page-break-after: always; }

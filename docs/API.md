@@ -11,7 +11,7 @@ Errors are JSON: `{ "error": { "code": "VALIDATION_FAILED", "message": "…", "d
 | `POST /api/v1/templates` | Create a template `{ id, name, definition }` (version 1, draft) |
 | `PUT /api/v1/templates/:id` | New draft version `{ definition }` |
 | `POST /api/v1/templates/:id/versions/:n/publish` | Publish (immutable from then on) |
-| `POST /api/v1/templates/:id/render` | Render the latest **published** version (or `version: n`): `{ format, parameters?, data? }` |
+| `POST /api/v1/templates/:id/render` | Render the latest **published** version (or `version: n`): `{ format, parameters?, data?, viewerState? }`. `viewerState` carries viewer choices applied before layout: `{ sort: [{ component, column, direction }], toggle: [{ component, keys }] }` |
 | `GET /api/v1/templates` · `/:id` · `/:id/versions` · `/:id/versions/:n` · `DELETE /:id` | Browse and manage |
 | `POST /api/v1/render/jobs` → `GET /api/v1/render/jobs/:id` → `GET …/output` · `DELETE …/:id` | Async render: poll status, download, cancel |
 | `POST /api/v1/validate` | Schema + semantic validation |

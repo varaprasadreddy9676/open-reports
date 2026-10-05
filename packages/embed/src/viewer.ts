@@ -1,5 +1,6 @@
 import { fetchTemplateVersion, renderTemplate, type OutputFormat, type ServerOptions } from "./client.js";
 import { coerceParameter, initialParameters, type ParameterDefinition } from "./params.js";
+import { contentsOf, enableDrillDown, enableDrillThrough, enableSorting, focusHit, highlight, type DrillTarget, type SortState } from "./interactive.js";
 import { VIEWER_STYLES } from "./styles.js";
 
 export interface ViewerOptions extends ServerOptions {
@@ -22,8 +23,25 @@ export interface Viewer {
   refresh(parameters?: Record<string, unknown>): Promise<void>;
   download(format: OutputFormat): Promise<void>;
   print(): void;
+  /** Open another report in this viewer (what a drill-through link does); Back returns. */
+  drill(target: DrillTarget): Promise<void>;
+  back(): Promise<void>;
   readonly parameters: Record<string, unknown>;
+  /** The template currently shown (changes on drill-through). */
+  readonly template: string;
   destroy(): void;
+}
+
+/** One report shown in the viewer; drilling through pushes a new one. */
+interface Place {
+  template: string;
+  version?: number;
+  title: string;
+  definitions: ParameterDefinition[];
+  values: Record<string, unknown>;
+  sort?: SortState;
+  /** Drill-down groups flipped from their initial state, by group component id. */
+  toggled: Map<string, Set<string>>;
 }
 
 const LABELS: Record<OutputFormat, string> = { pdf: "PDF", html: "HTML", xlsx: "Excel", csv: "CSV", zpl: "ZPL", escpos: "ESC/POS" };
@@ -73,9 +91,10 @@ function readForm(form: HTMLFormElement, definitions: ParameterDefinition[]): Re
 }
 
 /**
- * Renders a published report inside `host` with a parameter form, Refresh, Print and Download buttons.
+ * Renders a published report inside `host` with a parameter form, Refresh, Print, Download, find-in-report,
+ * a contents sidebar from the report's bookmarks, click-to-sort table headers and drill-through links.
  * Everything lives in a shadow root, so the host page's CSS cannot break it and it cannot break the page.
- * Emits `report-rendered` and `report-error` events on `host`.
+ * Emits `report-rendered`, `report-drill` and `report-error` events on `host`.
  */
 export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer {
   const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
@@ -83,6 +102,12 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
   const style = element("style");
   style.textContent = VIEWER_STYLES;
   const shell = element("div", { class: "viewer", part: "viewer" });
+
+  const crumbs = element("nav", { class: "crumbs", "aria-label": "Report trail", hidden: "" });
+  const backButton = element("button", { type: "button", class: "back" }, "← Back");
+  const trail = element("span", { class: "trail" });
+  crumbs.append(backButton, trail);
+
   const form = element("form", { class: "toolbar", part: "toolbar", "aria-label": "Report parameters" });
   const fields = element("div", { class: "params" });
   const actions = element("div", { class: "actions" });
@@ -94,16 +119,37 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
     button.addEventListener("click", () => void viewer.download(format));
     actions.append(button);
   }
-  const status = element("div", { class: "status", role: "status", "aria-live": "polite" });
-  const frame = element("iframe", { class: "page", part: "page", title: "Report", sandbox: "allow-same-origin allow-modals" });
   form.append(fields, actions);
-  shell.append(form, status, frame);
+
+  const tools = element("div", { class: "tools" });
+  const contentsButton = element("button", { type: "button", class: "contents-toggle", "aria-expanded": "false", hidden: "" }, "☰ Contents");
+  const find = element("div", { class: "find", role: "search" });
+  const query = element("input", { type: "search", placeholder: "Find in report", "aria-label": "Find in report" });
+  const previous = element("button", { type: "button", "aria-label": "Previous match" }, "‹");
+  const next = element("button", { type: "button", "aria-label": "Next match" }, "›");
+  const count = element("span", { class: "count", "aria-live": "polite" });
+  find.append(query, previous, next, count);
+  tools.append(contentsButton, find);
+
+  const status = element("div", { class: "status", role: "status", "aria-live": "polite" });
+  const body = element("div", { class: "body" });
+  const contents = element("aside", { class: "contents", "aria-label": "Contents", hidden: "" });
+  // allow-same-origin lets the viewer read and decorate the report; no allow-scripts, so the report runs no code.
+  const frame = element("iframe", { class: "page", part: "page", title: "Report", sandbox: "allow-same-origin allow-modals allow-popups allow-popups-to-escape-sandbox" });
+  body.append(contents, frame);
+  shell.append(crumbs, form, tools, status, body);
   root.append(style, shell);
 
-  let definitions: ParameterDefinition[] = [];
-  let version = options.version;
-  let values: Record<string, unknown> = { ...(options.parameters ?? {}) };
+  const history: Place[] = [];
+  let place: Place = { template: options.template, version: options.version, title: options.template, definitions: [], values: { ...(options.parameters ?? {}) }, toggled: new Map() };
+  const viewerState = () => {
+    const toggle = [...place.toggled].filter(([, keys]) => keys.size).map(([component, keys]) => ({ component, keys: [...keys] }));
+    return place.sort || toggle.length ? { ...(place.sort ? { sort: [place.sort] } : {}), ...(toggle.length ? { toggle } : {}) } : undefined;
+  };
+  let hits: HTMLElement[] = [];
+  let hitIndex = -1;
   let destroyed = false;
+  let renderCount = 0;
 
   const setStatus = (text: string, kind: "busy" | "error" | "" = "") => {
     status.textContent = text;
@@ -115,29 +161,101 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
     host.dispatchEvent(new CustomEvent("report-error", { detail: { message }, bubbles: true, composed: true }));
   };
 
-  const ready = (async () => {
-    const loaded = await fetchTemplateVersion(options, options.template, options.version);
-    version = loaded.version;
-    definitions = loaded.definition.parameters ?? [];
-    values = initialParameters(definitions, options.parameters);
-    if (!options.hideParameters) for (const definition of definitions) fields.append(field(definition, values[definition.id]));
-  })();
+  const showParameters = () => {
+    fields.replaceChildren();
+    if (!options.hideParameters) for (const definition of place.definitions) fields.append(field(definition, place.values[definition.id]));
+  };
+  const showTrail = () => {
+    crumbs.hidden = history.length === 0;
+    trail.textContent = [...history, place].map((entry) => entry.title).join(" › ");
+  };
+
+  /** Loads a template's parameters into `place`. */
+  const load = async (target: Place) => {
+    const loaded = await fetchTemplateVersion(options, target.template, target.version);
+    target.version = loaded.version;
+    target.title = loaded.definition.name ?? target.template;
+    target.definitions = loaded.definition.parameters ?? [];
+    target.values = initialParameters(target.definitions, target.values);
+  };
+
+  const runSearch = () => {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    hits = highlight(doc, query.value);
+    hitIndex = hits.length ? 0 : -1;
+    focusHit(hits, hitIndex);
+    count.textContent = query.value.trim() ? (hits.length ? `1 of ${hits.length}` : "No matches") : "";
+  };
+  const step = (direction: 1 | -1) => {
+    if (!hits.length) return runSearch();
+    hitIndex = (hitIndex + direction + hits.length) % hits.length;
+    focusHit(hits, hitIndex);
+    count.textContent = `${hitIndex + 1} of ${hits.length}`;
+  };
+
+  const showContents = (doc: Document) => {
+    const entries = contentsOf(doc);
+    contentsButton.hidden = entries.length === 0;
+    contents.replaceChildren(...entries.map((entry) => {
+      const item = element("button", { type: "button", class: `entry level-${entry.level}` }, entry.title);
+      item.addEventListener("click", () => entry.target.scrollIntoView({ block: "start" }));
+      return item;
+    }));
+    if (!entries.length) {
+      contents.hidden = true;
+      contentsButton.setAttribute("aria-expanded", "false");
+    }
+  };
+
+  /** Called once the rendered HTML has loaded in the frame. */
+  const decorate = () => {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    showContents(doc);
+    enableSorting(doc, place.sort, (sort) => {
+      place.sort = sort;
+      void viewer.refresh();
+    });
+    enableDrillThrough(doc, (target) => void viewer.drill(target));
+    enableDrillDown(doc, (component, key) => {
+      const keys = place.toggled.get(component) ?? new Set<string>();
+      if (keys.has(key)) keys.delete(key);
+      else keys.add(key);
+      place.toggled.set(component, keys);
+      void viewer.refresh();
+    });
+    if (query.value.trim()) runSearch();
+  };
+  frame.addEventListener("load", decorate);
 
   const viewer: Viewer = {
     get parameters() {
-      return { ...values };
+      return { ...place.values };
     },
-    async refresh(next) {
+    get template() {
+      return place.template;
+    },
+    async refresh(nextValues) {
+      const ticket = ++renderCount;
       try {
         await ready;
-        if (next) values = { ...values, ...next };
-        else if (!options.hideParameters) values = { ...values, ...readForm(form, definitions) };
+        if (nextValues) place.values = { ...place.values, ...nextValues };
+        else if (!options.hideParameters) place.values = { ...place.values, ...readForm(form, place.definitions) };
         setStatus("Rendering…", "busy");
-        const html = await (await renderTemplate(options, { template: options.template, version, format: "html", parameters: values, data: options.data })).text();
-        if (destroyed) return;
+        const blob = await renderTemplate(options, {
+          template: place.template,
+          version: place.version,
+          format: "html",
+          parameters: place.values,
+          data: history.length ? undefined : options.data,
+          viewerState: viewerState(),
+        });
+        const html = await blob.text();
+        if (destroyed || ticket !== renderCount) return;
         frame.srcdoc = html;
         setStatus("");
-        host.dispatchEvent(new CustomEvent("report-rendered", { detail: { parameters: { ...values }, version }, bubbles: true, composed: true }));
+        host.dispatchEvent(new CustomEvent("report-rendered", { detail: { template: place.template, parameters: { ...place.values }, version: place.version, sort: place.sort }, bubbles: true, composed: true }));
       } catch (error) {
         fail(error);
       }
@@ -146,8 +264,8 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
       try {
         await ready;
         setStatus(`Preparing ${LABELS[format]}…`, "busy");
-        const blob = await renderTemplate(options, { template: options.template, version, format, parameters: values, data: options.data });
-        const link = element("a", { href: URL.createObjectURL(blob), download: `${options.template}.${EXTENSIONS[format]}` });
+        const blob = await renderTemplate(options, { template: place.template, version: place.version, format, parameters: place.values, data: history.length ? undefined : options.data, viewerState: viewerState() });
+        const link = element("a", { href: URL.createObjectURL(blob), download: `${place.template}.${EXTENSIONS[format]}` });
         link.click();
         setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
         setStatus("");
@@ -159,17 +277,59 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
     },
+    async drill(target) {
+      try {
+        const next: Place = { template: target.report, title: target.report, definitions: [], values: { ...target.parameters }, toggled: new Map() };
+        setStatus("Opening…", "busy");
+        await load(next);
+        history.push(place);
+        place = next;
+        showParameters();
+        showTrail();
+        host.dispatchEvent(new CustomEvent("report-drill", { detail: { template: place.template, parameters: { ...place.values } }, bubbles: true, composed: true }));
+        await viewer.refresh(place.values);
+      } catch (error) {
+        fail(error);
+      }
+    },
+    async back() {
+      const previousPlace = history.pop();
+      if (!previousPlace) return;
+      place = previousPlace;
+      showParameters();
+      showTrail();
+      await viewer.refresh(place.values);
+    },
     destroy() {
       destroyed = true;
       root.replaceChildren();
     },
   };
 
+  const ready = (async () => {
+    await load(place);
+    showParameters();
+    showTrail();
+  })();
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void viewer.refresh();
   });
   print.addEventListener("click", () => viewer.print());
+  backButton.addEventListener("click", () => void viewer.back());
+  contentsButton.addEventListener("click", () => {
+    contents.hidden = !contents.hidden;
+    contentsButton.setAttribute("aria-expanded", String(!contents.hidden));
+  });
+  query.addEventListener("input", runSearch);
+  query.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    step(event.shiftKey ? -1 : 1);
+  });
+  previous.addEventListener("click", () => step(-1));
+  next.addEventListener("click", () => step(1));
   ready.then(() => viewer.refresh(), fail);
   return viewer;
 }

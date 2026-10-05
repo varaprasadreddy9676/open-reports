@@ -256,9 +256,9 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   // --- Inline render ---
   app.post("/api/v1/render", async (request, reply) => {
-    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; subreports?: Record<string, { jrxml?: string; report?: unknown; data?: Record<string, unknown> }>; strict?: boolean };
+    const body = request.body as { report: unknown; format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; subreports?: Record<string, { jrxml?: string; report?: unknown; data?: Record<string, unknown> }>; strict?: boolean; viewerState?: unknown };
     try {
-      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data, subreports: body.subreports, strict: body.strict }, runtime);
+      const { result, renderId } = await runRender({ report: body.report, format: body.format, parameters: body.parameters, data: body.data, subreports: body.subreports, strict: body.strict, viewerState: body.viewerState }, runtime);
       reply
         .header("content-type", result.mimeType)
         .header("x-render-id", renderId)
@@ -364,7 +364,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   // --- Template render ---
   app.post("/api/v1/templates/:id/render", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = request.body as { format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; version?: number; strict?: boolean };
+    const body = request.body as { format: string; parameters?: Record<string, unknown>; data?: Record<string, unknown>; version?: number; strict?: boolean; viewerState?: unknown };
 
     const version = body.version !== undefined ? await storage.getVersion(id, body.version) : await storage.getLatestPublishedVersion(id);
     if (!version) {
@@ -374,7 +374,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     }
 
     try {
-      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters, data: body.data, strict: body.strict }, runtime);
+      const { result, renderId } = await runRender({ report: version.definition, format: body.format, parameters: body.parameters, data: body.data, strict: body.strict, viewerState: body.viewerState }, runtime);
       reply.header("content-type", result.mimeType).header("x-render-id", renderId).send(result.content);
     } catch (err) {
       sendRenderError(reply, err);

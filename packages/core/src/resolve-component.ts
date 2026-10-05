@@ -15,6 +15,8 @@ import type {
 } from "./resolved-report.js";
 import { aggregate } from "./aggregate.js";
 import { pivotCrosstab, type CrosstabDefinition } from "./crosstab.js";
+import { resolveLink, type ResolvedLink } from "./links.js";
+import type { LinkDefinition } from "@reporting/schema";
 import { combineTableSpans, repeatedValueSpans, tableCellSpanErrors, tableCellSpanGrid, type TableCellSpanDefinition } from "./table-cell-spans.js";
 import { evaluateRowVariables, computeGroupVariables } from "./variables.js";
 import { applyCellRules, applyRowRules, hiddenColumns, withoutColumns } from "./table-rules.js";
@@ -182,6 +184,18 @@ function base(component: Component) {
 }
 
 function resolveComponent(definition: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | ResolvedComponent[] | null {
+  const resolved = resolveComponentBody(definition, ctx, env);
+  if (!resolved || !definition.link || definition.type === "table" || definition.type === "crosstab") return resolved;
+  const link = linkFor(definition.link, ctx, env, definition.id);
+  if (!link) return resolved;
+  return Array.isArray(resolved) ? resolved.map((item) => ({ ...item, link })) : { ...resolved, link };
+}
+
+function linkFor(link: LinkDefinition, ctx: ResolveContext, env: ResolveEnv, componentId?: string) {
+  return resolveLink(link, (expression) => env.engine.evaluate(expression, ctx), (message) => env.warnings.push({ code: "LINK_BLOCKED", path: env.path, componentId, message }));
+}
+
+function resolveComponentBody(definition: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | ResolvedComponent[] | null {
   if (definition.hidden) return null;
   const ruled = applyOwnRules(definition, ctx, {
     engine: env.engine, warnings: env.warnings, decisions: env.decisions,
@@ -465,8 +479,14 @@ function resolveTable(definition: Component, ctx: ResolveContext, env: ResolveEn
       const cellStyle = themeStyle(cell.style, env, component.id);
       if (cellStyle && Object.keys(cellStyle).length) cellStyles[id] = cellStyle;
     });
+    const links: Record<string, ResolvedLink> = {};
+    (component.columns ?? []).forEach((col: any, i: number) => {
+      if (!col.link) return;
+      const link = linkFor(col.link, rowCtx, env, component.id);
+      if (link) links[columns[i]!.id] = link;
+    });
     kept.push(row);
-    return [{ raw, formatted, style: themedRowStyle && Object.keys(themedRowStyle).length ? themedRowStyle : undefined, ...(Object.keys(cellStyles).length ? { cellStyles } : {}) }];
+    return [{ raw, formatted, style: themedRowStyle && Object.keys(themedRowStyle).length ? themedRowStyle : undefined, ...(Object.keys(cellStyles).length ? { cellStyles } : {}), ...(Object.keys(links).length ? { links } : {}) }];
   });
   rows = kept;
 
@@ -604,8 +624,15 @@ function buildGroupInstance(
   const groupVars = computeGroupVariables(env.variables, env.engine, ctx, datasetId, rows);
   const groupCtx: ResolveContext = { ...ctx, row: rows[0], vars: { ...ctx.vars, ...groupVars } };
 
-  const header = resolveComponents(component.header ?? [], groupCtx, env);
-  const children = rows.flatMap((row) => resolveComponents(component.children ?? [], { ...toRowContext(ctx, row), vars: { ...ctx.vars, ...groupVars } }, env));
+  let header = resolveComponents(component.header ?? [], groupCtx, env);
+  // Drill-down: the report's initial state, flipped for the keys a viewer toggled. Collapsed groups keep header and footer.
+  let collapsed = false;
+  if (component.drillDown) {
+    const toggled = ((component.drillToggled as string[] | undefined) ?? []).includes(String(key));
+    collapsed = (component.drillDown === "collapsed") !== toggled;
+    if (header[0] && component.id) header = [{ ...header[0], drillToggle: { component: component.id, key: String(key), collapsed } }, ...header.slice(1)];
+  }
+  const children = collapsed ? [] : rows.flatMap((row) => resolveComponents(component.children ?? [], { ...toRowContext(ctx, row), vars: { ...ctx.vars, ...groupVars } }, env));
   const footer = resolveComponents(component.footer ?? [], groupCtx, env);
 
   return { key, header, children, footer };
