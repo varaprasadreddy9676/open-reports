@@ -9,6 +9,8 @@ import type { Proposal } from "./lib/ai";
 import { blankReport } from "./lib/templates";
 import { api, ApiError } from "./lib/api";
 import { loadCanvasFonts } from "./lib/fonts";
+import { disintegrate } from "./lib/dust";
+import { scenarioSample, type CanvasScenario } from "./lib/canvas-scenario";
 import type { MigrationIssue } from "@reporting/jrxml-import";
 
 export type Mode = "design" | "data" | "code" | "preview";
@@ -55,6 +57,8 @@ export interface Toast {
   id: number;
   kind: "info" | "error" | "success";
   text: string;
+  /** One follow-up action, e.g. Undo after a delete. */
+  action?: { label: string; run: () => void };
 }
 
 export interface DropPrompt {
@@ -110,6 +114,8 @@ interface State {
   migrationIssues: MigrationIssue[];
   target: string;
   sampleRows: number;
+  /** A disposable data scenario shown on the canvas only (see CanvasScenario); exports and saves keep the real sample. */
+  canvasScenario: CanvasScenario | null;
   saveState: SaveState;
   capabilities?: Capabilities;
   blocks: Block[];
@@ -126,10 +132,12 @@ interface State {
   focusCanvas: boolean;
   focusRestore: { leftOpen: boolean; rightOpen: boolean; bottom: BottomPanel } | null;
   engine: EngineResult;
+  /** The document `engine` was laid out from; the canvas shows newer geometry optimistically until layout catches up. */
+  engineDoc?: Doc;
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "ai-settings" | "open" | "new" | "import-jrxml" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme" | "replace";
+  dialog: null | "ai-settings" | "open" | "new" | "import-jrxml" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme" | "replace" | "shortcuts";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;
@@ -154,7 +162,7 @@ interface State {
   setMode(m: Mode): void;
   setInterfaceTheme(theme: InterfaceTheme): void;
   set(partial: Partial<State>): void;
-  toast(text: string, kind?: Toast["kind"]): void;
+  toast(text: string, kind?: Toast["kind"], action?: Toast["action"]): void;
   refresh(): Promise<void>;
   save(): Promise<void>;
   publish(notes: string): Promise<boolean>;
@@ -308,6 +316,7 @@ export const useStore = create<State>((set, get) => ({
   migrationIssues: [],
   target: "pdf",
   sampleRows: 0,
+  canvasScenario: null,
   saveState: "saved",
   capabilities: undefined,
   blocks: [],
@@ -358,7 +367,7 @@ export const useStore = create<State>((set, get) => ({
     const hasStructure = (d.sections ?? []).length > 1 || (d.groups ?? []).length > 0 || (d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
     const printFirst = !!d.print?.printerType && d.print.printerType !== "document";
     const blank = !hasStructure && !(d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
-    set({ doc: d, sample, home: false, demoHint: null, selection: [], editingDataset: null, tableEditId: null, past: [], future: [], migrationIssues: d.migration?.issues ?? [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: meta.dirty ? "dirty" : "saved", showPagination: false, canvasView: blank ? "pages" : get().canvasView, fitToWidth: !blank, zoom: blank ? 0.8 : get().zoom });
+    set({ doc: d, sample, home: false, demoHint: null, selection: [], editingDataset: null, tableEditId: null, past: [], future: [], migrationIssues: d.migration?.issues ?? [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: meta.dirty ? "dirty" : "saved", showPagination: false, canvasScenario: null, canvasView: blank ? "pages" : get().canvasView, fitToWidth: !blank, zoom: blank ? 0.8 : get().zoom });
     persistDraft(d, sample, meta.dirty ?? false);
     get().refresh();
     get().syncLinkedBlocks();
@@ -409,8 +418,17 @@ export const useStore = create<State>((set, get) => ({
   removeSelected() {
     const s = get();
     if (!s.selection.length) return;
-    get().setDoc(ops.remove(s.doc, s.selection));
+    const ids = s.selection.filter((id) => ops.find(s.doc, id));
+    if (!ids.length) return;
+    disintegrate(ids);
+    get().setDoc(ops.remove(s.doc, ids));
     set({ selection: [] });
+    const afterDelete = get().doc;
+    get().toast(ids.length === 1 ? "Deleted 1 element" : `Deleted ${ids.length} elements`, "info", {
+      label: "Undo",
+      // Only undo the delete itself; after other edits, Undo would revert those instead.
+      run: () => (get().doc === afterDelete ? get().undo() : get().toast("Other changes were made since the delete. Use Undo in the toolbar to step back.")),
+    });
   },
 
   duplicateSelected() {
@@ -513,10 +531,11 @@ export const useStore = create<State>((set, get) => ({
     set({ ...partial, ...(partial.mode && partial.mode !== "design" ? { tableEditId: null } : {}) } as any);
   },
 
-  toast(text, kind = "info") {
+  toast(text, kind = "info", action) {
     const id = toastId++;
-    set({ toasts: [...get().toasts, { id, kind, text }] });
-    setTimeout(() => set({ toasts: get().toasts.filter((t) => t.id !== id) }), kind === "error" ? 6000 : 2800);
+    set({ toasts: [...get().toasts, { id, kind, text, ...(action ? { action } : {}) }] });
+    // Toasts with an action stay long enough to reach the button.
+    setTimeout(() => set({ toasts: get().toasts.filter((t) => t.id !== id) }), kind === "error" || action ? 6000 : 2800);
   },
 
   async refresh() {
@@ -524,16 +543,18 @@ export const useStore = create<State>((set, get) => ({
     const run = ++engineRun;
     set({ engineBusy: true });
     timer = setTimeout(async () => {
-      const { doc: realDoc, aiProposal, sample, parameters, sampleRows, target, capabilities, ghosts } = get();
+      const { doc: realDoc, aiProposal, sample: realSample, parameters, sampleRows, target, capabilities, ghosts, canvasScenario } = get();
       // While an AI proposal awaits approval the canvas shows the proposed result; nothing is committed until Accept.
       const doc = aiProposal?.doc ?? realDoc;
+      const sample = scenarioSample(doc, realSample, canvasScenario);
       const result = await runEngine(doc, sample, parameters, { sampleRows, target, capabilities, ghosts }, (estimate) => {
-        if (run === engineRun && estimate.paginated) set({ engine: estimate });
+        if (run === engineRun && estimate.paginated) set({ engine: estimate, engineDoc: aiProposal ? undefined : doc });
       });
       if (run === engineRun) {
         // On a schema/engine error keep showing the last good render, with fresh problems alongside it.
         const prev = get().engine;
-        set({ engine: result.paginated ? result : { ...prev, problems: result.problems }, engineBusy: false });
+        // A layout of an AI proposal is not a layout of `doc`, so no optimistic deltas apply to it.
+        set(result.paginated ? { engine: result, engineDoc: aiProposal ? undefined : doc, engineBusy: false } : { engine: { ...prev, problems: result.problems }, engineBusy: false });
       }
     }, 60);
   },

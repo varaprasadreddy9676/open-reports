@@ -16,7 +16,10 @@ import { BandChrome, GuideLayer } from "./BandLayer";
 import { StructureBreakLayer, StructurePageStrip } from "./StructurePagination";
 import { PageBreakDetails } from "./PageBreakDetails";
 import { EscPosPreview, PdfPreview } from "./Preview";
-import { fitZoom } from "../lib/zoom";
+import { fitZoom, restoreZoomAnchor, zoomCanvas } from "../lib/zoom";
+import { wheelZoom } from "../lib/viewport";
+import { geometryDeltas, type GeometryDelta } from "../lib/optimistic-geometry";
+import { measureBetween } from "../lib/measure";
 import { useCanvasPan } from "../lib/use-canvas-pan";
 import { AutoLayoutHandles } from "./AutoLayoutHandles";
 import { minorStep, snapToGrid } from "../lib/grid";
@@ -116,6 +119,25 @@ function shiftedChildren(nodes: PositionedNode[] | undefined, dx: number, dy: nu
   return nodes?.map((node) => ({ ...node, box: { ...node.box, x: node.box.x + dx, y: node.box.y + dy }, children: shiftedChildren(node.children, dx, dy) }));
 }
 
+type Deltas = Map<string, GeometryDelta>;
+const NO_DELTAS: Deltas = new Map();
+
+/** Applies edits the layout has not caught up with yet (see optimistic-geometry). */
+function optimisticNode(node: PositionedNode, deltas: Deltas): PositionedNode {
+  const delta = deltas.get((node.component as any).id);
+  if (!delta) return node;
+  const box = { x: node.box.x + delta.dx, y: node.box.y + delta.dy, width: Math.max(1, node.box.width + delta.dw), height: Math.max(1, node.box.height + delta.dh) };
+  return { ...node, box, children: shiftedChildren(node.children, delta.dx, delta.dy) };
+}
+
+/** The page tree with pending edits applied; untouched subtrees keep their identity so memoised views skip them. */
+function withDeltas(node: PositionedNode, deltas: Deltas): PositionedNode {
+  if (!deltas.size) return node;
+  const children = node.children?.map((child) => withDeltas(child, deltas));
+  const changed = children?.some((child, index) => child !== node.children![index]);
+  return optimisticNode(changed ? { ...node, children } : node, deltas);
+}
+
 function displayedNode(node: PositionedNode, preview?: GeometryPreview): PositionedNode {
   if (!preview || preview.id !== (node.component as any).id) return node;
   const dx = preview.box.x - node.box.x;
@@ -123,7 +145,23 @@ function displayedNode(node: PositionedNode, preview?: GeometryPreview): Positio
   return { ...node, box: preview.box, children: preview.mode === "move" ? shiftedChildren(node.children, dx, dy) : node.children };
 }
 
-function NodeView({ node: source, k, capabilities, preview }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities; preview?: GeometryPreview }) {
+function containsId(node: PositionedNode, id: string): boolean {
+  return (node.component as any).id === id || (node.children ?? []).some((child) => containsId(child, id));
+}
+
+/** Only the subtree being dragged receives the preview, so memoised siblings skip re-rendering on every pointer move. */
+function previewFor(node: PositionedNode, preview?: GeometryPreview): GeometryPreview | undefined {
+  return preview && containsId(node, preview.id) ? preview : undefined;
+}
+
+interface NodeViewProps {
+  node: PositionedNode;
+  k: number;
+  capabilities?: import("../engine").Capabilities;
+  preview?: GeometryPreview;
+}
+
+const NodeView = React.memo(function NodeView({ node: source, k, capabilities, preview }: NodeViewProps) {
   const node = displayedNode(source, preview);
   const c = node.component as any;
   const common = { "data-cid": c.id } as Record<string, any>;
@@ -168,13 +206,13 @@ function NodeView({ node: source, k, capabilities, preview }: { node: Positioned
         <>
           {own && <div {...common} className={`cn cn-block cn-${c.type}`} style={{ ...st, ...cssFrom(c.style, k, capabilities) }} />}
           {(node.children ?? []).map((ch, i) => (
-            <NodeView key={i} node={ch} k={k} capabilities={capabilities} preview={preview} />
+            <NodeView key={i} node={ch} k={k} capabilities={capabilities} preview={previewFor(ch, preview)} />
           ))}
         </>
       );
     }
   }
-}
+});
 
 /** Double-clicking a row child's right handle: text hugs its content, anything else fills the remaining width. */
 function fitToContent(id: string) {
@@ -280,19 +318,25 @@ function Ruler({ width, height, k, vertical }: { width: number; height: number; 
 }
 
 export function Canvas() {
-  const { engine, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, bottom, editingText, canvasView, previewSplit, showPagination, gridMode, rulerUnit, capabilities, grid, snapTargets } = useStore();
+  const { engine, engineDoc, aiProposal, zoom, fitToWidth, selection, showGrid, showRulers, doc, sample, snap, view, editingText, canvasView, previewSplit, showPagination, gridMode, rulerUnit, capabilities, grid, snapTargets } = useStore();
   const k = PT * zoom;
+  // While an AI proposal is shown the layout comes from the proposal, not from `doc`, so nothing is pending.
+  const deltas = useMemo(() => (aiProposal ? NO_DELTAS : geometryDeltas(engineDoc, doc)), [aiProposal, engineDoc, doc]);
   const unitPt = pointsPerRulerUnit(rulerUnit, doc.print?.dpi ?? 203);
   const measure = (pt: number) => String(Math.round((pt / unitPt) * (rulerUnit === "dots" ? 1 : 10)) / (rulerUnit === "dots" ? 1 : 10));
   const structure = canvasView === "structure" ? engine.structure : undefined;
   const paginated = structure ?? engine.paginated;
+  // Pending edits are applied once per layout or edit, not on every hover re-render.
+  const pages = useMemo(() => paginated?.pages && (deltas.size ? paginated.pages.map((p) => ({ ...p, background: p.background.map((n) => withDeltas(n, deltas)), header: p.header.map((n) => withDeltas(n, deltas)), content: p.content.map((n) => withDeltas(n, deltas)), footer: p.footer.map((n) => withDeltas(n, deltas)) })) : paginated.pages), [paginated, deltas]);
   const [indicator, setIndicator] = useState<DropTarget | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number; page: number; type: string; value?: string } | null>(null);
   const [geometryPreview, setGeometryPreview] = useState<GeometryPreview | null>(null);
   const [guides, setGuides] = useState<{ page: number; guides: Guide[]; distances: Distance[] } | null>(null);
   const [marquee, setMarquee] = useState<null | { page: number; x0: number; y0: number; x1: number; y1: number }>(null);
   const [explainedPage, setExplainedPage] = useState<number | null>(null);
-  const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number; duplicated?: boolean; pendingPatch?: Record<string, number> }>(null);
+  const [hover, setHover] = useState<{ page: number; id: string } | null>(null);
+  const [measuring, setMeasuring] = useState(false);
+  const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number; duplicated?: boolean; pendingPatch?: Record<string, number>; snap?: { id: string; context: ReturnType<typeof snapContext> } }>(null);
   const marqueeRef = useRef<typeof marquee>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const panEnabled = useStore((state) => state.mode === "design" && !state.dialog);
@@ -340,6 +384,51 @@ export function Canvas() {
     sync();
     return () => observer.disconnect();
   }, [fitToWidth, paginated?.pageSize.width]);
+
+  useLayoutEffect(() => {
+    if (scroller.current) restoreZoomAnchor(scroller.current, k);
+  }, [k]);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    // Trackpad pinch arrives as a wheel event with ctrlKey set; Ctrl/⌘ + mouse wheel zooms the same way.
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const delta = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * 16 : event.deltaY;
+      zoomCanvas(wheelZoom(useStore.getState().zoom, delta), event.clientX, event.clientY);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [Boolean(paginated)]);
+
+  // Holding Alt with a selection measures the distance to whatever is under the cursor.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => setMeasuring(event.altKey);
+    const reset = () => setMeasuring(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", reset);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("blur", reset);
+    };
+  }, []);
+
+  function trackHover(e: React.PointerEvent, page: number) {
+    if (drag.current || marqueeRef.current) return;
+    const id = ((e.target as HTMLElement).closest("[data-cid]") as HTMLElement | null)?.dataset.cid;
+    setHover((current) => (id ? (current?.id === id && current.page === page ? current : { page, id }) : null));
+    if (e.altKey !== measuring) setMeasuring(e.altKey);
+  }
+
+  /** Snapping targets do not move during a drag, so measure them once instead of on every pointer move. */
+  function cachedSnapContext(d: NonNullable<typeof drag.current>, sourceDoc: ops.Doc, page: number) {
+    if (d.snap?.id !== d.id) d.snap = { id: d.id, context: snapContext(sourceDoc, d.id, page) };
+    return d.snap.context;
+  }
 
   function pagePoint(clientX: number, clientY: number, page: number) {
     const el = pageEls.current[page];
@@ -485,6 +574,7 @@ export function Canvas() {
   }
 
   function onPointerMove(e: React.PointerEvent, page: number) {
+    trackHover(e, page);
     if (marqueeRef.current) {
       const pt = pagePoint(e.clientX, e.clientY, marqueeRef.current.page);
       marqueeRef.current = { ...marqueeRef.current, x1: pt.x, y1: pt.y };
@@ -498,21 +588,33 @@ export function Canvas() {
     if (!d.moved && Math.hypot(dx, dy) * k < 4) return;
     d.moved = true;
     const store = useStore.getState();
+    // Figma conventions: ⌘/Ctrl ignores snapping, Shift constrains, Alt duplicates (move) or resizes from the centre.
+    const free = e.metaKey || e.ctrlKey;
     if (d.mode === "resize") {
       const patch: Record<string, number> = {};
       const h = d.handle!;
       const changesX = h.includes("e") || h.includes("w");
       const changesY = h.includes("n") || h.includes("s");
-      let width = Math.max(8, d.orig.w + (h.includes("e") ? dx : h.includes("w") ? -dx : 0));
-      let height = Math.max(4, d.orig.h + (h.includes("s") ? dy : h.includes("n") ? -dy : 0));
-      let x = h.includes("w") ? d.orig.x + d.orig.w - width : d.orig.x;
-      let y = h.includes("n") ? d.orig.y + d.orig.h - height : d.orig.y;
-      const context = d.orig.absolute && d.orig.box ? snapContext(store.doc, d.id, page) : null;
+      const centred = e.altKey && d.orig.absolute;
+      const growX = (h.includes("e") ? dx : h.includes("w") ? -dx : 0) * (centred ? 2 : 1);
+      const growY = (h.includes("s") ? dy : h.includes("n") ? -dy : 0) * (centred ? 2 : 1);
+      let width = Math.max(8, d.orig.w + growX);
+      let height = Math.max(4, d.orig.h + growY);
+      const proportional = e.shiftKey && changesX && changesY && d.orig.w > 0 && d.orig.h > 0;
+      if (proportional) {
+        const scale = Math.max(width / d.orig.w, height / d.orig.h);
+        width = Math.max(8, d.orig.w * scale);
+        height = Math.max(4, d.orig.h * scale);
+      }
+      let x = centred ? d.orig.x - (width - d.orig.w) / 2 : h.includes("w") ? d.orig.x + d.orig.w - width : d.orig.x;
+      let y = centred ? d.orig.y - (height - d.orig.h) / 2 : h.includes("n") ? d.orig.y + d.orig.h - height : d.orig.y;
+      const constrained = proportional || centred;
+      const context = d.orig.absolute && d.orig.box && !constrained ? cachedSnapContext(d, store.doc, page) : null;
       let snapped = { x: false, y: false };
       if (context) {
         const offX = d.orig.box.x - d.orig.x;
         const offY = d.orig.box.y - d.orig.y;
-        const guideEnabled = store.view.guides && !e.altKey;
+        const guideEnabled = store.view.guides && !free;
         const result = snapResizeBox({ x: x + offX, y: y + offY, width, height }, h, context.others, context.bounds, guideEnabled, context.extra, context.rules);
         if (guideEnabled) {
           snapped = result.snapped;
@@ -525,23 +627,26 @@ export function Canvas() {
       } else setGuides(null);
       // Free-positioned objects snap the dragged edge onto a grid line; flow children snap their size.
       const edges = d.orig.absolute && d.orig.box ? { x: d.orig.box.x - d.orig.x, y: d.orig.box.y - d.orig.y } : null;
-      if (changesX) {
-        if (!snapped.x) {
-          if (!edges) width = Math.max(8, snapTo(width, e.altKey));
-          else if (h.includes("w")) width = Math.max(8, x + width - snapTo(x, e.altKey, edges.x));
-          else width = Math.max(8, snapTo(x + width, e.altKey, edges.x) - x);
+      const round = (v: number) => Math.round(v * 10) / 10;
+      if (changesX || proportional) {
+        if (!snapped.x && !constrained) {
+          if (!edges) width = Math.max(8, snapTo(width, free));
+          else if (h.includes("w")) width = Math.max(8, x + width - snapTo(x, free, edges.x));
+          else width = Math.max(8, snapTo(x + width, free, edges.x) - x);
         }
-        patch.width = Math.round(width * 10) / 10;
-        if (h.includes("w") && d.orig.absolute) patch.x = snapped.x ? Math.round(x * 10) / 10 : Math.round((d.orig.x + d.orig.w - width) * 10) / 10;
+        patch.width = round(width);
+        if (centred) patch.x = round(x);
+        else if (h.includes("w") && d.orig.absolute) patch.x = snapped.x ? round(x) : round(d.orig.x + d.orig.w - width);
       }
-      if (changesY) {
-        if (!snapped.y) {
-          if (!edges) height = Math.max(4, snapTo(height, e.altKey));
-          else if (h.includes("n")) height = Math.max(4, y + height - snapTo(y, e.altKey, edges.y));
-          else height = Math.max(4, snapTo(y + height, e.altKey, edges.y) - y);
+      if (changesY || proportional) {
+        if (!snapped.y && !constrained) {
+          if (!edges) height = Math.max(4, snapTo(height, free));
+          else if (h.includes("n")) height = Math.max(4, y + height - snapTo(y, free, edges.y));
+          else height = Math.max(4, snapTo(y + height, free, edges.y) - y);
         }
-        patch.height = Math.round(height * 10) / 10;
-        if (h.includes("n") && d.orig.absolute) patch.y = snapped.y ? Math.round(y * 10) / 10 : Math.round((d.orig.y + d.orig.h - height) * 10) / 10;
+        patch.height = round(height);
+        if (centred) patch.y = round(y);
+        else if (h.includes("n") && d.orig.absolute) patch.y = snapped.y ? round(y) : round(d.orig.y + d.orig.h - height);
       }
       d.pendingPatch = patch;
       if (d.orig.box) setGeometryPreview({
@@ -559,8 +664,8 @@ export function Canvas() {
       return;
     }
     if (d.orig.absolute) {
-      if (e.altKey && e.shiftKey && !d.duplicated) {
-        // Shift+Alt-drag leaves the original in place and drags a copy.
+      if (e.altKey && !d.duplicated) {
+        // Alt-drag (or Shift+Alt-drag) leaves the original in place and drags a copy.
         d.duplicated = true;
         const r = ops.duplicate(store.doc, d.id);
         if (r.newId) {
@@ -569,15 +674,18 @@ export function Canvas() {
           d.id = r.newId;
         }
       }
-      let x = d.orig.x + dx;
-      let y = d.orig.y + dy;
+      // Shift locks the move to the axis the pointer has travelled furthest along.
+      const lockX = e.shiftKey && Math.abs(dy) > Math.abs(dx);
+      const lockY = e.shiftKey && !lockX;
+      let x = d.orig.x + (lockX ? 0 : dx);
+      let y = d.orig.y + (lockY ? 0 : dy);
       const me = d.orig.box;
       let snapped = { x: false, y: false };
-      const context = me ? snapContext(store.doc, d.id, page) : null;
+      const context = me ? cachedSnapContext(d, store.doc, page) : null;
       if (me && context) {
         const offX = me.x - d.orig.x;
         const offY = me.y - d.orig.y;
-        const guideEnabled = store.view.guides && !e.altKey;
+        const guideEnabled = store.view.guides && !free;
         const r = snapBox({ x: x + offX, y: y + offY, width: me.width, height: me.height }, context.others, context.bounds, guideEnabled, { ...context.extra, baseline: d.orig.baselineOffset === undefined ? undefined : { movingOffset: d.orig.baselineOffset, targets: context.baselines } }, context.rules);
         if (guideEnabled) {
           x = r.x - offX;
@@ -587,8 +695,8 @@ export function Canvas() {
         } else setGuides(null);
       }
       const origin = me ? { x: me.x - d.orig.x, y: me.y - d.orig.y } : { x: 0, y: 0 };
-      const nextX = snapped.x ? Math.round(x * 10) / 10 : snapTo(x, e.altKey, origin.x);
-      const nextY = snapped.y ? Math.round(y * 10) / 10 : snapTo(y, e.altKey, origin.y);
+      const nextX = lockX ? Math.round(d.orig.x * 10) / 10 : snapped.x ? Math.round(x * 10) / 10 : snapTo(x, free, origin.x);
+      const nextY = lockY ? Math.round(d.orig.y * 10) / 10 : snapped.y ? Math.round(y * 10) / 10 : snapTo(y, free, origin.y);
       if (d.duplicated) {
         if (me) setGhost({ page: d.page, x: (nextX + origin.x) * k, y: (nextY + origin.y) * k, w: me.width * k, h: me.height * k, type: d.orig.previewType, value: d.orig.previewValue });
         store.patch(d.id, { x: nextX, y: nextY }, `move:${d.id}`);
@@ -606,8 +714,8 @@ export function Canvas() {
       d.orig.x = d.orig.box.x - origin.x;
       d.orig.y = d.orig.box.y - origin.y;
       d.orig.absolute = true;
-      const nextX = snapTo(d.orig.x + dx, e.altKey, origin.x);
-      const nextY = snapTo(d.orig.y + dy, e.altKey, origin.y);
+      const nextX = snapTo(d.orig.x + dx, free, origin.x);
+      const nextY = snapTo(d.orig.y + dy, free, origin.y);
       d.pendingPatch = {
         x: nextX,
         y: nextY,
@@ -698,16 +806,18 @@ export function Canvas() {
       const printableRight = paginated!.pageSize.width - paginated!.margin.right;
       const printableWidth = printableRight - printableLeft;
       const autoTable = component?.type === "table" && component.width === undefined;
-      const minimumWidth = Math.min(80, printableWidth);
+      const free = e.metaKey || e.ctrlKey;
+      // A new table spans to the right margin, but never less than a usable width: near the edge it moves left instead.
+      const tableWidth = (left: number) => Math.min(printableWidth, Math.max(MIN_DROPPED_TABLE_WIDTH, printableRight - left));
+      const snappedX = origin.x + snapTo(pt.x - origin.x, free, origin.x);
       const suppliedWidth = typeof component?.width === "number" ? Math.min(component.width, printableWidth) : 0;
-      const maxX = printableRight - (autoTable ? minimumWidth : suppliedWidth);
-      const snappedX = origin.x + snapTo(pt.x - origin.x, e.altKey, origin.x);
+      const maxX = printableRight - (autoTable ? tableWidth(snappedX) : suppliedWidth);
       const x = Math.max(printableLeft, Math.min(snappedX, maxX));
       const patch: Record<string, number> = {
         x: Math.round((x - origin.x) * 10) / 10,
-        y: snapTo(pt.y - origin.y, e.altKey, origin.y),
+        y: snapTo(pt.y - origin.y, free, origin.y),
       };
-      if (autoTable) patch.width = Math.round(Math.max(minimumWidth, printableRight - x) * 10) / 10;
+      if (autoTable) patch.width = Math.round(Math.min(tableWidth(snappedX), printableRight - x) * 10) / 10;
       else if (typeof component?.width === "number" && component.width > printableWidth) patch.width = Math.round(printableWidth * 10) / 10;
       current.patch(id, patch, `insert:${id}`);
     };
@@ -741,7 +851,7 @@ export function Canvas() {
   }
 
   // ---- fit-to-width helper & keyboard are handled in App; here just render
-  if (!paginated) {
+  if (!paginated || !pages) {
     return (
       <div className="canvas-scroll" ref={scroller}>
         <div className="canvas-empty">{engine.problems.some((p) => p.severity === "error") ? "Fix the errors in the Problems panel to see the report." : "Rendering..."}</div>
@@ -765,14 +875,14 @@ export function Canvas() {
       {structure && showPagination && engine.paginated && <StructurePageStrip paginated={engine.paginated} />}
       <div className={structure && previewSplit ? "canvas-layout with-preview" : "canvas-layout"}>
       <div className="pages">
-        {paginated.pages.map((page, pi) => {
+        {pages.map((page, pi) => {
           const allNodes = [...flat([...page.background, ...page.header, ...page.content, ...page.footer])];
           const selected = allNodes.filter((n) => selSet.has((n.component as any).id));
           const single = selection.length === 1 ? selected[0] : undefined;
           const showHandles = single && ["text", "image", "qrcode", "barcode", "chart", "rectangle", "container", "row", "column", "grid", "spacer", "line", "table"].includes(single.component.type);
           return (
             <div key={pi} className="page-wrap" data-page={pi}>
-              {!structure && (showPagination || bottom === "pagination") && pi > 0 && <div className="page-break-anchor" data-testid={`page-break-${pi + 1}`}>
+              {!structure && pi > 0 && <div className="page-break-anchor" data-testid={`page-break-${pi + 1}`}>
                 <button className="page-break-button" aria-expanded={explainedPage === pi + 1} onClick={() => setExplainedPage(explainedPage === pi + 1 ? null : pi + 1)}>Page {pi + 1} starts · Why?</button>
                 {explainedPage === pi + 1 && <div className="page-break-popover"><PageBreakDetails paginated={paginated} pageNumber={pi + 1} /></div>}
               </div>}
@@ -792,6 +902,7 @@ export function Canvas() {
                 onPointerMove={(e) => onPointerMove(e, pi)}
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerCancel}
+                onPointerLeave={() => setHover(null)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   const target = (e.target as HTMLElement).closest("[data-cid]") as HTMLElement | null;
@@ -823,14 +934,14 @@ export function Canvas() {
                 onDragLeave={() => setIndicator(null)}
                 onDrop={(e) => onDrop(e, pi)}
               >
-                {page.background.length > 0 && <div className="page-background-layer" aria-hidden="true">{page.background.map((node, index) => <NodeView key={index} node={node} k={k} capabilities={capabilities} preview={geometryPreview?.page === pi ? geometryPreview : undefined} />)}</div>}
+                {page.background.length > 0 && <div className="page-background-layer" aria-hidden="true">{page.background.map((node, index) => <NodeView key={index} node={node} k={k} capabilities={capabilities} preview={previewFor(node, geometryPreview?.page === pi ? geometryPreview : undefined)} />)}</div>}
                 {view.margins && <div className="margin-guide" style={{ left: paginated.margin.left * k, top: paginated.margin.top * k, right: paginated.margin.right * k, bottom: paginated.margin.bottom * k }} />}
                 {view.margins && doc.print?.safeMargin ? (
                   <div className="safe-area" title="Printer safe area" style={{ left: (doc.print.safeMargin / MM) * k, top: (doc.print.safeMargin / MM) * k, right: (doc.print.safeMargin / MM) * k, bottom: (doc.print.safeMargin / MM) * k }} />
                 ) : null}
                 {view.margins && !structure && <PageZones page={page} paginated={paginated} k={k} />}
                 {[...page.header, ...page.content, ...page.footer].map((n, i) => (
-                  <NodeView key={i} node={n} k={k} capabilities={capabilities} preview={geometryPreview?.page === pi ? geometryPreview : undefined} />
+                  <NodeView key={i} node={n} k={k} capabilities={capabilities} preview={previewFor(n, geometryPreview?.page === pi ? geometryPreview : undefined)} />
                 ))}
                 {structure && <BandChrome bands={structure.bands} k={k} />}
                 {(doc.guides?.length ?? 0) > 0 && <GuideLayer k={k} width={pw} height={ph} />}
@@ -846,7 +957,7 @@ export function Canvas() {
                         <AutoLayoutHandles node={single} k={k} />
                       </>
                     )}
-                    {ops.find(doc, (n.component as any).id)?.comp.locked && <span className="lock-badge" title="Locked">🔒</span>}
+                    {ops.find(doc, (n.component as any).id)?.comp.locked && <span className="lock-badge" title="Locked" aria-label="Locked"><svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg></span>}
                     {source === single && !editingText && <span className={`selection-metrics ${n.box.y + n.box.height + 22 > paginated.pageSize.height ? "above" : ""}`} data-testid="selection-metrics" title="Position and size in page coordinates">
                       X {measure(n.box.x)} · Y {measure(n.box.y)} · W {measure(n.box.width)} · H {measure(n.box.height)} {rulerUnit}
                     </span>}
@@ -860,6 +971,13 @@ export function Canvas() {
                 {view.diagnostics && <Diagnostics nodes={allNodes} k={k} pageWidth={paginated.pageSize.width} />}
                 {structure && showPagination && engine.paginated && <StructureBreakLayer structure={structure} paginated={engine.paginated} k={k} />}
                 {guides && guides.page === pi && <SmartGuides g={guides} k={k} />}
+                {(() => {
+                  if (!hover || hover.page !== pi || drag.current || selSet.has(hover.id)) return null;
+                  const hovered = allNodes.find((n) => (n.component as any).id === hover.id);
+                  if (!hovered) return null;
+                  const distances = measuring && single ? measureBetween(single.box, hovered.box) : [];
+                  return distances.length > 0 ? <div data-testid="measure-overlay"><SmartGuides g={{ guides: [], distances }} k={k} /></div> : null;
+                })()}
                 {marquee && marquee.page === pi && (
                   <div className="marquee" style={{ left: Math.min(marquee.x0, marquee.x1) * k, top: Math.min(marquee.y0, marquee.y1) * k, width: Math.abs(marquee.x1 - marquee.x0) * k, height: Math.abs(marquee.y1 - marquee.y0) * k }} />
                 )}
@@ -901,6 +1019,8 @@ function PaginatedPreviewPane() {
 }
 
 const MM = 25.4 / 72;
+/** 120 mm in points. */
+const MIN_DROPPED_TABLE_WIDTH = 120 / MM;
 
 function PageZones({ page, paginated, k }: { page: any; paginated: any; k: number }) {
   const z = page.zones;

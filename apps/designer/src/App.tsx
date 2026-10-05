@@ -13,12 +13,8 @@ import { BandBar } from "./components/BandLayer";
 import { arrayRefs, datasetFields, scalarFields } from "./lib/fields";
 import { titleCase } from "./lib/lowcode";
 import * as ops from "./model/ops";
-
-function isTyping(t: EventTarget | null): boolean {
-  const el = t as HTMLElement | null;
-  if (!el) return false;
-  return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable;
-}
+import { handleShortcut } from "./lib/commands";
+import { CanvasScenarioSwitch } from "./components/CanvasScenario";
 
 function GettingStartedHint() {
   const { doc, sample, selection, demoHint, mode } = useStore();
@@ -122,76 +118,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const s = useStore.getState();
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        s.set({ dialog: s.dialog === "palette" ? null : "palette" });
-        return;
-      }
-      if (mod && e.key.toLowerCase() === "j") {
-        e.preventDefault();
-        s.set({ aiOpen: !s.aiOpen });
-        return;
-      }
-      if (mod && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        s.save();
-        return;
-      }
-      if (e.key === "Escape" && s.home && !s.dialog) {
-        e.preventDefault();
-        s.set({ home: false });
-        return;
-      }
-      if (isTyping(e.target) || s.dialog) return;
-      if (s.mode !== "design") return;
-      if (e.key === "Escape" && s.tableEditId) {
-        s.set({ tableEditId: null });
-        return;
-      }
-      const key = e.key.toLowerCase();
-      if (mod && key === "z") {
-        e.preventDefault();
-        e.shiftKey ? s.redo() : s.undo();
-      } else if (mod && key === "y") {
-        e.preventDefault();
-        s.redo();
-      } else if (mod && key === "c") {
-        s.copy();
-      } else if (mod && key === "v") {
-        e.preventDefault();
-        s.paste();
-      } else if (mod && key === "d") {
-        e.preventDefault();
-        s.duplicateSelected();
-      } else if (mod && key === "a") {
-        e.preventDefault();
-        s.select([...ops.walkAll(s.doc)].map((l) => l.comp.id));
-      } else if (e.key === "Delete" || e.key === "Backspace") {
-        e.preventDefault();
-        s.removeSelected();
-      } else if (mod && key === "g") {
-        e.preventDefault();
-        e.shiftKey ? s.ungroupSelected() : s.groupSelected();
-      } else if (mod && key === "l") {
-        e.preventDefault();
-        s.toggleLock();
-      } else if (mod && e.shiftKey && key === "h") {
-        e.preventDefault();
-        s.toggleHide();
-      } else if (e.key === "F2" && s.selection[0]) {
-        s.set({ renaming: s.selection[0], leftTab: "layers", leftOpen: true });
-      } else if (e.key === "Escape") {
-        s.set({ contextMenu: null, editingText: null, renaming: null });
-        s.select([]);
-      } else if (e.key.startsWith("Arrow") && s.selection.length) {
-        e.preventDefault();
-        const step = e.shiftKey ? 10 : 1;
-        s.nudge(e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0, e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0);
-      }
-    };
+    const onKey = (e: KeyboardEvent) => void handleShortcut(e);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -211,6 +138,7 @@ export default function App() {
           </button>}
           {mode === "design" && <BandBar />}
           {mode === "design" && <GettingStartedHint />}
+          {mode === "design" && !tableEditId && <CanvasScenarioSwitch />}
           {mode === "design" && !split && <Canvas />}
           {mode === "design" && split && (
             <div className="split">

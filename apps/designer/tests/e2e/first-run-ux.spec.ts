@@ -88,3 +88,25 @@ test("phone visitors can view examples and a sample without entering the cramped
   await page.getByRole("button", { name: /Back to examples/ }).click();
   await expect(page.getByTestId("home-screen")).toBeVisible();
 });
+
+test("a table dropped near the right edge keeps a usable width and moves left instead of shrinking", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  const sheet = page.getByTestId("page-1");
+  const bounds = (await sheet.boundingBox())!;
+  await page.getByTestId("palette-table").dragTo(sheet, { targetPosition: { x: bounds.width * 0.9, y: bounds.height / 3 } });
+  await expect.poll(async () => page.evaluate(() => {
+    const p = (window as any).__designer.getState().engine.paginated;
+    const all = (nodes: any[]): any[] => nodes.flatMap((node: any) => [node, ...all(node.children ?? [])]);
+    const table = all(p.pages[0].content).find((node: any) => node.component.type === "table");
+    const right = p.pageSize.width - p.margin.right;
+    return table ? { width: Math.round(table.box.width), inside: table.box.x + table.box.width <= right + 0.5 } : null;
+  })).toEqual({ width: expect.any(Number), inside: true });
+  const width = await page.evaluate(() => {
+    const p = (window as any).__designer.getState().engine.paginated;
+    const all = (nodes: any[]): any[] => nodes.flatMap((node: any) => [node, ...all(node.children ?? [])]);
+    return all(p.pages[0].content).find((node: any) => node.component.type === "table").box.width;
+  });
+  // At least 120 mm, never a sliver.
+  expect(width).toBeGreaterThanOrEqual(120 * (72 / 25.4) - 1);
+});

@@ -2,7 +2,9 @@ import { useRef, useState } from "react";
 import type { StructureBand } from "@reporting/layout";
 import { savePref, useStore, type RulerOrigin, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
-import { fitZoom, zoomToSelection } from "../lib/zoom";
+import { fitZoom, zoomCanvas, zoomToSelection } from "../lib/zoom";
+import { nextZoomStep } from "../lib/viewport";
+import { shortcutLabel } from "../lib/commands";
 import { GuideControls } from "./GuideControls";
 import { GridSettingsControls } from "./GridSettings";
 import { rulerAnchor } from "../lib/ruler-origin";
@@ -51,17 +53,17 @@ export function BandBar() {
         </button>
       )}
       {!rollView && <div className="canvas-zoom" role="group" aria-label="Canvas zoom">
-        <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => set({ zoom: Math.max(0.25, +(zoom - 0.1).toFixed(2)), fitToWidth: false })}>−</button>
+        <button type="button" aria-label="Zoom out" title={`Zoom out (${shortcutLabel("zoom-out")})`} onClick={() => zoomCanvas(nextZoomStep(zoom, -1))}>−</button>
         <span className="zoom-label" data-testid="zoom-label">{Math.round(zoom * 100)}%</span>
-        <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => set({ zoom: Math.min(3, +(zoom + 0.1).toFixed(2)), fitToWidth: false })}>+</button>
-        <button type="button" aria-label="Fit to width" data-testid="canvas-fit" title="Fit to width" onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>Fit</button>
+        <button type="button" aria-label="Zoom in" title={`Zoom in (${shortcutLabel("zoom-in")})`} onClick={() => zoomCanvas(nextZoomStep(zoom, 1))}>+</button>
+        <button type="button" aria-label="Fit to width" data-testid="canvas-fit" title={`Fit to width (${shortcutLabel("zoom-fit")})`} onClick={() => set({ zoom: fitZoom(), fitToWidth: true })}>Fit</button>
       </div>}
       {!rollView && <details className="canvas-options" data-testid="canvas-options">
         <summary>Canvas settings</summary>
         <div className="canvas-options-panel">
         <div className="canvas-options-actions">
-          <button type="button" aria-label="Zoom to selection" onClick={zoomToSelection}>Zoom to selection</button>
-          <button type="button" aria-label="Actual size" onClick={() => set({ zoom: 1, fitToWidth: false })}>Actual size</button>
+          <button type="button" aria-label="Zoom to selection" title={shortcutLabel("zoom-selection")} onClick={zoomToSelection}>Zoom to selection</button>
+          <button type="button" aria-label="Actual size" title={shortcutLabel("zoom-100")} onClick={() => zoomCanvas(1)}>Actual size</button>
         </div>
         {canvasView === "structure" && <label title="Show extra example records in each detail band">
           Examples{" "}

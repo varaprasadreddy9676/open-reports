@@ -13,7 +13,8 @@ import { SaveBlockDialogBody } from "./CanvasTools";
 import { CompareDialogBody } from "./CompareDialog";
 import { PublishDialogBody } from "./PublishDialog";
 import { AiSettingsBody } from "./AiBar";
-import { fitZoom } from "../lib/zoom";
+import { ShortcutSheet } from "./ShortcutSheet";
+import { COMMANDS, shortcutLabel } from "../lib/commands";
 import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 import { JrxmlFolderImport } from "./JrxmlFolderImport";
 
@@ -89,8 +90,8 @@ export function Toolbar() {
       </div>
 
       <div className="toolbar-group toolbar-history">
-        <button className="icon-btn" data-testid="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!past.length} onClick={() => s().undo()}>↶</button>
-        <button className="icon-btn" data-testid="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled={!future.length} onClick={() => s().redo()}>↷</button>
+        <button className="icon-btn" data-testid="btn-undo" title={`Undo (${shortcutLabel("undo")})`} aria-label="Undo" disabled={!past.length} onClick={() => s().undo()}>↶</button>
+        <button className="icon-btn" data-testid="btn-redo" title={`Redo (${shortcutLabel("redo")})`} aria-label="Redo" disabled={!future.length} onClick={() => s().redo()}>↷</button>
       </div>
 
       <div className="mode-switch" role="tablist" aria-label="Editor mode">
@@ -409,7 +410,7 @@ function HistoryPanel() {
 }
 
 // ------------------------------------------------------------------ dialogs
-function Modal({ children, onClose, wide, label = "Report dialog", closable = true }: { children: React.ReactNode; onClose: () => void; wide?: boolean; label?: string; closable?: boolean }) {
+export function Modal({ children, onClose, wide, label = "Report dialog", closable = true }: { children: React.ReactNode; onClose: () => void; wide?: boolean; label?: string; closable?: boolean }) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const modal = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -773,17 +774,13 @@ function useCommands(): Command[] {
   return useMemo(() => {
     const s = () => useStore.getState();
     const cmds: Command[] = [
-      { id: "ai", label: "Ask AI to edit the selection", hint: "Ctrl+J", run: () => s().set({ aiOpen: true }) },
-      { id: "save", label: "Save report", hint: "Ctrl+S", run: () => s().save() },
       { id: "publish", label: "Review and publish version", run: () => s().set({ dialog: "publish" }) },
       { id: "new", label: "New report...", run: () => s().set({ dialog: "new" }) },
       { id: "open", label: "Open report...", run: () => s().set({ dialog: "open" }) },
       { id: "dataset", label: "Create dataset", run: () => s().set({ dialog: "dataset", editingDataset: null }) },
       { id: "theme", label: "Edit theme: colours, fonts, sizes, spacing and text styles", run: () => s().set({ dialog: "theme" }) },
       { id: "json", label: "Paste sample JSON to generate a report", run: () => s().set({ dialog: "generate" }) },
-      { id: "undo", label: "Undo", hint: "Ctrl+Z", run: () => s().undo() },
-      { id: "redo", label: "Redo", hint: "Ctrl+Shift+Z", run: () => s().redo() },
-      { id: "design", label: "Switch to Design", run: () => s().set({ mode: "design" }) },
+      ...(s().mode === "design" ? [] : [{ id: "design", label: "Switch to Design", run: () => s().set({ mode: "design" }) }]),
       { id: "code", label: "Open report JSON", run: () => s().set({ mode: "code" }) },
       { id: "preview", label: "Preview PDF", run: () => s().set({ mode: "preview" }) },
       ...(["pdf", "html", "xlsx", "csv", "zpl"] as const).map((f) => ({ id: `export-${f}`, label: `Export ${f.toUpperCase()}`, run: () => exportReport(f) })),
@@ -795,11 +792,12 @@ function useCommands(): Command[] {
       { id: "pagination", label: "Show pagination decisions", run: () => s().set({ bottom: "pagination" }) },
       { id: "history", label: "Show history", run: () => s().set({ bottom: "history" }) },
       { id: "data", label: "Open Data mode", run: () => s().set({ mode: "data" }) },
-      { id: "fit", label: "Zoom to fit width", run: () => s().set({ zoom: fitZoom(), fitToWidth: true }) },
       ...PALETTE_ITEMS.map((i) => ({ id: `add-${i.label}`, label: `Add ${i.label.toLowerCase()}`, run: () => insertFromPalette(i) })),
       ...((useStore.getState().doc.sections ?? []) as any[]).flatMap((sec) => (sec.children ?? []).map((c: any) => ({ id: `find-${c.id}`, label: `Find component: ${c.id}`, run: () => s().select([c.id]) }))),
     ];
-    return cmds;
+    // Keyboard commands come first and carry their shortcut, so the palette teaches the keys.
+    const keyed: Command[] = COMMANDS.filter((command) => command.palette).map((command) => ({ id: command.id, label: command.label, hint: shortcutLabel(command.id), run: () => void command.run(s()) }));
+    return [...keyed, ...cmds];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useStore.getState().dialog]);
 }
@@ -854,6 +852,7 @@ export function Dialogs() {
   if (dialog === "settings") return <SettingsDialog />;
   if (dialog === "generate") return <GenerateDialog />;
   if (dialog === "palette") return <CommandPalette />;
+  if (dialog === "shortcuts") return <ShortcutSheet />;
   if (dialog === "ai-settings")
     return (
       <Modal onClose={() => set({ dialog: null })}>
@@ -906,6 +905,7 @@ export function Toasts() {
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.kind}`} data-testid="toast">
           {t.text}
+          {t.action && <button type="button" className="toast-action" data-testid="toast-action" onClick={() => { t.action!.run(); useStore.setState({ toasts: useStore.getState().toasts.filter((x) => x.id !== t.id) }); }}>{t.action.label}</button>}
         </div>
       ))}
     </div>

@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { blockIdFor, useStore } from "../store";
 import * as ops from "../model/ops";
+import { shortcutLabel } from "../lib/commands";
+import { isMacPlatform } from "../lib/shortcuts";
+import { levelSelection, reorder } from "../lib/selection-nav";
 
 /** Right-click menu for the canvas and the layers tree. */
 export function ContextMenu() {
@@ -44,28 +47,30 @@ export function ContextMenu() {
     }}>
       {comp && (
         <>
-          {item("Copy", () => st().copy(), { hint: "Ctrl+C" })}
-          {item("Paste", () => st().paste(), { hint: "Ctrl+V", disabled: !st().clipboard.length })}
-          {item("Duplicate", () => st().duplicateSelected(), { hint: "Ctrl+D" })}
+          {item("Copy", () => st().copy(), { hint: shortcutLabel("copy") })}
+          {item("Paste", () => st().paste(), { hint: shortcutLabel("paste"), disabled: !st().clipboard.length })}
+          {item("Duplicate", () => st().duplicateSelected(), { hint: shortcutLabel("duplicate") })}
           <hr />
-          {item("Group", () => st().groupSelected(), { hint: "Ctrl+G", disabled: selection.length < 2, testid: "ctx-group" })}
-          {item("Ungroup", () => st().ungroupSelected(), { hint: "Ctrl+Shift+G", disabled: !isContainer })}
-          {item(comp.locked ? "Unlock" : "Lock", () => st().toggleLock(id), { hint: "Ctrl+L", testid: "ctx-lock" })}
-          {item(comp.hidden ? "Show" : "Hide", () => st().toggleHide(id), { hint: "Ctrl+Shift+H", testid: "ctx-hide" })}
+          {item("Group", () => st().groupSelected(), { hint: shortcutLabel("group"), disabled: selection.length < 2, testid: "ctx-group" })}
+          {item("Ungroup", () => st().ungroupSelected(), { hint: shortcutLabel("ungroup"), disabled: !isContainer })}
+          {item(comp.locked ? "Unlock" : "Lock", () => st().toggleLock(id), { hint: shortcutLabel("lock"), testid: "ctx-lock" })}
+          {item(comp.hidden ? "Show" : "Hide", () => st().toggleHide(id), { hint: shortcutLabel("hide"), testid: "ctx-hide" })}
           {item("Rename", () => st().set({ leftTab: "layers", renaming: id ?? null, leftOpen: true }), { hint: "F2" })}
           <hr />
-          {item("Move up", () => st().setDoc(ops.shift(st().doc, id!, -1)))}
-          {item("Move down", () => st().setDoc(ops.shift(st().doc, id!, 1)))}
+          {item("Bring forward", () => st().setDoc(reorder(st().doc, st().selection, "forward")), { hint: shortcutLabel("order-forward") })}
+          {item("Send backward", () => st().setDoc(reorder(st().doc, st().selection, "backward")), { hint: shortcutLabel("order-backward") })}
+          {item("Bring to front", () => st().setDoc(reorder(st().doc, st().selection, "front")), { hint: shortcutLabel("order-front") })}
+          {item("Send to back", () => st().setDoc(reorder(st().doc, st().selection, "back")), { hint: shortcutLabel("order-back") })}
           {item("Save as reusable component…", () => st().set({ dialog: "block" }), { testid: "ctx-save-block" })}
           {item("Open in code", () => st().openCode(id!))}
           <hr />
-          {item("Delete", () => st().removeSelected(), { hint: "Del", danger: true })}
+          {item("Delete", () => st().removeSelected(), { hint: isMacPlatform() ? "⌫" : "Del", danger: true })}
         </>
       )}
       {!comp && (
         <>
-          {item("Paste", () => st().paste(), { hint: "Ctrl+V", disabled: !st().clipboard.length })}
-          {item("Select all", () => st().select([...ops.walkAll(st().doc)].map((l) => l.comp.id)), { hint: "Ctrl+A" })}
+          {item("Paste", () => st().paste(), { hint: shortcutLabel("paste"), disabled: !st().clipboard.length })}
+          {item("Select all", () => st().select(levelSelection(st().doc, [])), { hint: shortcutLabel("select-level") })}
         </>
       )}
     </div>

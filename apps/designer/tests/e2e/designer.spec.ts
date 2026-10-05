@@ -294,7 +294,7 @@ test.describe("editing", () => {
     expect((await doc(page)).sections[0].children.find((item: any) => item.id === "c").y).toBe(130);
   });
 
-  test("dragging uses sibling equal-spacing guides and Alt bypasses snapping", async ({ page }) => {
+  test("dragging uses sibling equal-spacing guides and Ctrl/⌘ bypasses snapping", async ({ page }) => {
     await startBlank(page);
     await page.evaluate(() => {
       const store = (window as any).__designer.getState();
@@ -326,13 +326,13 @@ test.describe("editing", () => {
     await page.evaluate(() => (window as any).__designer.getState().patch("moving", { x: 300, y: 100 }));
     await expect.poll(async () => (await moving.boundingBox())?.x).toBeCloseTo(start.x, 0);
     const reset = (await moving.boundingBox())!;
-    await page.keyboard.down("Alt");
+    await page.keyboard.down("ControlOrMeta");
     await page.mouse.move(reset.x + reset.width / 2, reset.y + reset.height / 2);
     await page.mouse.down();
     await page.mouse.move(reset.x + reset.width / 2 - 148 * scale, reset.y + reset.height / 2, { steps: 12 });
     await expect(page.getByTestId("equal-gap-guide")).toHaveCount(0);
     await page.mouse.up();
-    await page.keyboard.up("Alt");
+    await page.keyboard.up("ControlOrMeta");
     expect((await doc(page)).sections[0].children.find((item: any) => item.id === "moving").x).toBeCloseTo(152, 0);
     expect((await doc(page)).sections[0].children).toHaveLength(3);
 
@@ -349,7 +349,7 @@ test.describe("editing", () => {
     expect((await doc(page)).sections[0].children).toHaveLength(4);
   });
 
-  test("resizing an absolute element snaps its active edge and Alt bypasses it", async ({ page }) => {
+  test("resizing an absolute element snaps its active edge and Ctrl/⌘ bypasses it", async ({ page }) => {
     await startBlank(page);
     await page.evaluate(() => {
       const store = (window as any).__designer.getState();
@@ -382,13 +382,13 @@ test.describe("editing", () => {
     await page.evaluate(() => (window as any).__designer.getState().patch("resize-me", { width: 50 }));
     await expect.poll(async () => (await page.locator(".selbox").boundingBox())?.width).toBeCloseTo(50 * scale, 0);
     const reset = (await handle.boundingBox())!;
-    await page.keyboard.down("Alt");
+    await page.keyboard.down("ControlOrMeta");
     await page.mouse.move(reset.x + reset.width / 2, reset.y + reset.height / 2);
     await page.mouse.down();
     await page.mouse.move(reset.x + reset.width / 2 + 48 * scale, reset.y + reset.height / 2, { steps: 9 });
     await expect(page.locator(".guide.x")).toHaveCount(0);
     await page.mouse.up();
-    await page.keyboard.up("Alt");
+    await page.keyboard.up("ControlOrMeta");
     expect((await doc(page)).sections[0].children[0].width).toBeCloseTo(98, 0);
   });
 
