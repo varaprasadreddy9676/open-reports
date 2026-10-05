@@ -690,9 +690,26 @@ export function Canvas() {
     const targetId = target?.id;
     const position = target?.position ?? "after";
     const placeInserted = (id: string) => {
-      const origin = parentContentOrigin(useStore.getState().doc, id, page);
+      const current = useStore.getState();
+      const origin = parentContentOrigin(current.doc, id, page);
       if (!origin) return;
-      useStore.getState().patch(id, { x: snapTo(pt.x - origin.x, e.altKey, origin.x), y: snapTo(pt.y - origin.y, e.altKey, origin.y) }, `insert:${id}`);
+      const component = ops.find(current.doc, id)?.comp;
+      const printableLeft = paginated!.margin.left;
+      const printableRight = paginated!.pageSize.width - paginated!.margin.right;
+      const printableWidth = printableRight - printableLeft;
+      const autoTable = component?.type === "table" && component.width === undefined;
+      const minimumWidth = Math.min(80, printableWidth);
+      const suppliedWidth = typeof component?.width === "number" ? Math.min(component.width, printableWidth) : 0;
+      const maxX = printableRight - (autoTable ? minimumWidth : suppliedWidth);
+      const snappedX = origin.x + snapTo(pt.x - origin.x, e.altKey, origin.x);
+      const x = Math.max(printableLeft, Math.min(snappedX, maxX));
+      const patch: Record<string, number> = {
+        x: Math.round((x - origin.x) * 10) / 10,
+        y: snapTo(pt.y - origin.y, e.altKey, origin.y),
+      };
+      if (autoTable) patch.width = Math.round(Math.max(minimumWidth, printableRight - x) * 10) / 10;
+      else if (typeof component?.width === "number" && component.width > printableWidth) patch.width = Math.round(printableWidth * 10) / 10;
+      current.patch(id, patch, `insert:${id}`);
     };
 
     if (payload.kind === "component") {
