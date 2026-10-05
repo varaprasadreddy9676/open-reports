@@ -18,6 +18,7 @@ import { COMMANDS, shortcutLabel } from "../lib/commands";
 import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 import { JrxmlFolderImport } from "./JrxmlFolderImport";
 import type { WordImportResult } from "../lib/docx-import";
+import { FeatureGuide } from "./FeatureGuide";
 
 /** Opens the "I tried Open Reports" issue form on the upstream repository. */
 const FEEDBACK_URL = "https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml";
@@ -108,6 +109,7 @@ export function Toolbar() {
         <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview", demoHint: null })}>▶ Run preview</button>
         <button className="btn" data-testid="btn-save" onClick={() => s().save()}>Save</button>
         <button className="btn publish" data-testid="btn-publish" onClick={() => set({ dialog: "publish" })}>Publish</button>
+        <button className="icon-btn" data-testid="btn-guide" aria-label="Feature guide" title="What can I do?" onClick={() => set({ dialog: "guide" })}>?</button>
         <div className="menu-wrap" onKeyDown={(e) => {
           if (!menu) return;
           if (e.key === "Escape") {
@@ -138,6 +140,7 @@ export function Toolbar() {
               <button role="menuitemcheckbox" aria-checked={split} data-testid="toggle-split" onClick={() => (set({ split: !split, mode: split ? s().mode : "design" }), setMenu(null))}><span className="check">{split ? "✓" : ""}</span>Split design and code</button>
               <button role="menuitem" data-testid="btn-ai" onClick={() => (set({ aiOpen: !s().aiOpen }), setMenu(null))}>Ask AI…</button>
               <button role="menuitem" data-testid="btn-palette" onClick={() => (set({ dialog: "palette" }), setMenu(null))}>Command palette… <kbd>⌘K</kbd></button>
+              <button role="menuitem" data-testid="menu-guide" onClick={() => (set({ dialog: "guide" }), setMenu(null))}>What can I do?…</button>
               <button role="menuitem" data-testid="btn-export" onClick={() => setMenu("export")}>Export…</button>
               <label className="menu-field">Output target
                 <select data-testid="target-select" value={target} onChange={(e) => (set({ target: e.target.value }), s().refresh())}>
@@ -524,6 +527,17 @@ function StarterChoices() {
     </>;
 }
 
+function openStarterExample(key: string, message?: string) {
+  const example = STARTERS.find((item) => item.key === key);
+  if (!example) return;
+  requestReplaceReport(() => {
+    const state = useStore.getState();
+    state.loadDoc({ ...structuredClone(example.doc), id: `${example.doc.id}-${Date.now().toString(36).slice(-4)}` });
+    state.set({ dialog: null, mode: "design", demoHint: message ? null : "edit" });
+    if (message) state.toast(message);
+  });
+}
+
 export function HomeScreen() {
   const { doc, meta } = useStore();
   const set = useStore((s) => s.set);
@@ -531,20 +545,13 @@ export function HomeScreen() {
   const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const hasDraft = Boolean(loadDraft()?.doc);
   const isPublicDemo = window.location.hostname === "open-reports-demo.onrender.com";
-  const tryExample = (key: string) => {
-    const example = STARTERS.find((item) => item.key === key);
-    if (!example) return;
-    requestReplaceReport(() => {
-      useStore.getState().loadDoc({ ...structuredClone(example.doc), id: `${example.doc.id}-${Date.now().toString(36).slice(-4)}` });
-      set({ mode: "design", demoHint: "edit" });
-    });
-  };
   return <main className="home-screen" data-testid="home-screen">
     <header className="home-header">
       <div className="home-brand"><span className="logo" aria-hidden="true">▤</span><strong>Open Reports</strong></div>
       <div className="home-header-actions">
         <label className="home-appearance">Appearance <select aria-label="Interface appearance" data-testid="home-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
         {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing →</button>}
+        <button className="btn" data-testid="home-guide" onClick={() => set({ dialog: "guide" })}>What can I do?</button>
         <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
       </div>
     </header>
@@ -558,7 +565,7 @@ export function HomeScreen() {
           <span className="home-featured-label">RECOMMENDED FIRST TRY</span>
           <h2>Explore a complete invoice</h2>
           <p>See real layout, sample data, and PDF preview in a report you can edit.</p>
-          <button className="btn primary" data-testid="home-try-invoice" onClick={() => tryExample("invoice")}>Try invoice example →</button>
+          <button className="btn primary" data-testid="home-try-invoice" onClick={() => openStarterExample("invoice")}>Try invoice example →</button>
         </div>
         <div className="home-steps" aria-label="How the demo works">
           <span><b>1</b> Open an example</span>
@@ -566,6 +573,14 @@ export function HomeScreen() {
           <span><b>3</b> Run preview and export</span>
         </div>
       </div>
+      <section className="home-discover" aria-labelledby="home-discover-title">
+        <div className="home-discover-head"><div><span className="home-featured-label">MORE TO EXPLORE</span><h2 id="home-discover-title">Choose a result, then try it</h2></div><button className="btn" data-testid="home-explore-features" onClick={() => set({ dialog: "guide" })}>Explore all features →</button></div>
+        <div className="home-discover-list">
+          <span><strong>Bring a file</strong> Import a Word document or JasperReports layout.</span>
+          <span><strong>See a summary</strong> Compare totals across rows and columns.</span>
+          <span><strong>Share the result</strong> Export Word or embed a published report.</span>
+        </div>
+      </section>
       <div className="home-section-head"><div><h2>Your workspace</h2><p>Pick up where you left off or open a saved report.</p></div></div>
       <div className="home-workspace-actions">
         {hasDraft && <button className="home-workspace-card" onClick={() => set({ home: false })}>
@@ -584,6 +599,16 @@ function NewDialog() {
   return <Modal wide label="New report" onClose={() => set({ dialog: null })}>
     <h2>New report</h2>
     <StarterChoices />
+  </Modal>;
+}
+
+function GuideDialog() {
+  const set = useStore((state) => state.set);
+  return <Modal wide label="Feature guide" onClose={() => set({ dialog: null })}>
+    <FeatureGuide
+      onExample={openStarterExample}
+      onImport={(format) => set({ dialog: format === "docx" ? "import-docx" : "import-jrxml" })}
+    />
   </Modal>;
 }
 
@@ -894,6 +919,7 @@ export function Dialogs() {
   if (!dialog) return null;
   if (dialog === "replace") return <Modal label="Unsaved changes" onClose={() => resolveReplaceReport(false)}><h2>Replace this report?</h2><p className="muted">Your changes to <strong>{useStore.getState().doc.name || "Untitled report"}</strong> are saved only in this local draft. Opening another report will replace it.</p><div className="dialog-actions"><button className="btn" data-testid="replace-cancel" data-default-focus onClick={() => resolveReplaceReport(false)}>Keep editing</button><span className="spacer" /><button className="btn danger" data-testid="replace-confirm" onClick={() => resolveReplaceReport(true)}>Replace report</button></div></Modal>;
   if (dialog === "new") return <NewDialog />;
+  if (dialog === "guide") return <GuideDialog />;
   if (dialog === "import-jrxml") return <JrxmlImportDialog />;
   if (dialog === "import-docx") return <DocxImportDialog />;
   if (dialog === "open") return <OpenDialog />;

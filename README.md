@@ -4,7 +4,7 @@
 
 **Design data-driven documents in your browser. Render them anywhere.**
 
-Design invoices, statements, grouped reports, labels, receipts and sticker sheets. Render documents as PDF or HTML, export data as Excel or CSV, and create printer-specific ZPL or ESC/POS output.
+Design invoices, statements, grouped reports, crosstabs, labels, receipts and sticker sheets. Render PDF or HTML, export an editable Word document, export data as Excel or CSV, and create printer-specific ZPL or ESC/POS output.
 
 Open source (MIT) · self-hosted · no seats, no per-document fees
 
@@ -32,6 +32,19 @@ Open **http://localhost:3000**, pick **Invoice** from the starters, and press **
 Nothing to install: open it in **GitHub Codespaces** (button above; the app opens in your browser after a few minutes of setup), or deploy your own free demo with **Deploy to Render**.
 
 No Docker? Node 22 and `pnpm` work too: `pnpm install && pnpm doctor && pnpm build:all && pnpm start` (details in [Getting started](docs/GETTING_STARTED.md)).
+
+### Pick the task you have
+
+The demo's **What can I do?** guide explains these workflows and opens the right starting point.
+
+| I want to… | Why it helps | First step |
+|---|---|---|
+| Reuse a Word form or letterhead | Start from familiar content, then connect it to data | **Import Word document** on Home; review the conversion notes |
+| Move a JasperReports design | Keep the JRXML structure as an editable draft | **Import JRXML** on Home; review migration issues |
+| Compare totals across categories | A crosstab turns rows into a region-by-service summary | Open the **Sales by region and service** example |
+| Give someone an editable document | DOCX keeps text, tables and supported charts editable | Open a report → **⋯ → Export → Word (DOCX)** |
+| Let readers search and sort a report | The published viewer provides find, contents, sorting and report links | [Publish and embed a report](docs/EMBEDDING.md) |
+| Show reports inside my app | Use the viewer or designer without building a reporting screen | [Copy the embed snippet](docs/EMBEDDING.md) |
 
 ## Why Open Reports
 
@@ -77,12 +90,12 @@ No Docker? Node 22 and `pnpm` work too: `pnpm install && pnpm doctor && pnpm bui
 
 ## What you can build
 
-24 starters ship with the designer. Open one, connect your data, publish.
+25 starters ship with the designer. Open one, connect your data, publish.
 
 | Documents | Starters |
 |---|---|
 | Invoices, purchase orders, statements | `invoice` · `purchase-order` · `account-statement` |
-| Grouped and summary reports | `grouped-sales` · `department-report` · `charts` · `conditional` |
+| Grouped and summary reports | `grouped-sales` · `department-report` · `crosstab` · `charts` · `conditional` |
 | Large exports (100,000+ rows) | `large-dataset` → Excel / CSV |
 | Thermal receipts (58 / 80 mm) | `receipt` · `receipt-58mm` |
 | Labels, wristbands, ID cards | `label-50x30` · `label-100x50` · `wristband` · `patient-id-card` · `specimen-label` · `pharmacy-label` · `blood-bag-label` |

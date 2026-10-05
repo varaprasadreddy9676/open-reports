@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "id": "crosstab",
+  "name": "Sales by region and service",
+  "description": "A pivot-style summary: regions down the side, services across the top, totals in each cell.",
+  "page": { "size": "A4", "orientation": "landscape", "unit": "mm", "margin": { "top": 16, "right": 16, "bottom": 16, "left": 16 } },
+  "datasets": [
+    {
+      "id": "sales",
+      "source": "inline",
+      "query": {
+        "data": [
+          { "region": "North", "service": "Consultation", "amount": 42000 },
+          { "region": "North", "service": "Laboratory", "amount": 28500 },
+          { "region": "North", "service": "Radiology", "amount": 19600 },
+          { "region": "South", "service": "Consultation", "amount": 37800 },
+          { "region": "South", "service": "Laboratory", "amount": 32100 },
+          { "region": "South", "service": "Radiology", "amount": 24400 },
+          { "region": "East", "service": "Consultation", "amount": 29400 },
+          { "region": "East", "service": "Laboratory", "amount": 17600 },
+          { "region": "East", "service": "Radiology", "amount": 22100 },
+          { "region": "West", "service": "Consultation", "amount": 34600 },
+          { "region": "West", "service": "Laboratory", "amount": 26900 },
+          { "region": "West", "service": "Radiology", "amount": 18200 }
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "type": "reportHeader",
+      "children": [
+        { "type": "text", "value": "Sales by region and service", "style": { "fontSize": 20, "fontWeight": "bold", "color": "#1f2937" }, "bookmark": true },
+        { "type": "text", "value": "Each cell adds the sales amount for one region and one service. Change the row, column, or value fields to make a different summary.", "style": { "fontSize": 10, "color": "#475569" } },
+        { "type": "spacer", "height": 16 }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "crosstab",
+          "id": "sales-crosstab",
+          "dataset": "sales",
+          "rows": [{ "binding": "row.region", "header": "Region" }],
+          "columns": [{ "binding": "row.service", "header": "Service" }],
+          "measures": [{ "binding": "row.amount", "header": "Sales", "aggregate": "sum", "format": "currency:INR" }],
+          "totalRow": true,
+          "totalColumn": true,
+          "styles": { "grid": { "lines": "all", "color": "#cbd5e1", "width": 0.5 }, "header": { "background": "#e8eef5", "fontWeight": "bold" } }
+        }
+      ]
+    }
+  ]
+}

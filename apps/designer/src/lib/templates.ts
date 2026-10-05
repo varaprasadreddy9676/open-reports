@@ -18,6 +18,7 @@ const GROUPS: Record<string, StarterTemplate["group"]> = {
   "grouped-sales": "Data",
   conditional: "Data",
   charts: "Data",
+  crosstab: "Data",
   "large-dataset": "Data",
   multilingual: "Healthcare",
   "lab-report": "Healthcare",

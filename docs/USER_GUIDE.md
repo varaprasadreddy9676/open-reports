@@ -2,6 +2,8 @@
 
 Open the designer (`http://localhost:3000`). Everything you do edits one JSON document; you can see and edit it any time in **Code**.
 
+If you are deciding where to start, select **What can I do?** on Home or the **?** button in the designer. The guide explains the purpose of Word/JRXML import, crosstabs, precise canvas layout, Word export, the published viewer, and embedding, with an action for each. The **Sales by region and service** starter is a ready crosstab to explore.
+
 ## 1. Your first invoice (no documentation needed)
 1. **New report → Invoice** (or **From sample JSON**: paste a response from your API and the report is generated with fields and tables).
 2. Click any text on the page. The right panel shows its content as **Text · Field · Formula** — pick **Field** to bind to data.

@@ -139,7 +139,7 @@ interface State {
   engineBusy: boolean;
   meta: TemplateMeta;
   toasts: Toast[];
-  dialog: null | "ai-settings" | "open" | "new" | "import-jrxml" | "import-docx" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme" | "replace" | "shortcuts";
+  dialog: null | "ai-settings" | "open" | "new" | "guide" | "import-jrxml" | "import-docx" | "settings" | "dataset" | "group" | "palette" | "generate" | "compare" | "block" | "publish" | "theme" | "replace" | "shortcuts";
   editingDataset: string | null;
   dropPrompt: DropPrompt | null;
   codeFocus: { id: string; nonce: number } | null;
