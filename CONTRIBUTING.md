@@ -23,6 +23,8 @@ pnpm build:all
 
 SQL datasource tests need PostgreSQL (`reporting_test`, user `postgres`) and MySQL/MariaDB (`reporting_test`, user `reporting`) running locally; CI provides both.
 
+Working on the canvas, embedding, crosstabs, the interactive viewer, DOCX, charts or RDL import? Start with [docs/design/competitive-features.md](docs/design/competitive-features.md): where the code is, how to test it, the tests that already fail for unrelated reasons, and plans for the parts not built yet.
+
 ## Ground rules
 1. **The report definition JSON is the single model.** UI, SDK and AI features edit it; they never keep a second copy of the truth.
 2. **Determinism.** Same definition + data + fonts must give the same pages. Anything that can change layout (fonts, measurement) must be covered by a test.
