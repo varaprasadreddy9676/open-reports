@@ -79,6 +79,7 @@ interface State {
   future: HistoryEntry[];
   lastCoalesce: { key: string; at: number } | null;
   mode: Mode;
+  home: boolean;
   leftTab: LeftTab;
   reportInspectorTab: ReportInspectorTab;
   zoom: number;
@@ -251,6 +252,7 @@ export const useStore = create<State>((set, get) => ({
   future: [],
   lastCoalesce: null,
   mode: "design",
+  home: true,
   leftTab: "insert",
   reportInspectorTab: "page",
   zoom: 1,
@@ -322,7 +324,7 @@ export const useStore = create<State>((set, get) => ({
     const d = ops.ensureIds(doc);
     const hasStructure = (d.sections ?? []).length > 1 || (d.groups ?? []).length > 0 || (d.sections ?? []).some((section: { children?: Comp[] }) => section.children?.length);
     const printFirst = !!d.print?.printerType && d.print.printerType !== "document";
-    set({ doc: d, sample, selection: [], tableEditId: null, past: [], future: [], migrationIssues: d.migration?.issues ?? [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
+    set({ doc: d, sample, home: false, selection: [], tableEditId: null, past: [], future: [], migrationIssues: d.migration?.issues ?? [], meta: { dirty: false, ...meta }, parameters: {}, target: d.print?.language ?? "pdf", leftTab: hasStructure ? "layers" : "insert", reportInspectorTab: printFirst ? "print" : "page", lastCoalesce: null, saveState: "saved", showPagination: false, fitToWidth: true });
     persistDraft(d, sample);
     get().refresh();
     get().syncLinkedBlocks();

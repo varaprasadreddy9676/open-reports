@@ -1,6 +1,6 @@
 import { ThemeDialogBody } from "./ThemeDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useStore, type Mode } from "../store";
+import { loadDraft, useStore, type Mode } from "../store";
 import { api, ApiError, settings, type TemplateRecord } from "../lib/api";
 import { STARTERS, blankReport } from "../lib/templates";
 import { generateReportFromJson } from "../lib/generate";
@@ -68,9 +68,9 @@ export function Toolbar() {
   return (
     <header className="toolbar" role="toolbar" aria-label="Main toolbar">
       <div className="brand">
-        <span className="logo" aria-hidden="true">▤</span>
-        <button className="crumb" data-testid="btn-open" onClick={() => set({ dialog: "open" })}>
-          Reports
+        <button className="home-nav" data-testid="btn-home" title="Go to Home" onClick={() => set({ home: true, dialog: null })}>
+          <span className="logo" aria-hidden="true">▤</span>
+          <span>Home</span>
         </button>
         <span className="sep-slash">/</span>
         <input
@@ -101,6 +101,7 @@ export function Toolbar() {
       </div>
 
       <div className="toolbar-group right">
+        <button className="btn toolbar-open" data-testid="btn-open" onClick={() => set({ dialog: "open" })}>Open</button>
         <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview" })}>▶ Run preview</button>
         <button className="btn" data-testid="btn-save" onClick={() => s().save()}>Save</button>
         <button className="btn publish" data-testid="btn-publish" onClick={() => set({ dialog: "publish" })}>Publish</button>
@@ -405,15 +406,38 @@ function HistoryPanel() {
 }
 
 // ------------------------------------------------------------------ dialogs
-function Modal({ children, onClose, wide }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) {
+function Modal({ children, onClose, wide, label = "Report dialog", closable = true }: { children: React.ReactNode; onClose: () => void; wide?: boolean; label?: string; closable?: boolean }) {
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const modal = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    (modal.current?.querySelector<HTMLElement>("[autofocus]") ?? closeButton.current)?.focus();
+    return () => previous?.focus();
+  }, []);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (closable) onClose();
+      } else if (e.key === "Tab") {
+        const focusable = Array.from(modal.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])') ?? []);
+        if (!focusable.length) return;
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [onClose, closable]);
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal ${wide ? "wide" : ""}`}>{children}</div>
+    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closable && onClose()}>
+      <div ref={modal} className={`modal ${wide ? "wide" : ""}`} role="dialog" aria-modal="true" aria-label={label}>
+        <button ref={closeButton} className="modal-close" type="button" aria-label="Close dialog" title="Close (Esc)" disabled={!closable} onClick={onClose}>×</button>
+        {children}
+      </div>
     </div>
   );
 }
@@ -430,7 +454,7 @@ const DOC_SIZES: { label: string; page: Record<string, unknown>; print?: Record<
   { label: "Label 100 × 50 mm", page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape", margin: { top: 3, right: 4, bottom: 3, left: 4 } } },
 ];
 
-function NewDialog() {
+function StarterChoices() {
   const set = useStore((s) => s.set);
   const [q, setQ] = useState("");
   const [size, setSize] = useState(0);
@@ -444,9 +468,7 @@ function NewDialog() {
     const blank = blankReport();
     create({ ...blank, page: { ...blank.page, ...selected.page }, ...(selected.print ? { print: selected.print } : {}) });
   };
-  return (
-    <Modal wide onClose={() => set({ dialog: null })}>
-      <h2>New report</h2>
+  return <>
       <div className="starter-actions">
         <div className="starter blank">
           <button className="starter-main" data-testid="starter-blank" onClick={createBlank}>
@@ -487,8 +509,64 @@ function NewDialog() {
           </div>
         </div>
       ))}
-    </Modal>
-  );
+    </>;
+}
+
+export function HomeScreen() {
+  const { doc, meta } = useStore();
+  const set = useStore((s) => s.set);
+  const hasDraft = Boolean(loadDraft()?.doc);
+  const tryExample = (key: string) => {
+    const example = STARTERS.find((item) => item.key === key);
+    if (!example) return;
+    useStore.getState().loadDoc({ ...structuredClone(example.doc), id: `${example.doc.id}-${Date.now().toString(36).slice(-4)}` });
+    set({ mode: "design" });
+  };
+  return <main className="home-screen" data-testid="home-screen">
+    <header className="home-header">
+      <div className="home-brand"><span className="logo" aria-hidden="true">▤</span><strong>Open Reports</strong></div>
+      <div className="home-header-actions">
+        {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing ↗</button>}
+        <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
+      </div>
+    </header>
+    <div className="home-content">
+      <p className="home-eyebrow">REPORT DESIGNER</p>
+      <h1>Start with a working report</h1>
+      <p className="home-intro">Choose an example, change it in the designer, then run Preview to see the printable result.</p>
+      <div className="home-featured" aria-label="Quick start examples">
+        <div className="home-featured-copy">
+          <span className="home-featured-label">RECOMMENDED FIRST TRY</span>
+          <h2>Explore a complete invoice</h2>
+          <p>See real layout, sample data, and PDF preview in a report you can edit.</p>
+          <button className="btn primary" data-testid="home-try-invoice" onClick={() => tryExample("invoice")}>Try invoice example →</button>
+        </div>
+        <div className="home-steps" aria-label="How the demo works">
+          <span><b>1</b> Open an example</span>
+          <span><b>2</b> Edit text, data, or layout</span>
+          <span><b>3</b> Run preview and export</span>
+        </div>
+      </div>
+      <div className="home-section-head"><div><h2>Your workspace</h2><p>Pick up where you left off or open a saved report.</p></div></div>
+      <div className="home-workspace-actions">
+        {hasDraft && <button className="home-workspace-card" onClick={() => set({ home: false })}>
+          <strong>Continue {doc.name || "Untitled report"}</strong><span>{meta.id ? "Saved report" : "Local draft"} · Return to the designer →</span>
+        </button>}
+        <button className="home-workspace-card" data-testid="home-open" onClick={() => set({ dialog: "open" })}><strong>Open a saved report</strong><span>Browse reports saved on this server →</span></button>
+        <button className="home-workspace-card" onClick={() => set({ dialog: "import-jrxml" })}><strong>Import JRXML</strong><span>Bring a JasperReports source file or folder →</span></button>
+      </div>
+      <div className="home-section-head"><div><h2>Create something new</h2><p>Start blank, use your data, or browse the examples below.</p></div></div>
+      <StarterChoices />
+    </div>
+  </main>;
+}
+
+function NewDialog() {
+  const set = useStore((s) => s.set);
+  return <Modal wide label="New report" onClose={() => set({ dialog: null })}>
+    <h2>New report</h2>
+    <StarterChoices />
+  </Modal>;
 }
 
 function JrxmlImportDialog() {
@@ -515,7 +593,7 @@ function JrxmlImportDialog() {
     state.toast("JRXML draft imported. Review migration issues before using the output.");
   };
   const pending = result?.issues.filter((issue) => issue.status !== "converted") ?? [];
-  return <Modal wide onClose={() => { if (!folderBusy) set({ dialog: null }); }}>
+  return <Modal wide label="Import JRXML" closable={!folderBusy} onClose={() => { if (!folderBusy) set({ dialog: null }); }}>
     <h2>Import JasperReports source</h2>
     <p className="muted">Import one JRXML file or a folder. Converted reports stay as drafts; data connections and unsupported expressions need review.</p>
     <div className="tabs" aria-label="JRXML import scope"><button aria-pressed={scope === "single"} className={scope === "single" ? "active" : ""} disabled={folderBusy} onClick={() => setScope("single")}>One file</button><button aria-pressed={scope === "folder"} className={scope === "folder" ? "active" : ""} disabled={folderBusy} onClick={() => setScope("folder")}>Folder</button></div>
@@ -595,9 +673,11 @@ function OpenDialog() {
     api.listTemplates().then(setItems).catch((e) => setError((e as Error).message));
   }, []);
   return (
-    <Modal onClose={() => set({ dialog: null })}>
+    <Modal label="Open a saved report" onClose={() => set({ dialog: null })}>
       <h2>Open a saved report</h2>
+      <p className="muted">Select a report to edit, or close this dialog to return.</p>
       {error && <div className="field-error" role="alert">{error}</div>}
+      {!items && !error && <p className="muted" role="status">Loading saved reports…</p>}
       {items && items.length === 0 && <p className="muted">Nothing saved yet. Use Save to store this report on the server.</p>}
       <ul className="template-list" data-testid="template-list">
         {(items ?? []).map((t) => (
@@ -610,6 +690,11 @@ function OpenDialog() {
           </li>
         ))}
       </ul>
+      <div className="dialog-actions">
+        <button className="btn" onClick={() => set({ dialog: null })}>Close</button>
+        <span className="spacer" />
+        <button className="btn" onClick={() => set({ dialog: "new" })}>New report</button>
+      </div>
     </Modal>
   );
 }

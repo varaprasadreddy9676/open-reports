@@ -5,7 +5,7 @@ import { LeftPanel } from "./components/LeftPanel";
 import { Properties } from "./components/Properties";
 import { CodeEditor } from "./components/CodeEditor";
 import { Preview } from "./components/Preview";
-import { BottomBar, BottomPanel, Dialogs, Toasts, Toolbar } from "./components/Shell";
+import { BottomBar, BottomPanel, Dialogs, HomeScreen, Toasts, Toolbar } from "./components/Shell";
 import { DataMode } from "./components/DataMode";
 import { AiBar } from "./components/AiBar";
 import { TableDesigner } from "./components/TableDesigner";
@@ -19,7 +19,7 @@ function isTyping(t: EventTarget | null): boolean {
 }
 
 export default function App() {
-  const { mode, leftOpen, rightOpen, split, tableEditId } = useStore();
+  const { mode, home, leftOpen, rightOpen, split, tableEditId } = useStore();
   const set = useStore((s) => s.set);
   const showsLeft = mode === "design" && leftOpen;
   const showsRight = (mode === "design" || mode === "code") && rightOpen;
@@ -29,11 +29,10 @@ export default function App() {
     const s = useStore.getState();
     if (draft?.doc) {
       s.loadDoc(draft.doc, {}, draft.sample ?? {});
-      s.toast("Restored your last draft");
     } else {
       s.refresh();
-      s.set({ dialog: "new" });
     }
+    s.set({ home: true });
     s.loadCapabilities();
     s.loadBlocks();
   }, []);
@@ -71,6 +70,11 @@ export default function App() {
       if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
         s.save();
+        return;
+      }
+      if (e.key === "Escape" && s.home && !s.dialog) {
+        e.preventDefault();
+        s.set({ home: false });
         return;
       }
       if (isTyping(e.target) || s.dialog) return;
@@ -126,6 +130,7 @@ export default function App() {
 
   return (
     <div className="app" data-testid="app">
+      {home ? <HomeScreen /> : <>
       <Toolbar />
       {mode === "design" && tableEditId ? <TableDesigner id={tableEditId} /> : <div className={`main ${showsLeft ? "" : "no-left"} ${showsRight ? "" : "no-right"}`}>
         {showsLeft && <LeftPanel />}
@@ -153,6 +158,7 @@ export default function App() {
       <BottomPanel />
       <BottomBar />
       <AiBar />
+      </>}
       <Dialogs />
       <Toasts />
     </div>
