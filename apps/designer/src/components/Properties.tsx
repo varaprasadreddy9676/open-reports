@@ -8,6 +8,7 @@ import { Icon } from "./Icon";
 import { BandProps } from "./BandProps";
 import { FormulaInput } from "./FormulaInput";
 import { InspectorSection as Section } from "./InspectorSection";
+import { CrosstabProps } from "./CrosstabProps";
 import { removeHeaderColumn } from "../lib/table-header";
 import { removeBodyColumn } from "../lib/table-body";
 import { textStyleFromStyle } from "../lib/theme-edit";
@@ -30,7 +31,7 @@ const TIME_ZONES: string[] = (() => {
   }
 })();
 
-function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
+export function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <label className={`field ${wide ? "wide" : ""}`}>
       <span className="field-label">{label}</span>
@@ -1419,7 +1420,7 @@ function MultiProps({ ids }: { ids: string[] }) {
   );
 }
 
-const CONTENT_TYPES = new Set(["text", "richText", "field", "table", "chart", "labelSheet", "qrcode", "barcode", "image", "group", "pageBreak", "line", "fragment"]);
+const CONTENT_TYPES = new Set(["text", "richText", "field", "table", "crosstab", "chart", "labelSheet", "qrcode", "barcode", "image", "group", "pageBreak", "line", "fragment"]);
 
 function ComponentProps({ id }: { id: string }) {
   const { doc } = useStore();
@@ -1460,6 +1461,7 @@ function ComponentProps({ id }: { id: string }) {
       {tab === "content" && t === "table" && <TableProps comp={comp} />}
       {tab === "content" && t === "fragment" && <Section title="Library block"><FragmentProps comp={comp} /></Section>}
       {tab === "content" && t === "chart" && <ChartProps comp={comp} />}
+      {tab === "content" && t === "crosstab" && <CrosstabProps comp={comp} />}
       {tab === "content" && t === "labelSheet" && <LabelSheetProps comp={comp} />}
       {tab === "content" && (t === "qrcode" || t === "barcode") && <CodeProps comp={comp} />}
       {tab === "content" && t === "image" && <ImageProps comp={comp} />}

@@ -13,6 +13,7 @@ const P: Record<string, string> = {
   column: "M4 4h16v16H4zM4 9h16M4 14h16",
   grid: "M4 4h16v16H4zM4 12h16M12 4v16",
   table: "M4 5h16v14H4zM4 10h16M4 15h16M10 5v14",
+  crosstab: "M4 5h16v14H4zM4 10h16M10 5v14M15 5v14M4 15h16M5 6l4 3",
   repeater: "M6 6h12M6 11h12M6 16h12M3 6v0M3 11v0M3 16v0",
   qrcode: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h3v3h-6z",
   barcode: "M4 5v14M7 5v14M10 5v14M13 5v14M17 5v14M20 5v14",

@@ -151,7 +151,7 @@ The [CI workflow](.github/workflows/ci.yml) runs unit, integration, browser and 
 
 ## Status
 
-Open Reports is young (v0.x) and moving fast: expect rough edges. Not yet supported: PDF/A and digital signatures, crosstabs, and importing Word or InDesign layouts. JRXML import creates drafts, not guaranteed Jasper-equivalent PDFs. Page breaks are measured with the bundled Noto fonts, so a different font changes line breaks; label and receipt output is verified as ZPL and ESC/POS bytes rather than on every printer model. The roadmap lives on the issue tracker.
+Open Reports is young (v0.x) and moving fast: expect rough edges. Not yet supported: PDF/A and digital signatures, and importing Word or InDesign layouts. JRXML import creates drafts, not guaranteed Jasper-equivalent PDFs. Page breaks are measured with the bundled Noto fonts, so a different font changes line breaks; label and receipt output is verified as ZPL and ESC/POS bytes rather than on every printer model. The roadmap lives on the issue tracker.
 
 ## Tried it? Tell us
 

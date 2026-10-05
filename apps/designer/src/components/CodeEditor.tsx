@@ -67,7 +67,7 @@ const PROPS: Record<string, string[]> = {
   image: ["src", "fit", "alt", "whenMissing"],
   chart: ["chartType", "dataset", "categoryField", "valueField", "title"],
 };
-const COMPONENT_TYPES = ["text", "richText", "image", "line", "rectangle", "spacer", "container", "row", "column", "grid", "table", "repeater", "group", "keepTogether", "qrcode", "barcode", "chart", "pageBreak", "fragment"];
+const COMPONENT_TYPES = ["text", "richText", "image", "line", "rectangle", "spacer", "container", "row", "column", "grid", "table", "crosstab", "repeater", "group", "keepTogether", "qrcode", "barcode", "chart", "pageBreak", "fragment"];
 const DOCS: Record<string, string> = {
   type: "The component kind. Determines which other properties apply.",
   binding: "A data path such as data.invoice.number or row.amount (inside tables and repeaters).",

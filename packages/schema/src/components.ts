@@ -105,6 +105,24 @@ export const tableColumnSchema = z.object({
 });
 export type TableColumn = z.infer<typeof tableColumnSchema>;
 
+/** A crosstab dimension: the values of `binding` become row or column headings. */
+export const crosstabDimensionSchema = z.object({
+  binding: z.string(),
+  header: z.string().optional(),
+  sort: z.enum(["asc", "desc"]).optional().default("asc"),
+  format: z.string().optional(),
+});
+export type CrosstabDimension = z.infer<typeof crosstabDimensionSchema>;
+
+/** A crosstab measure: aggregated into every row/column cell, and into the totals. */
+export const crosstabMeasureSchema = z.object({
+  binding: z.string(),
+  aggregate: z.enum(["sum", "count", "avg", "min", "max"]).optional().default("sum"),
+  header: z.string().optional(),
+  format: z.string().optional(),
+});
+export type CrosstabMeasure = z.infer<typeof crosstabMeasureSchema>;
+
 /** Header cells use zero-based column positions. The grid is validated by
  * @reporting/core because its bounds depend on the table's columns. */
 export const tableHeaderCellSchema = z.object({
@@ -205,6 +223,7 @@ export const componentSchema: z.ZodTypeAny = z.lazy(() =>
     pageBreakComponentSchema,
     chartComponentSchema,
     tableComponentSchema,
+    crosstabComponentSchema,
     containerComponentSchema,
     rowComponentSchema,
     columnComponentSchema,
@@ -219,6 +238,29 @@ export const componentSchema: z.ZodTypeAny = z.lazy(() =>
     customComponentSchema,
   ])
 );
+
+/**
+ * A pivot table (JasperReports crosstab, SSRS matrix): distinct values of `rows` down the side, of `columns`
+ * across the top, and `measures` aggregated in each cell, with optional totals. It resolves to an ordinary
+ * table, so it paginates, repeats its headers and exports like one.
+ */
+export const crosstabComponentSchema = componentBaseSchema.extend({
+  type: z.literal("crosstab"),
+  dataset: z.string(),
+  rows: z.array(crosstabDimensionSchema).min(1),
+  columns: z.array(crosstabDimensionSchema).default([]),
+  measures: z.array(crosstabMeasureSchema).min(1),
+  /** A Total column at the right of each row. */
+  totalColumn: z.boolean().optional().default(true),
+  /** A Total row at the bottom. */
+  totalRow: z.boolean().optional().default(true),
+  totalLabel: z.string().optional().default("Total"),
+  /** Most column values to show; the rest are left out with a warning. */
+  maxColumns: z.number().int().positive().optional().default(60),
+  tableStyle: z.string().optional(),
+  styles: tableStylesSchema.optional(),
+  repeatHeaderOnPageBreak: z.boolean().optional().default(true),
+});
 
 export const containerComponentSchema = componentBaseSchema.extend({
   type: z.literal("container"),

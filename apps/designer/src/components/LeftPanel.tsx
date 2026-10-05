@@ -29,6 +29,7 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   { type: "grid", label: "Grid", group: "Layout", keywords: "columns cells" },
   { type: "table", label: "Table", group: "Data", keywords: "rows columns list items" },
   { type: "repeater", label: "Repeater", group: "Data", keywords: "list loop each" },
+  { type: "crosstab", label: "Crosstab", group: "Data", keywords: "pivot matrix cross tab summary totals" },
   { type: "qrcode", label: "QR Code", group: "Print", keywords: "barcode 2d scan" },
   { type: "barcode", label: "Barcode", group: "Print", keywords: "code128 ean scan" },
   { type: "pageBreak", label: "Page break", group: "Print", keywords: "new page" },

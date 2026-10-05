@@ -173,6 +173,27 @@ Table merge coordinates are zero-based. Body `row` positions refer to resolved r
 - **Measurement.** Row heights are measured with the weight and slant each row is drawn with.
 - **Tables without styles.** They keep their previous look. Grey stripes from `alternateRowStyle` now follow the row's position in the whole table, so they continue consistently across pages.
 
+### Crosstabs (pivot tables)
+
+A `crosstab` summarises a dataset: distinct values of `rows` down the side, of `columns` across the top, and `measures` aggregated in each cell.
+
+```json
+{ "type": "crosstab", "dataset": "sales",
+  "rows": [{ "binding": "row.region", "header": "Region" }, { "binding": "row.doctor" }],
+  "columns": [{ "binding": "row.month", "sort": "asc" }],
+  "measures": [{ "binding": "row.amount", "aggregate": "sum", "format": "currency" }, { "binding": "row.amount", "aggregate": "count", "header": "Visits" }],
+  "totalColumn": true, "totalRow": true, "totalLabel": "Total" }
+```
+
+- **Aggregates.** `sum` (the default), `count`, `avg`, `min` and `max`. Totals are computed from the raw values, so an average total is the average of all values, not an average of averages.
+- **Sorting.** Each dimension sorts `asc` (the default) or `desc`; numbers sort numerically and text naturally ("Item 2" before "Item 10").
+- **Nesting.** Several `rows` nest, with repeated outer values merged. Several `measures` produce a two-level header: column values on top, measure names underneath.
+- **Headings.** A dimension or measure without a `header` gets one from its field name (`row.unit_price` → "Unit price").
+- **Size.** At most `maxColumns` column values (default 60) are shown; the rest are left out with a `CROSSTAB_COLUMNS_TRUNCATED` warning.
+- **Output.** A crosstab becomes an ordinary table before layout, so it paginates, repeats its header on every page (`repeatHeaderOnPageBreak`), takes `tableStyle` and `styles`, and exports to PDF, HTML, Excel and CSV like any table.
+- **In the designer.** Add **Crosstab** from the Data group, then choose a dataset: rows, columns and a sum are filled in from its fields, and can be changed in the inspector.
+- **From JasperReports.** JRXML crosstabs import as crosstabs: row and column groups, measures (Sum, Count, Average, Lowest, Highest) and totals. Cell layouts, colours and number patterns are listed for review.
+
 ## Reusable blocks
 
 - **Report-local blocks.** `fragments` holds reusable component groups for one report. A `{ "type": "fragment", "ref": "<id>" }` component prints one.

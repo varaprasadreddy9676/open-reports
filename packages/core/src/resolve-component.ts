@@ -14,6 +14,7 @@ import type {
   ResolvedWarning,
 } from "./resolved-report.js";
 import { aggregate } from "./aggregate.js";
+import { pivotCrosstab, type CrosstabDefinition } from "./crosstab.js";
 import { combineTableSpans, repeatedValueSpans, tableCellSpanErrors, tableCellSpanGrid, type TableCellSpanDefinition } from "./table-cell-spans.js";
 import { evaluateRowVariables, computeGroupVariables } from "./variables.js";
 import { applyCellRules, applyRowRules, hiddenColumns, withoutColumns } from "./table-rules.js";
@@ -240,6 +241,8 @@ function resolveComponent(definition: Component, ctx: ResolveContext, env: Resol
     }
     case "table":
       return resolveTable(component, ctx, env);
+    case "crosstab":
+      return resolveCrosstab(component, ctx, env);
     case "group":
       return resolveGroup(component, ctx, env);
     case "container":
@@ -370,6 +373,28 @@ function resolveLabelSheet(component: Component, ctx: ResolveContext, env: Resol
     } as ResolvedComponent);
   }
   return sheets;
+}
+
+/** A crosstab is pivoted here and then resolved as an ordinary table over the pivoted rows. */
+function resolveCrosstab(component: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | null {
+  const source = toArray(sourceRows(component.dataset, ctx, env));
+  const { table, rows, truncatedColumns } = pivotCrosstab(component as unknown as CrosstabDefinition, source, (binding, row) => (binding ? env.engine.evaluate(binding, toRowContext(ctx, row)) : undefined));
+  if (truncatedColumns > 0) {
+    env.warnings.push({ code: "CROSSTAB_COLUMNS_TRUNCATED", path: env.path, componentId: component.id, message: `Crosstab shows the first ${table.columns.length} columns; ${truncatedColumns} more column values were left out. Raise maxColumns or group the column values.` });
+  }
+  // The pivoted rows live under a private dataset name so the normal table code can read them.
+  const dataset = `__crosstab:${component.id ?? env.path}`;
+  const asTable = {
+    ...component,
+    type: "table",
+    dataset,
+    columns: table.columns,
+    headerRows: table.headerRows,
+    showHeader: true,
+    showFooter: table.showFooter,
+    repeatHeaderOnPageBreak: component.repeatHeaderOnPageBreak ?? true,
+  } as Component;
+  return resolveTable(asTable, { ...ctx, data: { ...ctx.data, [dataset]: rows } }, env);
 }
 
 function resolveTable(definition: Component, ctx: ResolveContext, env: ResolveEnv): ResolvedComponent | null {

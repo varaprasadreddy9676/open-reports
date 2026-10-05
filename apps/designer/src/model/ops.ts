@@ -374,6 +374,7 @@ export const PALETTE: Record<string, () => Comp> = {
   grid: () => ({ type: "grid", columns: 2, children: [] }),
   table: () => ({ type: "table", dataset: "", columns: [{ id: "col-1", header: "Column", binding: "row.value" }] }),
   repeater: () => ({ type: "repeater", dataset: "", children: [] }),
+  crosstab: () => ({ type: "crosstab", dataset: "", rows: [{ binding: "" }], columns: [{ binding: "" }], measures: [{ binding: "", aggregate: "sum" }] }),
   qrcode: () => ({ type: "qrcode", value: "https://example.com", width: 70, height: 70 }),
   barcode: () => ({ type: "barcode", value: "123456789012", symbology: "code128", width: 140, height: 40 }),
   chart: () => ({ type: "chart", chartType: "bar", dataset: "", series: [], height: 180 }),

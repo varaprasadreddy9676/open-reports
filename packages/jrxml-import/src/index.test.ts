@@ -102,3 +102,46 @@ describe("JRXML import", () => {
     expect(translateJasperExpression('$V{runningTotal}')).toBeUndefined();
   });
 });
+
+const crosstabJrxml = `<?xml version="1.0"?>
+<jasperReport name="Sales" pageWidth="595" pageHeight="842">
+  <field name="region" class="java.lang.String"/><field name="month" class="java.lang.String"/><field name="amount" class="java.math.BigDecimal"/>
+  <summary><band height="120">
+    <crosstab><reportElement x="0" y="0" width="555" height="100"/>
+      <rowGroup name="region" width="80" totalPosition="End"><bucket class="java.lang.String"><bucketExpression><![CDATA[$F{region}]]></bucketExpression></bucket></rowGroup>
+      <columnGroup name="month" height="20" totalPosition="End"><bucket class="java.lang.String" order="Descending"><bucketExpression><![CDATA[$F{month}]]></bucketExpression></bucket></columnGroup>
+      <measure name="total" class="java.math.BigDecimal" calculation="Sum"><measureExpression><![CDATA[$F{amount}]]></measureExpression></measure>
+      <measure name="orders" class="java.lang.Integer" calculation="Count"><measureExpression><![CDATA[$F{amount}]]></measureExpression></measure>
+    </crosstab>
+  </band></summary>
+</jasperReport>`;
+
+describe("JRXML crosstab import", () => {
+  it("imports a crosstab as an editable crosstab, not a placeholder", () => {
+    const result = importJrxml(crosstabJrxml, { id: "sales" });
+    const crosstab = result.report?.sections.flatMap((section) => section.children).find((component) => component.type === "crosstab");
+    expect(crosstab).toMatchObject({
+      type: "crosstab",
+      dataset: "main",
+      rows: [{ binding: "row.region", header: "region" }],
+      columns: [{ binding: "row.month", header: "month", sort: "desc" }],
+      measures: [{ binding: "row.amount", aggregate: "sum", header: "total" }, { binding: "row.amount", aggregate: "count", header: "orders" }],
+      totalRow: true,
+      totalColumn: true,
+    });
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "crosstab", status: "needs-review" })]));
+    expect(result.issues.some((issue) => issue.feature === "crosstab" && issue.status === "unsupported")).toBe(false);
+  });
+
+  it("leaves totals off when Jasper's totalPosition is None (its default)", () => {
+    const result = importJrxml(crosstabJrxml.replaceAll('totalPosition="End"', ""), { id: "sales" });
+    const crosstab = result.report?.sections.flatMap((section) => section.children).find((component) => component.type === "crosstab");
+    expect(crosstab).toMatchObject({ totalRow: false, totalColumn: false });
+  });
+
+  it("falls back to a placeholder when a bucket expression cannot be translated", () => {
+    const result = importJrxml(crosstabJrxml.replace("$F{region}", "$F{region}.substring(0, 3)"), { id: "sales" });
+    expect(result.report?.sections.flatMap((section) => section.children).some((component) => component.type === "crosstab")).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "crosstab", status: "unsupported" })]));
+  });
+});

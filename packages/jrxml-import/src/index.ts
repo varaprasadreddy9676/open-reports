@@ -300,8 +300,37 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
       const feature = nested?.attrs.kind ?? (nested ? local(nested.name) : kind);
       return placeholder(node, feature, undefined, g, targetId);
     }
+    if (kind === "crosstab") return convertCrosstab(node, base, targetId) ?? placeholder(node, "crosstab", undefined, g, targetId);
     return placeholder(node, kind, content(expressionNode(node, `${kind}Expression`)).trim(), g, targetId);
   };
+  /** Jasper row/column groups and measures map onto an Open Reports crosstab; cell layouts and styles do not. */
+  const CALCULATIONS: Record<string, string> = { Sum: "sum", Count: "count", DistinctCount: "count", Average: "avg", Lowest: "min", Highest: "max", Nothing: "sum" };
+  function convertCrosstab(node: XmlNode, base: Component, targetId: string): Component | undefined {
+    const bucket = (group: XmlNode) => {
+      const b = child(group, "bucket");
+      const binding = b ? translateJasperExpression(content(child(b, "bucketExpression") ?? b), availableVariables) : undefined;
+      return binding ? { binding, header: group.attrs.name, ...(b?.attrs.order === "Descending" ? { sort: "desc" } : {}) } : undefined;
+    };
+    const rowGroups = children(node, "rowGroup");
+    const columnGroups = children(node, "columnGroup");
+    const rows = rowGroups.map(bucket);
+    const columns = columnGroups.map(bucket);
+    const measures = children(node, "measure").map((measure) => {
+      const binding = translateJasperExpression(content(child(measure, "measureExpression") ?? measure), availableVariables);
+      const calculation = measure.attrs.calculation ?? "Nothing";
+      const aggregate = CALCULATIONS[calculation];
+      if (calculation === "DistinctCount" || calculation === "Nothing") add("needs-review", "crosstab measure", measure, `Jasper ${calculation} was mapped to ${aggregate === "count" ? "a count" : "a sum"}; compare the values.`, targetId);
+      return binding && aggregate ? { binding, aggregate, header: measure.attrs.name } : undefined;
+    });
+    if (!rows.length || [...rows, ...columns, ...measures].some((part) => !part) || !measures.length) {
+      add("unsupported", "crosstab", node, "A crosstab group or measure expression could not be translated; rebuild it with the Crosstab component.", targetId);
+      return undefined;
+    }
+    const runDataset = child(child(child(node, "crosstabDataset") ?? node, "dataset") ?? node, "datasetRun")?.attrs.subDataset;
+    const hasTotal = (groups: XmlNode[]) => groups.some((group) => group.attrs.totalPosition && group.attrs.totalPosition !== "None");
+    add("needs-review", "crosstab", node, `Crosstab groups, measures and totals converted${runDataset ? `; bind dataset "${runDataset}"` : ""}. Cell layout, colours and number patterns were not imported; compare the output.`, targetId);
+    return { ...base, height: undefined, type: "crosstab", dataset: runDataset ?? "main", rows, columns, measures, totalRow: hasTotal(rowGroups), totalColumn: hasTotal(columnGroups) };
+  }
 
   const sections: Section[] = [];
   const addBand = (band: XmlNode, type: string, label: string, groupId?: string) => {
