@@ -182,13 +182,14 @@ Check these before assuming you broke something:
 
 **What it is.** Format `docx`: an editable Word document, not a fixed-page copy.
 
-- **Content:** paragraphs and headings (bookmarked text becomes Word headings); real tables with repeating header rows and merged header cells; side-by-side rows as borderless tables; images, QR codes and barcodes.
-- **Page furniture:** clickable web links; an every-page header and footer whose page numbers are live `PAGE` / `NUMPAGES` fields; the report's page size and margins.
+- **Content:** paragraphs and headings (bookmarked text becomes Word headings and stays with the following paragraph); real tables with repeating header rows and merged header/body cells; side-by-side rows as borderless tables; native editable bar, line and pie charts; images, QR codes and barcodes.
+- **Page furniture:** clickable web links; normal, first, odd and even page headers and footers whose page numbers are live `PAGE` / `NUMPAGES` fields; the report's page size and margins. Explicitly blank page masters suppress inherited furniture.
 
 **How it works.** `packages/renderer-docx/src/render.ts`, built on the MIT `docx` library.
 
 - **Page numbers:** headers and footers are resolved with sentinel page numbers (`987654321`, `123456789`), and `runs()` replaces those digits with Word fields.
-- **Warnings instead of silent loss:** charts (`DOCX_CHART_AS_TEXT`), images that are paths or URLs rather than embedded (`DOCX_IMAGE_SKIPPED`), label sheets, and first/last/odd/even page headers (`DOCX_PAGE_MASTERS`).
+- **Linked images:** the server resolves allowed local paths and URLs into embedded image data before DOCX rendering. PNG and JPEG work in this flow; unsupported formats and unresolved sources produce `DOCX_IMAGE_SKIPPED`.
+- **Warnings instead of silent loss:** charts without usable data (`DOCX_CHART_AS_TEXT`), unsupported images (`DOCX_IMAGE_SKIPPED`), label sheets, and last-page-only headers or footers (`DOCX_PAGE_MASTERS`). Word handles its own pagination, so exact PDF page breaks and fixed element positions are not preserved.
 - **Registered in:** `apps/server/src/renderers.ts`, the capabilities list in `app.ts`, the designer export menu and palette, and the viewer's download labels.
 
 **How to test**
@@ -197,13 +198,9 @@ Check these before assuming you broke something:
 - `apps/server/tests/server.test.ts`: "renders an editable Word document".
 - By hand: export from the designer (Export → Word) and open in Word, LibreOffice or Google Docs. Check headings in the navigation pane, header-row repeat on long tables, and live page numbers after editing.
 
-**Next steps**
+**Remaining separate feature**
 
-- **Native Word charts:** `docx` ships a charts module (`docx/dist/charts.*`); map `ResolvedChartComponent` to it.
-- **Images given as paths or URLs:** have the server embed them as data before rendering, as it does for PDF.
-- **First-page header/footer:** Word's `titlePage` plus first-page parts.
-- **Merged body cells** and `keepWithNext` for headings.
-- **Templates designed in Word (the Carbone idea):** import a `.docx` as a starting layout.
+- **Templates designed in Word (the Carbone idea):** import a `.docx` as a starting layout. This is outside DOCX export.
 
 ---
 
@@ -223,7 +220,7 @@ Check these before assuming you broke something:
 | Draw | `packages/renderer-html/src/chart.ts` (`renderChartSvg`) | Used by HTML, PDF (`renderer-pdf/src/draw-node.ts` converts the SVG) and the canvas (`apps/designer/src/components/Canvas.tsx`). Keep the output deterministic, with no randomness or timestamps. |
 | In-table visuals | `tableColumnSchema`: `visual: { type: "sparkline" \| "dataBar", binding, min?, max?, color? }` | Resolve per row in `resolveTable` (raw values onto `row.visuals[colId]`). Draw: an inline SVG in HTML `<td>`, `doc.path` and `doc.rect` in `renderer-pdf` table cells, a small `<svg>` in the canvas `TableView`. XLSX can use Excel data bars (exceljs conditional formatting). |
 | Designer | `ChartProps` in `apps/designer/src/components/Properties.tsx`; palette entries in `LeftPanel.tsx` | One palette entry per chart type, as for bar, line and pie. |
-| DOCX | `packages/renderer-docx/src/render.ts` | Replace `DOCX_CHART_AS_TEXT` with native Word charts once they exist. |
+| DOCX | `packages/renderer-docx/src/render.ts` | Add native Word mappings for any new chart types; warn when a chart cannot be represented. |
 
 **Tests to write first**
 

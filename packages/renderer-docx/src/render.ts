@@ -20,10 +20,11 @@ import {
   WidthType,
   type ParagraphChild,
 } from "docx";
+import { ChartRun } from "docx/charts";
 import QRCode from "qrcode";
 import bwipjs from "bwip-js";
-import { isBold, tableHeaderRows, type RenderInput, type RenderResult, type RendererCapabilities, type ReportRenderer, type ResolvedComponent, type ResolvedSection, type ResolvedTableComponent, type ResolvedWarning } from "@reporting/core";
-import { resolveColumnWidths, resolvePageGeometry } from "@reporting/layout";
+import { isBold, tableCellSpanGrid, tableHeaderRows, type RenderInput, type RenderResult, type RendererCapabilities, type ReportRenderer, type ResolvedChartComponent, type ResolvedComponent, type ResolvedSection, type ResolvedTableComponent, type ResolvedWarning } from "@reporting/core";
+import { pickMaster, resolveColumnWidths, resolvePageGeometry } from "@reporting/layout";
 
 export const docxRendererCapabilities: RendererCapabilities = {
   id: "docx",
@@ -148,13 +149,34 @@ function tableBlock(table: ResolvedTableComponent, ctx: Context): Table {
     return new TableRow({ tableHeader: true, children });
   });
 
-  const bodyRows = table.rows.map((row) => new TableRow({
-    cantSplit: !table.allowRowSplit,
-    children: table.columns.map((column) => {
+  const spanGrid = tableCellSpanGrid(table.cellSpans ?? []);
+  const bodyRows = table.rows.map((row, rowIndex) => {
+    const children: TableCell[] = [];
+    for (let columnIndex = 0; columnIndex < table.columns.length; columnIndex++) {
+      const slot = spanGrid.get(rowIndex)?.get(columnIndex);
+      if (slot && !slot.anchor) {
+        // Word needs one continuation cell per row for a vertical merge, including its horizontal span.
+        if (rowIndex > slot.span.row && columnIndex === slot.span.column) {
+          const colSpan = slot.span.colSpan ?? 1;
+          children.push(new TableCell({ columnSpan: colSpan > 1 ? colSpan : undefined, verticalMerge: VerticalMergeType.CONTINUE, children: [new Paragraph("")] }));
+          columnIndex += colSpan - 1;
+        }
+        continue;
+      }
+      const column = table.columns[columnIndex]!;
+      const colSpan = slot?.span.colSpan ?? 1;
+      const rowSpan = slot?.span.rowSpan ?? 1;
       const cellStyle = { ...(row.style ?? {}), ...(row.cellStyles?.[column.id] ?? {}) };
-      return new TableCell({ shading: hex(cellStyle.background) ? { fill: hex(cellStyle.background)! } : undefined, children: [cellParagraph(row.formatted[column.id] ?? "", column.align, cellStyle, row.links?.[column.id])] });
-    }),
-  }));
+      children.push(new TableCell({
+        columnSpan: colSpan > 1 ? colSpan : undefined,
+        verticalMerge: rowSpan > 1 ? VerticalMergeType.RESTART : undefined,
+        shading: hex(cellStyle.background) ? { fill: hex(cellStyle.background)! } : undefined,
+        children: [cellParagraph(row.formatted[column.id] ?? "", column.align, cellStyle, row.links?.[column.id])],
+      }));
+      columnIndex += colSpan - 1;
+    }
+    return new TableRow({ cantSplit: !table.allowRowSplit, children });
+  });
   const footer = table.showFooter
     ? [new TableRow({ children: table.columns.map((column) => new TableCell({ children: [cellParagraph(column.footer?.value ?? "", column.align, { ...(table.styles?.footer ?? {}), bold: true })] })) })]
     : [];
@@ -183,6 +205,7 @@ async function block(component: ResolvedComponent, ctx: Context): Promise<Block[
       const level = any.bookmark ? Math.max(1, Math.min(4, num(any.bookmarkLevel, 1))) : 0;
       return wrap([new Paragraph({
         heading: level ? HEADINGS[level - 1] : undefined,
+        keepNext: component.keepWithNext || Boolean(level),
         alignment: ALIGN[String(style?.align)],
         children: withLink(runs(text, style, ctx), any.link),
       })]);
@@ -190,7 +213,7 @@ async function block(component: ResolvedComponent, ctx: Context): Promise<Block[
     case "image": {
       const image = dataUrlImage(any.src);
       if (!image) {
-        if (any.src) ctx.warnings.push({ code: "DOCX_IMAGE_SKIPPED", path: "", componentId: component.id, message: "An image that is not embedded in the report (a path or URL) was left out of the Word document." });
+        if (any.src) ctx.warnings.push({ code: "DOCX_IMAGE_SKIPPED", path: "", componentId: component.id, message: "This image could not be embedded in Word. Use PNG or JPEG; linked paths and URLs are resolved by the reporting server." });
         return wrap([]);
       }
       return wrap([imageParagraph(image.data, image.type, size(component, ctx, { width: 120, height: 60 }), style)]);
@@ -208,9 +231,23 @@ async function block(component: ResolvedComponent, ctx: Context): Promise<Block[
       return wrap([]);
     case "pageBreak":
       return [new Paragraph({ children: [new PageBreak()] })];
-    case "chart":
-      ctx.warnings.push({ code: "DOCX_CHART_AS_TEXT", path: "", componentId: component.id, message: "Charts are written to Word as their title only; export PDF to keep the chart." });
-      return wrap([new Paragraph({ children: runs(`[Chart${any.title ? `: ${any.title}` : ""}]`, { italic: true, color: "#5d6c82" }, ctx) })]);
+    case "chart": {
+      const chart = component as ResolvedChartComponent;
+      const series = chart.series.map((item) => ({ name: item.name, values: chart.categories.map((_, index) => {
+        const value = item.values[index];
+        return typeof value === "number" && Number.isFinite(value) ? value : null;
+      }) }));
+      if (!chart.categories.length || !series.length || chart.chartType === "pie" && (series.length !== 1 || series[0]!.values.some((value) => value !== null && value < 0))) {
+        ctx.warnings.push({ code: "DOCX_CHART_AS_TEXT", path: "", componentId: component.id, message: "This chart has no usable data for an editable Word chart; only its title was exported." });
+        return wrap([new Paragraph({ children: runs(`[Chart${chart.title ? `: ${chart.title}` : ""}]`, { italic: true, color: "#5d6c82" }, ctx) })]);
+      }
+      const box = size(component, ctx, { width: 360, height: 210 });
+      const transformation = { width: Math.round(box.width * 96 / 72), height: Math.round(box.height * 96 / 72) };
+      const options = { title: chart.title, categories: chart.categories, series, transformation };
+      const type = chart.chartType === "bar" ? "column" : chart.chartType;
+      const run = type === "pie" ? new ChartRun({ ...options, type, series: [series[0]!] }) : new ChartRun({ ...options, type });
+      return wrap([new Paragraph({ children: [run as unknown as ParagraphChild] })]);
+    }
     case "table":
       return wrap([tableBlock(component as ResolvedTableComponent, ctx)]);
     case "group": {
@@ -236,13 +273,14 @@ async function block(component: ResolvedComponent, ctx: Context): Promise<Block[
   }
 }
 
-/** Default (every-page) header or footer; page numbers become live fields. */
-async function pagePart(sections: ResolvedSection[], type: string, input: RenderInput, ctx: Context): Promise<Block[] | undefined> {
-  const section = sections.find((candidate) => candidate.type === type && (!candidate.appliesTo || candidate.appliesTo === "all"));
+/** Resolve the master Word will use for first, odd/default or even pages. */
+async function pagePart(sections: ResolvedSection[], type: string, pageNumber: number, input: RenderInput, ctx: Context): Promise<Block[] | undefined> {
+  const section = pickMaster(sections.filter((candidate) => candidate.type === type), pageNumber, 4);
   if (!section) return undefined;
   const children = input.resolvePageSection(section, { number: PAGE_SENTINEL, total: TOTAL_SENTINEL });
-  const content = await blocks(children, { ...ctx, pageFields: true });
-  return content.length ? content : undefined;
+  // Keep an explicitly blank master distinct from an absent one: it suppresses
+  // the normal header or footer on that page variant.
+  return blocks(children, { ...ctx, pageFields: true });
 }
 
 /**
@@ -258,30 +296,38 @@ export class DocxRenderer implements ReportRenderer {
     const warnings: ResolvedWarning[] = [...resolved.warnings];
     const ctx: Context = { warnings, width: geometry.contentWidth, pageFields: false };
     const sections = resolved.sections;
-    if (sections.some((section) => (section.type === "pageHeader" || section.type === "pageFooter") && section.appliesTo && section.appliesTo !== "all")) {
-      warnings.push({ code: "DOCX_PAGE_MASTERS", path: "", message: "First, last, odd and even page headers and footers are not written to Word; the every-page header and footer are." });
+    if (sections.some((section) => (section.type === "pageHeader" || section.type === "pageFooter") && section.appliesTo === "last")) {
+      warnings.push({ code: "DOCX_PAGE_MASTERS", path: "", message: "Word does not support a last-page-only header or footer; that page master was omitted." });
     }
     const body: Block[] = [];
     for (const section of sections) {
       if (section.type === "pageHeader" || section.type === "pageFooter" || section.type === "background") continue;
       body.push(...(await blocks(section.children, ctx)));
     }
-    const header = await pagePart(sections, "pageHeader", input, ctx);
-    const footer = await pagePart(sections, "pageFooter", input, ctx);
+    const firstPage = sections.some((section) => (section.type === "pageHeader" || section.type === "pageFooter") && section.appliesTo === "first");
+    const evenOdd = sections.some((section) => (section.type === "pageHeader" || section.type === "pageFooter") && (section.appliesTo === "odd" || section.appliesTo === "even"));
+    const header = await pagePart(sections, "pageHeader", 3, input, ctx);
+    const footer = await pagePart(sections, "pageFooter", 3, input, ctx);
+    const firstHeader = firstPage ? await pagePart(sections, "pageHeader", 1, input, ctx) : undefined;
+    const firstFooter = firstPage ? await pagePart(sections, "pageFooter", 1, input, ctx) : undefined;
+    const evenHeader = evenOdd ? await pagePart(sections, "pageHeader", 2, input, ctx) : undefined;
+    const evenFooter = evenOdd ? await pagePart(sections, "pageFooter", 2, input, ctx) : undefined;
     const landscape = geometry.width > geometry.height;
     const document = new Document({
       title: resolved.name,
       creator: "Open Reports",
+      evenAndOddHeaderAndFooters: evenOdd,
       sections: [{
         properties: {
+          titlePage: firstPage,
           page: {
             // docx swaps width and height itself for landscape pages.
             size: { width: Math.round(Math.min(geometry.width, geometry.height) * TWIPS), height: Math.round(Math.max(geometry.width, geometry.height) * TWIPS), orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT },
             margin: { top: Math.round(geometry.margin.top * TWIPS), right: Math.round(geometry.margin.right * TWIPS), bottom: Math.round(geometry.margin.bottom * TWIPS), left: Math.round(geometry.margin.left * TWIPS) },
           },
         },
-        headers: header ? { default: new Header({ children: header }) } : undefined,
-        footers: footer ? { default: new Footer({ children: footer }) } : undefined,
+        headers: header || firstHeader || evenHeader ? { ...(header ? { default: new Header({ children: header.length ? header : [new Paragraph("")] }) } : {}), ...(firstHeader ? { first: new Header({ children: firstHeader.length ? firstHeader : [new Paragraph("")] }) } : {}), ...(evenHeader ? { even: new Header({ children: evenHeader.length ? evenHeader : [new Paragraph("")] }) } : {}) } : undefined,
+        footers: footer || firstFooter || evenFooter ? { ...(footer ? { default: new Footer({ children: footer.length ? footer : [new Paragraph("")] }) } : {}), ...(firstFooter ? { first: new Footer({ children: firstFooter.length ? firstFooter : [new Paragraph("")] }) } : {}), ...(evenFooter ? { even: new Footer({ children: evenFooter.length ? evenFooter : [new Paragraph("")] }) } : {}) } : undefined,
         children: body.length ? body : [new Paragraph("")],
       }],
     });
