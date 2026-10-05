@@ -102,7 +102,29 @@ function TextNodeView({ node, k, capabilities }: { node: PositionedNode; k: numb
   </div>;
 }
 
-function NodeView({ node, k, capabilities }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities }) {
+interface GeometryPreview {
+  id: string;
+  page: number;
+  box: PositionedNode["box"];
+  mode: "move" | "resize";
+  patch: Record<string, number>;
+  committed?: boolean;
+  engineAtCommit?: import("../engine").EngineResult;
+}
+
+function shiftedChildren(nodes: PositionedNode[] | undefined, dx: number, dy: number): PositionedNode[] | undefined {
+  return nodes?.map((node) => ({ ...node, box: { ...node.box, x: node.box.x + dx, y: node.box.y + dy }, children: shiftedChildren(node.children, dx, dy) }));
+}
+
+function displayedNode(node: PositionedNode, preview?: GeometryPreview): PositionedNode {
+  if (!preview || preview.id !== (node.component as any).id) return node;
+  const dx = preview.box.x - node.box.x;
+  const dy = preview.box.y - node.box.y;
+  return { ...node, box: preview.box, children: preview.mode === "move" ? shiftedChildren(node.children, dx, dy) : node.children };
+}
+
+function NodeView({ node: source, k, capabilities, preview }: { node: PositionedNode; k: number; capabilities?: import("../engine").Capabilities; preview?: GeometryPreview }) {
+  const node = displayedNode(source, preview);
   const c = node.component as any;
   const common = { "data-cid": c.id } as Record<string, any>;
   const st = boxStyle(node, k);
@@ -146,7 +168,7 @@ function NodeView({ node, k, capabilities }: { node: PositionedNode; k: number; 
         <>
           {own && <div {...common} className={`cn cn-block cn-${c.type}`} style={{ ...st, ...cssFrom(c.style, k, capabilities) }} />}
           {(node.children ?? []).map((ch, i) => (
-            <NodeView key={i} node={ch} k={k} capabilities={capabilities} />
+            <NodeView key={i} node={ch} k={k} capabilities={capabilities} preview={preview} />
           ))}
         </>
       );
@@ -265,11 +287,12 @@ export function Canvas() {
   const structure = canvasView === "structure" ? engine.structure : undefined;
   const paginated = structure ?? engine.paginated;
   const [indicator, setIndicator] = useState<DropTarget | null>(null);
-  const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number; page: number } | null>(null);
+  const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number; page: number; type: string; value?: string } | null>(null);
+  const [geometryPreview, setGeometryPreview] = useState<GeometryPreview | null>(null);
   const [guides, setGuides] = useState<{ page: number; guides: Guide[]; distances: Distance[] } | null>(null);
   const [marquee, setMarquee] = useState<null | { page: number; x0: number; y0: number; x1: number; y1: number }>(null);
   const [explainedPage, setExplainedPage] = useState<number | null>(null);
-  const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number; duplicated?: boolean }>(null);
+  const drag = useRef<null | { id: string; mode: "move" | "resize"; handle?: string; sx: number; sy: number; moved: boolean; orig: any; page: number; duplicated?: boolean; pendingPatch?: Record<string, number> }>(null);
   const marqueeRef = useRef<typeof marquee>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const panEnabled = useStore((state) => state.mode === "design" && !state.dialog);
@@ -277,6 +300,10 @@ export function Canvas() {
   const selSet = useMemo(() => new Set(selection), [selection]);
 
   const pageEls = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (geometryPreview?.committed && engine !== geometryPreview.engineAtCommit) setGeometryPreview(null);
+  }, [engine, geometryPreview]);
 
   useLayoutEffect(() => {
     const root = scroller.current;
@@ -453,7 +480,7 @@ export function Canvas() {
     const pageEl = pageEls.current[page];
     const baselineOffset = probe && pageEl && node ? (probe.getBoundingClientRect().top - pageEl.getBoundingClientRect().top) / k - node.box.y : undefined;
     const origin = parentContentOrigin(store.doc, id, page);
-    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: origin && node ? node.box.x - origin.x : Number(loc?.comp.x) || 0, y: origin && node ? node.box.y - origin.y : Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || loc?.comp.x !== undefined || loc?.comp.y !== undefined, box: node?.box ? { ...node.box } : undefined, baselineOffset }, page };
+    drag.current = { id, mode: "move", sx: e.clientX, sy: e.clientY, moved: false, orig: { x: origin && node ? node.box.x - origin.x : Number(loc?.comp.x) || 0, y: origin && node ? node.box.y - origin.y : Number(loc?.comp.y) || 0, absolute: ops.parentLayout(store.doc, id) === "absolute" || loc?.comp.x !== undefined || loc?.comp.y !== undefined, box: node?.box ? { ...node.box } : undefined, baselineOffset, previewType: node?.component.type ?? loc?.comp.type, previewValue: (node?.component as any)?.value ?? (node?.component as any)?.text }, page };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -516,7 +543,19 @@ export function Canvas() {
         patch.height = Math.round(height * 10) / 10;
         if (h.includes("n") && d.orig.absolute) patch.y = snapped.y ? Math.round(y * 10) / 10 : Math.round((d.orig.y + d.orig.h - height) * 10) / 10;
       }
-      store.patch(d.id, patch, `resize:${d.id}`);
+      d.pendingPatch = patch;
+      if (d.orig.box) setGeometryPreview({
+        id: d.id,
+        page: d.page,
+        mode: "resize",
+        patch,
+        box: {
+          x: d.orig.box.x + (patch.x ?? d.orig.x) - d.orig.x,
+          y: d.orig.box.y + (patch.y ?? d.orig.y) - d.orig.y,
+          width: patch.width ?? d.orig.w,
+          height: patch.height ?? d.orig.h,
+        },
+      });
       return;
     }
     if (d.orig.absolute) {
@@ -548,7 +587,15 @@ export function Canvas() {
         } else setGuides(null);
       }
       const origin = me ? { x: me.x - d.orig.x, y: me.y - d.orig.y } : { x: 0, y: 0 };
-      store.patch(d.id, { x: snapped.x ? Math.round(x * 10) / 10 : snapTo(x, e.altKey, origin.x), y: snapped.y ? Math.round(y * 10) / 10 : snapTo(y, e.altKey, origin.y) }, `move:${d.id}`);
+      const nextX = snapped.x ? Math.round(x * 10) / 10 : snapTo(x, e.altKey, origin.x);
+      const nextY = snapped.y ? Math.round(y * 10) / 10 : snapTo(y, e.altKey, origin.y);
+      if (d.duplicated) {
+        if (me) setGhost({ page: d.page, x: (nextX + origin.x) * k, y: (nextY + origin.y) * k, w: me.width * k, h: me.height * k, type: d.orig.previewType, value: d.orig.previewValue });
+        store.patch(d.id, { x: nextX, y: nextY }, `move:${d.id}`);
+      } else if (me) {
+        d.pendingPatch = { x: nextX, y: nextY };
+        setGeometryPreview({ id: d.id, page: d.page, mode: "move", patch: d.pendingPatch, box: { ...me, x: nextX + origin.x, y: nextY + origin.y } });
+      }
       return;
     }
     const origin = parentContentOrigin(store.doc, d.id, page);
@@ -559,11 +606,14 @@ export function Canvas() {
       d.orig.x = d.orig.box.x - origin.x;
       d.orig.y = d.orig.box.y - origin.y;
       d.orig.absolute = true;
-      store.patch(d.id, {
-        x: snapTo(d.orig.x + dx, e.altKey, origin.x),
-        y: snapTo(d.orig.y + dy, e.altKey, origin.y),
+      const nextX = snapTo(d.orig.x + dx, e.altKey, origin.x);
+      const nextY = snapTo(d.orig.y + dy, e.altKey, origin.y);
+      d.pendingPatch = {
+        x: nextX,
+        y: nextY,
         ...(located.comp.width === undefined || located.comp.width === "auto" || located.comp.width === "*" ? { width: Math.round(d.orig.box.width * 10) / 10 } : {}),
-      }, `move:${d.id}`);
+      };
+      setGeometryPreview({ id: d.id, page: d.page, mode: "move", patch: d.pendingPatch, box: { ...d.orig.box, x: origin.x + nextX, y: origin.y + nextY } });
       setIndicator(null);
       return;
     }
@@ -592,12 +642,28 @@ export function Canvas() {
     setGuides(null);
     const d = drag.current;
     drag.current = null;
+    if (d?.moved && d.pendingPatch) {
+      setGeometryPreview((preview) => preview ? { ...preview, committed: true, engineAtCommit: engine } : null);
+      useStore.getState().patch(d.id, d.pendingPatch, `${d.mode}:${d.id}`);
+    } else if (d?.mode === "resize" || d?.mode === "move") {
+      setGeometryPreview(null);
+    }
     if (d?.mode === "move" && d.moved && !d.orig.absolute && indicator) {
       const store = useStore.getState();
       store.setDoc(ops.move(store.doc, d.id, indicator.id, indicator.position));
     }
     setIndicator(null);
     setGhost(null);
+  }
+
+  function onPointerCancel() {
+    drag.current = null;
+    marqueeRef.current = null;
+    setGeometryPreview(null);
+    setGhost(null);
+    setGuides(null);
+    setIndicator(null);
+    setMarquee(null);
   }
 
   // ---- drag & drop from the palette / data panel
@@ -626,7 +692,7 @@ export function Canvas() {
     const placeInserted = (id: string) => {
       const origin = parentContentOrigin(useStore.getState().doc, id, page);
       if (!origin) return;
-      useStore.getState().patch(id, { x: snapTo(pt.x - origin.x, e.altKey, origin.x), y: snapTo(pt.y - origin.y, e.altKey, origin.y) }, `drop:${id}`);
+      useStore.getState().patch(id, { x: snapTo(pt.x - origin.x, e.altKey, origin.x), y: snapTo(pt.y - origin.y, e.altKey, origin.y) }, `insert:${id}`);
     };
 
     if (payload.kind === "component") {
@@ -708,6 +774,7 @@ export function Canvas() {
                 onPointerDown={(e) => onPointerDown(e, pi)}
                 onPointerMove={(e) => onPointerMove(e, pi)}
                 onPointerUp={onPointerUp}
+                onPointerCancel={onPointerCancel}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   const target = (e.target as HTMLElement).closest("[data-cid]") as HTMLElement | null;
@@ -739,20 +806,22 @@ export function Canvas() {
                 onDragLeave={() => setIndicator(null)}
                 onDrop={(e) => onDrop(e, pi)}
               >
-                {page.background.length > 0 && <div className="page-background-layer" aria-hidden="true">{page.background.map((node, index) => <NodeView key={index} node={node} k={k} capabilities={capabilities} />)}</div>}
+                {page.background.length > 0 && <div className="page-background-layer" aria-hidden="true">{page.background.map((node, index) => <NodeView key={index} node={node} k={k} capabilities={capabilities} preview={geometryPreview?.page === pi ? geometryPreview : undefined} />)}</div>}
                 {view.margins && <div className="margin-guide" style={{ left: paginated.margin.left * k, top: paginated.margin.top * k, right: paginated.margin.right * k, bottom: paginated.margin.bottom * k }} />}
                 {view.margins && doc.print?.safeMargin ? (
                   <div className="safe-area" title="Printer safe area" style={{ left: (doc.print.safeMargin / MM) * k, top: (doc.print.safeMargin / MM) * k, right: (doc.print.safeMargin / MM) * k, bottom: (doc.print.safeMargin / MM) * k }} />
                 ) : null}
                 {view.margins && !structure && <PageZones page={page} paginated={paginated} k={k} />}
                 {[...page.header, ...page.content, ...page.footer].map((n, i) => (
-                  <NodeView key={i} node={n} k={k} capabilities={capabilities} />
+                  <NodeView key={i} node={n} k={k} capabilities={capabilities} preview={geometryPreview?.page === pi ? geometryPreview : undefined} />
                 ))}
                 {structure && <BandChrome bands={structure.bands} k={k} />}
                 {(doc.guides?.length ?? 0) > 0 && <GuideLayer k={k} width={pw} height={ph} />}
-                {selected.map((n, i) => (
+                {selected.map((source, i) => {
+                  const n = displayedNode(source, geometryPreview?.page === pi ? geometryPreview : undefined);
+                  return (
                   <div key={`sel${i}`} className="selbox" style={boxStyle(n, k)}>
-                    {showHandles && n === single && !ops.find(doc, (single.component as any).id)?.comp.locked && (
+                    {showHandles && source === single && !ops.find(doc, (single.component as any).id)?.comp.locked && (
                       <>
                         {(typeof ops.find(doc, (single.component as any).id)?.comp.x === "number" || typeof ops.find(doc, (single.component as any).id)?.comp.y === "number" ? ["n", "s", "e", "w", "ne", "nw", "se", "sw"] : ["e", "s", "se"]).map((h) => (
                           <span key={h} className={`handle ${h}`} data-handle={h} title={h === "e" && ops.parentLayout(doc, (single.component as any).id) === "row" ? "Drag to resize; double-click to hug the content or fill the row" : undefined} />
@@ -761,11 +830,11 @@ export function Canvas() {
                       </>
                     )}
                     {ops.find(doc, (n.component as any).id)?.comp.locked && <span className="lock-badge" title="Locked">🔒</span>}
-                    {n === single && !editingText && <span className={`selection-metrics ${n.box.y + n.box.height + 22 > paginated.pageSize.height ? "above" : ""}`} data-testid="selection-metrics" title="Position and size in page coordinates">
+                    {source === single && !editingText && <span className={`selection-metrics ${n.box.y + n.box.height + 22 > paginated.pageSize.height ? "above" : ""}`} data-testid="selection-metrics" title="Position and size in page coordinates">
                       X {measure(n.box.x)} · Y {measure(n.box.y)} · W {measure(n.box.width)} · H {measure(n.box.height)} {rulerUnit}
                     </span>}
                   </div>
-                ))}
+                ); })}
                 {single && !drag.current && !editingText && <FloatingToolbar id={(single.component as any).id} left={Math.max(0, single.box.x * k)} top={Math.max(0, single.box.y * k - 38)} />}
                 {editingText && (() => {
                   const target = allNodes.find((n) => (n.component as any).id === editingText);
@@ -787,7 +856,10 @@ export function Canvas() {
                     }
                   />
                 )}
-                {ghost && ghost.page === pi && <div className="ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h }} />}
+                {ghost && ghost.page === pi && <div className="drag-preview" data-testid="drag-preview" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h }}>
+                  {ghost.type === "qrcode" ? <QrView value={ghost.value ?? ""} /> : ghost.type === "barcode" ? <BarcodeView value={ghost.value ?? ""} /> : null}
+                </div>}
+                {geometryPreview?.mode === "move" && geometryPreview.page === pi && !geometryPreview.committed && <div className="drag-preview drag-outline" data-testid="drag-preview" style={{ left: geometryPreview.box.x * k, top: geometryPreview.box.y * k, width: geometryPreview.box.width * k, height: geometryPreview.box.height * k }} />}
                 <div className="page-label">
                   {structure ? "Structure view" : `Page ${pi + 1} / ${paginated.pages.length}`}
                 </div>

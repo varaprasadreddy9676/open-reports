@@ -84,9 +84,10 @@ test("grid spacing and subdivisions in mm snap moved and resized edges onto page
   expect(await page.evaluate(() => { const s = (window as any).__designer.getState(); return { grid: s.grid, targets: s.snapTargets }; })).toMatchObject({
     grid: { subdivisions: 2 }, targets: { grid: true, objects: false, bounds: false, guides: false, spacing: false, baseline: false },
   });
-  const starter = page.getByTestId("starter-blank");
-  await expect(starter.or(page.getByTestId("canvas-options"))).toBeVisible();
-  if (await starter.isVisible()) await starter.click();
+  const resume = page.getByRole("button", { name: /Continue Untitled report/ });
+  if (await resume.isVisible()) await resume.click();
+  else if (await page.getByTestId("starter-blank").isVisible()) await page.getByTestId("starter-blank").click();
+  await expect(page.getByTestId("canvas-options")).toBeVisible();
   await openOptions(page);
   await expect(page.getByTestId("grid-spacing")).toHaveValue("10");
   await expect(page.getByTestId("grid-subdivisions")).toHaveValue("2");

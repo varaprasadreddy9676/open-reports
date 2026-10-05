@@ -401,7 +401,7 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     const withId: Comp = comp.id ? comp : { id: ops.genId(s.doc, comp.type), ...comp };
     const next = ops.insert(s.doc, withId, targetId, position, bandIndex === undefined ? s.selectedBand : bandIndex);
-    get().setDoc(next);
+    get().setDoc(next, { coalesce: `insert:${withId.id}` });
     set({ selection: [withId.id] });
     return withId.id;
   },
@@ -527,7 +527,9 @@ export const useStore = create<State>((set, get) => ({
       const { doc: realDoc, aiProposal, sample, parameters, sampleRows, target, capabilities, ghosts } = get();
       // While an AI proposal awaits approval the canvas shows the proposed result; nothing is committed until Accept.
       const doc = aiProposal?.doc ?? realDoc;
-      const result = await runEngine(doc, sample, parameters, { sampleRows, target, capabilities, ghosts });
+      const result = await runEngine(doc, sample, parameters, { sampleRows, target, capabilities, ghosts }, (estimate) => {
+        if (run === engineRun && estimate.paginated) set({ engine: estimate });
+      });
       if (run === engineRun) {
         // On a schema/engine error keep showing the last good render, with fresh problems alongside it.
         const prev = get().engine;

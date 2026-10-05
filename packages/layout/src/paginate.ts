@@ -473,7 +473,7 @@ function layoutContentIntoPages(
 
     // Containers (and bands, groups, repeaters) are laid out as one box. When one cannot fit a page, dissolve it into
     // its children so they paginate individually: nothing is ever drawn below the page edge.
-    const parts = flowParts(component, innerWidth, measurer);
+    const parts = flowParts(component, innerWidth, measurer, y);
     if (parts) {
       const probe = layoutComponent(component, { x: 0, y: 0, width: innerWidth, height: 0 }, measurer);
       const needed = probe.box.height + m.top + m.bottom;
@@ -601,10 +601,12 @@ function layoutContentIntoPages(
         }
       }
     } else if (component.type === "table" && !anyC.keepTogether) {
+      if (typeof anyC.freePageY === "number") y = anyC.freePageY;
+      const tableX = component.x === undefined ? m.left : (resolveDimension(component.x, width, "pt") ?? 0) + m.left;
       placeTable(component as ResolvedTableComponent, innerWidth, measurer, {
         place: (node, height) => {
           node.box.y = y;
-          node.box.x += m.left;
+          node.box.x = tableX;
           currentPage().push(node);
           y += height;
         },
@@ -1025,7 +1027,7 @@ function placeTable(
 
 
 /** The children a container can be dissolved into without changing what is printed (flow layout, no fixed size, no decoration). */
-function flowParts(component: ResolvedComponent, width: number, measurer: TextMeasurer): ResolvedComponent[] | undefined {
+function flowParts(component: ResolvedComponent, width: number, measurer: TextMeasurer, pageY: number): ResolvedComponent[] | undefined {
   const c = component as any;
   if (c.type === "group") {
     return (c.groups ?? []).flatMap((g: any) => [...(g.header ?? []), ...(g.children ?? []), ...(g.footer ?? [])]);
@@ -1036,16 +1038,20 @@ function flowParts(component: ResolvedComponent, width: number, measurer: TextMe
   const st = c.style ?? {};
   if (st.background || st.border || st.padding) return undefined;
   if (!Array.isArray(c.children)) return undefined;
-  const free = c.children.filter((child: any) => child.x !== undefined || child.y !== undefined);
-  if (!free.length) return c.children;
-  if (!c.children.some((child: any) => child.x === undefined && child.y === undefined)) return undefined;
+  const free = c.children.filter((child: any) => (child.x !== undefined || child.y !== undefined) && child.type !== "table");
+  const freeTables = c.children.some((child: any) => child.type === "table" && (child.x !== undefined || child.y !== undefined));
+  if (!free.length && !freeTables) return c.children;
+  if (!c.children.some((child: any) => child.x === undefined && child.y === undefined) && !freeTables) return undefined;
   // A tall band can still paginate its flowing content. Place its free items
   // over the first band fragment. Spacers retain their original flow slots.
-  const overlay = { type: "container", layout: "absolute", height: 0, children: free, freeOverlay: true, band: c.band } as ResolvedComponent;
+  const overlay = free.length ? { type: "container", layout: "absolute", height: 0, children: free, freeOverlay: true, band: c.band } as ResolvedComponent : undefined;
   const parts = c.children.map((child: ResolvedComponent) => {
+    if (child.type === "table" && (child.x !== undefined || child.y !== undefined)) {
+      return { ...child, freePageY: child.y === undefined ? undefined : pageY + (resolveDimension(child.y, 0, "pt") ?? 0) } as ResolvedComponent;
+    }
     if (child.x === undefined && child.y === undefined) return child;
     const measured = layoutComponent({ ...child, x: undefined, y: undefined } as ResolvedComponent, { x: 0, y: 0, width, height: 0 }, measurer);
     return { type: "spacer", height: measured.box.height, style: { margin: (child.style as any)?.margin } } as ResolvedComponent;
   });
-  return [overlay, ...parts];
+  return overlay ? [overlay, ...parts] : parts;
 }

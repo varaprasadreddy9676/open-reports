@@ -103,7 +103,7 @@ const SCRIPT_RANGES: [string, RegExp][] = [
 
 const MM = 25.4 / 72;
 
-export async function runEngine(doc: Doc, sample: Record<string, unknown>, parameters: Record<string, unknown>, opts: EngineOptions = {}): Promise<EngineResult> {
+export async function runEngine(doc: Doc, sample: Record<string, unknown>, parameters: Record<string, unknown>, opts: EngineOptions = {}, onEstimate?: (result: EngineResult) => void): Promise<EngineResult> {
   const problems: Problem[] = [];
   const parsed = parseReportDefinition(doc);
   if (!parsed.valid) {
@@ -169,6 +169,14 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     }
     let paginated = paginate(pipeline.resolved, { resolvePageDependentSection: pipeline.resolvePageSection });
     let paginationSource: EngineResult["paginationSource"] = "estimate";
+    let structure: StructureLayout | undefined;
+    try {
+      const d = await resolveReport(reparsed.report, { registry, parameters, tolerant: true, design: { ghosts: opts.ghosts ?? 0 } });
+      structure = layoutStructure(d.resolved, reparsed.report.sections);
+    } catch {
+      /* the structure view falls back to the paginated pages */
+    }
+    onEstimate?.({ resolved: pipeline.resolved, paginated, structure, resolvePageSection: pipeline.resolvePageSection, problems: [...problems], paginationSource });
     try {
       const analyzed = await api.analyze(effective, parameters);
       if (analyzed.paginated) {
@@ -189,13 +197,6 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
       problems.push({ severity: "suggestion", code: "SAMPLE_ROWS", message: `Design view shows the first ${opts.sampleRows} sample rows for speed. Preview renders every row with the real pagination engine.` });
     }
     analyse(doc, pipeline.resolved, paginated, problems, opts);
-    let structure: StructureLayout | undefined;
-    try {
-      const d = await resolveReport(reparsed.report, { registry, parameters, tolerant: true, design: { ghosts: opts.ghosts ?? 0 } });
-      structure = layoutStructure(d.resolved, reparsed.report.sections);
-    } catch {
-      /* the structure view falls back to the paginated pages */
-    }
     return { resolved: pipeline.resolved, paginated, structure, resolvePageSection: pipeline.resolvePageSection, problems, paginationSource };
   } catch (err) {
     problems.push({ severity: "error", code: "ENGINE_FAILED", message: err instanceof Error ? err.message : String(err) });

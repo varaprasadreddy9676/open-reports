@@ -366,7 +366,7 @@ test.describe("editing", () => {
     await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
     await page.mouse.down();
     await page.mouse.move(start.x + start.width / 2 + 48 * scale, start.y + start.height / 2, { steps: 9 });
-    await expect.poll(async () => (await doc(page)).sections[0].children[0].width).toBe(100);
+    expect((await doc(page)).sections[0].children[0].width).toBe(50);
     await expect(page.locator(".guide.x")).toHaveCount(1);
     await expect.poll(async () => {
       const selected = await page.locator(".selbox").boundingBox();
@@ -377,6 +377,7 @@ test.describe("editing", () => {
     fs.mkdirSync(screenshots, { recursive: true });
     await page.screenshot({ path: path.join(screenshots, "41-resize-smart-guide.png") });
     await page.mouse.up();
+    expect((await doc(page)).sections[0].children[0].width).toBe(100);
 
     await page.evaluate(() => (window as any).__designer.getState().patch("resize-me", { width: 50 }));
     await expect.poll(async () => (await page.locator(".selbox").boundingBox())?.width).toBeCloseTo(50 * scale, 0);

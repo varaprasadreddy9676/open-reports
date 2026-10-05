@@ -999,8 +999,9 @@ textarea {
 .receipt-canvas .escpos-preview { width: min(100%, 860px); align-self: center; overflow: hidden; background: var(--canvas); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
 .receipt-canvas .receipt-scroll { padding-top: 28px; }
 .cn {
-  cursor: default;
+  cursor: grab;
 }
+.cn:active { cursor: grabbing; }
 .cn:hover {
   outline: 1px solid rgba(37, 99, 235, 0.55);
 }
@@ -1082,6 +1083,18 @@ textarea {
   border: 2px dashed var(--accent);
   background: rgba(37, 99, 235, 0.08);
 }
+.drag-preview {
+  position: absolute;
+  z-index: 30;
+  pointer-events: none;
+  border: 2px solid var(--accent);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  opacity: 0.8;
+}
+.drag-preview svg { width: 100%; height: 100%; }
+.drag-preview.drag-outline { background: transparent; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); opacity: 1; }
 .ruler {
   position: absolute;
   background: var(--panel);
