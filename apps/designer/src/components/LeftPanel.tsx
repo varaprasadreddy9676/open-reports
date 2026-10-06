@@ -47,6 +47,61 @@ export function insertFromPalette(item: PaletteItem) {
   s.addComponent(item.type, last, container ? "inside" : "after", item.overrides);
 }
 
+const SECTION_GROUPS: { label: string; types: readonly string[] }[] = [
+  { label: "Page layout", types: ["pageHeader", "pageFooter", "background"] },
+  { label: "Report flow", types: ["reportHeader", "detail", "reportFooter", "noData"] },
+  { label: "Data sections", types: ["dataHeader", "dataFooter", "groupHeader", "groupFooter", "child"] },
+];
+const SECTION_HINTS: Record<string, string> = {
+  pageHeader: "Repeats at the top of each page",
+  pageFooter: "Repeats at the bottom of each page",
+  background: "Prints behind content on every page",
+  reportHeader: "Prints once before the report content",
+  detail: "Repeats for each data record",
+  reportFooter: "Prints once after the report content",
+  noData: "Prints when the report has no records",
+  dataHeader: "Prints before the first data record",
+  dataFooter: "Prints after the last data record",
+  groupHeader: "Prints at the start of each group",
+  groupFooter: "Prints at the end of each group",
+  child: "Prints directly after a selected parent section",
+};
+
+function addReportSection(type: string) {
+  const st = useStore.getState();
+  const props: Record<string, any> = {};
+  if (type === "groupHeader" || type === "groupFooter") {
+    if (!(st.doc.groups ?? []).length) return st.set({ dialog: "group" });
+    props.groupId = st.doc.groups[0].id;
+  }
+  if (type === "child") {
+    const parent = st.selectedBand === null ? undefined : st.doc.sections[st.selectedBand];
+    if (!parent?.id) return st.toast("Select a named parent band before adding a child band", "info");
+    props.parent = parent.id;
+  }
+  const result = ops.addBand(st.doc, type, props);
+  st.setDoc(result.doc);
+  st.set({ selectedBand: result.index, selection: [], rightOpen: true, leftTab: "layers", leftOpen: true });
+}
+
+function ReportSectionsPalette({ query }: { query: string }) {
+  const visible = SECTION_GROUPS.map((group) => ({
+    ...group,
+    types: group.types.filter((type) => `${ops.BAND_TITLES[type]} ${group.label} section band`.toLowerCase().includes(query.toLowerCase())),
+  })).filter((group) => group.types.length);
+  if (!visible.length) return null;
+  return <section className="palette-group report-sections-palette" data-testid="report-sections-palette">
+    <div className="group-title">Report sections</div>
+    <p className="muted small">Add a section first, then add components inside it. Headers and footers are report sections.</p>
+    {visible.map((group) => <div className="report-section-group" key={group.label}>
+      <div className="report-section-label">{group.label}</div>
+      <div className="report-section-actions">{group.types.map((type) => <button type="button" key={type} data-testid={`palette-section-${type}`} title={SECTION_HINTS[type]} onClick={() => addReportSection(type)}>
+        <span className="report-section-code">{ops.BAND_CODES[type]}</span>{ops.BAND_TITLES[type]}<span aria-hidden="true">+</span>
+      </button>)}</div>
+    </div>)}
+  </section>;
+}
+
 function PluginComponents({ q }: { q: string }) {
   const list = (useStore((s) => s.capabilities?.customComponents) ?? []).filter((c) => `${c.kind} ${c.description ?? ""}`.toLowerCase().includes(q.toLowerCase()));
   if (!list.length) return null;
@@ -131,7 +186,8 @@ function InsertTab() {
   }, [q]);
   return (
     <div className="tab-body">
-      <input className="search" placeholder="Search components..." aria-label="Search components" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input className="search" placeholder="Search components or sections..." aria-label="Search components or report sections" value={q} onChange={(e) => setQ(e.target.value)} />
+      <ReportSectionsPalette query={q.trim()} />
       {groups.map(([g, items]) => (
         <div key={g} className="palette-group">
           <div className="group-title">{g}</div>
@@ -158,7 +214,7 @@ function InsertTab() {
       ))}
       <PluginComponents q={q} />
       <BlocksSection q={q} />
-      {groups.length === 0 && <p className="muted">No components match "{q}".</p>}
+      {groups.length === 0 && !SECTION_GROUPS.some((group) => group.types.some((type) => `${ops.BAND_TITLES[type]} ${group.label} section band`.toLowerCase().includes(q.toLowerCase()))) && <p className="muted">No components or report sections match "{q}".</p>}
     </div>
   );
 }
@@ -592,20 +648,7 @@ function ReportExplorer() {
     setSearchFocusRequest((request) => request + 1);
   };
   const addBand = (type: string) => {
-    const st = useStore.getState();
-    const props: Record<string, any> = {};
-    if (type === "groupHeader" || type === "groupFooter") {
-      if (!(st.doc.groups ?? []).length) return st.set({ dialog: "group" });
-      props.groupId = st.doc.groups[0].id;
-    }
-    if (type === "child") {
-      const parent = st.selectedBand === null ? undefined : st.doc.sections[st.selectedBand];
-      if (!parent?.id) return st.toast("Select a named parent band before adding a child band", "info");
-      props.parent = parent.id;
-    }
-    const result = ops.addBand(st.doc, type, props);
-    st.setDoc(result.doc);
-    st.set({ selectedBand: result.index, selection: [], rightOpen: true });
+    addReportSection(type);
     setQuery("");
   };
   return (
