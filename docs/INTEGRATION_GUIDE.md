@@ -11,7 +11,7 @@ Host application ◀──────────────── PDF / HTML 
 
 | Need | Use |
 |---|---|
-| Render a document from an application workflow | Call the REST API from the host backend. Node/TypeScript hosts may use the optional thin [`@reporting/client`](../packages/client/README.md); other languages use their normal HTTP client. |
+| Render a document from an application workflow | Call the REST API from the host backend. Node/TypeScript hosts can use the thin [`@reporting/client`](../packages/client/README.md) helper from this repository; other languages use their normal HTTP client. The helper is not published to npm yet. |
 | Let a user view a published report in a web page | Use [`<open-report-viewer>`](EMBEDDING.md#show-a-report-open-report-viewer). |
 | Let a user edit a report in a web page | Use [`<open-report-designer>`](EMBEDDING.md#let-users-design-open-report-designer). |
 | Add a renderer, data source, expression function, or component to the report server | Write an in-process [plugin](PLUGIN_DEVELOPMENT.md). |
@@ -22,9 +22,9 @@ For application-owned data, the simplest path is usually to have the host load a
 
 1. Deploy Open Reports and note its base URL, such as `https://reports.example.com`.
 2. Configure `API_KEYS` on the server if requests must be authenticated. Keep that value in your host application's secret store.
-3. Create a report in the designer, save it, and publish a version.
+3. Create one or more reports in the designer, save each, and publish the version(s) the application will use.
 4. In the host backend, authenticate the current user and load only records that user may access.
-5. Send the template ID, output format, parameters, and a JSON data object to the render endpoint.
+5. Have the host backend choose the template ID and published version for this tenant and report purpose, then send that choice, output format, parameters, and JSON data to the render endpoint.
 6. Return the response bytes from your own application route, or store the generated file according to your existing workflow.
 
 The designer's **Settings → Server connection** configures this browser's connection for editing. It is not the production integration point for your application. The API key entered there is stored in browser local storage and is visible to that browser; use a backend secret for application rendering.
@@ -38,7 +38,19 @@ OPEN_REPORTS_URL=https://reports.example.com
 OPEN_REPORTS_API_KEY=<secret-managed-value>
 ```
 
-Do not commit the key to source control. Keep the base URL configurable per environment so local development, test, and production can point to different report servers. Open Reports currently uses instance-wide API keys, so the host must authorize the user's report action before calling the API.
+Do not commit the key to source control. Keep the base URL configurable per environment so local development, test, and production can point to different report servers. Open Reports currently uses instance-wide API keys and does not provide tenant-scoped template access. The host must authorize the user's report action and choose an allowed template before calling the API. If customers must be isolated from each other at the report-server boundary, use separate Open Reports instances until tenant-scoped access is available.
+
+### Choose a template for each customer
+
+The template ID in `/api/v1/templates/{templateId}/render` is a required path segment. Names such as `invoice` in examples are sample IDs, not built-in report types. For a multi-customer application, keep a server-side mapping from the authenticated tenant and report purpose to a template ID and published version:
+
+```text
+tenant ID + report purpose  →  template ID + published version
+northstar + invoice          →  northstar-invoice + 3
+river-clinic + invoice       →  river-invoice + 2
+```
+
+Select from that mapping only after authenticating the user and authorizing access to the requested invoice. Do not accept an arbitrary template ID from browser input: templates on one Open Reports instance are not separated by tenant, and an instance API key can access the instance-wide API. If customers use the same layout and differ only in branding, use one shared template and pass each customer's logo and text in the render `data` instead (see [per-client branding](#use-one-template-with-per-client-logos-and-text)). Use separate template IDs when their layouts differ.
 
 ### Request and response contract
 
@@ -55,7 +67,24 @@ X-API-Key: <server-side-key>
 }
 ```
 
-On success, the response body is the generated file bytes. Read `content-type` to identify the output, `x-render-id` for tracing, and `x-render-warnings` for the warning count. Errors use `{ "error": { "code", "message", "details" } }` with an HTTP error status. See the [API reference](API.md) for endpoint coverage and copy-ready examples in cURL, Node, Python, Java, C#, and Go.
+Replace `{templateId}` in the URL with the ID selected by the host application's tenant/report mapping. On success, the response body is the generated file's raw bytes, not a JSON object or Base64 string. Read `content-type` to identify the output (`application/pdf` for PDF), `x-render-id` for tracing, and `x-render-warnings` for the warning count. Errors use `{ "error": { "code", "message", "details" } }` with an HTTP error status. See the [API reference](API.md) for endpoint coverage and examples in cURL, Node, Python, Java, C#, and Go.
+
+If another system specifically requires Base64, encode the bytes in the host application after receiving them. For Node.js:
+
+```js
+const response = await fetch(`${openReportsUrl}/api/v1/templates/${encodeURIComponent(templateId)}/render`, {
+  method: "POST",
+  headers: { "content-type": "application/json", "x-api-key": openReportsApiKey },
+  body: JSON.stringify({ format: "pdf", version, data: { invoice } }),
+});
+if (!response.ok) throw new Error(`Open Reports returned ${response.status}`);
+
+const pdfBytes = Buffer.from(await response.arrayBuffer());
+const base64 = pdfBytes.toString("base64");
+// If required by the receiver: `data:application/pdf;base64,${base64}`
+```
+
+Prefer raw bytes for downloads, storage, and email attachments; Base64 is larger and is not a separate render format or endpoint.
 
 `data` maps dataset IDs from the report definition to the objects or row arrays for this render. Keep this payload to the fields the report needs. `parameters` are separate and are intended for report parameters and configured data-source queries. Use a published template version when an application's output must stay stable; update the host's template/version mapping when you choose to roll forward.
 
@@ -99,11 +128,13 @@ For a first end-to-end check, render the published `invoice` example using `exam
 
 ## Server-side rendering with TypeScript
 
-Install the client in the host backend:
+The optional `@reporting/client` package currently lives in this repository and has not been published to npm. In a workspace app in this monorepo, add it as a workspace dependency:
 
 ```sh
-pnpm add @reporting/client
+pnpm add @reporting/client@workspace:*
 ```
+
+For a separate application, call the REST API directly as shown in the [API examples](API.md#node-18-with-fetch) until the helper package is published or made available through your own package registry.
 
 ```ts
 import { OpenReportsClient } from "@reporting/client";
@@ -114,17 +145,20 @@ const reports = new OpenReportsClient({
 });
 
 // The host application performs its normal authentication and authorization first.
+const tenantId = user.tenantId;
+const { templateId, version } = await tenantReports.get(tenantId, "invoice");
 const invoice = await invoiceService.getAuthorizedInvoice(user, invoiceId);
-const pdf = await reports.renderTemplate("invoice", {
+const pdf = await reports.renderTemplate(templateId, {
   format: "pdf",
-  version: 3,
+  version,
   data: { invoice },
 });
 
 response.type(pdf.mimeType).send(Buffer.from(pdf.bytes));
+// If a downstream JSON API requires Base64 instead: Buffer.from(pdf.bytes).toString("base64")
 ```
 
-Pin a version when output must remain stable. Omit `version` only when the application intentionally follows the latest published version. Handle `OpenReportsError` by status/code and preserve the host application's normal error and audit behavior.
+`tenantReports.get(...)` represents the host application's own configuration lookup; it is not an Open Reports endpoint. Pin a version when output must remain stable. Omit `version` only when the application intentionally follows the latest published version. Handle `OpenReportsError` by status/code and preserve the host application's normal error and audit behavior.
 
 ## Java application example
 
@@ -134,11 +168,13 @@ The REST API needs no Jasper or Open Reports Java runtime dependency. The exampl
 ObjectMapper mapper = new ObjectMapper();
 ObjectNode body = mapper.createObjectNode();
 body.put("format", "pdf");
-body.put("version", 3);
+String templateId = tenantReports.getTemplateId(authenticatedUser.getTenantId(), "invoice");
+int version = tenantReports.getPublishedVersion(authenticatedUser.getTenantId(), "invoice");
+body.put("version", version);
 body.set("data", mapper.valueToTree(Map.of("invoice", authorizedInvoiceDto)));
 
 HttpRequest request = HttpRequest.newBuilder(
-        URI.create(openReportsUrl + "/api/v1/templates/invoice/render"))
+        URI.create(openReportsUrl + "/api/v1/templates/" + templateId + "/render"))
     .header("content-type", "application/json")
     .header("x-api-key", openReportsApiKey)
     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
