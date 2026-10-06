@@ -3,6 +3,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { savePref, useStore } from "../store";
 import * as ops from "../model/ops";
 import { datasetFields, datasetIsArray, fieldSample, filterFields, type FieldNode } from "../lib/fields";
+import { candidatesFor, FUNCTION_CANDIDATES } from "../lib/bindings";
 import { titleCase } from "../lib/lowcode";
 import { Icon } from "./Icon";
 import { api } from "../lib/api";
@@ -442,6 +443,7 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
   const [open, setOpen] = useState(true);
   const [editingValue, setEditingValue] = useState(false);
   const [valueDraft, setValueDraft] = useState("");
+  const [valueSuggestions, setValueSuggestions] = useState<{ value: string; label: string }[]>([]);
   const valueInput = useRef<HTMLInputElement>(null);
   const cancelValueEdit = useRef(false);
   const kids = ops.CHILD_LISTS.flatMap((k) => (Array.isArray(comp[k]) ? (comp[k] as ops.Comp[]) : []));
@@ -458,6 +460,9 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
   const beginValueEdit = () => {
     if (!canEditValue) return;
     setValueDraft(displayedValue);
+    const state = useStore.getState();
+    const candidates = candidatesFor(state.doc, state.sample, comp.id);
+    setValueSuggestions([...candidates, ...FUNCTION_CANDIDATES].map(({ value, label }) => ({ value, label })));
     cancelValueEdit.current = false;
     setEditingValue(true);
     requestAnimationFrame(() => valueInput.current?.focus());
@@ -537,6 +542,8 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
             className="layer-value-edit mono"
             data-testid={`layer-value-${comp.id}`}
             aria-label={`Edit data value for ${ops.layerName(comp)}`}
+            list={`layer-value-suggestions-${comp.id}`}
+            title="Type a field path or expression; press the down arrow to choose a suggestion"
             value={valueDraft}
             onClick={(event) => event.stopPropagation()}
             onDoubleClick={(event) => event.stopPropagation()}
@@ -558,6 +565,9 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
         </span>
         <button className="layer-end explorer-more" type="button" aria-label={`Actions for ${ops.layerName(comp)}`} title="Element actions" data-testid={`layer-actions-${comp.id}`} onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); openActions(rect.right, rect.bottom); }}>⋯</button>
       </div>
+      {editingValue && <datalist id={`layer-value-suggestions-${comp.id}`}>
+        {valueSuggestions.map((suggestion) => <option key={suggestion.value} value={suggestion.value} label={suggestion.label} />)}
+      </datalist>}
       {expanded && !searching && comp.type === "table" && (
         <>
           {[
