@@ -169,6 +169,28 @@ describe("pagination boundaries (real PDF output)", () => {
     expect(pages.slice(parentPage).some((page) => page.includes("CHILDBACKGROUND"))).toBe(false);
   });
 
+  it("includes nested footer and background when the entire child report fits on one page", async () => {
+    const child = {
+      schemaVersion: "1.0", id: "single-page-child", name: "Single page child",
+      parameters: [], variables: [], groups: [], fragments: [], datasets: [],
+      sections: [
+        { type: "background", children: [{ type: "text", value: "SINGLECHILDBACKGROUND", x: 8, y: 8, width: 100, height: 8, style: { fontSize: 6 } }] },
+        { type: "reportHeader", children: [{ type: "text", value: "SINGLECHILDHEADER" }] },
+        { type: "pageFooter", children: [{ type: "text", value: "SINGLECHILDFOOTER" }] },
+      ],
+    };
+    const parent = {
+      schemaVersion: "1.0", id: "single-page-parent", name: "Single page parent",
+      page: { size: "custom", unit: "pt", width: 240, height: 160, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+      sections: [{ type: "detail", children: [{ type: "subreport", id: "nested", reportId: "single-page-child" }] }],
+    };
+
+    const pages = await render(parent, { "single-page-child": { report: child } });
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toContain("SINGLECHILDBACKGROUND");
+    expect(pages[0]).toContain("SINGLECHILDFOOTER");
+  });
+
   it("prints every line of a long narrative once with repeated page furniture", async () => {
     const markers = Array.from({ length: 130 }, (_, index) => `NARRATIVE${String(index + 1).padStart(3, "0")}`);
     const pages = await render({

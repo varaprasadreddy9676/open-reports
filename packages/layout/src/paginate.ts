@@ -539,6 +539,17 @@ function layoutContentIntoPages(
     // Containers (and bands, groups, repeaters) are laid out as one box. When one cannot fit a page, dissolve it into
     // its children so they paginate individually: nothing is ever drawn below the page edge.
     const parts = flowParts(component, innerWidth, measurer, y);
+    const containsFrame = (candidate: ResolvedComponent): boolean => {
+      const value = candidate as any;
+      return Boolean(value.subreportFrame) || (Array.isArray(value.children) && value.children.some(containsFrame));
+    };
+    if (parts && parts.some(containsFrame)) {
+      // Frame markers are pagination instructions. Expose them even when the
+      // enclosing band would otherwise fit intact on the current page.
+      components.splice(idx, 1, ...parts);
+      idx--;
+      continue;
+    }
     if (parts) {
       const probe = layoutComponent(component, { x: 0, y: 0, width: innerWidth, height: 0 }, measurer);
       const needed = probe.box.height + m.top + m.bottom;
