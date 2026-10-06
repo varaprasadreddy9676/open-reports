@@ -20,7 +20,7 @@ export class Parser {
   }
 
   static parse(source: string): Expr {
-    const parser = new Parser(source);
+    const parser = new Parser(normalizeReturnBlock(source));
     const expr = parser.parseExpression();
     parser.expectEof();
     return expr;
@@ -224,4 +224,21 @@ export class Parser {
       position: t.position,
     });
   }
+}
+
+/**
+ * Accept a small, safe JavaScript-shaped value block and lower it into the
+ * expression language. This is intentionally limited to `if (...) { return
+ * expression; }` with an optional `else { return expression; }`: no arbitrary
+ * statements, declarations, or execution are introduced.
+ */
+function normalizeReturnBlock(source: string): string {
+  const trimmed = source.trim();
+  const match = /^if\s*\(([\s\S]+?)\)\s*\{\s*return\s+([\s\S]*?);?\s*\}\s*(?:else\s*\{\s*return\s+([\s\S]*?);?\s*\})?\s*;?$/.exec(trimmed);
+  if (!match) return source;
+  const condition = match[1]!.trim();
+  const whenTrue = match[2]!.trim();
+  const whenFalse = match[3]?.trim() ?? "null";
+  if (!condition || !whenTrue || (match[3] !== undefined && !whenFalse)) return source;
+  return `(${condition}) ? (${whenTrue}) : (${whenFalse})`;
 }

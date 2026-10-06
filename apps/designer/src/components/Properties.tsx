@@ -290,7 +290,7 @@ function ConditionBuilder({ comp }: { comp: ops.Comp }) {
       )}
       {enabled && showCode && <>
         <FormulaInput value={expr} candidates={candidates} placeholder="e.g. row.balance > 0" onChange={(v) => patch(comp.id, { visibleWhen: v })} />
-        <p className="muted small">JavaScript-style expressions with report fields; no statements or arbitrary scripts.</p>
+        <p className="muted small">Use a boolean expression, or a simple <code>if (...) &#123; return true; &#125;</code> block. Report fields and built-in functions are available.</p>
       </>}
     </div>
   );
@@ -345,7 +345,7 @@ export function StyleRuleCard<R extends StyleRule>({ rule, index, count, candida
         ) : (
           <FormulaInput value={rule.when} candidates={candidates} testId={`${testId}-formula-${index}`} placeholder={'e.g. row.flag == "H"'} onChange={(when) => onChange({ ...rule, when })} />
         )}
-        {!visual && <p className="muted small">JavaScript-style expressions with report fields; no statements or arbitrary scripts.</p>}
+        {!visual && <p className="muted small">Use a boolean expression or an <code>if (...) &#123; return true; &#125;</code> block. Return true or false to control this rule.</p>}
         <div className="group-title small">Then</div>
         <Field label="Text colour" wide>
           <Color label={`Rule ${index + 1} text colour`} value={rule.style.color} onChange={(color) => setStyle({ color })} />
@@ -378,7 +378,8 @@ export function StyleRulesEditor({ comp, property, dataset, testId }: { comp: op
     write(next);
   };
   const add = () => {
-    const field = candidates.find((candidate) => candidate.value === "row.flag")?.value ?? candidates[0]?.value;
+    const selectedField = [comp.binding, comp.expression].find((value) => value && candidates.some((candidate) => candidate.value === value));
+    const field = selectedField ?? candidates.find((candidate) => candidate.value === "row.flag")?.value ?? candidates[0]?.value;
     write([...rules, { when: field ? conditionToExpression({ field, operator: "eq", value: "H" }) : "false", style: { color: "#b91c1c", fontWeight: "bold" } }]);
   };
   return (

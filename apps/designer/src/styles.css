@@ -898,7 +898,13 @@ textarea {
   border-color: var(--accent);
   outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
-.formula-box input {
+.formula-box textarea {
+  min-height: 48px;
+  max-height: 180px;
+  resize: vertical;
+  line-height: 1.45;
+  padding: 7px 8px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   border: 0 !important;
   outline: 0 !important;
   background: transparent !important;

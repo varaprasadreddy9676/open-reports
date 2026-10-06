@@ -6,7 +6,7 @@ import { checkExpression, describeFormula } from "../lib/lowcode";
 export function FormulaInput({ value, onChange, candidates, placeholder, testId }: { value: string; onChange: (v: string) => void; candidates: Candidate[]; placeholder?: string; testId?: string }) {
   const [focus, setFocus] = useState(false);
   const [active, setActive] = useState(0);
-  const ref = useRef<HTMLInputElement>(null);
+  const ref = useRef<HTMLTextAreaElement>(null);
   const error = checkExpression(value);
   const token = /[\w.]*$/.exec(value.slice(0, ref.current?.selectionStart ?? value.length))?.[0] ?? "";
   const suggestions = useMemo(() => {
@@ -26,14 +26,15 @@ export function FormulaInput({ value, onChange, candidates, placeholder, testId 
     <div className="formula">
       <div className="formula-box">
         <span className="fx">fx</span>
-        <input
+        <textarea
           ref={ref}
           data-testid={testId ?? "formula-input"}
           className="mono"
           aria-label="Formula"
           aria-invalid={!!error}
-          placeholder={placeholder ?? "e.g. row.quantity * row.rate"}
+          placeholder={placeholder ?? "e.g. row.quantity * row.rate or an if/return block"}
           value={value}
+          rows={value.includes("\n") ? Math.min(8, Math.max(3, value.split("\n").length)) : 2}
           spellCheck={false}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setFocus(true)}
