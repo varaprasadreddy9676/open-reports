@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<jasperReport name="Header" pageWidth="595" pageHeight="842" leftMargin="24" rightMargin="24" topMargin="24" bottomMargin="24">
+  <detail><band height="32"><staticText><reportElement x="10" y="0" width="220" height="20"/><text><![CDATA[NORTHSTAR MARKET]]></text></staticText></band></detail>
+</jasperReport>

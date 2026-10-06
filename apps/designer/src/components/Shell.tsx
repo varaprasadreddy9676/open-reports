@@ -551,7 +551,7 @@ export function HomeScreen() {
       <div className="home-header-actions">
         <label className="home-appearance">Appearance <select aria-label="Interface appearance" data-testid="home-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
         {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing →</button>}
-        <button className="btn" data-testid="home-tour" onClick={() => set({ dialog: "tour" })}>Watch walkthrough ▶</button>
+        <button className="btn" data-testid="home-tour" onClick={() => set({ dialog: "tour" })}>Practical videos ▶</button>
         <button className="btn" data-testid="home-guide" onClick={() => set({ dialog: "guide" })}>What can I do?</button>
         <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
       </div>
@@ -567,7 +567,7 @@ export function HomeScreen() {
           <h2>Explore a complete invoice</h2>
           <p>See real layout, sample data, and PDF preview in a report you can edit.</p>
           <button className="btn primary" data-testid="home-try-invoice" onClick={() => openStarterExample("invoice")}>Try invoice example →</button>
-          <button className="btn" data-testid="home-tour-featured" onClick={() => set({ dialog: "tour" })}>See the 90-second walkthrough ▶</button>
+          <button className="btn" data-testid="home-tour-featured" onClick={() => set({ dialog: "tour" })}>Watch practical examples ▶</button>
         </div>
         <div className="home-steps" aria-label="How the demo works">
           <span><b>1</b> Open an example</span>
@@ -614,16 +614,37 @@ function GuideDialog() {
   </Modal>;
 }
 
+const PRACTICAL_VIDEOS = [
+  { id: "invoice-to-pdf", title: "Create an invoice and preview the PDF", summary: "Edit a working invoice, then inspect the finished PDF." },
+  { id: "word-to-report", title: "Turn a Word template into an editable report", summary: "Import a DOCX template, open the draft and review its output." },
+  { id: "jasper-folder-migration", title: "Migrate a JasperReports folder", summary: "Convert JRXML files to drafts, then inspect the migration." },
+  { id: "supermarket-receipt", title: "Build a long 58 mm supermarket receipt", summary: "Load a grocery basket and preview the continuous thermal roll." },
+  { id: "sales-crosstab", title: "Summarize sales with a crosstab", summary: "Compare sales by region and service, then preview the totals." },
+];
+
 function TourDialog() {
   const set = useStore((state) => state.set);
-  return <Modal wide className="tour-modal" label="Open Reports walkthrough" onClose={() => set({ dialog: null })}>
-    <h2>Your first report in Open Reports</h2>
-    <p className="muted">A narrated walkthrough of the first edit, PDF preview, imports, crosstabs and exports.</p>
-    <video className="tour-video" controls playsInline preload="metadata" poster="/open-reports-walkthrough-poster.png" tabIndex={0}>
-      <source src="/open-reports-walkthrough.mp4" type="video/mp4" />
-      <track kind="captions" src="/open-reports-walkthrough.vtt" srcLang="en" label="English" />
-      Your browser does not support this video. <a href="/open-reports-walkthrough.mp4">Open the walkthrough</a>.
-    </video>
+  const [selectedId, setSelectedId] = useState(PRACTICAL_VIDEOS[0]!.id);
+  const selected = PRACTICAL_VIDEOS.find((video) => video.id === selectedId) ?? PRACTICAL_VIDEOS[0]!;
+  return <Modal wide className="tour-modal" label="Practical video library" onClose={() => set({ dialog: null })}>
+    <h2>See what you can make</h2>
+    <p className="muted">Short, narrated recordings of real report workflows. Choose a job to see it in the designer.</p>
+    <div className="demo-video-library">
+      <nav className="demo-video-list" aria-label="Practical video examples">
+        {PRACTICAL_VIDEOS.map((video, index) => <button key={video.id} className="demo-video-choice" aria-pressed={selected.id === video.id} onClick={() => setSelectedId(video.id)}>
+          <span className="demo-video-number">{String(index + 1).padStart(2, "0")}</span><span><strong>{video.title}</strong><small>{video.summary}</small></span><span aria-hidden="true">▶</span>
+        </button>)}
+      </nav>
+      <section className="demo-video-player" aria-label={selected.title}>
+        <h3>{selected.title}</h3>
+        <p className="muted">{selected.summary}</p>
+        <video key={selected.id} className="tour-video" controls playsInline preload="metadata" poster={`/demo-videos/${selected.id}-poster.jpg`} tabIndex={0}>
+          <source src={`/demo-videos/${selected.id}.mp4`} type="video/mp4" />
+          Your browser does not support this video. <a href={`/demo-videos/${selected.id}.mp4`}>Open the video</a>.
+        </video>
+        <a className="demo-caption-link" href={`/demo-videos/${selected.id}.vtt`} download={`${selected.id}-captions.vtt`}>Download English captions (.vtt)</a>
+      </section>
+    </div>
     <div className="dialog-actions"><button className="btn primary" onClick={() => openStarterExample("invoice")}>Try the invoice →</button><button className="btn" onClick={() => set({ dialog: "guide" })}>Explore features</button></div>
   </Modal>;
 }

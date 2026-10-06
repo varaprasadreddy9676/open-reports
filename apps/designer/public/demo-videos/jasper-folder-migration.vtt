@@ -1,0 +1,13 @@
+WEBVTT
+
+00:00:04.904 --> 00:00:09.460
+Bring a JasperReports project over as a folder of JRXML sources.
+
+00:00:15.535 --> 00:00:19.778
+Open the folder importer and choose the parent report and its header subreport.
+
+00:00:23.928 --> 00:00:29.273
+Open Reports converts the files into editable drafts and links recognized child reports.
+
+00:00:36.599 --> 00:00:41.575
+Review the migration note for features that need attention before using the converted report.

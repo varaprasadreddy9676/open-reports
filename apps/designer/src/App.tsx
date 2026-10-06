@@ -57,7 +57,7 @@ function MobileDesignerGate() {
       <h1>Design on a larger screen</h1>
       <p>The canvas, rulers, and properties need room to work accurately. Your {name || "report"} draft is still here when you return on a desktop.</p>
       <div className="mobile-gate-actions">
-        <button className="btn primary" onClick={() => set({ dialog: "tour" })}>Watch walkthrough ▶</button>
+        <button className="btn primary" onClick={() => set({ dialog: "tour" })}>Practical videos ▶</button>
         <a className="btn" href="/sample-invoice.pdf" target="_blank" rel="noopener noreferrer">View a sample invoice PDF ↗</a>
       </div>
       <button className="mobile-gate-home" onClick={() => set({ home: true })}>← Back to examples</button>

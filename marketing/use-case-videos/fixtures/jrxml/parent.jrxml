@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<jasperReport name="NorthstarReceipt" pageWidth="595" pageHeight="842" leftMargin="24" rightMargin="24" topMargin="24" bottomMargin="24">
+  <parameter name="storeName" class="java.lang.String"/>
+  <detail><band height="80">
+    <subreport><reportElement x="10" y="0" width="540" height="30"/><subreportExpression><![CDATA["header.jasper"]]></subreportExpression></subreport>
+    <staticText><reportElement x="10" y="40" width="240" height="20"/><text><![CDATA[Sample order summary]]></text></staticText>
+  </band></detail>
+</jasperReport>
