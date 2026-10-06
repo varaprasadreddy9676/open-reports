@@ -1262,7 +1262,7 @@ function PageProps() {
         <div className="grid2">
           <Field label="Size">
             <select aria-label="Page size" data-testid="page-size" value={page.size ?? "A4"} onChange={(e) => setPage({ size: e.target.value, ...(e.target.value === "custom" && !page.width ? { width: 100, height: 150, unit: "mm" } : {}) })}>
-              {["A4", "A3", "A5", "Letter", "Legal", "custom"].map((s) => (
+              {["A4", "A3", "A5", "A6", "Letter", "Legal", "custom"].map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>

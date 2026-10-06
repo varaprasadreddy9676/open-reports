@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { unitSchema } from "./common.js";
 
-export const pageSizeSchema = z.enum(["A4", "A3", "A5", "Letter", "Legal", "custom"]);
+export const pageSizeSchema = z.enum(["A4", "A3", "A5", "A6", "Letter", "Legal", "custom"]);
 
 export const marginSchema = z.object({
   top: z.number().default(20),
