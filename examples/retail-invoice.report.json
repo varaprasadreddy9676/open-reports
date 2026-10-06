@@ -1,0 +1,327 @@
+{
+  "schemaVersion": "1.0",
+  "id": "retail-invoice",
+  "name": "Retail Sales Invoice",
+  "description": "A branded shop invoice with line items, GST, payment details and a replaceable wordmark. A starting point for retail and ecommerce receipts.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "datasets": [
+    {
+      "id": "sale",
+      "source": "inline",
+      "query": {
+        "data": {
+          "store": "HARBOR & PINE",
+          "tagline": "Everyday goods, thoughtfully chosen",
+          "address": "18 Market Street · Bengaluru 560001",
+          "gstin": "29AABCH1234M1Z5",
+          "invoice": "HP-2026-0418",
+          "date": "18 Apr 2026",
+          "customer": "Jordan Lee",
+          "payment": "UPI · Paid",
+          "items": [
+            {
+              "sku": "HOME-014",
+              "item": "Linen table runner",
+              "qty": 1,
+              "price": 1290
+            },
+            {
+              "sku": "KITCH-208",
+              "item": "Ceramic serving bowl",
+              "qty": 2,
+              "price": 840
+            },
+            {
+              "sku": "CARE-031",
+              "item": "Cedar hand soap",
+              "qty": 3,
+              "price": 220
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "subtotal",
+      "scope": "report",
+      "expression": "sumProduct(data.sale.items, \"qty\", \"price\")"
+    },
+    {
+      "id": "tax",
+      "scope": "report",
+      "expression": "vars.subtotal * 0.05"
+    },
+    {
+      "id": "total",
+      "scope": "report",
+      "expression": "vars.subtotal + vars.tax"
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.sale.store",
+                  "style": {
+                    "fontSize": 18,
+                    "fontWeight": "bold",
+                    "color": "#245a52"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.sale.tagline",
+                  "style": {
+                    "fontSize": 8,
+                    "color": "#64748b"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "text",
+              "value": "SALES INVOICE",
+              "style": {
+                "align": "right",
+                "fontSize": 12,
+                "fontWeight": "bold",
+                "color": "#245a52"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "binding": "data.sale.address",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        },
+        {
+          "type": "text",
+          "expression": "\"GSTIN \" + data.sale.gstin",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "BILL TO",
+                  "style": {
+                    "fontSize": 7,
+                    "color": "#64748b",
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.sale.customer",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "expression": "\"Invoice \" + data.sale.invoice",
+                  "style": {
+                    "align": "right"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Date \" + data.sale.date",
+                  "style": {
+                    "align": "right"
+                  }
+                }
+              ],
+              "width": 150
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "table",
+          "id": "retail-lines",
+          "dataset": "sale.items",
+          "showFooter": true,
+          "alternateRowStyle": true,
+          "columns": [
+            {
+              "id": "sku",
+              "header": "SKU",
+              "binding": "row.sku",
+              "width": 70
+            },
+            {
+              "id": "item",
+              "header": "Item",
+              "binding": "row.item",
+              "width": "*"
+            },
+            {
+              "id": "qty",
+              "header": "Qty",
+              "binding": "row.qty",
+              "width": 42,
+              "align": "right"
+            },
+            {
+              "id": "price",
+              "header": "Unit price",
+              "binding": "row.price",
+              "format": "currency:INR",
+              "width": 80,
+              "align": "right"
+            },
+            {
+              "id": "amount",
+              "header": "Amount",
+              "expression": "row.qty * row.price",
+              "format": "currency:INR",
+              "width": 85,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "GST (5%)",
+              "width": "*",
+              "style": {
+                "align": "right"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "formatCurrency(vars.tax)",
+              "width": 100,
+              "style": {
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "TOTAL",
+              "width": "*",
+              "style": {
+                "align": "right",
+                "fontWeight": "bold",
+                "fontSize": 13
+              }
+            },
+            {
+              "type": "text",
+              "expression": "formatCurrency(vars.total)",
+              "width": 100,
+              "style": {
+                "align": "right",
+                "fontWeight": "bold",
+                "fontSize": 13,
+                "color": "#245a52"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Payment: UPI · Paid",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "value": "Thank you for shopping with Harbor & Pine · harborandpine.example",
+          "style": {
+            "align": "center",
+            "fontSize": 7,
+            "color": "#64748b"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -467,7 +467,7 @@ function StarterChoices() {
   const set = useStore((s) => s.set);
   const [q, setQ] = useState("");
   const [size, setSize] = useState(0);
-  const groups = ["Documents", "Healthcare", "Printing", "Data"] as const;
+  const groups = ["Documents", "Industries", "Healthcare", "Printing", "Data"] as const;
   const create = (doc: any) => {
     requestReplaceReport(() => {
       useStore.getState().loadDoc(doc);

@@ -6,7 +6,7 @@ export interface StarterTemplate {
   key: string;
   name: string;
   description: string;
-  group: "Documents" | "Healthcare" | "Printing" | "Data";
+  group: "Documents" | "Healthcare" | "Printing" | "Data" | "Industries";
   doc: Doc;
 }
 
@@ -38,6 +38,10 @@ const GROUPS: Record<string, StarterTemplate["group"]> = {
   "hospital-letterhead": "Healthcare",
   "preprinted-letterhead": "Healthcare",
   "department-report": "Healthcare",
+  "retail-invoice": "Industries",
+  "education-progress-report": "Industries",
+  "logistics-manifest": "Industries",
+  "manufacturing-work-order": "Industries",
 };
 
 export const STARTERS: StarterTemplate[] = Object.entries(files)

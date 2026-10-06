@@ -661,6 +661,74 @@ write("sticker-sheet", base("sticker-sheet", "Sticker Sheet (A4, 2x4 labels)", "
   }] }],
 }));
 
+// ---------------------------------------------------------------- industry starters
+// A small set of branded, replaceable examples shows that the designer is useful
+// beyond healthcare. Keep these deliberately practical and easy to adapt.
+write("retail-invoice", base("retail-invoice", "Retail Sales Invoice", "A branded shop invoice with line items, GST, payment details and a replaceable wordmark. A starting point for retail and ecommerce receipts.", {
+  theme: { currency: "INR" },
+  datasets: [{ id: "sale", source: "inline", query: { data: {
+    store: "HARBOR & PINE", tagline: "Everyday goods, thoughtfully chosen", address: "18 Market Street · Bengaluru 560001", gstin: "29AABCH1234M1Z5",
+    invoice: "HP-2026-0418", date: "18 Apr 2026", customer: "Jordan Lee", payment: "UPI · Paid",
+    items: [
+      { sku: "HOME-014", item: "Linen table runner", qty: 1, price: 1290 },
+      { sku: "KITCH-208", item: "Ceramic serving bowl", qty: 2, price: 840 },
+      { sku: "CARE-031", item: "Cedar hand soap", qty: 3, price: 220 },
+    ],
+  } } }],
+  variables: [{ id: "subtotal", scope: "report", expression: 'sumProduct(data.sale.items, "qty", "price")' }, { id: "tax", scope: "report", expression: "vars.subtotal * 0.05" }, { id: "total", scope: "report", expression: "vars.subtotal + vars.tax" }],
+  page: A4(),
+  sections: [
+    { type: "pageHeader", children: [row([col([B("data.sale.store", { style: { fontSize: 18, fontWeight: "bold", color: "#245a52" } }), B("data.sale.tagline", { style: { fontSize: 8, color: "#64748b" } })], { width: "*" }), T("SALES INVOICE", { style: { align: "right", fontSize: 12, fontWeight: "bold", color: "#245a52" } })]), line(), B("data.sale.address", { style: { fontSize: 8, color: "#64748b" } }), X('"GSTIN " + data.sale.gstin', { style: { fontSize: 8, color: "#64748b" } })] },
+    { type: "detail", children: [spacer(10), row([col([T("BILL TO", { style: { fontSize: 7, color: "#64748b", fontWeight: "bold" } }), B("data.sale.customer", { style: bold })], { width: "*" }), col([X('"Invoice " + data.sale.invoice', { style: right }), X('"Date " + data.sale.date', { style: right })], { width: 150 })]), spacer(10),
+      { type: "table", id: "retail-lines", dataset: "sale.items", showFooter: true, alternateRowStyle: true, columns: [
+        { id: "sku", header: "SKU", binding: "row.sku", width: 70 }, { id: "item", header: "Item", binding: "row.item", width: "*" }, { id: "qty", header: "Qty", binding: "row.qty", width: 42, align: "right" }, { id: "price", header: "Unit price", binding: "row.price", format: "currency:INR", width: 80, align: "right" }, { id: "amount", header: "Amount", expression: "row.qty * row.price", format: "currency:INR", width: 85, align: "right", footer: { aggregate: "sum" } },
+      ] }, spacer(8), row([T("GST (5%)", { width: "*", style: right }), X("formatCurrency(vars.tax)", { width: 100, style: right })]), row([T("TOTAL", { width: "*", style: { align: "right", fontWeight: "bold", fontSize: 13 } }), X("formatCurrency(vars.total)", { width: 100, style: { align: "right", fontWeight: "bold", fontSize: 13, color: "#245a52" } })]), spacer(8), T("Payment: UPI · Paid", { style: { fontSize: 8, color: "#64748b" } })] },
+    { type: "pageFooter", children: [line(), T("Thank you for shopping with Harbor & Pine · harborandpine.example", { style: { align: "center", fontSize: 7, color: "#64748b" } })] },
+  ],
+}));
+
+write("education-progress-report", base("education-progress-report", "Student Progress Report", "A school term report with student details, subject scores, attendance and teacher sign-off. Replace the school name and grading scale.", {
+  datasets: [{ id: "term", source: "inline", query: { data: { school: "CEDAR GROVE ACADEMY", subtitle: "Learning with curiosity and care", address: "42 Orchard Road · Pune 411001", student: "Maya Patel", studentId: "CGA-2026-084", class: "Grade 8 · Section B", term: "Term 2 · 2025–26", attendance: "92 / 96 days", subjects: [
+    { subject: "English Language", score: 88, grade: "A" }, { subject: "Mathematics", score: 94, grade: "A+" }, { subject: "Integrated Science", score: 86, grade: "A" }, { subject: "Social Studies", score: 81, grade: "A" }, { subject: "Visual Arts", score: 95, grade: "A+" },
+  ] } } }],
+  page: A4(),
+  sections: [
+    { type: "pageHeader", children: [B("data.term.school", { style: { fontSize: 17, fontWeight: "bold", color: "#394d83" } }), B("data.term.subtitle", { style: { fontSize: 8, color: "#64748b" } }), B("data.term.address", { style: { fontSize: 8, color: "#64748b" } }), line(), T("STUDENT PROGRESS REPORT", { style: { fontSize: 10, fontWeight: "bold", color: "#394d83" } })] },
+    { type: "detail", children: [spacer(10), row([col([T("STUDENT", { style: { fontSize: 7, color: "#64748b", fontWeight: "bold" } }), B("data.term.student", { style: bold }), X('"Student ID: " + data.term.studentId')], { width: "*" }), col([X('"Class: " + data.term.class'), X('"Reporting period: " + data.term.term')], { width: 190 })]), spacer(12),
+      { type: "table", id: "subject-results", dataset: "term.subjects", columns: [{ id: "subject", header: "Subject", binding: "row.subject", width: "*" }, { id: "score", header: "Score / 100", binding: "row.score", width: 90, align: "right" }, { id: "grade", header: "Grade", binding: "row.grade", width: 70, align: "center" }] },
+      spacer(12), row([T("Attendance", { width: 100, style: { fontWeight: "bold" } }), B("data.term.attendance")]), spacer(30), row([col([line(), T("Class teacher", { style: { fontSize: 8 } })], { width: "*" }), col([line(), T("Parent / guardian", { style: { fontSize: 8 } })], { width: "*" })]), spacer(10), T("This report is a learning conversation starter. Contact the school to discuss progress and next steps.", { style: { fontSize: 8, color: "#64748b" } })] },
+    { type: "pageFooter", children: [line(), X('"Cedar Grove Academy · Page " + page.number + " of " + page.total', { style: { align: "center", fontSize: 7, color: "#64748b" } })] },
+  ],
+}));
+
+write("logistics-manifest", base("logistics-manifest", "Shipment Dispatch Manifest", "A carrier dispatch sheet with route, consignment IDs, package counts, weights and a scan-ready barcode. Adapt it for warehouse and delivery operations.", {
+  datasets: [{ id: "dispatch", source: "inline", query: { data: { carrier: "MERIDIAN CARGO", strapline: "Move with confidence", origin: "Bengaluru Hub · BLR-03", destination: "Chennai Depot · MAA-02", dispatch: "MC-2026-00841", date: "06 Oct 2026", vehicle: "KA 03 MN 4821", driver: "R. Kumar", consignments: [
+    { awb: "MC84001572", recipient: "Aster Office Supplies", destination: "Chennai", packages: 4, weight: 32.5, status: "Loaded" }, { awb: "MC84001588", recipient: "Bluebird Books", destination: "Vellore", packages: 2, weight: 18, status: "Loaded" }, { awb: "MC84001603", recipient: "Kaveri Home Store", destination: "Chennai", packages: 7, weight: 54.2, status: "Loaded" }, { awb: "MC84001619", recipient: "Orbit Components", destination: "Kanchipuram", packages: 1, weight: 12, status: "Loaded" },
+  ] } } }],
+  page: A4(),
+  sections: [
+    { type: "pageHeader", children: [row([col([B("data.dispatch.carrier", { style: { fontSize: 16, fontWeight: "bold", color: "#174a74" } }), B("data.dispatch.strapline", { style: { fontSize: 8, color: "#64748b" } })], { width: "*" }), T("DISPATCH MANIFEST", { style: { align: "right", fontSize: 11, fontWeight: "bold" } })]), line()] },
+    { type: "detail", children: [spacer(8), row([col([T("ROUTE", { style: { fontSize: 7, color: "#64748b", fontWeight: "bold" } }), B("data.dispatch.origin", { style: bold }), B("data.dispatch.destination")], { width: "*" }), col([X('"Dispatch " + data.dispatch.dispatch'), X('"Date " + data.dispatch.date'), X('"Vehicle " + data.dispatch.vehicle'), X('"Driver " + data.dispatch.driver')], { width: 190 })]), spacer(10),
+      { type: "table", id: "consignments", dataset: "dispatch.consignments", repeatHeaderOnPageBreak: true, columns: [{ id: "awb", header: "Waybill", binding: "row.awb", width: 100 }, { id: "recipient", header: "Consignee", binding: "row.recipient", width: "*" }, { id: "destination", header: "Destination", binding: "row.destination", width: 78 }, { id: "packages", header: "Pkgs", binding: "row.packages", width: 42, align: "right" }, { id: "weight", header: "Weight kg", binding: "row.weight", format: "number:1", width: 62, align: "right" }, { id: "status", header: "Status", binding: "row.status", width: 56 }] },
+      spacer(12), row([T("Total consignments", { width: "*", style: bold }), X("data.dispatch.consignments.length", { style: right })]), spacer(8), { type: "barcode", id: "dispatch-barcode", expression: "data.dispatch.dispatch", symbology: "code128", width: 190, height: 48 }, T("Scan dispatch ID at hub handoff", { style: { fontSize: 7, color: "#64748b" } }), spacer(24), row([col([line(), T("Warehouse handover", { style: { fontSize: 8 } })], { width: "*" }), col([line(), T("Driver acknowledgement", { style: { fontSize: 8 } })], { width: "*" })]) ] },
+    footerPages(),
+  ],
+}));
+
+write("manufacturing-work-order", base("manufacturing-work-order", "Manufacturing Work Order", "A production traveler for a shop-floor batch with material traceability, operation steps and quality sign-off. Replace the sample process and tolerances.", {
+  datasets: [{ id: "job", source: "inline", query: { data: { company: "IRONWOOD WORKS", subtitle: "Precision components · ISO 9001 quality system", address: "Industrial Estate, Coimbatore · Plant 2", order: "WO-26-1048", part: "Mounting Bracket · MB-440", revision: "Rev C", batch: "LOT-26-10-06-A", quantity: 120, due: "10 Oct 2026", material: "Aluminium 6061-T6 · Heat H61-8824", operations: [
+    { step: "10", operation: "Cut stock to 85 mm", station: "SAW-02", check: "Length ±0.5 mm", status: "Complete" }, { step: "20", operation: "CNC mill profile and slots", station: "CNC-07", check: "Drawing MB-440 Rev C", status: "Complete" }, { step: "30", operation: "Deburr and clean", station: "FIN-01", check: "No sharp edges", status: "In progress" }, { step: "40", operation: "Final inspection", station: "QC-04", check: "Verify 5 critical dimensions", status: "Pending" },
+  ] } } }],
+  page: A4(),
+  sections: [
+    { type: "pageHeader", children: [row([col([B("data.job.company", { style: { fontSize: 16, fontWeight: "bold", color: "#70431d" } }), B("data.job.subtitle", { style: { fontSize: 7, color: "#64748b" } })], { width: "*" }), T("WORK ORDER", { style: { align: "right", fontSize: 12, fontWeight: "bold" } })]), B("data.job.address", { style: { fontSize: 8, color: "#64748b" } }), line()] },
+    { type: "detail", children: [spacer(8), row([col([T("ORDER / PART", { style: { fontSize: 7, color: "#64748b", fontWeight: "bold" } }), B("data.job.order", { style: bold }), B("data.job.part"), X('"Revision " + data.job.revision')], { width: "*" }), col([X('"Batch: " + data.job.batch'), X('"Planned quantity: " + data.job.quantity'), X('"Due date: " + data.job.due')], { width: 175 })]), spacer(8), row([T("Material", { width: 75, style: { fontWeight: "bold" } }), B("data.job.material")]), spacer(10), T("ROUTING & QUALITY CHECKS", { style: { fontSize: 9, fontWeight: "bold", color: "#70431d" } }),
+      { type: "table", id: "routing", dataset: "job.operations", repeatHeaderOnPageBreak: true, columns: [{ id: "step", header: "Step", binding: "row.step", width: 42 }, { id: "operation", header: "Operation", binding: "row.operation", width: "*" }, { id: "station", header: "Station", binding: "row.station", width: 60 }, { id: "check", header: "Acceptance check", binding: "row.check", width: 125 }, { id: "status", header: "Status", binding: "row.status", width: 68 }] },
+      spacer(10), T("Record measured values and any nonconformance in the traveler before moving the batch to the next operation.", { style: { fontSize: 8, color: "#64748b" } }), spacer(18), row([col([line(), T("Operator · date", { style: { fontSize: 8 } })], { width: "*" }), col([line(), T("Quality inspector · date", { style: { fontSize: 8 } })], { width: "*" }), col([line(), T("Production approval", { style: { fontSize: 8 } })], { width: "*" })]) ] },
+    { type: "pageFooter", children: [line(), X('"Work order " + data.job.order + " · Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 7, color: "#64748b" } })] },
+  ],
+}));
+
 // ---------------------------------------------------------------- banded report (groups, repeated headers, subtotals)
 {
   const r = rng(11);

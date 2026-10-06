@@ -1,0 +1,343 @@
+{
+  "schemaVersion": "1.0",
+  "id": "manufacturing-work-order",
+  "name": "Manufacturing Work Order",
+  "description": "A production traveler for a shop-floor batch with material traceability, operation steps and quality sign-off. Replace the sample process and tolerances.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "job",
+      "source": "inline",
+      "query": {
+        "data": {
+          "company": "IRONWOOD WORKS",
+          "subtitle": "Precision components · ISO 9001 quality system",
+          "address": "Industrial Estate, Coimbatore · Plant 2",
+          "order": "WO-26-1048",
+          "part": "Mounting Bracket · MB-440",
+          "revision": "Rev C",
+          "batch": "LOT-26-10-06-A",
+          "quantity": 120,
+          "due": "10 Oct 2026",
+          "material": "Aluminium 6061-T6 · Heat H61-8824",
+          "operations": [
+            {
+              "step": "10",
+              "operation": "Cut stock to 85 mm",
+              "station": "SAW-02",
+              "check": "Length ±0.5 mm",
+              "status": "Complete"
+            },
+            {
+              "step": "20",
+              "operation": "CNC mill profile and slots",
+              "station": "CNC-07",
+              "check": "Drawing MB-440 Rev C",
+              "status": "Complete"
+            },
+            {
+              "step": "30",
+              "operation": "Deburr and clean",
+              "station": "FIN-01",
+              "check": "No sharp edges",
+              "status": "In progress"
+            },
+            {
+              "step": "40",
+              "operation": "Final inspection",
+              "station": "QC-04",
+              "check": "Verify 5 critical dimensions",
+              "status": "Pending"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.job.company",
+                  "style": {
+                    "fontSize": 16,
+                    "fontWeight": "bold",
+                    "color": "#70431d"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.job.subtitle",
+                  "style": {
+                    "fontSize": 7,
+                    "color": "#64748b"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "text",
+              "value": "WORK ORDER",
+              "style": {
+                "align": "right",
+                "fontSize": 12,
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "binding": "data.job.address",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "ORDER / PART",
+                  "style": {
+                    "fontSize": 7,
+                    "color": "#64748b",
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.job.order",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.job.part"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Revision \" + data.job.revision"
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "expression": "\"Batch: \" + data.job.batch"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Planned quantity: \" + data.job.quantity"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Due date: \" + data.job.due"
+                }
+              ],
+              "width": 175
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Material",
+              "width": 75,
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.job.material"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "text",
+          "value": "ROUTING & QUALITY CHECKS",
+          "style": {
+            "fontSize": 9,
+            "fontWeight": "bold",
+            "color": "#70431d"
+          }
+        },
+        {
+          "type": "table",
+          "id": "routing",
+          "dataset": "job.operations",
+          "repeatHeaderOnPageBreak": true,
+          "columns": [
+            {
+              "id": "step",
+              "header": "Step",
+              "binding": "row.step",
+              "width": 42
+            },
+            {
+              "id": "operation",
+              "header": "Operation",
+              "binding": "row.operation",
+              "width": "*"
+            },
+            {
+              "id": "station",
+              "header": "Station",
+              "binding": "row.station",
+              "width": 60
+            },
+            {
+              "id": "check",
+              "header": "Acceptance check",
+              "binding": "row.check",
+              "width": 125
+            },
+            {
+              "id": "status",
+              "header": "Status",
+              "binding": "row.status",
+              "width": 68
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "text",
+          "value": "Record measured values and any nonconformance in the traveler before moving the batch to the next operation.",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 18
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "text",
+                  "value": "Operator · date",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "text",
+                  "value": "Quality inspector · date",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "text",
+                  "value": "Production approval",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "expression": "\"Work order \" + data.job.order + \" · Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 7,
+            "color": "#64748b"
+          }
+        }
+      ]
+    }
+  ]
+}

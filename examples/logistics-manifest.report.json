@@ -1,0 +1,329 @@
+{
+  "schemaVersion": "1.0",
+  "id": "logistics-manifest",
+  "name": "Shipment Dispatch Manifest",
+  "description": "A carrier dispatch sheet with route, consignment IDs, package counts, weights and a scan-ready barcode. Adapt it for warehouse and delivery operations.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "dispatch",
+      "source": "inline",
+      "query": {
+        "data": {
+          "carrier": "MERIDIAN CARGO",
+          "strapline": "Move with confidence",
+          "origin": "Bengaluru Hub · BLR-03",
+          "destination": "Chennai Depot · MAA-02",
+          "dispatch": "MC-2026-00841",
+          "date": "06 Oct 2026",
+          "vehicle": "KA 03 MN 4821",
+          "driver": "R. Kumar",
+          "consignments": [
+            {
+              "awb": "MC84001572",
+              "recipient": "Aster Office Supplies",
+              "destination": "Chennai",
+              "packages": 4,
+              "weight": 32.5,
+              "status": "Loaded"
+            },
+            {
+              "awb": "MC84001588",
+              "recipient": "Bluebird Books",
+              "destination": "Vellore",
+              "packages": 2,
+              "weight": 18,
+              "status": "Loaded"
+            },
+            {
+              "awb": "MC84001603",
+              "recipient": "Kaveri Home Store",
+              "destination": "Chennai",
+              "packages": 7,
+              "weight": 54.2,
+              "status": "Loaded"
+            },
+            {
+              "awb": "MC84001619",
+              "recipient": "Orbit Components",
+              "destination": "Kanchipuram",
+              "packages": 1,
+              "weight": 12,
+              "status": "Loaded"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.dispatch.carrier",
+                  "style": {
+                    "fontSize": 16,
+                    "fontWeight": "bold",
+                    "color": "#174a74"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.dispatch.strapline",
+                  "style": {
+                    "fontSize": 8,
+                    "color": "#64748b"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "text",
+              "value": "DISPATCH MANIFEST",
+              "style": {
+                "align": "right",
+                "fontSize": 11,
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "ROUTE",
+                  "style": {
+                    "fontSize": 7,
+                    "color": "#64748b",
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.dispatch.origin",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.dispatch.destination"
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "expression": "\"Dispatch \" + data.dispatch.dispatch"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Date \" + data.dispatch.date"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Vehicle \" + data.dispatch.vehicle"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Driver \" + data.dispatch.driver"
+                }
+              ],
+              "width": 190
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "table",
+          "id": "consignments",
+          "dataset": "dispatch.consignments",
+          "repeatHeaderOnPageBreak": true,
+          "columns": [
+            {
+              "id": "awb",
+              "header": "Waybill",
+              "binding": "row.awb",
+              "width": 100
+            },
+            {
+              "id": "recipient",
+              "header": "Consignee",
+              "binding": "row.recipient",
+              "width": "*"
+            },
+            {
+              "id": "destination",
+              "header": "Destination",
+              "binding": "row.destination",
+              "width": 78
+            },
+            {
+              "id": "packages",
+              "header": "Pkgs",
+              "binding": "row.packages",
+              "width": 42,
+              "align": "right"
+            },
+            {
+              "id": "weight",
+              "header": "Weight kg",
+              "binding": "row.weight",
+              "format": "number:1",
+              "width": 62,
+              "align": "right"
+            },
+            {
+              "id": "status",
+              "header": "Status",
+              "binding": "row.status",
+              "width": 56
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 12
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Total consignments",
+              "width": "*",
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "data.dispatch.consignments.length",
+              "style": {
+                "align": "right"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "barcode",
+          "id": "dispatch-barcode",
+          "expression": "data.dispatch.dispatch",
+          "symbology": "code128",
+          "width": 190,
+          "height": 48
+        },
+        {
+          "type": "text",
+          "value": "Scan dispatch ID at hub handoff",
+          "style": {
+            "fontSize": 7,
+            "color": "#64748b"
+          }
+        },
+        {
+          "type": "spacer",
+          "height": 24
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "text",
+                  "value": "Warehouse handover",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "text",
+                  "value": "Driver acknowledgement",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
+        }
+      ]
+    }
+  ]
+}

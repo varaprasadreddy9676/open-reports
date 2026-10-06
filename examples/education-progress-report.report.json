@@ -1,0 +1,283 @@
+{
+  "schemaVersion": "1.0",
+  "id": "education-progress-report",
+  "name": "Student Progress Report",
+  "description": "A school term report with student details, subject scores, attendance and teacher sign-off. Replace the school name and grading scale.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "term",
+      "source": "inline",
+      "query": {
+        "data": {
+          "school": "CEDAR GROVE ACADEMY",
+          "subtitle": "Learning with curiosity and care",
+          "address": "42 Orchard Road · Pune 411001",
+          "student": "Maya Patel",
+          "studentId": "CGA-2026-084",
+          "class": "Grade 8 · Section B",
+          "term": "Term 2 · 2025–26",
+          "attendance": "92 / 96 days",
+          "subjects": [
+            {
+              "subject": "English Language",
+              "score": 88,
+              "grade": "A"
+            },
+            {
+              "subject": "Mathematics",
+              "score": 94,
+              "grade": "A+"
+            },
+            {
+              "subject": "Integrated Science",
+              "score": 86,
+              "grade": "A"
+            },
+            {
+              "subject": "Social Studies",
+              "score": 81,
+              "grade": "A"
+            },
+            {
+              "subject": "Visual Arts",
+              "score": 95,
+              "grade": "A+"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "text",
+          "binding": "data.term.school",
+          "style": {
+            "fontSize": 17,
+            "fontWeight": "bold",
+            "color": "#394d83"
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.term.subtitle",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        },
+        {
+          "type": "text",
+          "binding": "data.term.address",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "value": "STUDENT PROGRESS REPORT",
+          "style": {
+            "fontSize": 10,
+            "fontWeight": "bold",
+            "color": "#394d83"
+          }
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "STUDENT",
+                  "style": {
+                    "fontSize": 7,
+                    "color": "#64748b",
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.term.student",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Student ID: \" + data.term.studentId"
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "expression": "\"Class: \" + data.term.class"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Reporting period: \" + data.term.term"
+                }
+              ],
+              "width": 190
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 12
+        },
+        {
+          "type": "table",
+          "id": "subject-results",
+          "dataset": "term.subjects",
+          "columns": [
+            {
+              "id": "subject",
+              "header": "Subject",
+              "binding": "row.subject",
+              "width": "*"
+            },
+            {
+              "id": "score",
+              "header": "Score / 100",
+              "binding": "row.score",
+              "width": 90,
+              "align": "right"
+            },
+            {
+              "id": "grade",
+              "header": "Grade",
+              "binding": "row.grade",
+              "width": 70,
+              "align": "center"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 12
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Attendance",
+              "width": 100,
+              "style": {
+                "fontWeight": "bold"
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.term.attendance"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 30
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "text",
+                  "value": "Class teacher",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "text",
+                  "value": "Parent / guardian",
+                  "style": {
+                    "fontSize": 8
+                  }
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "text",
+          "value": "This report is a learning conversation starter. Contact the school to discuss progress and next steps.",
+          "style": {
+            "fontSize": 8,
+            "color": "#64748b"
+          }
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "expression": "\"Cedar Grove Academy · Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "center",
+            "fontSize": 7,
+            "color": "#64748b"
+          }
+        }
+      ]
+    }
+  ]
+}
