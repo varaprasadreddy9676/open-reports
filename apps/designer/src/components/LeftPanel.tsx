@@ -67,21 +67,23 @@ const SECTION_HINTS: Record<string, string> = {
   child: "Prints directly after a selected parent section",
 };
 
-function addReportSection(type: string) {
+/** Adds a report section (band) and selects it; returns its index, or undefined when it needs more setup first. */
+export function addReportSection(type: string): number | undefined {
   const st = useStore.getState();
   const props: Record<string, any> = {};
   if (type === "groupHeader" || type === "groupFooter") {
-    if (!(st.doc.groups ?? []).length) return st.set({ dialog: "group" });
+    if (!(st.doc.groups ?? []).length) return void st.set({ dialog: "group" });
     props.groupId = st.doc.groups[0].id;
   }
   if (type === "child") {
     const parent = st.selectedBand === null ? undefined : st.doc.sections[st.selectedBand];
-    if (!parent?.id) return st.toast("Select a named parent band before adding a child band", "info");
+    if (!parent?.id) return void st.toast("Select a named parent band before adding a child band", "info");
     props.parent = parent.id;
   }
   const result = ops.addBand(st.doc, type, props);
   st.setDoc(result.doc);
   st.set({ selectedBand: result.index, selection: [], rightOpen: true, leftTab: "layers", leftOpen: true });
+  return result.index;
 }
 
 function ReportSectionsPalette({ query }: { query: string }) {
@@ -176,6 +178,20 @@ function BlocksSection({ q }: { q: string }) {
   );
 }
 
+/** Tables, repeaters and crosstabs show rows only from data, so say so before an empty one is dropped. */
+function DataFirstNote() {
+  const hasData = useStore((s) => (s.doc.datasets?.length ?? 0) > 0);
+  const set = useStore((s) => s.set);
+  if (hasData) return null;
+  return <div className="data-first" data-testid="data-first-note">
+    <p><strong>No data yet.</strong> Tables, repeaters and crosstabs fill their rows from data: add it first, then drop them in.</p>
+    <div className="data-first-actions">
+      <button type="button" className="btn primary" data-testid="data-first-add" onClick={() => set({ dialog: "dataset", editingDataset: null })}>Add data</button>
+      <button type="button" className="btn" data-testid="data-first-json" onClick={() => set({ dialog: "generate" })}>Paste sample JSON</button>
+    </div>
+  </div>;
+}
+
 function InsertTab() {
   const [q, setQ] = useState("");
   const groups = useMemo(() => {
@@ -191,6 +207,7 @@ function InsertTab() {
       {groups.map(([g, items]) => (
         <div key={g} className="palette-group">
           <div className="group-title">{g}</div>
+          {g === "Data" && <DataFirstNote />}
           <div className="palette-grid">
             {items.map((i) => (
               <button

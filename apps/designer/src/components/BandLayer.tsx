@@ -37,10 +37,10 @@ export function BandBar() {
   return (
     <div className="band-bar" data-testid="band-bar">
       <div className="seg" role="group" aria-label="Canvas view">
-        <button className={canvasView === "structure" ? "on" : ""} data-testid="view-structure" onClick={() => (savePref("canvasView", "structure"), set({ canvasView: "structure" }))} title="Edit the report's structure: every band once">
-          Structure
+        <button className={canvasView === "structure" ? "on" : ""} data-testid="view-structure" onClick={() => (savePref("canvasView", "structure"), set({ canvasView: "structure" }))} title="Sections: each part of the report once (page header, data rows, footers). Arrange the layout here.">
+          Sections
         </button>
-        <button className={canvasView === "pages" ? "on" : ""} data-testid="view-pages" onClick={() => (savePref("canvasView", "pages"), set({ canvasView: "pages" }))} title={receipt ? "See the continuous ESC/POS roll" : "See the paginated result"}>
+        <button className={canvasView === "pages" ? "on" : ""} data-testid="view-pages" onClick={() => (savePref("canvasView", "pages"), set({ canvasView: "pages" }))} title={receipt ? "See the continuous ESC/POS roll" : "Pages: the printed result, page by page, with your sample data. You can edit here too."}>
           {receipt ? "Roll" : "Pages"}
         </button>
       </div>

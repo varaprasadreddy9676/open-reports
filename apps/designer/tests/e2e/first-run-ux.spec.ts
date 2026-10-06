@@ -11,7 +11,14 @@ test("a first visitor can choose appearance and follow the invoice preview path"
 
   await page.getByTestId("home-try-invoice").click();
   await expect(page.getByTestId("getting-started")).toContainText("Try one edit");
-  await page.getByTestId("layer-company").click();
+  // The hint names the example's real heading, and following it works.
+  const heading = await page.evaluate(() => {
+    const s = (window as any).__designer.getState();
+    const walk = (list: any[]): any[] => list.flatMap((c) => [c, ...walk(c.children ?? [])]);
+    return walk(s.doc.sections.flatMap((section: any) => section.children ?? [])).find((c) => c.type === "text" && c.value && !c.binding && !c.expression);
+  });
+  await expect(page.getByTestId("getting-started")).toContainText(`Double-click “${heading.value}”`);
+  await page.evaluate((id) => (window as any).__designer.getState().select([id]), heading.id);
   await page.getByTestId("value-text").fill("MY INVOICE DEMO");
   await expect(page.getByTestId("getting-started")).toContainText("See the printable result");
   await page.getByTestId("getting-started").getByRole("button", { name: /Preview PDF/ }).click();
@@ -38,7 +45,7 @@ test("an empty table leads to a valid dataset and generated columns", async ({ p
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
   await page.getByTestId("starter-blank").click();
-  await expect(page.getByTestId("getting-started")).toContainText("Start on the page");
+  await expect(page.getByTestId("blank-start")).toBeVisible();
   await page.getByTestId("palette-table").click();
   await expect(page.getByTestId("getting-started")).toContainText("Connect table data");
   await page.getByTestId("canvas-create-dataset").click();
@@ -109,4 +116,62 @@ test("a table dropped near the right edge keeps a usable width and moves left in
   });
   // At least 120 mm, never a sliver.
   expect(width).toBeGreaterThanOrEqual(120 * (72 / 25.4) - 1);
+});
+
+
+test.describe("first steps on a blank report", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await page.getByTestId("starter-blank").click();
+  });
+
+  test("the empty page offers a first step and gets out of the way once there is content", async ({ page }) => {
+    const start = page.getByTestId("blank-start");
+    await expect(start).toBeVisible();
+    await expect(start).toContainText("Start your report");
+    await start.getByTestId("blank-add-text").click();
+    await expect(start).toHaveCount(0);
+    await expect(page.getByTestId("page-1")).toContainText("Report title");
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().editingText)).toBeTruthy();
+  });
+
+  test("adding a page header puts a ready-to-type name inside the header section", async ({ page }) => {
+    await page.getByTestId("blank-add-header").click();
+    const doc = await page.evaluate(() => (window as any).__designer.getState().doc);
+    const header = doc.sections.find((section: any) => section.type === "pageHeader");
+    expect(header.children).toEqual([expect.objectContaining({ type: "text", value: "Company name" })]);
+    await expect(page.getByTestId("toast").filter({ hasText: "repeats at the top of every page" })).toBeVisible();
+  });
+
+  test("starting from an example or from JSON opens the right dialog", async ({ page }) => {
+    await page.getByTestId("blank-from-example").click();
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().dialog)).toBe("new");
+    await page.keyboard.press("Escape");
+    await page.getByTestId("blank-from-json").click();
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().dialog)).toBe("generate");
+  });
+
+  test("the Data components say to add data first, until the report has some", async ({ page }) => {
+    await page.evaluate(() => (window as any).__designer.getState().set({ leftOpen: true, leftTab: "insert" }));
+    const note = page.getByTestId("data-first-note");
+    await expect(note).toContainText("No data yet");
+    await note.getByTestId("data-first-add").click();
+    await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().dialog)).toBe("dataset");
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+      const s = (window as any).__designer.getState();
+      s.setDoc({ ...s.doc, datasets: [{ id: "items", source: "inline", query: { data: [{ name: "A" }] } }] });
+    });
+    await expect(note).toHaveCount(0);
+  });
+
+  test("the canvas views are named for what they show, and Save says what it did", async ({ page }) => {
+    await expect(page.getByTestId("view-structure")).toHaveText("Sections");
+    await expect(page.getByTestId("view-pages")).toHaveText("Pages");
+    await expect(page.getByTestId("btn-save")).toHaveAttribute("title", /draft version/);
+    await expect(page.getByTestId("btn-publish")).toHaveAttribute("title", /report viewer, API/);
+    await page.getByTestId("btn-save").click();
+    await expect(page.getByTestId("toast").filter({ hasText: "Saved draft version" })).toContainText("Publish it when");
+  });
 });

@@ -316,7 +316,7 @@ export function EscPosPreview({ design = false }: { design?: boolean }) {
         <button className="btn" data-testid="download-escpos" disabled={!rendered || busy} onClick={() => rendered && downloadBlob(rendered.blob, `${doc.id || "receipt"}.bin`)}>Download .bin</button>
       </div>
       <p className="escpos-note">{design
-        ? "Live output from the generated printer bytes. Edit in Structure; the roll continues to one final cut. Page height only affects PDF. ESC/POS uses printer columns and may skip unsupported visual elements."
+        ? "Live output from the generated printer bytes. Edit in Sections; the roll continues to one final cut. Page height only affects PDF. ESC/POS uses printer columns and may skip unsupported visual elements."
         : "Decoded from the generated ESC/POS bytes. Verify paper feed, character set, and cutting on the target printer."}</p>
       {error ? <div className="field-error big" role="alert">{error}</div> : rendered ? (
         <div className="receipt-scroll">

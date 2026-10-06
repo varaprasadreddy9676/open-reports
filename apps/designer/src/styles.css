@@ -1539,7 +1539,7 @@ textarea {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: #14243a;
+  background: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
@@ -1552,8 +1552,8 @@ textarea {
 .demo-video-list { display: grid; gap: 7px; max-height: min(62vh, 610px); overflow: auto; padding: 2px 4px 2px 0; }
 .demo-video-choice { display: grid; grid-template-columns: 30px minmax(0, 1fr) 16px; gap: 10px; align-items: start; width: 100%; padding: 11px 12px; text-align: left; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
 .demo-video-choice:hover { border-color: var(--accent); }
-.demo-video-choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft, var(--surface)); box-shadow: inset 3px 0 var(--accent); }
-.demo-video-number { color: var(--accent); font: 700 var(--text-sm)/1.5 var(--font-mono, monospace); }
+.demo-video-choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent); }
+.demo-video-number { color: var(--accent); font: 700 var(--text-sm)/1.5 ui-monospace, monospace; }
 .demo-video-choice strong, .demo-video-choice small { display: block; }
 .demo-video-choice strong { font-size: var(--text-sm); line-height: 1.35; }
 .demo-video-choice small { margin-top: 4px; color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
@@ -2807,3 +2807,31 @@ kbd {
   color: var(--muted);
   font-size: var(--text-sm);
 }
+
+/* First step on a blank page (BlankPageStart.tsx) */
+.blank-start {
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: default;
+}
+.blank-start strong { font-size: var(--text-xl); }
+.blank-start p { margin: 0; color: var(--muted); font-size: var(--text-base); }
+.blank-start-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+.blank-start-data { padding-top: var(--space-2); border-top: 1px solid var(--border); font-size: var(--text-md) !important; }
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* "Add data first" note in the Data palette group */
+.data-first { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-2); padding: var(--space-2) var(--space-3); border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--panel-2); }
+.data-first p { margin: 0; font-size: var(--text-md); color: var(--muted); }
+.data-first strong { color: var(--text); }
+.data-first-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }

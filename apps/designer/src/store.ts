@@ -10,6 +10,7 @@ import { blankReport } from "./lib/templates";
 import { api, ApiError } from "./lib/api";
 import { loadCanvasFonts } from "./lib/fonts";
 import { disintegrate } from "./lib/dust";
+import { downloadReportFile, isPublicDemo } from "./lib/report-file";
 import { scenarioSample, type CanvasScenario } from "./lib/canvas-scenario";
 import type { MigrationIssue } from "@reporting/jrxml-import";
 
@@ -579,7 +580,14 @@ export const useStore = create<State>((set, get) => ({
       }
       set({ meta: { id: rec.id, version: rec.currentVersion, status: rec.status, dirty: false }, saveState: "saved" });
       persistDraft(s.doc, s.sample, false);
-      get().toast(`Saved as version ${rec.currentVersion}`, "success");
+      // Say what Save did: a draft version on this server, not live until published, and on the demo, shared.
+      get().toast(
+        isPublicDemo()
+          ? `Saved draft version ${rec.currentVersion} on the public demo server. Every visitor can open it and it may be reset: export the report file to keep a copy.`
+          : `Saved draft version ${rec.currentVersion}. Publish it when the report viewer and API should use it.`,
+        "success",
+        isPublicDemo() ? { label: "Export file", run: () => downloadReportFile(get().doc) } : undefined,
+      );
     } catch (e) {
       set({ saveState: "error" });
       get().toast((e as Error).message, "error");

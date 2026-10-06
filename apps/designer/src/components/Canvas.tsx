@@ -20,6 +20,7 @@ import { fitZoom, restoreZoomAnchor, zoomCanvas } from "../lib/zoom";
 import { wheelZoom } from "../lib/viewport";
 import { geometryDeltas, type GeometryDelta } from "../lib/optimistic-geometry";
 import { measureBetween } from "../lib/measure";
+import { BlankPageStart, isBlankReport } from "./BlankPageStart";
 import { useCanvasPan } from "../lib/use-canvas-pan";
 import { AutoLayoutHandles } from "./AutoLayoutHandles";
 import { minorStep, snapToGrid } from "../lib/grid";
@@ -940,6 +941,7 @@ export function Canvas() {
                   <div className="safe-area" title="Printer safe area" style={{ left: (doc.print.safeMargin / MM) * k, top: (doc.print.safeMargin / MM) * k, right: (doc.print.safeMargin / MM) * k, bottom: (doc.print.safeMargin / MM) * k }} />
                 ) : null}
                 {view.margins && !structure && <PageZones page={page} paginated={paginated} k={k} />}
+                {pi === 0 && isBlankReport(doc) && <BlankPageStart left={(paginated.margin.left + 24) * k} top={(page.zones?.body?.y ?? paginated.margin.top) * k + 32} width={Math.min(420, (paginated.pageSize.width - paginated.margin.left - paginated.margin.right - 48) * k)} />}
                 {[...page.header, ...page.content, ...page.footer].map((n, i) => (
                   <NodeView key={i} node={n} k={k} capabilities={capabilities} preview={previewFor(n, geometryPreview?.page === pi ? geometryPreview : undefined)} />
                 ))}
@@ -996,7 +998,7 @@ export function Canvas() {
                 </div>}
                 {geometryPreview?.mode === "move" && geometryPreview.page === pi && !geometryPreview.committed && <div className="drag-preview drag-outline" data-testid="drag-preview" style={{ left: geometryPreview.box.x * k, top: geometryPreview.box.y * k, width: geometryPreview.box.width * k, height: geometryPreview.box.height * k }} />}
                 <div className="page-label">
-                  {structure ? "Structure view" : `Page ${pi + 1} / ${paginated.pages.length}`}
+                  {structure ? "Sections view" : `Page ${pi + 1} / ${paginated.pages.length}`}
                 </div>
               </div>
             </div>

@@ -24,8 +24,10 @@ function GettingStartedHint() {
   const selected = selection.length === 1 ? ops.find(doc, selection[0]!)?.comp : null;
   const table = selected?.type === "table" && !selected.dataset ? selected : null;
   const refs = table ? arrayRefs(doc, sample) : [];
-  const blank = (doc.sections?.length ?? 0) === 1 && !doc.sections?.[0]?.children?.length && !doc.groups?.length;
-  if (!demoHint && !blank && !table) return null;
+  // Name the report's real first static text, so the hint never points at something that is not there.
+  const firstHeading = demoHint === "edit" ? [...ops.walkAll(doc)].map((l) => l.comp).find((c) => c.type === "text" && typeof c.value === "string" && c.value.trim() && !c.binding && !c.expression)?.value as string | undefined : undefined;
+  // A blank report's first step is shown on the page itself (BlankPageStart), not in this bar.
+  if (!demoHint && !table) return null;
   const useDataset = (ref: string) => {
     if (!table) return;
     const fields = scalarFields(datasetFields(doc, sample, ref));
@@ -43,8 +45,8 @@ function GettingStartedHint() {
     });
   };
   return <div className="getting-started" role="status" data-testid="getting-started">
-    <div><strong>{table ? "Connect table data" : demoHint === "edit" ? "Try one edit" : demoHint === "preview" ? "See the printable result" : "Start on the page"}</strong><span>{table ? refs.length ? "Choose data to fill this table and create its columns." : "Create a dataset to fill this table." : demoHint === "edit" ? "Double-click “ACME HEALTH” at the top, type a name, then press Enter." : demoHint === "preview" ? "Your change is on the canvas. Check the PDF it produces." : "Add text from Components, or drag an item onto the page."}</span></div>
-    {table ? refs.length ? <select aria-label="Table data" data-testid="canvas-table-data" defaultValue="" onChange={(event) => useDataset(event.target.value)}><option value="" disabled>Choose data…</option>{refs.map((ref) => <option key={ref} value={ref}>{ref}</option>)}</select> : <button className="btn primary" data-testid="canvas-create-dataset" onClick={() => set({ dialog: "dataset", editingDataset: null })}>Create dataset</button> : demoHint === "preview" ? <button className="btn primary" onClick={() => set({ mode: "preview", demoHint: null })}>Preview PDF →</button> : blank ? <button className="btn primary" onClick={() => useStore.getState().addComponent("text")}>Add text</button> : <button className="mini" onClick={() => set({ demoHint: null })}>Dismiss</button>}
+    <div><strong>{table ? "Connect table data" : demoHint === "edit" ? "Try one edit" : "See the printable result"}</strong><span>{table ? refs.length ? "Choose data to fill this table and create its columns." : "Create a dataset to fill this table." : demoHint === "edit" ? `Double-click “${firstHeading ?? "the title"}” at the top, type a new name, then press Enter.` : "Your change is on the canvas. Check the PDF it produces."}</span></div>
+    {table ? refs.length ? <select aria-label="Table data" data-testid="canvas-table-data" defaultValue="" onChange={(event) => useDataset(event.target.value)}><option value="" disabled>Choose data…</option>{refs.map((ref) => <option key={ref} value={ref}>{ref}</option>)}</select> : <button className="btn primary" data-testid="canvas-create-dataset" onClick={() => set({ dialog: "dataset", editingDataset: null })}>Create dataset</button> : demoHint === "preview" ? <button className="btn primary" onClick={() => set({ mode: "preview", demoHint: null })}>Preview PDF →</button> : <button className="mini" onClick={() => set({ demoHint: null })}>Dismiss</button>}
   </div>;
 }
 

@@ -40,7 +40,7 @@ export function rulerAnchor(origin: RulerOrigin, context: RulerAnchorContext): R
     const band = canvasView === "structure" ? engine.structure?.bands.find((item) => item.sectionIndex === index && !item.ghost) : undefined;
     return band
       ? { x: layout.margin.left, y: band.y, available: true, label: "Selected band" }
-      : unavailable("Page edge until a band is selected in Structure view");
+      : unavailable("Page edge until a section is selected in Sections view");
   }
 
   if (!selection.length) return unavailable("Page edge until an element is selected");

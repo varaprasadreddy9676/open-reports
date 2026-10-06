@@ -14,6 +14,7 @@ import { CompareDialogBody } from "./CompareDialog";
 import { PublishDialogBody } from "./PublishDialog";
 import { AiSettingsBody } from "./AiBar";
 import { ShortcutSheet } from "./ShortcutSheet";
+import { downloadReportFile, isPublicDemo } from "../lib/report-file";
 import { COMMANDS, shortcutLabel } from "../lib/commands";
 import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 import { JrxmlFolderImport } from "./JrxmlFolderImport";
@@ -107,8 +108,8 @@ export function Toolbar() {
       <div className="toolbar-group right">
         <button className="btn toolbar-open" data-testid="btn-open" onClick={() => set({ dialog: "open" })}>Open</button>
         <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview", demoHint: null })}>▶ Run preview</button>
-        <button className="btn" data-testid="btn-save" onClick={() => s().save()}>Save</button>
-        <button className="btn publish" data-testid="btn-publish" onClick={() => set({ dialog: "publish" })}>Publish</button>
+        <button className="btn" data-testid="btn-save" title={`Save a new draft version on this server, to reopen and keep editing. Drafts are not what the report viewer or API render.${isPublicDemo() ? " Public demo: every visitor can open saved reports, and they may be reset." : ""}`} onClick={() => s().save()}>Save</button>
+        <button className="btn publish" data-testid="btn-publish" title="Check the report, then make this version the one the report viewer, API and embedded pages render. Published versions never change." onClick={() => set({ dialog: "publish" })}>Publish</button>
         <button className="icon-btn" data-testid="btn-guide" aria-label="Feature guide" title="What can I do?" onClick={() => set({ dialog: "guide" })}>?</button>
         <div className="menu-wrap" onKeyDown={(e) => {
           if (!menu) return;
@@ -163,7 +164,7 @@ export function Toolbar() {
               </button>
             ))}
             <hr />
-            <button role="menuitem" data-testid="export-definition" onClick={() => (setMenu(null), downloadDefinition())}>Report definition (.json)</button>
+            <button role="menuitem" data-testid="export-definition" onClick={() => (setMenu(null), downloadDefinition())}>Report file (.json): your own copy</button>
           </div>}
           {menu === "view" && <div className="menu right" role="menu">
             <button role="menuitem" onClick={() => setMenu("more")}>← Report actions</button>
@@ -203,13 +204,7 @@ export function Toolbar() {
 }
 
 function downloadDefinition() {
-  const { doc } = useStore.getState();
-  const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${doc.id}.report.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  downloadReportFile(useStore.getState().doc);
 }
 
 function duplicateReport() {
@@ -544,7 +539,7 @@ export function HomeScreen() {
   const interfaceTheme = useStore((s) => s.interfaceTheme);
   const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const hasDraft = Boolean(loadDraft()?.doc);
-  const isPublicDemo = window.location.hostname === "open-reports-demo.onrender.com";
+  const publicDemo = isPublicDemo();
   return <main className="home-screen" data-testid="home-screen">
     <header className="home-header">
       <div className="home-brand"><span className="logo" aria-hidden="true">▤</span><strong>Open Reports</strong></div>
@@ -560,7 +555,7 @@ export function HomeScreen() {
       <p className="home-eyebrow">REPORT DESIGNER</p>
       <h1>Start with a working report</h1>
       <p className="home-intro">Choose an example, change it in the designer, then run Preview to see the printable result.</p>
-      {isPublicDemo && <p className="home-demo-note">Public demo: saved reports are shared and may reset when this service restarts. Export the report definition to keep your own copy.</p>}
+      {publicDemo && <p className="home-demo-note">Public demo: Save stores reports on a server every visitor shares, and it resets when the service restarts. To keep your work, use Export → Report file.</p>}
       <div className="home-featured" aria-label="Quick start examples">
         <div className="home-featured-copy">
           <span className="home-featured-label">RECOMMENDED FIRST TRY</span>
