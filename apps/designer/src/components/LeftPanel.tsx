@@ -39,6 +39,53 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   { type: "chart", label: "Pie chart", group: "Charts", keywords: "graph share", overrides: { chartType: "pie" } },
 ];
 
+/** Keep native disclosure menus easy to dismiss with either Escape or an outside click. */
+function useDismissibleDetails() {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const close = () => {
+      const details = ref.current;
+      if (details?.open) {
+        details.open = false;
+        details.querySelector<HTMLElement>("summary")?.focus();
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !ref.current?.open) return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (ref.current?.open && !ref.current.contains(event.target as Node)) {
+        ref.current.open = false;
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, []);
+  return ref;
+}
+
+const BAND_DESCRIPTIONS: Record<string, string> = {
+  reportHeader: "Appears once at the start of the report.",
+  pageHeader: "Repeats at the top of every printed page.",
+  dataHeader: "Appears once before the data rows, often for column labels.",
+  groupHeader: "Appears before each group of matching records.",
+  detail: "Repeats once for every record in your data.",
+  child: "Adds related content below its parent section.",
+  groupFooter: "Appears after each group of matching records.",
+  dataFooter: "Appears once after all data rows.",
+  noData: "Appears when the report has no records to show.",
+  reportFooter: "Appears once at the very end of the report.",
+  pageFooter: "Repeats at the bottom of every printed page.",
+  background: "Sits behind the content on every printed page.",
+};
+
 export function insertFromPalette(item: PaletteItem) {
   const s = useStore.getState();
   const last = s.selection[s.selection.length - 1];
@@ -52,21 +99,6 @@ const SECTION_GROUPS: { label: string; types: readonly string[] }[] = [
   { label: "Report flow", types: ["reportHeader", "detail", "reportFooter", "noData"] },
   { label: "Data sections", types: ["dataHeader", "dataFooter", "groupHeader", "groupFooter", "child"] },
 ];
-const SECTION_HINTS: Record<string, string> = {
-  pageHeader: "Repeats at the top of each page",
-  pageFooter: "Repeats at the bottom of each page",
-  background: "Prints behind content on every page",
-  reportHeader: "Prints once before the report content",
-  detail: "Repeats for each data record",
-  reportFooter: "Prints once after the report content",
-  noData: "Prints when the report has no records",
-  dataHeader: "Prints before the first data record",
-  dataFooter: "Prints after the last data record",
-  groupHeader: "Prints at the start of each group",
-  groupFooter: "Prints at the end of each group",
-  child: "Prints directly after a selected parent section",
-};
-
 /** Adds a report section (band) and selects it; returns its index, or undefined when it needs more setup first. */
 export function addReportSection(type: string): number | undefined {
   const st = useStore.getState();
@@ -97,8 +129,8 @@ function ReportSectionsPalette({ query }: { query: string }) {
     <p className="muted small">Add a section first, then add components inside it. Headers and footers are report sections.</p>
     {visible.map((group) => <div className="report-section-group" key={group.label}>
       <div className="report-section-label">{group.label}</div>
-      <div className="report-section-actions">{group.types.map((type) => <button type="button" key={type} data-testid={`palette-section-${type}`} title={SECTION_HINTS[type]} onClick={() => addReportSection(type)}>
-        <span className="report-section-code">{ops.BAND_CODES[type]}</span>{ops.BAND_TITLES[type]}<span aria-hidden="true">+</span>
+      <div className="report-section-actions">{group.types.map((type) => <button type="button" key={type} data-testid={`palette-section-${type}`} title={BAND_DESCRIPTIONS[type]} onClick={() => addReportSection(type)}>
+        <span className="report-section-code">{ops.BAND_CODES[type]}</span><span className="report-section-copy"><strong>{ops.BAND_TITLES[type]}</strong><small>{BAND_DESCRIPTIONS[type]}</small></span><span className="report-section-add" aria-hidden="true">+</span>
       </button>)}</div>
     </div>)}
   </section>;
@@ -293,7 +325,13 @@ function DataTab() {
           + Add
         </button>
       </div>
-      {datasets.length === 0 && <p className="muted">No data yet. Add a dataset or paste sample JSON to start binding fields.</p>}
+      {datasets.length === 0 && <div className="data-first" data-testid="data-empty-state">
+        <p><strong>No data connected.</strong> Add data to fill tables and show live values in your report.</p>
+        <div className="data-first-actions">
+          <button type="button" className="btn primary" data-testid="data-tab-add-dataset" onClick={() => set({ dialog: "dataset", editingDataset: null })}>Add dataset</button>
+          <button type="button" className="btn" data-testid="data-tab-paste-json" onClick={() => set({ dialog: "generate" })}>Paste sample JSON</button>
+        </div>
+      </div>}
       {datasets.length > 0 && <input className="search" type="search" aria-label="Search fields" placeholder="Search fields or paths…" value={query} onChange={(event) => setQuery(event.target.value)} />}
       {datasets.map((ds) => {
         const datasetMatches = searching && `${ds.id} ${ds.source}`.toLowerCase().includes(query.trim().toLowerCase());
@@ -508,6 +546,7 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
 
 function ExplorerBand({ index, depth, search, overview }: { index: number; depth: number; search?: ExplorerSearch; overview: boolean }) {
   const doc = useStore((state) => state.doc);
+  const menuRef = useDismissibleDetails();
   const selection = useStore((state) => state.selection);
   const selectedBand = useStore((state) => state.selectedBand);
   const sections: any[] = doc.sections ?? [];
@@ -530,6 +569,7 @@ function ExplorerBand({ index, depth, search, overview }: { index: number; depth
             data-band-index={i}
             data-depth={depth}
             style={{ paddingLeft: `calc(8px + ${depth} * var(--explorer-indent))` }}
+            title={`${bandName}: ${BAND_DESCRIPTIONS[s.type] ?? "Report section."}`}
             role="button"
             tabIndex={0}
             aria-expanded={expanded}
@@ -588,8 +628,8 @@ function ExplorerBand({ index, depth, search, overview }: { index: number; depth
               {s.locked && <span title="Layout locked"><Icon name="lock" small /></span>}
               {s.hidden && <span title="Hidden from output"><Icon name="hidden" small /></span>}
             </span>
-            <details className="explorer-menu" onClick={(e) => e.stopPropagation()}>
-              <summary role="button" aria-label={`Actions for ${bandName}`} title="Band actions">⋯</summary>
+            <details ref={menuRef} className="explorer-menu" onClick={(e) => e.stopPropagation()}>
+              <summary role="button" aria-label={`Actions for ${bandName}`} title="Band actions" aria-haspopup="menu">⋯</summary>
               <div className="explorer-menu-popover" onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.parentElement?.removeAttribute("open"); }}>
                 <button onClick={() => { useStore.getState().set({ selectedBand: i, selection: [], rightOpen: true }); requestAnimationFrame(() => (document.querySelector('[data-testid="band-name"]') as HTMLInputElement | null)?.focus()); }}>Rename</button>
                 <button disabled={!!s.locked} onClick={() => { const st = useStore.getState(); const result = ops.duplicateBand(st.doc, i); st.setDoc(result.doc); st.set({ selectedBand: result.index }); }}>Duplicate</button>
@@ -611,6 +651,7 @@ function ExplorerBand({ index, depth, search, overview }: { index: number; depth
 
 function ExplorerNodeRow({ node, depth, search, overview }: { node: ExplorerNode; depth: number; search?: ExplorerSearch; overview: boolean }) {
   const doc = useStore((state) => state.doc);
+  const menuRef = useDismissibleDetails();
   const [open, setOpen] = useState(true);
   if (node.kind === "band") return <ExplorerBand index={node.index} depth={depth} search={search} overview={overview} />;
   const group = (doc.groups ?? []).find((entry: any) => entry.id === node.id);
@@ -632,9 +673,9 @@ function ExplorerNodeRow({ node, depth, search, overview }: { node: ExplorerNode
         if (event.key === "ArrowLeft" && open) { event.preventDefault(); setOpen(false); }
       }}>{group.name ?? group.id}</button>
       <span className="layer-actions" />
-      <details className="explorer-menu" onClick={(event) => event.stopPropagation()}>
-        <summary role="button" aria-label={`Actions for ${group.name ?? group.id}`} title="Group actions">⋯</summary>
-        <div className="explorer-menu-popover">
+      <details ref={menuRef} className="explorer-menu" onClick={(event) => event.stopPropagation()}>
+        <summary role="button" aria-label={`Actions for ${group.name ?? group.id}`} title="Group actions" aria-haspopup="menu">⋯</summary>
+        <div className="explorer-menu-popover" onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.parentElement?.removeAttribute("open"); }}>
           <button onClick={selectGroup}>Edit group</button>
           <button className="danger" aria-label={"Remove group " + (group.name ?? group.id)} data-testid={"explorer-remove-group-" + group.id} disabled={(doc.sections ?? []).some((section: any) => section.groupId === group.id && section.locked)} onClick={() => {
             const st = useStore.getState();
@@ -656,6 +697,7 @@ function ReportExplorer() {
   const overview = (doc.sections ?? []).length >= 8;
   const search = useMemo(() => query.trim() ? searchExplorer(doc, tree, query) : undefined, [doc, tree, query]);
   const searchInput = useRef<HTMLInputElement>(null);
+  const addMenuRef = useDismissibleDetails();
   const [searchFocusRequest, setSearchFocusRequest] = useState(0);
   // Focus right after the box renders. A frame-delayed focus could arrive after the user has already moved on
   // (for example to a search result) and pull focus back.
@@ -684,11 +726,11 @@ function ReportExplorer() {
         <div className="structure-head-actions">
           <button className="structure-search-trigger" type="button" aria-label="Find in structure" title="Find in structure" aria-expanded={searchOpen} onClick={focusSearch}><Icon name="search" small /></button>
           <button className="compact-close" type="button" aria-label="Close workspace panel" onClick={() => useStore.getState().set({ leftOpen: false })}>×</button>
-          <details className="structure-add">
-            <summary role="button" aria-label="Add section or group" title="Add section or group" data-testid="explorer-add-trigger">+</summary>
-            <div className="structure-add-popover">
-              <button data-testid="explorer-add-group" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); useStore.getState().set({ dialog: "group" }); }}>Group…</button>
-              {ops.BAND_TYPES.map((type) => <button key={type} data-testid={`explorer-add-band-${type}`} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); addBand(type); }}>{ops.BAND_TITLES[type]}</button>)}
+          <details ref={addMenuRef} className="structure-add">
+            <summary role="button" aria-label="Add section or group" title="Add section or group" aria-haspopup="menu" data-testid="explorer-add-trigger">+</summary>
+            <div className="structure-add-popover" onClick={(event) => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.parentElement?.removeAttribute("open"); }}>
+              <button className="structure-add-option" data-testid="explorer-add-group" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); useStore.getState().set({ dialog: "group" }); }}><strong>Group…</strong><small>Organize records by a field, with a header and footer for each value.</small></button>
+              {ops.BAND_TYPES.map((type) => <button className="structure-add-option" key={type} data-testid={`explorer-add-band-${type}`} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); addBand(type); }}><strong>{ops.BAND_TITLES[type]}</strong><small>{BAND_DESCRIPTIONS[type]}</small></button>)}
             </div>
           </details>
         </div>

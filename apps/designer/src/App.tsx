@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useStore, loadDraft } from "./store";
 import { Canvas } from "./components/Canvas";
 import { LeftPanel } from "./components/LeftPanel";
@@ -70,6 +70,7 @@ function MobileDesignerGate() {
 export default function App() {
   const { mode, home, leftOpen, rightOpen, split, tableEditId } = useStore();
   const set = useStore((s) => s.set);
+  const previousPanels = useRef({ leftOpen, rightOpen });
   const [phone, setPhone] = useState(() => window.matchMedia("(max-width: 700px)").matches);
   const showsLeft = mode === "design" && leftOpen;
   const showsRight = (mode === "design" || mode === "code") && rightOpen;
@@ -93,6 +94,22 @@ export default function App() {
     s.loadCapabilities();
     s.loadBlocks();
   }, []);
+
+  useEffect(() => {
+    const previous = previousPanels.current;
+    previousPanels.current = { leftOpen, rightOpen };
+    if (!window.matchMedia("(max-width: 980px)").matches) return;
+    if (leftOpen && rightOpen) {
+      // At overlay widths, keep one panel visible at a time so neither can cover the canvas.
+      const propertiesJustOpened = rightOpen && !previous.rightOpen;
+      useStore.getState().set(propertiesJustOpened
+        ? { leftOpen: false, fitToWidth: true }
+        : { rightOpen: false, fitToWidth: true });
+    } else if ((leftOpen && !previous.leftOpen) || (rightOpen && !previous.rightOpen)) {
+      // Re-fit the page in the area left beside the opened overlay.
+      useStore.getState().set({ fitToWidth: true });
+    }
+  }, [leftOpen, rightOpen]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -137,7 +154,7 @@ export default function App() {
     <div className="app" data-testid="app">
       {home ? <HomeScreen /> : phone ? <MobileDesignerGate /> : <>
       <Toolbar />
-      {mode === "design" && tableEditId ? <TableDesigner id={tableEditId} /> : <div className={`main ${showsLeft ? "" : "no-left"} ${showsRight ? "" : "no-right"}`}>
+      {mode === "design" && tableEditId ? <TableDesigner id={tableEditId} /> : <div className={`main ${showsLeft ? "has-left" : "no-left"} ${showsRight ? "has-right" : "no-right"}`}>
         {showsLeft && <LeftPanel />}
         <section className="center" aria-label="Workspace">
           {mode === "design" && <button className="edge left" aria-label={leftOpen ? "Hide insert panel" : "Show insert panel"} title="Toggle insert panel" onClick={() => set({ leftOpen: !leftOpen, focusCanvas: false, focusRestore: null })}>

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StructureBand } from "@reporting/layout";
 import { savePref, useStore, type RulerOrigin, type RulerUnit } from "../store";
 import * as ops from "../model/ops";
@@ -24,6 +24,35 @@ const ADDABLE: { type: string; hint: string }[] = [
   { type: "background", hint: "Behind every page" },
 ];
 
+function ViewHelp({ name, children }: { name: string; children: string }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLSpanElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      trigger.current?.focus();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [open]);
+  const id = `view-help-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  return <span className="view-help" ref={root}>
+    <button ref={trigger} type="button" className="view-help-trigger" aria-label={`What is ${name}?`} aria-expanded={open} aria-controls={id} onClick={() => setOpen((value) => !value)}>i</button>
+    {open && <span className="view-help-popover" id={id} role="tooltip">{children}</span>}
+  </span>;
+}
+
 /** Compact canvas controls; detailed setup and pagination appear when requested. */
 export function BandBar() {
   const { canvasView, previewSplit, showPagination, ghosts, rulerUnit, rulerOrigin, gridMode, showGrid, doc, engine, selection, selectedBand, zoom } = useStore();
@@ -36,21 +65,24 @@ export function BandBar() {
   const currentOrigin = rulerAnchor(rulerOrigin, originContext);
   return (
     <div className="band-bar" data-testid="band-bar">
-      <div className="seg" role="group" aria-label="Canvas view">
-        <button className={canvasView === "structure" ? "on" : ""} data-testid="view-structure" onClick={() => (savePref("canvasView", "structure"), set({ canvasView: "structure" }))} title="Sections: each part of the report once (page header, data rows, footers). Arrange the layout here.">
-          Sections
-        </button>
-        <button className={canvasView === "pages" ? "on" : ""} data-testid="view-pages" onClick={() => (savePref("canvasView", "pages"), set({ canvasView: "pages" }))} title={receipt ? "See the continuous ESC/POS roll" : "Pages: the printed result, page by page, with your sample data. You can edit here too."}>
-          {receipt ? "Roll" : "Pages"}
-        </button>
+      <div className="canvas-view-control">
+        <div className="seg" role="group" aria-label="Canvas view">
+          <button className={canvasView === "structure" ? "on" : ""} data-testid="view-structure" onClick={() => (savePref("canvasView", "structure"), set({ canvasView: "structure" }))} title="Sections: each part of the report once (page header, data rows, footers). Arrange the layout here.">
+            Sections
+          </button>
+          <button className={canvasView === "pages" ? "on" : ""} data-testid="view-pages" onClick={() => (savePref("canvasView", "pages"), set({ canvasView: "pages" }))} title={receipt ? "See the continuous ESC/POS roll" : "Pages: the printed result, page by page, with your sample data. You can edit here too."}>
+            {receipt ? "Roll" : "Pages"}
+          </button>
+        </div>
+        <ViewHelp name={receipt ? "Sections and roll" : "Sections and pages"}>{receipt ? "Sections show the report parts you design, like headers, detail rows, and footers. Roll shows the continuous receipt with your sample data." : "Sections show the report parts you design, like headers, detail rows, and footers. Pages show the report as it will print with your sample data. Choose a page to edit its elements."}</ViewHelp>
       </div>
-      {(!receipt || canvasView === "structure") && <button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title={receipt ? "Show page starts for PDF output; the ESC/POS roll does not paginate" : "Show page starts and explain pagination decisions"}>
+      {(!receipt || canvasView === "structure") && <span className="canvas-view-control"><button className={showPagination ? "on" : ""} data-testid="toggle-structure-pagination" aria-pressed={showPagination} onClick={() => set({ showPagination: !showPagination })} title={receipt ? "Show page starts for PDF output; the ESC/POS roll does not paginate" : "Show page starts and explain pagination decisions"}>
           {receipt ? "PDF pagination" : "Pagination"}
-      </button>}
+      </button><ViewHelp name={receipt ? "PDF pagination" : "Pagination"}>{receipt ? "See where PDF output splits into pages. The receipt roll remains continuous. Select a page break to learn why content moved." : "See where the report splits across printed pages. Select a page break to learn why content moved and review available fixes."}</ViewHelp></span>}
       {canvasView === "structure" && (
-        <button className={previewSplit ? "on" : ""} data-testid="toggle-preview-split" aria-pressed={previewSplit} onClick={() => set({ previewSplit: !previewSplit })} title="Show the paginated sample beside the structure">
+        <span className="canvas-view-control"><button className={previewSplit ? "on" : ""} data-testid="toggle-preview-split" aria-pressed={previewSplit} onClick={() => set({ previewSplit: !previewSplit })} title="Show the paginated sample beside the structure">
           {receipt ? "PDF split preview" : "Split preview"}
-        </button>
+        </button><ViewHelp name={receipt ? "PDF split preview" : "Split preview"}>{receipt ? "Compare the receipt layout with its paginated PDF output side by side." : "Show the design structure and printed page preview side by side so you can compare layout with the result."}</ViewHelp></span>
       )}
       {!rollView && <div className="canvas-zoom" role="group" aria-label="Canvas zoom">
         <button type="button" aria-label="Zoom out" title={`Zoom out (${shortcutLabel("zoom-out")})`} onClick={() => zoomCanvas(nextZoomStep(zoom, -1))}>−</button>
