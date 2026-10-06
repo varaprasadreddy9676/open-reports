@@ -40,6 +40,20 @@ const pdf = await reports.renderInline({
 await fs.promises.writeFile("invoice.pdf", pdf.bytes);
 ```
 
+For shared headers, footers, or other reusable report layouts, the host keeps one child definition and passes it alongside each parent that references it. Add a `subreport` component to a parent with the matching `reportId`; put it in `pageHeader` to repeat it on every page or `reportHeader` to print it once:
+
+```ts
+const shared = await hostReports.getForTenant(user.tenantId, "branding-heading");
+const invoice = await hostReports.getForTenant(user.tenantId, "invoice");
+const receipt = await hostReports.getForTenant(user.tenantId, "receipt");
+const subreports = { "branding-heading": { report: shared.definition, data: shared.data } };
+
+const invoicePdf = await reports.renderInline({ report: invoice.definition, format: "pdf", data: invoice.data, subreports });
+const receiptPdf = await reports.renderInline({ report: receipt.definition, format: "pdf", data: receipt.data, subreports });
+```
+
+The child definition is sent with each render request, but the layout is maintained once by the host and reused by every parent. The host chooses the authorized tenant-specific definition and version.
+
 `tenantReports.get(...)` is your host application's tenant-to-template configuration lookup; it is not an Open Reports endpoint. Example IDs like `invoice` are not built-in templates. The helper only wraps inline and saved-template rendering. For template management, publishing, jobs, validation, analysis, and every other capability, call the REST endpoints directly. `OpenReportsError` preserves the HTTP status, API error code, and details.
 
 The render call returns PDF bytes in `pdf.bytes`, not a Base64 string. Prefer bytes for files, downloads, and email attachments because Base64 is larger. Convert with `Buffer.from(pdf.bytes).toString("base64")` only when another API specifically requires it.

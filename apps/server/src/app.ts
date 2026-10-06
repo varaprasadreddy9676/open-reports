@@ -5,7 +5,7 @@ import fastifyStatic from "@fastify/static";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { executeDatasets } from "@reporting/core";
+import { executeDatasets, type SubreportSource } from "@reporting/core";
 import { createDefaultDataSourceRegistry, secretsFromEnv, sqlConnectionIds } from "./datasources.js";
 import { discoverFonts } from "@reporting/renderer-pdf";
 import { randomUUID } from "node:crypto";
@@ -221,7 +221,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
 
   // --- Analyze: validation + real pagination, without producing a file. Built for the designer and AI tools. ---
   app.post("/api/v1/analyze", async (request, reply) => {
-    const body = request.body as { report: unknown; parameters?: Record<string, unknown>; data?: Record<string, unknown>; includeLayout?: boolean };
+    const body = request.body as { report: unknown; parameters?: Record<string, unknown>; data?: Record<string, unknown>; subreports?: Record<string, SubreportSource>; includeLayout?: boolean };
     const linked = await refreshLinkedBlocks(body?.report, runtime.getBlock);
     const parsed = parseReportDefinition(linked.report);
     if (!parsed.valid) return reply.send({ valid: false, stage: "schema", issues: parsed.issues.map((i) => ({ ...i, severity: "error" as const })) });
@@ -229,7 +229,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
     const extra = Object.entries(body.data ?? {}).filter(([id]) => !parsed.report.datasets.some((d) => d.id === id)).map(([id, value]) => ({ id, source: "inline" as const, query: { data: value } }));
     const report = extra.length ? { ...parsed.report, datasets: [...parsed.report.datasets, ...extra] } : parsed.report;
     try {
-      const pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: body.parameters ?? {}, tolerant: true, functions: runtime.functions, customComponents: runtime.customComponents });
+      const pipeline = await resolveReport(report, { registry: runtime.dataSources, parameters: body.parameters ?? {}, tolerant: true, functions: runtime.functions, customComponents: runtime.customComponents, subreports: body.subreports });
       pipeline.resolved.warnings.push(...linked.warnings);
       const imageSources = await materializeLinkedImages(pipeline.resolved, { allowedHosts: runtime.imageAllowedHosts, roots: runtime.imageRoots });
       const resolvePageSection = (section: Parameters<typeof pipeline.resolvePageSection>[0], page: Parameters<typeof pipeline.resolvePageSection>[1]) => {

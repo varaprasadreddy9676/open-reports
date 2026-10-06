@@ -14,6 +14,7 @@ import { findByPath, type Doc } from "./model/ops";
 import { datasetValue } from "./lib/fields";
 import { checkSchemaPreview, schemaIssueMessage } from "./lib/schema-preview";
 import { api } from "./lib/api";
+import { subreportSources } from "./lib/subreports";
 
 export interface Fix {
   label: string;
@@ -49,6 +50,8 @@ export interface EngineOptions {
   sampleRows?: number;
   target?: string;
   capabilities?: Capabilities;
+  /** Child definitions selected through the designer's Subreport file picker. */
+  subreports?: Record<string, import("@reporting/core").SubreportSource>;
 }
 
 export interface EngineResult {
@@ -159,7 +162,8 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
   if (!reparsed.valid) return { problems };
 
   try {
-    const pipeline = await resolveReport(reparsed.report, { registry, parameters, tolerant: true });
+    const subreports = opts.subreports ?? subreportSources(doc);
+    const pipeline = await resolveReport(reparsed.report, { registry, parameters, tolerant: true, subreports });
     // Dataset contract results are already listed above, one navigable problem per mismatch.
     const contractCodes = new Set(["DATASET_SHAPE_MISMATCH", "DATASET_SHAPE_PARTIALLY_CHECKED"]);
     for (const issue of pipeline.issues) if (!contractCodes.has(issue.code)) problems.push({ severity: "error", code: issue.code, message: issue.message, path: issue.path });
@@ -171,14 +175,14 @@ export async function runEngine(doc: Doc, sample: Record<string, unknown>, param
     let paginationSource: EngineResult["paginationSource"] = "estimate";
     let structure: StructureLayout | undefined;
     try {
-      const d = await resolveReport(reparsed.report, { registry, parameters, tolerant: true, design: { ghosts: opts.ghosts ?? 0 } });
+      const d = await resolveReport(reparsed.report, { registry, parameters, tolerant: true, design: { ghosts: opts.ghosts ?? 0 }, subreports });
       structure = layoutStructure(d.resolved, reparsed.report.sections);
     } catch {
       /* the structure view falls back to the paginated pages */
     }
     onEstimate?.({ resolved: pipeline.resolved, paginated, structure, resolvePageSection: pipeline.resolvePageSection, problems: [...problems], paginationSource });
     try {
-      const analyzed = await api.analyze(effective, parameters);
+      const analyzed = await api.analyze(effective, parameters, subreports);
       if (analyzed.paginated) {
         paginated = analyzed.paginated;
         paginationSource = "pdf";

@@ -113,7 +113,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 
 | # | Gap | Where / note |
 |---|---|---|
-| P2-1 | **Subreports** declared but not executed (`SUBREPORT_NOT_RENDERED`) | `core/src/resolve-component.ts` l.250 |
+| P2-1 | **Subreport workflow/parity**: host-supplied child definitions/data render and can be shared across parent requests, but the designer has no insert/edit/preview workflow; child page footers are end-of-child only and child backgrounds need manual placement | `packages/core/src/subreports.ts`; designer palette/inspector |
 | P2-2 | **`richText`** needs real inline formatting (bold/italic/links, bullet lists) | `resolve-component.ts` case `"richText"`; renderers |
 | P2-3 | **`allowRowSplit` remains unimplemented**; table header/body spans now have schema, layout, output and designer support | `schema/components.ts`, `layout/box-layout.ts`, `layout/paginate.ts` |
 | P2-4 | **`page.number` / `page.total` in body text** evaluates to empty (`"p/"`); only header/footer sections are re-resolved per page | `core/src/pipeline.ts` → `resolvePageSection` |
@@ -144,7 +144,7 @@ The `schema → consumer` cross-reference (script in the appendix) found fields 
 3. **Correctness P0s (≈3–4 days):** P0-3 dates; P0-2 strict mode; P0-1 recursive pagination (largest item — build the failing tests first).
 4. **Fidelity P1s:** P1-1 shared measurer (unblocks trustworthy designer + HTML), P1-2 text splitting, P1-5 error policy, P1-3/4 grouping.
 5. **Operability P1s:** P1-6 worker pool and quotas, P1-10, P1-11/12, P1-14/15.
-6. P2 as capacity allows; subreports and rich text before spans.
+6. P2 as capacity allows; finish nested page-footer/background behavior and rich text before spans.
 
 **Working agreement for the fixes:** each item starts with a failing test that reproduces the evidence above (they are all scriptable), lands with the fix, and removes its row from this file.
 

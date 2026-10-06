@@ -1,6 +1,9 @@
 /** Thin client for the reporting server. Same-origin by default (Vite proxies /api to the server in dev). */
 import type { PaginatedReport } from "@reporting/layout";
 import type { PageConfig, PrintProfile } from "@reporting/schema";
+import type { SubreportSource } from "@reporting/core";
+import type { Doc } from "../model/ops";
+import { subreportSources } from "./subreports";
 const KEY = "designer.apiKey";
 const BASE = "designer.apiBase";
 
@@ -157,11 +160,13 @@ export const api = {
     await request(`/api/v1/printer-profiles/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
   async render(report: unknown, format: "pdf" | "html" | "xlsx" | "csv" | "docx" | "zpl" | "escpos", parameters?: Record<string, unknown>): Promise<{ blob: Blob; renderId: string | null; warningCount: number }> {
-    const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format, parameters }) });
+    const subreports = report && typeof report === "object" ? subreportSources(report as Doc) : {};
+    const res = await request("/api/v1/render", { method: "POST", body: JSON.stringify({ report, format, parameters, ...(Object.keys(subreports).length ? { subreports } : {}) }) });
     return { blob: await res.blob(), renderId: res.headers.get("x-render-id"), warningCount: Number(res.headers.get("x-render-warnings") ?? 0) };
   },
-  async analyze(report: unknown, parameters: Record<string, unknown> = {}): Promise<{ paginated?: PaginatedReport; valid: boolean; issues: { severity: string; code: string; message: string }[] }> {
-    return (await request("/api/v1/analyze", { method: "POST", body: JSON.stringify({ report, parameters, includeLayout: true }) })).json();
+  async analyze(report: unknown, parameters: Record<string, unknown> = {}, subreports?: Record<string, SubreportSource>): Promise<{ paginated?: PaginatedReport; valid: boolean; issues: { severity: string; code: string; message: string }[] }> {
+    const dependencies = subreports ?? (report && typeof report === "object" ? subreportSources(report as Doc) : {});
+    return (await request("/api/v1/analyze", { method: "POST", body: JSON.stringify({ report, parameters, ...(Object.keys(dependencies).length ? { subreports: dependencies } : {}), includeLayout: true }) })).json();
   },
   async testDataset(dataset: unknown, parameters: Record<string, unknown> = {}): Promise<{ ok: boolean; issues: { message: string }[]; rowCount: number; durationMs?: number; value: unknown }> {
     return (await request("/api/v1/datasets/test", { method: "POST", body: JSON.stringify({ dataset, parameters }) })).json();

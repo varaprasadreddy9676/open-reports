@@ -145,17 +145,45 @@ function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}, an
         ).nodes
       : [];
 
+    const pageFrames = (run.subreportPageFrames[i] ?? []).flatMap((id) => {
+      const frame = run.subreportFrames.get(id);
+      if (!frame) return [];
+      const childPage = i - frame.startPage + 1;
+      const childTotal = frame.endPage - frame.startPage + 1;
+      const footer = pickMaster(frame.footerMasters, childPage, childTotal);
+      const background = pickMaster(frame.backgrounds, childPage, childTotal);
+      return [{ frame, footer, background }];
+    });
+    const pageFooterHeights = pageFrames.map(({ footer }) => footer ? layoutBlock(footer.children, geometry.contentWidth, measurer).height : 0);
+    const nestedFooterHeight = pageFooterHeights.reduce((sum, value) => sum + value, 0);
+    let nestedFooterY = geometry.margin.top + hh + Math.max(0, geometry.contentHeight - hh - fh - nestedFooterHeight);
+    const nestedFooters = pageFrames.flatMap(({ footer }, frameIndex) => {
+      if (!footer) return [];
+      // These masters were resolved in the child report context. The parent's
+      // page-dependent resolver indexes the parent's sections and must not be
+      // applied to them.
+      const placed = layoutBlock(footer.children, geometry.contentWidth, measurer, { x: geometry.margin.left, y: nestedFooterY }).nodes;
+      nestedFooterY += pageFooterHeights[frameIndex]!;
+      return placed;
+    });
+    const nestedBackgrounds = pageFrames.flatMap(({ background }) => background
+      ? layoutBlock(
+          [{ type: "container", layout: "absolute", width: geometry.width, height: geometry.height, style: background.style, children: background.children } as any],
+          geometry.width, measurer, { x: 0, y: 0 },
+        ).nodes
+      : []);
+
     return {
       number,
       header,
       footer,
-      background,
-      content: offsetNodes(content, geometry.margin.left, geometry.margin.top + hh),
+      content: [...offsetNodes(content, geometry.margin.left, geometry.margin.top + hh), ...nestedFooters],
       zones: {
         header: { y: geometry.margin.top, height: hh },
-        body: { y: geometry.margin.top + hh, height: geometry.contentHeight - hh - fh },
+        body: { y: geometry.margin.top + hh, height: Math.max(0, geometry.contentHeight - hh - fh - nestedFooterHeight) },
         footer: { y: geometry.height - geometry.margin.bottom - fh, height: fh },
       },
+      background: [...background, ...nestedBackgrounds],
       master: { header: headerSection?.sourceIndex, footer: footerSection?.sourceIndex },
     };
   });
@@ -282,6 +310,8 @@ interface ContentRun {
   pages: PositionedNode[][];
   decisions: PaginationDecision[];
   warnings: PaginatedReport["warnings"];
+  subreportPageFrames: string[][];
+  subreportFrames: Map<string, { startPage: number; endPage: number; footerMasters: ResolvedSection[]; backgrounds: ResolvedSection[]; reservedFooterHeight: number }>;
 }
 
 const pt = (n: number) => `${Math.round(n * 10) / 10}pt`;
@@ -407,11 +437,17 @@ function layoutContentIntoPages(
   // work on a copy: containers that cannot fit a page are replaced by their children while we paginate
   const components: ResolvedComponent[] = [...input];
   const pages: PositionedNode[][] = [[]];
+  const subreportPageFrames: string[][] = [[]];
+  const subreportFrames = new Map<string, { startPage: number; endPage: number; footerMasters: ResolvedSection[]; backgrounds: ResolvedSection[]; reservedFooterHeight: number }>();
+  const activeSubreportFrames: string[] = [];
   const decisions: PaginationDecision[] = [];
   const warnings: PaginatedReport["warnings"] = [];
   let y = 0;
 
   const decide = (d: Omit<PaginationDecision, "page">) => decisions.push({ ...d, page: pages.length + 1 });
+  const pageFrameHeight = (ids: string[]) => ids.reduce((sum, id) => sum + (subreportFrames.get(id)?.reservedFooterHeight ?? 0), 0);
+  const activeFrameHeight = () => pageFrameHeight(activeSubreportFrames);
+  const availablePageHeight = (pageIndex: number) => Math.max(0, pageHeightAt(pageIndex) - activeFrameHeight());
   // Group headers marked repeatEveryPage that are currently "open": they are printed again at the top of every continuation page.
   const repeatStack: { level: number; instance: number; comps: ResolvedComponent[] }[] = [];
   let repeatWarned = false;
@@ -427,14 +463,15 @@ function layoutContentIntoPages(
   const repeatHeight = () => {
     if (!repeatStack.length) return 0;
     const { total } = repeatMeasure();
-    return total > pageHeightAt(pages.length) * 0.4 ? 0 : total;
+    return total > availablePageHeight(pages.length - 1) * 0.4 ? 0 : total;
   };
   const newPage = () => {
     pages.push([]);
+    subreportPageFrames.push([...activeSubreportFrames]);
     y = 0;
     if (!repeatStack.length) return;
     const { total, nodes } = repeatMeasure();
-    if (total > pageHeightAt(pages.length - 1) * 0.4) {
+    if (total > availablePageHeight(pages.length - 1) * 0.4) {
       if (!repeatWarned) {
         repeatWarned = true;
         warnings.push({ code: "REPEATED_HEADERS_TOO_TALL", path: "groups", message: "Repeated group headers take more than 40% of a page, so they are not repeated on continuation pages." });
@@ -458,12 +495,40 @@ function layoutContentIntoPages(
     }
   };
   const currentPage = () => pages[pages.length - 1]!;
-  const pageHeight = () => pageHeightAt(pages.length - 1);
+  const pageHeight = () => Math.max(0, pageHeightAt(pages.length - 1) - pageFrameHeight(subreportPageFrames[pages.length - 1]!));
   const remaining = () => pageHeight() - y;
 
   for (let idx = 0; idx < components.length; idx++) {
     const component = components[idx]!;
     const anyC = component as any;
+    const frameMarker = anyC.subreportFrame as { action: "start" | "end"; id: string; footerMasters?: ResolvedSection[]; backgrounds?: ResolvedSection[] } | undefined;
+    if (frameMarker?.action === "start") {
+      const footerMasters = frameMarker.footerMasters ?? [];
+      const reservedFooterHeight = Math.max(0, ...footerMasters.map((section) => layoutBlock(section.children, width, measurer).height));
+      if (y > 0 && y + pageFrameHeight(subreportPageFrames[pages.length - 1]!) + reservedFooterHeight > pageHeightAt(pages.length - 1) - repeatHeight()) newPage();
+      subreportFrames.set(frameMarker.id, { startPage: pages.length - 1, endPage: pages.length - 1, footerMasters, backgrounds: frameMarker.backgrounds ?? [], reservedFooterHeight });
+      activeSubreportFrames.push(frameMarker.id);
+      if (!subreportPageFrames[pages.length - 1]!.includes(frameMarker.id)) subreportPageFrames[pages.length - 1]!.push(frameMarker.id);
+      continue;
+    }
+    if (frameMarker?.action === "end") {
+      const frame = subreportFrames.get(frameMarker.id);
+      if (frame) frame.endPage = pages.length - 1;
+      for (let frameIndex = activeSubreportFrames.length - 1; frameIndex >= 0; frameIndex--) {
+        if (activeSubreportFrames[frameIndex] === frameMarker.id) { activeSubreportFrames.splice(frameIndex, 1); break; }
+      }
+      const markerBand = anyC.band as { level?: number } | undefined;
+      if (markerBand) for (let k = repeatStack.length - 1; k >= 0; k--) if (repeatStack[k]!.level >= (markerBand.level ?? 0)) repeatStack.splice(k, 1);
+      continue;
+    }
+    // A nested report is a logical flow, not a single unbreakable box. Its
+    // frame markers and rows must enter the page loop so continuation pages
+    // can receive the child's own page furniture.
+    if (anyC.subreportFrameContainer && Array.isArray(anyC.children)) {
+      components.splice(idx, 1, ...anyC.children);
+      idx--;
+      continue;
+    }
     const m = marginOf(component);
     const innerWidth = Math.max(1, width - m.left - m.right);
     const place = (node: PositionedNode) => {
@@ -477,7 +542,7 @@ function layoutContentIntoPages(
     if (parts) {
       const probe = layoutComponent(component, { x: 0, y: 0, width: innerWidth, height: 0 }, measurer);
       const needed = probe.box.height + m.top + m.bottom;
-      const tooTall = needed > pageHeightAt(pages.length) - repeatHeight();
+      const tooTall = needed > availablePageHeight(pages.length - 1) - repeatHeight();
       const bandInfo = anyC.band as { allowSplit?: boolean } | undefined;
       const splitNow = bandInfo?.allowSplit !== false && (tooTall || (bandInfo?.allowSplit === true && !anyC.keepTogether && needed > remaining()));
       if (splitNow && parts.length > 0) {
@@ -511,7 +576,7 @@ function layoutContentIntoPages(
     // a whole keep-together group, a band and its child bands) must start on a page where the whole run fits.
     const prevKept = idx > 0 && Boolean((components[idx - 1] as any).keepWithNext);
     if (anyC.keepWithNext && !prevKept && idx + 1 < components.length && y > 0) {
-      const freshRoom = pageHeightAt(pages.length) - repeatHeight();
+      const freshRoom = availablePageHeight(pages.length - 1) - repeatHeight();
       let combined = 0;
       let members = 0;
       let k = idx;
@@ -551,7 +616,7 @@ function layoutContentIntoPages(
     const lineHeight = textComponent ? measurer.lineHeight(textFontSize, textHint) : 0;
     const textHeight = textLines.length * lineHeight + textPad.top + textPad.bottom;
     const canSplitText = textComponent && textStyle.overflow !== "ellipsis" && lineHeight > 0 && anyC.height === undefined && anyC.minHeight === undefined && anyC.maxHeight === undefined && !anyC.keepTogether && anyC.allowSplit !== false;
-    const splitText = canSplitText && textHeight + m.top + m.bottom > remaining() && (anyC.allowSplit === true || textHeight + m.top + m.bottom > pageHeightAt(pages.length) - repeatHeight());
+    const splitText = canSplitText && textHeight + m.top + m.bottom > remaining() && (anyC.allowSplit === true || textHeight + m.top + m.bottom > availablePageHeight(pages.length - 1) - repeatHeight());
 
     if (splitText) {
       let start = 0;
@@ -611,7 +676,7 @@ function layoutContentIntoPages(
           y += height;
         },
         remaining,
-        freshRoom: () => pageHeightAt(pages.length) - repeatHeight(),
+        freshRoom: () => availablePageHeight(pages.length - 1) - repeatHeight(),
         isFresh: () => currentPage().every((node) => Boolean((node.component as any).band?.repeated)),
         newPage,
         decide,
@@ -621,10 +686,10 @@ function layoutContentIntoPages(
       const probe = textProbe ?? layoutComponent(component, { x: 0, y: y + m.top, width: innerWidth, height: 0 }, measurer);
       const needed = probe.box.height + m.top + m.bottom;
       const fitsCurrent = needed <= remaining();
-      const fitsFresh = needed <= pageHeightAt(pages.length) - repeatHeight();
+      const fitsFresh = needed <= availablePageHeight(pages.length - 1) - repeatHeight();
       const repeatRoomAt = (offset: number) => {
         if (offset === 0) return remaining();
-        const height = pageHeightAt(pages.length - 1 + offset);
+        const height = availablePageHeight(pages.length - 1 + offset);
         const repeated = repeatStack.length ? repeatMeasure().total : 0;
         return height - (repeated > height * 0.4 ? 0 : repeated);
       };
@@ -748,7 +813,7 @@ function layoutContentIntoPages(
   // Drop a trailing empty page created by a forced break with nothing after it.
   if (pages.length > 1 && pages[pages.length - 1]!.length === 0) pages.pop();
   fillMissingPageBreakDecisions(pages, decisions, pageHeightAt);
-  return { pages, decisions: decisions.filter((d) => d.page <= pages.length), warnings };
+  return { pages, decisions: decisions.filter((d) => d.page <= pages.length), warnings, subreportPageFrames, subreportFrames };
 }
 
 /** Guard the page-level debugger against a new pagination path with no log entry. */

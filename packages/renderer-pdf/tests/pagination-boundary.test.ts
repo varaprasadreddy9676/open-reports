@@ -46,10 +46,10 @@ function reportWith(n: number, o: Opts = {}) {
   };
 }
 
-async function render(doc: unknown) {
+async function render(doc: unknown, subreports?: Parameters<typeof resolveReport>[1]["subreports"]) {
   const parsed = parseReportDefinition(doc);
   if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
-  const p = await resolveReport(parsed.report, { registry, parameters: {} });
+  const p = await resolveReport(parsed.report, { registry, parameters: {}, subreports });
   const r = await new PdfRenderer().render({ resolved: p.resolved, resolvePageSection: p.resolvePageSection });
   return extractPdfPages(r.content as Buffer);
 }
@@ -80,6 +80,95 @@ async function assertIntegrity(n: number, opts: Opts = {}, prefix = "ROW") {
 }
 
 describe("pagination boundaries (real PDF output)", () => {
+  it("repeats a nested report's page header while its rows continue across pages", async () => {
+    const items = Array.from({ length: 24 }, (_, index) => ({ name: `CHILDITEM${String(index + 1).padStart(2, "0")}` }));
+    const child = {
+      schemaVersion: "1.0", id: "receipt-lines", name: "Receipt lines",
+      parameters: [],
+      variables: [], groups: [], fragments: [],
+      datasets: [{ id: "lines", source: "inline", query: { data: [] } }],
+      sections: [
+        { type: "pageHeader", id: "child-page-header", children: [{ type: "text", value: "CHILDHEADER" }] },
+        { type: "detail", dataset: "lines", children: [{ type: "text", expression: "row.name" }] },
+      ],
+    };
+    const parent = {
+      schemaVersion: "1.0", id: "receipt", name: "Receipt",
+      page: { size: "custom", unit: "pt", width: 240, height: 100, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+      datasets: [{ id: "orders", source: "inline", query: { data: [{ lines: items }] } }],
+      sections: [{ type: "detail", dataset: "orders", children: [
+        { type: "subreport", id: "lines-component", reportId: "receipt-lines", dataset: "row.lines" },
+        { type: "text", id: "parent-continuation", value: `PARENTFLOW\n${Array.from({ length: 20 }, (_, index) => `PARENTLINE${String(index + 1).padStart(2, "0")}`).join("\n")}`, pageBreakBefore: true },
+      ] }],
+    };
+
+    const pages = await render(parent, { "receipt-lines": { report: child } });
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.flatMap((page) => [...page.matchAll(/CHILDITEM\d{2}/g)].map((match) => match[0]))).toEqual(items.map((item, index) => `CHILDITEM${String(index + 1).padStart(2, "0")}`));
+    const parentPageIndex = pages.findIndex((page) => page.includes("PARENTFLOW"));
+    expect(parentPageIndex).toBeGreaterThan(0);
+    pages.slice(0, parentPageIndex).forEach((page) => expect(page).toContain("CHILDHEADER"));
+    expect(pages.slice(parentPageIndex).every((page) => !page.includes("CHILDHEADER"))).toBe(true);
+  });
+
+  it("reuses one child definition from multiple parents and repeats a page-header reference", async () => {
+    const sharedChild = {
+      schemaVersion: "1.0", id: "shared-child-v1", name: "Shared child",
+      parameters: [], variables: [], groups: [], fragments: [], datasets: [],
+      sections: [{ type: "reportHeader", children: [{ type: "text", value: "SHAREDCHILD" }] }],
+    };
+    const parent = (id: string) => ({
+      schemaVersion: "1.0", id, name: id,
+      page: { size: "custom", unit: "pt", width: 240, height: 100, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+      sections: [
+        { type: "pageHeader", children: [{ type: "subreport", id: "shared-child", reportId: "shared-child-v1" }] },
+        { type: "detail", children: [{ type: "text", value: Array.from({ length: 30 }, (_, index) => `BILL${String(index + 1).padStart(2, "0")}`).join("\n") }] },
+      ],
+    });
+    const shared = { "shared-child-v1": { report: sharedChild } };
+
+    for (const report of [parent("report-a"), parent("report-b")]) {
+      const pages = await render(report, shared);
+      expect(pages.length).toBeGreaterThan(1);
+      pages.forEach((page) => expect(page).toContain("SHAREDCHILD"));
+    }
+  });
+
+  it("repeats nested page footers and backgrounds only on pages used by the child report", async () => {
+    const child = {
+      schemaVersion: "1.0", id: "branded-lines", name: "Branded lines",
+      parameters: [], variables: [], groups: [], fragments: [], datasets: [{ id: "lines", source: "inline", query: { data: [] } }],
+      page: { size: "custom", unit: "pt", width: 240, height: 100, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+      sections: [
+        { type: "background", children: [{ type: "text", value: "CHILDBACKGROUND", x: 8, y: 8, width: 100, height: 8, style: { fontSize: 6 } }] },
+        { type: "pageHeader", children: [{ type: "text", value: "CHILDHEADER", height: 8 }] },
+        { type: "detail", dataset: "lines", children: [{ type: "text", binding: "row.label", height: 12 }] },
+        { type: "pageFooter", children: [{ type: "text", value: "CHILDFOOTER", height: 8 }] },
+      ],
+    };
+    const items = Array.from({ length: 48 }, (_, index) => ({ label: `CHILDLIN${String(index + 1).padStart(2, "0")}` }));
+    const parent = {
+      schemaVersion: "1.0", id: "parent-with-branded-lines", name: "Parent with branded lines",
+      page: { size: "custom", unit: "pt", width: 240, height: 100, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+      datasets: [{ id: "orders", source: "inline", query: { data: [{ lines: items }] } }],
+      sections: [{ type: "detail", dataset: "orders", children: [
+        { type: "subreport", id: "nested", reportId: "branded-lines", dataset: "row.lines" },
+        { type: "text", id: "parent-after", value: "PARENTAFTER", pageBreakBefore: true },
+      ] }],
+    };
+
+    const pages = await render(parent, { "branded-lines": { report: child } });
+    expect(pages.length).toBeGreaterThan(2);
+    const parentPage = pages.findIndex((page) => page.includes("PARENTAFTER"));
+    expect(parentPage).toBeGreaterThan(0);
+    for (const page of pages.slice(0, parentPage)) {
+      expect(page).toContain("CHILDFOOTER");
+      expect(page).toContain("CHILDBACKGROUND");
+    }
+    expect(pages.slice(parentPage).some((page) => page.includes("CHILDFOOTER"))).toBe(false);
+    expect(pages.slice(parentPage).some((page) => page.includes("CHILDBACKGROUND"))).toBe(false);
+  });
+
   it("prints every line of a long narrative once with repeated page furniture", async () => {
     const markers = Array.from({ length: 130 }, (_, index) => `NARRATIVE${String(index + 1).padStart(3, "0")}`);
     const pages = await render({

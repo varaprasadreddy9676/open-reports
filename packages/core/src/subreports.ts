@@ -3,8 +3,11 @@ import type { ResolveContext } from "./context.js";
 import { expandBodyBands } from "./bands.js";
 import { resolveParameters } from "./parameters.js";
 import { computeReportVariables } from "./variables.js";
-import { sourceRows, type Component, type ResolveEnv } from "./resolve-component.js";
-import type { ResolvedComponent } from "./resolved-report.js";
+import { resolveComponents, sourceRows, themeStyle, type Component, type ResolveEnv } from "./resolve-component.js";
+import type { ResolvedComponent, ResolvedSection } from "./resolved-report.js";
+import { applyOwnRules } from "./rules.js";
+
+let nextSubreportInstance = 1;
 
 /** Child datasets are supplied explicitly; their saved SQL/REST sources are not run from a parent report. */
 export interface SubreportSource {
@@ -71,18 +74,20 @@ export function resolveNestedReport(
     return placeholder(`binding failed (${error instanceof Error ? error.message : String(error)})`);
   }
 
-  // A Jasper child report is embedded inside its parent's band. Page masters
-  // become one-time bands here; repeating them at child page breaks still needs
-  // a dedicated nested paginator, so that difference is explicitly reported.
-  const sections: ReportSection[] = child.sections.filter((section) => section.type !== "background").map((section) => ({
-    ...section,
-    type: (section.type === "pageHeader" ? "reportHeader" : section.type === "pageFooter" ? "reportFooter" : section.type) as ReportSection["type"],
-  }));
-  if (child.sections.some((section) => (section.type === "pageHeader" || section.type === "pageFooter") && section.children.length)) {
-    env.warnings.push({ code: "SUBREPORT_PAGINATION_APPROXIMATE", path: env.path, componentId: component.id, message: `Subreport "${id}" page bands print once; repetition across nested page breaks needs PDF comparison.` });
-  }
-  const ignoredBackground = child.sections.some((section) => section.type === "background" && section.children.length);
-  if (ignoredBackground) env.warnings.push({ code: "SUBREPORT_BACKGROUND_UNSUPPORTED", path: env.path, componentId: component.id, message: `Subreport "${id}" has a background that needs manual placement.` });
+  // Child page masters travel as frame metadata; the layout engine applies
+  // them only to pages occupied by this child instance.
+  const subreportInstance = nextSubreportInstance++;
+  const frameId = `subreport-${subreportInstance}`;
+  const headerIds = new Set<string>();
+  const sections: ReportSection[] = child.sections.filter((section) => section.type !== "background" && section.type !== "pageFooter").map((section, index) => {
+    const nestedId = section.id ?? `__subreport_${frameId}_${index}`;
+    if (section.type === "pageHeader") headerIds.add(nestedId);
+    return {
+      ...section,
+      id: nestedId,
+      type: (section.type === "pageHeader" ? "reportHeader" : section.type) as ReportSection["type"],
+    };
+  });
 
   const accumulator: Record<string, unknown> = {};
   const nested: ReportDefinition = { ...child, sections };
@@ -96,16 +101,53 @@ export function resolveNestedReport(
     theme: child.theme ?? env.theme,
     subreportStack: [...(env.subreportStack ?? []), id],
   });
+
+  const pageMasters = (type: "pageFooter" | "background"): ResolvedSection[] => child.sections.flatMap((section, index) => {
+    if (section.type !== type || section.hidden) return [];
+    const path = `sections[${index}]`;
+    const masterEnv = childEnv(path);
+    const effective = applyOwnRules(section, childCtx, {
+      engine: env.engine, warnings: masterEnv.warnings, decisions: masterEnv.decisions,
+      target: { kind: "band", id: section.id, path }, visibleWhenErrors: "show",
+    });
+    if (effective.hidden) return [];
+    const children = resolveComponents(effective.children as Component[], childCtx, masterEnv);
+    const root = type === "background" || effective.layout !== "absolute"
+      ? children
+      : [{ type: "container", layout: effective.layout, height: effective.height || undefined, children } as ResolvedComponent];
+    return [{ type, sourceIndex: index, appliesTo: effective.appliesTo, style: themeStyle(effective.style, masterEnv, effective.id), children: root }];
+  });
+  const footerMasters = pageMasters("pageFooter");
+  const backgrounds = pageMasters("background");
+
   const children = expandBodyBands({
     report: nested, engine: env.engine, baseCtx: childCtx, datasets: childData,
     rowVarAccumulator: accumulator, makeEnv: childEnv,
   });
-  if (ignoredBackground) children.unshift({ type: "text", text: `[Subreport ${id} background needs review]`, style: { color: "#b91c1c" } });
+  // Child page headers participate in the existing continuation-header stack.
+  // The close marker scopes that stack to this subreport, so a header never
+  // leaks into the parent's bands when the child has no page footer.
+  // Keep the nested stack above ordinary report group levels so closing a
+  // child cannot accidentally close a group's own repeated header.
+  const level = 100_000 + (env.subreportStack?.length ?? 1);
+  const scopedChildren = children.map((resolved) => {
+    const band = resolved.band;
+    if (!band?.sectionId) return resolved;
+    if (headerIds.has(band.sectionId)) return { ...resolved, band: { ...band, type: "groupHeader", level, instance: subreportInstance, repeatEveryPage: true, allowSplit: false } };
+    return resolved;
+  });
+  scopedChildren.unshift({ type: "spacer", height: 0, subreportFrame: { action: "start", id: frameId, footerMasters, backgrounds } } as ResolvedComponent);
+  scopedChildren.push({
+    type: "spacer", height: 0,
+    band: { sectionIndex: -1, type: "groupFooter", level, instance: subreportInstance, allowSplit: false },
+    subreportFrame: { action: "end", id: frameId },
+  } as ResolvedComponent);
   return {
     id: component.id, type: "container", layout: "flow",
     x: component.x, y: component.y, width: component.width,
     minHeight: component.height, style: component.style,
     keepTogether: component.keepTogether,
-    children,
-  };
+    subreportFrameContainer: footerMasters.length > 0 || backgrounds.length > 0,
+    children: scopedChildren,
+  } as ResolvedComponent;
 }

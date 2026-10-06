@@ -29,6 +29,7 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   { type: "column", label: "Column", group: "Layout", keywords: "vertical stack" },
   { type: "grid", label: "Grid", group: "Layout", keywords: "columns cells" },
   { type: "table", label: "Table", group: "Data", keywords: "rows columns list items" },
+  { type: "subreport", label: "Subreport", group: "Data", keywords: "nested report reusable report header footer" },
   { type: "repeater", label: "Repeater", group: "Data", keywords: "list loop each" },
   { type: "crosstab", label: "Crosstab", group: "Data", keywords: "pivot matrix cross tab summary totals" },
   { type: "qrcode", label: "QR Code", group: "Print", keywords: "barcode 2d scan" },

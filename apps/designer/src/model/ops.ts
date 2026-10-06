@@ -373,6 +373,7 @@ export const PALETTE: Record<string, () => Comp> = {
   column: () => ({ type: "column", children: [] }),
   grid: () => ({ type: "grid", columns: 2, children: [] }),
   table: () => ({ type: "table", dataset: "", columns: [{ id: "col-1", header: "Column", binding: "row.value" }] }),
+  subreport: () => ({ type: "subreport", reportId: "", width: 120, height: 40 }),
   repeater: () => ({ type: "repeater", dataset: "", children: [] }),
   crosstab: () => ({ type: "crosstab", dataset: "", rows: [{ binding: "" }], columns: [{ binding: "" }], measures: [{ binding: "", aggregate: "sum" }] }),
   qrcode: () => ({ type: "qrcode", value: "https://example.com", width: 70, height: 70 }),
@@ -518,6 +519,7 @@ export function layerName(c: Comp): string {
     return t.length > 28 ? `${t.slice(0, 26)}…` : t || "Text";
   }
   if (c.type === "table") return c.dataset ? `Table · ${c.dataset}` : "Table";
+  if (c.type === "subreport") return c.reportName ? `Subreport · ${c.reportName}` : "Subreport · Choose report";
   if (c.type === "image") return "Image";
   if (c.type === "qrcode") return "QR code";
   if (c.type === "barcode") return "Barcode";

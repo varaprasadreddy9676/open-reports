@@ -17,8 +17,15 @@ export interface RenderOptions {
   viewerState?: unknown;
 }
 
+/** One child report definition and the explicitly supplied child datasets. */
+export type SubreportSource =
+  | { report: unknown; jrxml?: never; data?: Record<string, unknown> }
+  | { jrxml: string; report?: never; data?: Record<string, unknown> };
+
 export interface InlineRenderOptions extends RenderOptions {
   report: unknown;
+  /** Host-owned reusable child reports keyed by each parent's component `reportId`. */
+  subreports?: Record<string, SubreportSource>;
 }
 
 export interface RenderResult {

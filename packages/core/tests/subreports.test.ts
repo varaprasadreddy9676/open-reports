@@ -43,8 +43,18 @@ describe("nested report rendering", () => {
     const output = await resolveReport(parent, { registry, subreports: { "receipt-lines": { report: child } } });
     const body = output.resolved.sections.find((section) => section.type === "body")!;
     expect(texts(body.children)).toEqual(["Lines", "A-one", "A-two", "5", "Lines", "B-three", "4"]);
-    expect(output.resolved.warnings.map((warning) => warning.code)).toContain("SUBREPORT_PAGINATION_APPROXIMATE");
+    expect(output.resolved.warnings.map((warning) => warning.code)).not.toContain("SUBREPORT_PAGINATION_APPROXIMATE");
     expect(output.resolved.warnings.map((warning) => warning.code)).not.toContain("SUBREPORT_NOT_RENDERED");
+  });
+
+  it("resolves child page footers and backgrounds without approximation warnings", async () => {
+    const withPageFooter = parsed({
+      ...child,
+      sections: child.sections.map((section) => section.type === "pageHeader" ? { ...section, type: "pageFooter" } : section),
+    });
+    const output = await resolveReport(parent, { registry, subreports: { "receipt-lines": { report: withPageFooter } } });
+    expect(output.resolved.warnings.map((warning) => warning.code)).not.toContain("SUBREPORT_PAGINATION_APPROXIMATE");
+    expect(output.resolved.warnings.map((warning) => warning.code)).not.toContain("SUBREPORT_BACKGROUND_UNSUPPORTED");
   });
 
   it("keeps missing child data visible and reports it", async () => {

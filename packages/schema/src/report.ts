@@ -115,6 +115,8 @@ export const reportDefinitionSchema = z.object({
   groups: z.array(groupDefinitionSchema).default([]),
   sections: z.array(sectionSchema).default([]),
   fragments: z.array(fragmentDefinitionSchema).default([]),
+  /** Child report definitions attached by the designer. Render APIs may also receive these separately. */
+  subreports: z.record(z.string(), z.unknown()).optional(),
   migration: migrationRecordSchema.optional(),
   print: printProfileSchema.optional(),
   watermark: watermarkSchema.optional(),

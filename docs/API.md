@@ -43,6 +43,35 @@ const response = await fetch(`${openReportsUrl}/api/v1/render`, {
 
 The `id` inside the JSON is report metadata; it is not used to look up a saved template. For the optional Open Reports-managed workflow, create a record with `POST /api/v1/templates` and render it through `/api/v1/templates/{templateId}/render`.
 
+### Reusing child reports
+
+A parent can reference a child report by `reportId`. Keep the child definition in your host application's shared report library and send it in the `subreports` map for each inline render. The map key must match `reportId`. This lets invoice, receipt, lab, or other parent reports use the same child definition without copying its layout into each parent or asking Open Reports to store it. Your host application chooses the tenant-specific child and version, and supplies any child datasets with it.
+
+In the designer, add **Data → Subreport** and choose the child report's `.json` file in Properties. The selected definition is attached to the parent report JSON, so it remains available in the designer and travels with an exported parent definition. The designer supplies it automatically for preview and export. Integrations that keep child reports separately in a shared host library can continue to send the `subreports` map explicitly as shown below.
+
+Place the subreport component in the parent's `pageHeader` section when it should appear on every printed page; place it in `reportHeader` when it should appear only once at the start. For example:
+
+```ts
+const sharedHeading = await hostReportLibrary.get(tenantId, "branding-heading");
+const invoice = await hostReportLibrary.get(tenantId, "invoice");
+const receipt = await hostReportLibrary.get(tenantId, "receipt");
+
+const common = {
+  format: "pdf",
+  subreports: {
+    [sharedHeading.id]: {
+      report: sharedHeading.definition,
+      data: sharedHeading.data, // optional datasets keyed by the child's dataset IDs
+    },
+  },
+};
+
+const invoicePdf = await reports.renderInline({ ...common, report: invoice.definition, data: invoice.data });
+const receiptPdf = await reports.renderInline({ ...common, report: receipt.definition, data: receipt.data });
+```
+
+In each parent, the corresponding section contains `{ type: "subreport", reportId: "branding-heading" }`. A child may also receive explicit component parameters or bind its single dataset to an array in the current parent row. Open Reports renders the supplied child definitions and data; it does not look up `reportId`, execute the child's saved SQL, or retain the child between requests. See [`@reporting/client`](../packages/client/README.md) for the typed `renderInline` request shape.
+
 ## Examples
 
 ### curl

@@ -21,6 +21,7 @@ import { InspectorTabs } from "./InspectorTabs";
 import { api, type SavedPrinterProfile } from "../lib/api";
 import { PrintCalibration } from "./PrintCalibration";
 import { PageMasters } from "./PageMasters";
+import { parseSubreportFile } from "../lib/subreports";
 
 // ------------------------------------------------------------------ small controls
 /** IANA time zones offered for date formatting; any other valid name can be typed. */
@@ -896,6 +897,34 @@ function ImageProps({ comp }: { comp: ops.Comp }) {
   );
 }
 
+function SubreportProps({ comp }: { comp: ops.Comp }) {
+  const { doc } = useStore();
+  const picker = React.useRef<HTMLInputElement>(null);
+  const linked = comp.reportId ? doc.subreports?.[comp.reportId] as Record<string, unknown> | undefined : undefined;
+  const chooseFile = async (file?: File) => {
+    if (!file) return;
+    try {
+      const selected = parseSubreportFile(await file.text());
+      let id = selected.id;
+      let suffix = 2;
+      while (doc.subreports?.[id] && JSON.stringify(doc.subreports[id]) !== JSON.stringify(selected.definition)) id = `${selected.id}-${suffix++}`;
+      const next = ops.update(doc, comp.id, { reportId: id, name: comp.name ?? selected.name });
+      useStore.getState().setDoc({ ...next, subreports: { ...(doc.subreports ?? {}), [id]: selected.definition } });
+      useStore.getState().toast(`Added “${selected.name}” as a subreport.`, "success");
+    } catch (error) {
+      useStore.getState().toast(`Could not use that report file: ${error instanceof Error ? error.message : String(error)}`, "error");
+    } finally {
+      if (picker.current) picker.current.value = "";
+    }
+  };
+  return <Section title="Subreport">
+    <p className="field-hint">Choose another Open Reports JSON file. It stays attached to this report and can be reused anywhere you add a Subreport.</p>
+    <input ref={picker} type="file" accept=".json,application/json" hidden data-testid="subreport-file" aria-label="Choose subreport JSON file" onChange={(event) => void chooseFile(event.currentTarget.files?.[0])} />
+    <button type="button" className="btn" data-testid="choose-subreport" onClick={() => picker.current?.click()}>{linked ? "Choose a different report file" : "Choose report file…"}</button>
+    {linked ? <div className="subreport-file-status" role="status"><strong>{String(linked.name ?? "Subreport")}</strong><small>Report ID: {comp.reportId}</small></div> : <p className="field-hint">No file selected yet. Choose a report definition to see it in the preview and include it when exporting.</p>}
+  </Section>;
+}
+
 function SpacingEditor({ comp, prop, label }: { comp: ops.Comp; prop: "margin" | "padding"; label: string }) {
   const patchStyle = useStore((s) => s.patchStyle);
   return <SpacingFields label={label} value={comp.style?.[prop]} onChange={(next) => patchStyle(comp.id, { [prop]: next })} />;
@@ -1422,7 +1451,7 @@ function MultiProps({ ids }: { ids: string[] }) {
   );
 }
 
-const CONTENT_TYPES = new Set(["text", "richText", "field", "table", "crosstab", "chart", "labelSheet", "qrcode", "barcode", "image", "group", "pageBreak", "line", "fragment"]);
+const CONTENT_TYPES = new Set(["text", "richText", "field", "table", "crosstab", "chart", "labelSheet", "qrcode", "barcode", "image", "group", "pageBreak", "line", "fragment", "subreport"]);
 
 function ComponentProps({ id }: { id: string }) {
   const { doc } = useStore();
@@ -1462,6 +1491,7 @@ function ComponentProps({ id }: { id: string }) {
       {tab === "content" && textLike && <TextProps comp={comp} />}
       {tab === "content" && t === "table" && <TableProps comp={comp} />}
       {tab === "content" && t === "fragment" && <Section title="Library block"><FragmentProps comp={comp} /></Section>}
+      {tab === "content" && t === "subreport" && <SubreportProps comp={comp} />}
       {tab === "content" && t === "chart" && <ChartProps comp={comp} />}
       {tab === "content" && t === "crosstab" && <CrosstabProps comp={comp} />}
       {tab === "content" && t === "labelSheet" && <LabelSheetProps comp={comp} />}
