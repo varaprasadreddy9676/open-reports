@@ -7,9 +7,11 @@ These are narrated browser recordings of six real Open Reports workflows:
 3. Convert a folder of JRXML reports and review the drafts.
 4. Preview a long supermarket basket as a continuous 58 mm receipt.
 5. Summarize sales by region and service with a crosstab.
-6. Review a discharge summary with a hospital masthead, repeating patient banner and sign-off footer.
+6. Build a hospital report with separately aligned left and right logos, then compare its editable footer with a pre-printed letterhead background.
 
-The recordings show the actual app running in Chromium at 1600 × 900, with voice narration, on-screen captions and downloadable WebVTT captions. Synthetic examples contain no real customer or patient data. The JasperReports clip demonstrates conversion to drafts and review; it does not claim one-to-one compatibility for every Jasper feature.
+The hospital example includes two editable starter reports and downloadable sample assets: separate transparent logo marks and a full-page pre-printed letterhead image. All organization and patient details are fictional.
+
+The recordings show the actual app running in Chromium at 1600 × 900, with voice narration, on-screen captions and downloadable WebVTT captions. The JasperReports clip demonstrates conversion to drafts and review; it does not claim one-to-one compatibility for every Jasper feature.
 
 ## Re-record
 
@@ -17,7 +19,13 @@ From the repository root, run the app against a disposable SQLite database:
 
 ```sh
 rm -f /tmp/open-reports-video-recording.sqlite*
-fnm exec --using=22 -- env DB_PATH=/tmp/open-reports-video-recording.sqlite pnpm dev
+fnm exec --using=22 -- env DB_PATH=/tmp/open-reports-video-recording.sqlite REPORT_IMAGE_ALLOWED_HOSTS=localhost pnpm dev
+```
+
+Build the fictional hospital letterhead examples with local sample-image URLs before recording:
+
+```sh
+fnm exec --using=22 -- env LETTERHEAD_ASSET_BASE=http://localhost:3000/demo-videos/letterhead-assets node marketing/use-case-videos/build-letterhead-samples.mjs
 ```
 
 In another terminal, run:

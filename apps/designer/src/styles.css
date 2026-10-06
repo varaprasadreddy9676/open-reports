@@ -1553,6 +1553,7 @@ textarea {
 .demo-video-player > p { margin: 0 0 10px; }
 .demo-video-player .tour-video { max-height: min(60vh, 600px); }
 .demo-caption-link { display: inline-block; margin-top: 7px; color: var(--muted); font-size: var(--text-xs); }
+.demo-asset-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; font-size: var(--text-xs); }
 @media (max-width: 760px) {
   .demo-video-library { grid-template-columns: 1fr; }
   .demo-video-list { grid-template-columns: 1fr 1fr; max-height: 190px; }

@@ -35,6 +35,8 @@ const GROUPS: Record<string, StarterTemplate["group"]> = {
   prescription: "Healthcare",
   "radiology-report": "Healthcare",
   "discharge-summary": "Healthcare",
+  "hospital-letterhead": "Healthcare",
+  "preprinted-letterhead": "Healthcare",
   "department-report": "Data",
 };
 

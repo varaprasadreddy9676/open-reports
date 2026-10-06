@@ -1,0 +1,283 @@
+{
+  "schemaVersion": "1.0",
+  "id": "preprinted-letterhead",
+  "name": "Hospital Letterhead · Pre-printed Page",
+  "description": "A fictional hospital letterhead printed as a page background, with the discharge content flowing in the open area and page numbering added separately.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "adm",
+      "source": "inline",
+      "query": {
+        "data": {
+          "patient": {
+            "name": "Alex Morgan",
+            "age": "31 Y",
+            "sex": "Male",
+            "uhid": "UH12345",
+            "ward": "Ward 4B"
+          },
+          "admitted": "2025-09-28",
+          "discharged": "2025-10-01",
+          "doctor": "Dr. A. Smith",
+          "diagnosis": "Acute appendicitis - post laparoscopic appendicectomy",
+          "course": "Patient presented with right iliac fossa pain and fever. Ultrasound confirmed appendicitis. Underwent laparoscopic appendicectomy under general anaesthesia on 29 Sep. Post-operative course was uneventful. Oral intake resumed on day 1. Wounds healthy at discharge.",
+          "medicines": [
+            {
+              "name": "Cefuroxime 500 mg",
+              "dose": "1-0-1",
+              "days": 5
+            },
+            {
+              "name": "Paracetamol 650 mg",
+              "dose": "SOS",
+              "days": 5
+            },
+            {
+              "name": "Pantoprazole 40 mg",
+              "dose": "1-0-0",
+              "days": 7
+            }
+          ],
+          "followup": "Review in surgical OPD after 7 days with the histopathology report. Return immediately for fever, vomiting or wound discharge."
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 55,
+      "right": 18,
+      "bottom": 32,
+      "left": 18
+    }
+  },
+  "sections": [
+    {
+      "type": "background",
+      "appliesTo": "standard",
+      "children": [
+        {
+          "type": "image",
+          "id": "northstar-preprinted-stationery",
+          "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-preprinted-letterhead.png",
+          "width": 595,
+          "height": 842,
+          "fit": "fill",
+          "alt": "Pre-printed Northstar Medical Center letterhead and footer"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Patient",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.patient.name",
+                      "style": {
+                        "fontWeight": "bold"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Age / Sex",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "expression": "data.adm.patient.age + \" / \" + data.adm.patient.sex"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Admitted",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.admitted"
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Discharged",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.discharged"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "text",
+          "value": "Diagnosis",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "text",
+          "binding": "data.adm.diagnosis"
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Hospital course",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "text",
+          "binding": "data.adm.course",
+          "minLinesAtTop": 2,
+          "minLinesAtBottom": 2
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Medicines on discharge",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "table",
+          "id": "discharge-meds",
+          "dataset": "adm.medicines",
+          "columns": [
+            {
+              "id": "name",
+              "header": "Medicine",
+              "binding": "row.name",
+              "width": "*"
+            },
+            {
+              "id": "dose",
+              "header": "Dose",
+              "binding": "row.dose",
+              "width": 60
+            },
+            {
+              "id": "days",
+              "header": "Days",
+              "binding": "row.days",
+              "width": 40,
+              "align": "right"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "text",
+              "value": "Follow-up",
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 11
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.adm.followup"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "appliesTo": "standard",
+      "children": [
+        {
+          "type": "text",
+          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "style": {
+            "align": "right",
+            "fontSize": 8,
+            "color": "#143753"
+          }
+        }
+      ]
+    }
+  ]
+}

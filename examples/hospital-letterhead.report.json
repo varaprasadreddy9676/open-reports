@@ -1,0 +1,449 @@
+{
+  "schemaVersion": "1.0",
+  "id": "hospital-letterhead",
+  "name": "Hospital Letterhead · Editable Logos",
+  "description": "A fictional discharge summary with separately positioned left and right logos, editable hospital details, a patient continuation banner, and a signed footer.",
+  "locale": "en-IN",
+  "datasets": [
+    {
+      "id": "adm",
+      "source": "inline",
+      "query": {
+        "data": {
+          "patient": {
+            "name": "Alex Morgan",
+            "age": "31 Y",
+            "sex": "Male",
+            "uhid": "UH12345",
+            "ward": "Ward 4B"
+          },
+          "admitted": "2025-09-28",
+          "discharged": "2025-10-01",
+          "doctor": "Dr. A. Smith",
+          "diagnosis": "Acute appendicitis - post laparoscopic appendicectomy",
+          "course": "Patient presented with right iliac fossa pain and fever. Ultrasound confirmed appendicitis. Underwent laparoscopic appendicectomy under general anaesthesia on 29 Sep. Post-operative course was uneventful. Oral intake resumed on day 1. Wounds healthy at discharge.",
+          "medicines": [
+            {
+              "name": "Cefuroxime 500 mg",
+              "dose": "1-0-1",
+              "days": 5
+            },
+            {
+              "name": "Paracetamol 650 mg",
+              "dose": "SOS",
+              "days": 5
+            },
+            {
+              "name": "Pantoprazole 40 mg",
+              "dose": "1-0-0",
+              "days": 7
+            }
+          ],
+          "followup": "Review in surgical OPD after 7 days with the histopathology report. Return immediately for fever, vomiting or wound discharge."
+        }
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "appliesTo": "first",
+      "children": [
+        {
+          "type": "row",
+          "gap": 4,
+          "children": [
+            {
+              "type": "image",
+              "id": "northstar-primary-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 58,
+              "height": 58,
+              "alt": "Northstar Medical Center compass and care mark"
+            },
+            {
+              "type": "column",
+              "width": "*",
+              "gap": 1,
+              "children": [
+                {
+                  "type": "text",
+                  "value": "NORTHSTAR MEDICAL CENTER",
+                  "style": {
+                    "fontSize": 16,
+                    "fontWeight": "bold",
+                    "color": "#143753"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                  "style": {
+                    "fontSize": 7,
+                    "fontWeight": "bold",
+                    "color": "#167c80"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900",
+                  "style": {
+                    "fontSize": 7,
+                    "color": "#526575"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "image",
+              "id": "northstar-accreditation-mark",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png",
+              "width": 52,
+              "height": 52,
+              "alt": "Northstar Medical Center quality seal"
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "style": {
+            "color": "#143753"
+          }
+        },
+        {
+          "type": "text",
+          "value": "DISCHARGE SUMMARY",
+          "style": {
+            "fontSize": 8,
+            "fontWeight": "bold",
+            "color": "#526575"
+          }
+        }
+      ]
+    },
+    {
+      "type": "pageHeader",
+      "appliesTo": "standard",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "expression": "data.adm.patient.name + \" · UHID \" + data.adm.patient.uhid",
+              "width": "*",
+              "style": {
+                "fontSize": 8,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "value": "DISCHARGE SUMMARY",
+              "style": {
+                "align": "right",
+                "fontSize": 8,
+                "fontWeight": "bold",
+                "color": "#143753"
+              }
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "style": {
+            "color": "#9aabb7"
+          }
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Patient",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.patient.name",
+                      "style": {
+                        "fontWeight": "bold"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Age / Sex",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "expression": "data.adm.patient.age + \" / \" + data.adm.patient.sex"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Admitted",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.admitted"
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Discharged",
+                      "width": 60,
+                      "style": {
+                        "color": "#6b7280"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "binding": "data.adm.discharged"
+                    }
+                  ]
+                }
+              ],
+              "width": "*"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 10
+        },
+        {
+          "type": "text",
+          "value": "Diagnosis",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "text",
+          "binding": "data.adm.diagnosis"
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Hospital course",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "text",
+          "binding": "data.adm.course",
+          "minLinesAtTop": 2,
+          "minLinesAtBottom": 2
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "text",
+          "value": "Medicines on discharge",
+          "style": {
+            "fontWeight": "bold",
+            "fontSize": 11
+          },
+          "keepWithNext": true
+        },
+        {
+          "type": "table",
+          "id": "discharge-meds",
+          "dataset": "adm.medicines",
+          "columns": [
+            {
+              "id": "name",
+              "header": "Medicine",
+              "binding": "row.name",
+              "width": "*"
+            },
+            {
+              "id": "dose",
+              "header": "Dose",
+              "binding": "row.dose",
+              "width": 60
+            },
+            {
+              "id": "days",
+              "header": "Days",
+              "binding": "row.days",
+              "width": 40,
+              "align": "right"
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "text",
+              "value": "Follow-up",
+              "style": {
+                "fontWeight": "bold",
+                "fontSize": 11
+              }
+            },
+            {
+              "type": "text",
+              "binding": "data.adm.followup"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "appliesTo": "standard",
+      "children": [
+        {
+          "type": "line",
+          "style": {
+            "color": "#167c80"
+          }
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "NORTHSTAR MEDICAL CENTER · +91 80 4567 8900",
+              "width": "*",
+              "style": {
+                "fontSize": 7,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 8,
+                "color": "#143753"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "appliesTo": "last",
+      "children": [
+        {
+          "type": "line",
+          "style": {
+            "color": "#167c80"
+          }
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "width": "*",
+              "children": [
+                {
+                  "type": "text",
+                  "expression": "data.adm.doctor",
+                  "style": {
+                    "fontSize": 9,
+                    "fontWeight": "bold",
+                    "color": "#143753"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "Attending physician · Signature and stamp",
+                  "style": {
+                    "fontSize": 7,
+                    "color": "#526575"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 8,
+                "color": "#143753"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

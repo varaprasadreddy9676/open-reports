@@ -620,7 +620,7 @@ const PRACTICAL_VIDEOS = [
   { id: "jasper-folder-migration", title: "Migrate a JasperReports folder", summary: "Convert JRXML files to drafts, then inspect the migration." },
   { id: "supermarket-receipt", title: "Build a long 58 mm supermarket receipt", summary: "Load a grocery basket and preview the continuous thermal roll." },
   { id: "sales-crosstab", title: "Summarize sales with a crosstab", summary: "Compare sales by region and service, then preview the totals." },
-  { id: "hospital-letterhead", title: "Create a polished hospital letterhead", summary: "See a hospital masthead, repeating patient details and sign-off in a discharge summary." },
+  { id: "hospital-letterhead", title: "Build a hospital letterhead with logos", summary: "Align left and right logos, then compare editable headers with pre-printed stationery." },
 ];
 
 function TourDialog() {
@@ -644,6 +644,11 @@ function TourDialog() {
           Your browser does not support this video. <a href={`/demo-videos/${selected.id}.mp4`}>Open the video</a>.
         </video>
         <a className="demo-caption-link" href={`/demo-videos/${selected.id}.vtt`} download={`${selected.id}-captions.vtt`}>Download English captions (.vtt)</a>
+        {selected.id === "hospital-letterhead" && <div className="demo-asset-links" aria-label="Download hospital letterhead sample assets">
+          <a href="/demo-videos/letterhead-assets/northstar-primary-logo.png" download>Left logo (PNG)</a>
+          <a href="/demo-videos/letterhead-assets/northstar-accreditation-mark.png" download>Right seal (PNG)</a>
+          <a href="/demo-videos/letterhead-assets/northstar-preprinted-letterhead.png" download>Pre-printed page (PNG)</a>
+        </div>}
       </section>
     </div>
     <div className="dialog-actions"><button className="btn primary" onClick={() => openStarterExample("invoice")}>Try the invoice →</button><button className="btn" onClick={() => set({ dialog: "guide" })}>Explore features</button></div>
