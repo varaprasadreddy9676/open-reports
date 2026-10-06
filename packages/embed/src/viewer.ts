@@ -1,11 +1,13 @@
-import { fetchTemplateVersion, renderTemplate, type OutputFormat, type ServerOptions } from "./client.js";
+import { fetchTemplateVersion, renderReport, renderTemplate, type OutputFormat, type ServerOptions } from "./client.js";
 import { coerceParameter, initialParameters, type ParameterDefinition } from "./params.js";
 import { contentsOf, enableDrillDown, enableDrillThrough, enableSorting, focusHit, highlight, type DrillTarget, type SortState } from "./interactive.js";
 import { VIEWER_STYLES } from "./styles.js";
 
 export interface ViewerOptions extends ServerOptions {
-  /** Template id on the server. */
-  template: string;
+  /** Optional template id on the server. Provide either this or `report`. */
+  template?: string;
+  /** Host-owned report definition. It is sent inline for each render and is not looked up by id. */
+  report?: unknown;
   /** A specific version; defaults to the latest published version. */
   version?: number;
   /** Initial parameter values; the viewer shows a form for the report's parameters. */
@@ -35,6 +37,7 @@ export interface Viewer {
 /** One report shown in the viewer; drilling through pushes a new one. */
 interface Place {
   template: string;
+  report?: unknown;
   version?: number;
   title: string;
   definitions: ParameterDefinition[];
@@ -97,6 +100,7 @@ function readForm(form: HTMLFormElement, definitions: ParameterDefinition[]): Re
  * Emits `report-rendered`, `report-drill` and `report-error` events on `host`.
  */
 export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer {
+  if (!options.template && options.report === undefined) throw new Error('Provide either a saved "template" id or an inline host-owned "report" definition.');
   const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
   root.replaceChildren();
   const style = element("style");
@@ -141,7 +145,9 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
   root.append(style, shell);
 
   const history: Place[] = [];
-  let place: Place = { template: options.template, version: options.version, title: options.template, definitions: [], values: { ...(options.parameters ?? {}) }, toggled: new Map() };
+  const initialReport = options.report && typeof options.report === "object" ? options.report as { id?: unknown; name?: unknown; parameters?: ParameterDefinition[] } : undefined;
+  const initialId = options.template ?? (typeof initialReport?.id === "string" ? initialReport.id : "report");
+  let place: Place = { template: initialId, report: options.report, version: options.version, title: typeof initialReport?.name === "string" ? initialReport.name : initialId, definitions: [], values: { ...(options.parameters ?? {}) }, toggled: new Map() };
   const viewerState = () => {
     const toggle = [...place.toggled].filter(([, keys]) => keys.size).map(([component, keys]) => ({ component, keys: [...keys] }));
     return place.sort || toggle.length ? { ...(place.sort ? { sort: [place.sort] } : {}), ...(toggle.length ? { toggle } : {}) } : undefined;
@@ -172,6 +178,13 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
 
   /** Loads a template's parameters into `place`. */
   const load = async (target: Place) => {
+    if (target.report !== undefined) {
+      const definition = target.report && typeof target.report === "object" ? target.report as { name?: unknown; parameters?: ParameterDefinition[] } : undefined;
+      target.title = typeof definition?.name === "string" ? definition.name : target.template;
+      target.definitions = definition?.parameters ?? [];
+      target.values = initialParameters(target.definitions, target.values);
+      return;
+    }
     const loaded = await fetchTemplateVersion(options, target.template, target.version);
     target.version = loaded.version;
     target.title = loaded.definition.name ?? target.template;
@@ -243,14 +256,11 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
         if (nextValues) place.values = { ...place.values, ...nextValues };
         else if (!options.hideParameters) place.values = { ...place.values, ...readForm(form, place.definitions) };
         setStatus("Rendering…", "busy");
-        const blob = await renderTemplate(options, {
-          template: place.template,
-          version: place.version,
-          format: "html",
-          parameters: place.values,
-          data: history.length ? undefined : options.data,
-          viewerState: viewerState(),
-        });
+        const requestData = history.length ? undefined : options.data;
+        const state = viewerState();
+        const blob = place.report !== undefined
+          ? await renderReport(options, { report: place.report, format: "html", parameters: place.values, data: requestData, viewerState: state })
+          : await renderTemplate(options, { template: place.template, version: place.version, format: "html", parameters: place.values, data: requestData, viewerState: state });
         const html = await blob.text();
         if (destroyed || ticket !== renderCount) return;
         frame.srcdoc = html;
@@ -264,7 +274,11 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
       try {
         await ready;
         setStatus(`Preparing ${LABELS[format]}…`, "busy");
-        const blob = await renderTemplate(options, { template: place.template, version: place.version, format, parameters: place.values, data: history.length ? undefined : options.data, viewerState: viewerState() });
+        const requestData = history.length ? undefined : options.data;
+        const state = viewerState();
+        const blob = place.report !== undefined
+          ? await renderReport(options, { report: place.report, format, parameters: place.values, data: requestData, viewerState: state })
+          : await renderTemplate(options, { template: place.template, version: place.version, format, parameters: place.values, data: requestData, viewerState: state });
         const link = element("a", { href: URL.createObjectURL(blob), download: `${place.template}.${EXTENSIONS[format]}` });
         link.click();
         setTimeout(() => URL.revokeObjectURL(link.href), 10_000);

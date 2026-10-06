@@ -12,6 +12,7 @@ import { loadCanvasFonts } from "./lib/fonts";
 import { disintegrate } from "./lib/dust";
 import { downloadReportFile, isPublicDemo } from "./lib/report-file";
 import { scenarioSample, type CanvasScenario } from "./lib/canvas-scenario";
+import { saveDefinitionToHost } from "./lib/embed-save";
 import type { MigrationIssue } from "@reporting/jrxml-import";
 
 export type Mode = "design" | "data" | "code" | "preview";
@@ -88,6 +89,8 @@ interface State {
   home: boolean;
   /** Running inside <open-report-designer> on another page: no home screen or demo links. */
   embedded: boolean;
+  /** The embedding application, rather than this server, owns durable template storage. */
+  embeddedSaveMode: "server" | "host";
   interfaceTheme: InterfaceTheme;
   demoHint: "edit" | "preview" | null;
   leftTab: LeftTab;
@@ -295,6 +298,7 @@ export const useStore = create<State>((set, get) => ({
   mode: "design",
   home: true,
   embedded: false,
+  embeddedSaveMode: "server",
   interfaceTheme: savedInterfaceTheme(),
   demoHint: null,
   leftTab: "insert",
@@ -567,6 +571,18 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     set({ saveState: "saving" });
     try {
+      if (s.embedded && s.embeddedSaveMode === "host") {
+        await saveDefinitionToHost(s.doc);
+        if (get().doc === s.doc) {
+          set({ meta: { ...get().meta, dirty: false }, saveState: "saved" });
+          persistDraft(s.doc, s.sample, false);
+          get().toast("Report saved in the host application.", "success");
+        } else {
+          set({ saveState: "dirty" });
+          get().toast("A newer edit was made while saving. Save again to include it.", "info");
+        }
+        return;
+      }
       const id = s.meta.id ?? s.doc.id;
       let rec;
       if (s.meta.id) rec = await api.saveTemplate(id, s.doc.name, s.doc);

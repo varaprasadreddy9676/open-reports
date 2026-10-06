@@ -51,6 +51,19 @@ test("<open-report-viewer> explains a template that has no published version", a
   await expect(page.locator("open-report-viewer").getByRole("status")).toContainText(/no published version/i);
 });
 
+test("<open-report-viewer> can render an inline report definition owned by the host", async ({ page }) => {
+  await hostPage(page, `<open-report-viewer server="" style="height:600px"></open-report-viewer>
+    <script>
+      const viewer = document.querySelector("open-report-viewer");
+      viewer.report = ${JSON.stringify({ ...report, id: "inline-viewer", name: "Inline host report" })};
+    </script>`);
+  const frame = page.frameLocator("open-report-viewer >> iframe");
+  await expect(frame.locator("body")).toContainText("Hello Alex Morgan on Basic");
+  const download = page.waitForEvent("download");
+  await page.locator("open-report-viewer").getByRole("button", { name: "↓ PDF" }).click();
+  expect((await download).suggestedFilename()).toBe("inline-viewer.pdf");
+});
+
 test("<open-report-designer> embeds the designer without its home screen and reports saves to the host", async ({ page, request }) => {
   await publishTemplate(request, "embed-designer");
   await hostPage(page, `<open-report-designer template="embed-designer" height="700px"></open-report-designer>
@@ -68,6 +81,28 @@ test("<open-report-designer> embeds the designer without its home screen and rep
   expect(saved).toMatchObject({ templateId: "embed-designer" });
   expect(saved.version).toBeGreaterThanOrEqual(1);
   await expect.poll(() => page.evaluate(() => (window as any).events.some((e: any) => e.name === "report-saved"))).toBe(true);
+});
+
+test("the embedded designer can save report JSON to the host without creating a server template", async ({ page, request }) => {
+  const hostDefinition = { ...report, id: "host-owned-invoice", name: "Host-owned invoice" };
+  await request.delete("/api/v1/templates/host-owned-invoice");
+  await hostPage(page, `<open-report-designer save-mode="host" height="700px"></open-report-designer>
+    <script>
+      window.hostDefinition = ${JSON.stringify(hostDefinition)};
+      window.savedDefinition = null;
+      const element = document.querySelector("open-report-designer");
+      element.definition = window.hostDefinition;
+      element.onSaveDefinition = async (definition) => { window.savedDefinition = definition; };
+    </script>`);
+  await expect.poll(() => page.evaluate(() => Boolean((document.querySelector("open-report-designer") as any)?.designer))).toBe(true);
+  const frame = page.frameLocator("open-report-designer >> iframe");
+  await expect(frame.locator(".page")).toContainText("Hello Alex Morgan on Basic");
+
+  const result = await page.evaluate(() => (document.querySelector("open-report-designer") as any).designer.save());
+  expect(result.definition).toMatchObject({ id: "host-owned-invoice", name: "Host-owned invoice" });
+  await expect.poll(() => page.evaluate(() => (window as any).savedDefinition?.id)).toBe("host-owned-invoice");
+  const serverLookup = await request.get("/api/v1/templates/host-owned-invoice");
+  expect(serverLookup.status()).toBe(404);
 });
 
 test("the embedded designer ignores messages from other origins", async ({ page }) => {

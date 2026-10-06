@@ -9,6 +9,11 @@ export interface ServerOptions {
 
 export type OutputFormat = "pdf" | "html" | "xlsx" | "csv" | "docx" | "zpl" | "escpos";
 
+export interface ViewerState {
+  sort?: { component: string; column: string; direction: "asc" | "desc" }[];
+  toggle?: { component: string; keys: string[] }[];
+}
+
 export interface TemplateVersion {
   version: number;
   status: "draft" | "published";
@@ -62,7 +67,26 @@ export interface RenderRequest {
   parameters?: Record<string, unknown>;
   data?: Record<string, unknown>;
   /** Interactive choices such as a column sort, applied by the server before layout. */
-  viewerState?: { sort?: { component: string; column: string; direction: "asc" | "desc" }[]; toggle?: { component: string; keys: string[] }[] };
+  viewerState?: ViewerState;
+}
+
+/** Render a report definition owned by the calling application; no template lookup or server storage is involved. */
+export interface RenderReportRequest {
+  report: unknown;
+  format: OutputFormat;
+  parameters?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+  viewerState?: ViewerState;
+}
+
+export async function renderReport(options: ServerOptions, request: RenderReportRequest): Promise<Blob> {
+  const response = await fetch(url(options, "/api/v1/render"), {
+    method: "POST",
+    headers: headers(options, true),
+    body: JSON.stringify({ report: request.report, format: request.format, parameters: request.parameters, data: request.data, viewerState: request.viewerState }),
+  });
+  if (!response.ok) throw await failure(response);
+  return response.blob();
 }
 
 export async function renderTemplate(options: ServerOptions, request: RenderRequest): Promise<Blob> {

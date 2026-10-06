@@ -1,8 +1,8 @@
 /**
  * postMessage protocol between a host page and an embedded designer iframe.
  *
- * designer → host: ready, saved, dirty, error
- * host → designer: init (template id and API key, so the key never travels in a URL), save, load
+ * designer → host: ready, saved, save-request, dirty, error
+ * host → designer: init (template id and API key, so the key never travels in a URL), save, save-result, load
  *
  * Both sides check `event.origin` and `event.source` before acting on a message.
  */
@@ -11,12 +11,15 @@ export const PROTOCOL = "open-reports/1";
 export type DesignerToHost =
   | { protocol: typeof PROTOCOL; type: "ready" }
   | { protocol: typeof PROTOCOL; type: "saved"; templateId: string; version: number }
+  | { protocol: typeof PROTOCOL; type: "save-request"; requestId: string; definition: unknown }
+  | { protocol: typeof PROTOCOL; type: "saved-definition"; definition: unknown }
   | { protocol: typeof PROTOCOL; type: "dirty"; dirty: boolean }
   | { protocol: typeof PROTOCOL; type: "error"; message: string };
 
 export type HostToDesigner =
-  | { protocol: typeof PROTOCOL; type: "init"; template?: string; apiKey?: string }
+  | { protocol: typeof PROTOCOL; type: "init"; template?: string; apiKey?: string; definition?: unknown; saveMode?: "server" | "host" }
   | { protocol: typeof PROTOCOL; type: "save" }
+  | { protocol: typeof PROTOCOL; type: "save-result"; requestId: string; success: boolean; message?: string }
   | { protocol: typeof PROTOCOL; type: "load"; definition: unknown };
 
 export type EmbedMessage = DesignerToHost | HostToDesigner;

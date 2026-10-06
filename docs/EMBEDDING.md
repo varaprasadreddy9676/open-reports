@@ -31,7 +31,9 @@ It renders the latest **published** version of the template, with:
 | Attribute | Meaning |
 |---|---|
 | `server` | Your Open Reports server. Defaults to the page's own origin. |
-| `template` | Template id. Required. |
+| `template` | Template id for an Open Reports-stored template. Provide `report` instead for a host-owned report. |
+| `report` | JSON report definition (or assign the `report` property) to render inline without server template lookup. |
+| `data` | JSON render data (or assign the `data` property) for this report. |
 | `version` | A specific version instead of the latest published one. |
 | `parameters` | JSON object of starting parameter values. |
 | `downloads` | Comma-separated download formats. Default `pdf,xlsx,csv`. |
@@ -53,6 +55,23 @@ await viewer.back();
 
 Style it with CSS custom properties (`--or-accent`, `--or-border`, `--or-bg`, `--or-text`) or the `::part(toolbar)`, `::part(page)` selectors. The viewer lives in a shadow root, so your page's CSS cannot break it.
 
+### Render a host-owned report in the viewer
+
+To preview a report definition owned by your application, set its `report` property and optional `data` property before connecting the viewer. This uses `POST /api/v1/render`; it does not require a template ID in Open Reports:
+
+```js
+import { createViewer } from "@reporting/embed";
+
+createViewer(document.querySelector("#report"), {
+  server: OPEN_REPORTS_URL,
+  report: await reportStore.get(tenantId, "invoice"),
+  data: { invoice: authorizedInvoice },
+  downloads: ["pdf"],
+});
+```
+
+The `<open-report-viewer>` custom element also accepts `report` and `data` properties. Browser rendering is appropriate only when the report and data are safe to expose to that browser; otherwise render from the host backend.
+
 ## Let users design: `<open-report-designer>`
 
 ```html
@@ -63,14 +82,50 @@ The full designer runs inside a frame without its home screen. Omit `template` t
 
 ```js
 const element = document.querySelector("open-report-designer");
-element.addEventListener("report-saved", (e) => console.log("saved", e.detail.templateId, e.detail.version));
 element.addEventListener("report-dirty", (e) => saveButton.disabled = !e.detail.dirty);
 
-await element.designer.save();          // resolves with { templateId, version }
+await element.designer.save();
 element.designer.load(reportDefinition); // replace the open report with your own JSON
 ```
 
 Events: `designer-ready`, `report-saved`, `report-dirty`, `report-error`.
+
+### Keep report JSON in the host application
+
+For application integrations, keep each customer's report definition in the host application's storage and configure the designer to return edits there. The host decides how to authorize, version, and persist the JSON. It can then render that exact definition without creating an Open Reports template record:
+
+```ts
+import { createDesigner, renderReport } from "@reporting/embed";
+
+const designer = createDesigner(document.querySelector("#designer")!, {
+  server: OPEN_REPORTS_URL,
+  definition: await reportStore.get(tenantId, "invoice"),
+  saveMode: "host",
+  onSaveDefinition: async (nextDefinition) => {
+    await reportStore.save(tenantId, "invoice", nextDefinition);
+  },
+});
+
+// Later, from your backend, load the host-owned definition and render it with authorized data.
+const pdf = await renderReport({ server: OPEN_REPORTS_URL, apiKey: OPEN_REPORTS_API_KEY }, {
+  report: await reportStore.get(tenantId, "invoice"),
+  format: "pdf",
+  data: { invoice: authorizedInvoice },
+});
+```
+
+In host mode, the designer's Save action waits for `onSaveDefinition` to finish. If saving fails, the designer reports an error and keeps the report dirty. Do not put a privileged API key in browser code; use your authenticated backend or trusted proxy for rendering and saving. For a custom element, assign both properties before connecting it:
+
+```js
+const element = document.createElement("open-report-designer");
+element.setAttribute("server", OPEN_REPORTS_URL);
+element.setAttribute("save-mode", "host");
+element.definition = await reportStore.get(tenantId, "invoice");
+element.onSaveDefinition = (nextDefinition) => reportStore.save(tenantId, "invoice", nextDefinition);
+document.querySelector("#designer").append(element);
+```
+
+The existing `template` option and default `saveMode: "server"` continue to use Open Reports' optional template store. Use that for standalone deployments where you want Open Reports to own drafts and published versions.
 
 ## Without custom elements
 

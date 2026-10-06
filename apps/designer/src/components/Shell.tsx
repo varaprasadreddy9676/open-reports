@@ -854,27 +854,29 @@ function SettingsDialog() {
   };
   const examples = {
     curl: [
-      "BODY='{\"format\":\"pdf\",\"data\":{\"invoice\":{\"number\":\"INV-1042\",\"customer\":\"Asha Rao\",\"total\":15340}}}'",
-      'curl -X POST "$OPEN_REPORTS_URL/api/v1/templates/invoice/render" -H "content-type: application/json" -H "x-api-key: $OPEN_REPORTS_API_KEY" -d "$BODY" -o invoice.pdf',
+      '# render-request.json contains report, format, and data from your application.',
+      'curl -X POST "$OPEN_REPORTS_URL/api/v1/render" -H "content-type: application/json" -H "x-api-key: $OPEN_REPORTS_API_KEY" --data-binary @render-request.json -o invoice.pdf',
     ].join("\n"),
     node: [
-      'const response = await fetch(process.env.OPEN_REPORTS_URL + "/api/v1/templates/invoice/render", {',
+      'const { definition } = await reportStore.getForTenant(tenantId, "invoice");',
+      'const response = await fetch(process.env.OPEN_REPORTS_URL + "/api/v1/render", {',
       '  method: "POST",',
       '  headers: {',
       '    "content-type": "application/json",',
       '    "x-api-key": process.env.OPEN_REPORTS_API_KEY,',
       '  },',
-      '  body: JSON.stringify({ format: "pdf", data: { invoice: authorizedInvoice } }),',
+      '  body: JSON.stringify({ report: definition, format: "pdf", data: { invoice: authorizedInvoice } }),',
       '});',
       'if (!response.ok) throw new Error(`Open Reports: ${response.status}`);',
       'const pdf = Buffer.from(await response.arrayBuffer());',
     ].join("\n"),
     java: [
       'var body = new ObjectMapper().createObjectNode();',
+      'body.set("report", reportDefinition); // loaded from host-owned template storage',
       'body.put("format", "pdf");',
       'body.set("data", mapper.valueToTree(Map.of("invoice", authorizedInvoice)));',
       'var request = HttpRequest.newBuilder(URI.create(openReportsUrl',
-      '        + "/api/v1/templates/invoice/render"))',
+      '        + "/api/v1/render"))',
       '    .header("content-type", "application/json")',
       '    .header("x-api-key", openReportsApiKey)',
       '    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))',
@@ -885,10 +887,11 @@ function SettingsDialog() {
       'byte[] pdf = response.body();',
     ].join("\n"),
     python: [
+      'report_definition = report_store.get_for_tenant(tenant_id, "invoice")',
       'response = requests.post(',
-      '    f"{OPEN_REPORTS_URL}/api/v1/templates/invoice/render",',
+      '    f"{OPEN_REPORTS_URL}/api/v1/render",',
       '    headers={"x-api-key": OPEN_REPORTS_API_KEY},',
-      '    json={"format": "pdf", "data": {"invoice": authorized_invoice}},',
+      '    json={"report": report_definition, "format": "pdf", "data": {"invoice": authorized_invoice}},',
       '    timeout=120,',
       ')',
       'response.raise_for_status()',
@@ -965,13 +968,13 @@ function SettingsDialog() {
       </section>}
 
       {tab === "integrate" && <section className="settings-section integration-quickstart" id="settings-panel-integrate" role="tabpanel" aria-labelledby="settings-tab-integrate" tabIndex={0}>
-        <div className="integration-intro"><span className="integration-step">1</span><div><h3>Call the reporting API from your backend</h3><p>Your application keeps login, permissions, and business rules. It loads authorized data, then sends that data to Open Reports to render the document.</p></div></div>
+        <div className="integration-intro"><span className="integration-step">1</span><div><h3>Call the reporting API from your backend</h3><p>Your application keeps login, permissions, business rules, and report definitions. It loads authorized data, then sends the chosen report JSON and data to Open Reports to render the document.</p></div></div>
         <div className="integration-note"><strong>Keep your API key on the server.</strong> A key placed in browser JavaScript or an embedded page can be copied by users. Open Reports renders reports; your application decides who can request them.</div>
-        <div className="integration-code-heading"><div><h4>Render a saved template</h4><p>POST to <code>/api/v1/templates/{"{templateId}"}/render</code></p></div><div className="integration-code-tabs" role="tablist" aria-label="Code example language" onKeyDown={onTabKeyDown}>{([ ["node", "Node"], ["java", "Java"], ["python", "Python"], ["curl", "cURL"] ] as const).map(([id, label]) => <button key={id} id={`settings-example-tab-${id}`} role="tab" aria-controls="settings-example-panel" tabIndex={example === id ? 0 : -1} aria-selected={example === id} data-testid={`settings-example-${id}`} onClick={() => { setExample(id); setCopied(false); }}>{label}</button>)}</div></div>
+        <div className="integration-code-heading"><div><h4>Render a host-owned report</h4><p>POST the JSON definition and data to <code>/api/v1/render</code>. No Open Reports template ID or template storage is required.</p></div><div className="integration-code-tabs" role="tablist" aria-label="Code example language" onKeyDown={onTabKeyDown}>{([ ["node", "Node"], ["java", "Java"], ["python", "Python"], ["curl", "cURL"] ] as const).map(([id, label]) => <button key={id} id={`settings-example-tab-${id}`} role="tab" aria-controls="settings-example-panel" tabIndex={example === id ? 0 : -1} aria-selected={example === id} data-testid={`settings-example-${id}`} onClick={() => { setExample(id); setCopied(false); }}>{label}</button>)}</div></div>
         <pre className="integration-code" id="settings-example-panel" role="tabpanel" aria-labelledby={`settings-example-tab-${example}`} tabIndex={0}><code>{examples[example]}</code></pre>
         <div className="dialog-actions integration-actions"><button className="btn" type="button" data-testid="settings-copy-example" onClick={copyExample}>{copied ? "Copied" : "Copy example"}</button><span className="spacer" /><span className="field-hint">Uses your normal HTTP client; no SDK required.</span></div>
-        <div className="integration-next-steps"><h4>Typical setup</h4><ol><li>Deploy Open Reports and copy its server URL.</li><li>Create and publish a template in the designer.</li><li>From your backend, authorize the user and prepare a small JSON payload.</li><li>POST the template ID, output format, and data; return the PDF or other output from your application.</li></ol><p>For an embedded designer or viewer, use the embed package behind your app’s authentication or a trusted proxy.</p></div>
-        <div className="integration-branding-note"><h4>Use one template with different client branding</h4><p>Bind the logo image to <code>data.client.logoUrl</code>, and header/footer text to paths such as <code>data.client.headerText</code> and <code>data.client.footerText</code>. Pass each client’s branding in the render request:</p><pre className="integration-branding-code"><code>{`"data": {
+        <div className="integration-next-steps"><h4>Typical setup</h4><ol><li>Keep each tenant’s report JSON in your application’s normal storage and versioning system.</li><li>From your backend, authorize the user and prepare the data and branding for that request.</li><li>POST the report definition, format, and data to <code>/api/v1/render</code>; return the PDF or other output from your application.</li></ol><p>Open Reports also has optional server-side template storage for standalone use. For an embedded designer, enable host-managed saving so edited JSON returns to your application.</p></div>
+        <div className="integration-branding-note"><h4>Use one report definition with different client branding</h4><p>Bind the logo image to <code>data.client.logoUrl</code>, and header/footer text to paths such as <code>data.client.headerText</code> and <code>data.client.footerText</code>. Pass each client’s branding in the render request:</p><pre className="integration-branding-code"><code>{`"data": {
   "client": {
     "logoUrl": "https://assets.example.com/client-logo.png",
     "headerText": "Northstar Medical Center",

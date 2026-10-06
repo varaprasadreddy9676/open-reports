@@ -2,6 +2,7 @@ import { isEmbedMessage, PROTOCOL, type DesignerToHost, type HostToDesigner } fr
 import { useStore } from "../store";
 import { settings } from "./api";
 import * as ops from "../model/ops";
+import { registerHostSaveHandler, unregisterHostSaveHandler } from "./embed-save";
 
 type WithoutProtocol<T> = T extends unknown ? Omit<T, "protocol"> : never;
 
@@ -24,6 +25,13 @@ export function startEmbedHost(): boolean {
   const post = (message: WithoutProtocol<DesignerToHost>) => window.parent.postMessage({ protocol: PROTOCOL, ...message }, origin);
   const store = useStore;
   store.getState().set({ embedded: true, home: false });
+  const pendingHostSaves = new Map<string, { resolve(): void; reject(error: Error): void }>();
+  let saveRequest = 0;
+  registerHostSaveHandler((definition) => new Promise<void>((resolve, reject) => {
+    const requestId = `save-${++saveRequest}`;
+    pendingHostSaves.set(requestId, { resolve, reject });
+    post({ type: "save-request", requestId, definition });
+  }));
 
   window.addEventListener("message", async (event) => {
     if (event.source !== window.parent || event.origin !== origin || !isEmbedMessage(event.data)) return;
@@ -32,8 +40,18 @@ export function startEmbedHost(): boolean {
     try {
       if (message.type === "init") {
         if (message.apiKey) settings.apiKey = message.apiKey;
-        if (message.template) await s.openTemplate(message.template);
+        store.getState().set({ embeddedSaveMode: message.saveMode ?? "server" });
+        if (message.definition !== undefined) s.loadDoc(ops.ensureIds(message.definition as ops.Doc));
+        else if (message.template) await s.openTemplate(message.template);
         store.getState().set({ home: false });
+      } else if (message.type === "save-result") {
+        const pending = pendingHostSaves.get(message.requestId);
+        if (!pending) return;
+        pendingHostSaves.delete(message.requestId);
+        if (message.success) {
+          pending.resolve();
+          post({ type: "saved-definition", definition: store.getState().doc });
+        } else pending.reject(new Error(message.message || "The host application could not save this report."));
       } else if (message.type === "save") {
         await s.save();
         if (store.getState().saveState === "error") post({ type: "error", message: "The report could not be saved. Check the designer for details." });
@@ -52,6 +70,8 @@ export function startEmbedHost(): boolean {
     }
     if (state.meta.dirty !== previous.meta.dirty) post({ type: "dirty", dirty: Boolean(state.meta.dirty) });
   });
+
+  window.addEventListener("pagehide", unregisterHostSaveHandler, { once: true });
 
   post({ type: "ready" });
   return true;

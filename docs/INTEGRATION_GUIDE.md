@@ -1,9 +1,9 @@
 # Integrate Open Reports with an application
 
-Open Reports is the report designer and rendering engine. The host application owns its users, permissions, business rules, and database. The host chooses a template, prepares the data it is allowed to expose, sends the render request, and handles the resulting file.
+Open Reports is the report designer and rendering engine. The host application owns its users, permissions, business rules, and database. For application integrations, the host can own the report JSON too: load it for the authorized tenant, send it with the data to render, and handle the resulting file. Open Reports' template store remains optional for standalone use.
 
 ```text
-Host application ── report definition or template ID + data + parameters ──▶ Open Reports
+Host application ── report definition + data + parameters ─────────────────▶ Open Reports
 Host application ◀──────────────── PDF / HTML / XLSX / other output ────── Open Reports
 ```
 
@@ -16,15 +16,42 @@ Host application ◀──────────────── PDF / HTML 
 | Let a user edit a report in a web page | Use [`<open-report-designer>`](EMBEDDING.md#let-users-design-open-report-designer). |
 | Add a renderer, data source, expression function, or component to the report server | Write an in-process [plugin](PLUGIN_DEVELOPMENT.md). |
 
-For application-owned data, the simplest path is usually to have the host load and authorize the record, build a small report DTO, and send it as `data`. Use a configured REST/JSON/SQL source when the report server should fetch that data itself. Use a plugin when the engine needs a new reusable capability—not just to move host business logic into Open Reports.
+For application-owned integrations, keep report definitions in the host's normal storage and versioning system, authorize the record, build a small report DTO, and send both definition and `data` to `POST /api/v1/render`. Use a configured REST/JSON/SQL source when the report server should fetch data itself. Use the Open Reports template store only when you want the report server to own saved drafts and published versions.
+
+## Host-owned report definitions (recommended for embedded applications)
+
+The host's template key can be any internal identifier, such as `(tenantId, "invoice")`. It never needs to be an Open Reports template ID. Your backend resolves that key to report JSON, authorizes the request, and sends the definition with the data:
+
+```http
+POST /api/v1/render
+Content-Type: application/json
+X-API-Key: <server-side-key>
+
+{
+  "report": {
+    "schemaVersion": "1.0",
+    "id": "invoice",
+    "name": "Invoice",
+    "page": { "size": "A4" },
+    "datasets": [],
+    "sections": [{ "type": "detail", "children": [{ "type": "text", "value": "Invoice" }] }]
+  },
+  "format": "pdf",
+  "data": { "invoice": { "number": "INV-1042", "total": 15340 } }
+}
+```
+
+The `id` inside `report` is part of the definition; Open Reports does not use it as a database lookup key. In the embedded designer, use `saveMode: "host"` and `onSaveDefinition` to write edits to the host's own storage. See [host-owned editing and rendering](EMBEDDING.md#keep-report-json-in-the-host-application).
+
+This keeps tenant isolation and template lifecycle in the application that already understands those concepts. It also means the full definition is sent with each render request. If you prefer the server to manage saved drafts and immutable published versions, use the optional saved-template endpoints described below.
 
 ## Quick start for an application team
 
 1. Deploy Open Reports and note its base URL, such as `https://reports.example.com`.
 2. Configure `API_KEYS` on the server if requests must be authenticated. Keep that value in your host application's secret store.
-3. Create one or more reports in the designer, save each, and publish the version(s) the application will use.
+3. Embed the designer in host-managed mode and save report JSON in the host's existing template storage.
 4. In the host backend, authenticate the current user and load only records that user may access.
-5. Have the host backend choose the template ID and published version for this tenant and report purpose, then send that choice, output format, parameters, and JSON data to the render endpoint.
+5. Resolve the authorized tenant's report JSON, then send it with output format, parameters, and data to `POST /api/v1/render`.
 6. Return the response bytes from your own application route, or store the generated file according to your existing workflow.
 
 The designer's **Settings → Server connection** configures this browser's connection for editing. It is not the production integration point for your application. The API key entered there is stored in browser local storage and is visible to that browser; use a backend secret for application rendering.
@@ -40,7 +67,7 @@ OPEN_REPORTS_API_KEY=<secret-managed-value>
 
 Do not commit the key to source control. Keep the base URL configurable per environment so local development, test, and production can point to different report servers. Open Reports currently uses instance-wide API keys and does not provide tenant-scoped template access. The host must authorize the user's report action and choose an allowed template before calling the API. If customers must be isolated from each other at the report-server boundary, use separate Open Reports instances until tenant-scoped access is available.
 
-### Choose a template for each customer
+### Optional: use Open Reports-managed saved templates
 
 The template ID in `/api/v1/templates/{templateId}/render` is a required path segment. Names such as `invoice` in examples are sample IDs, not built-in report types. For a multi-customer application, keep a server-side mapping from the authenticated tenant and report purpose to a template ID and published version:
 

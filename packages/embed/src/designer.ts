@@ -7,6 +7,12 @@ type WithoutProtocol<T> = T extends unknown ? Omit<T, "protocol"> : never;
 export interface DesignerOptions extends ServerOptions {
   /** Template to open; omit to start with a blank report. */
   template?: string;
+  /** Initial report JSON. When supplied with saveMode "host", the host remains the source of truth. */
+  definition?: unknown;
+  /** Where edits are persisted. Defaults to "server" to preserve existing integrations. */
+  saveMode?: "server" | "host";
+  /** Persist a changed report in the host application. Required when saveMode is "host". */
+  onSaveDefinition?(definition: unknown): void | Promise<void>;
   /** Height of the designer frame. Default "720px". */
   height?: string;
   onReady?(): void;
@@ -16,8 +22,8 @@ export interface DesignerOptions extends ServerOptions {
 }
 
 export interface Designer {
-  /** Ask the designer to save; resolves when the server confirms. */
-  save(): Promise<{ templateId: string; version: number }>;
+  /** Ask the designer to save; resolves after either the server or host confirms persistence. */
+  save(): Promise<{ templateId: string; version: number } | { definition: unknown }>;
   /** Replace the open report with this definition. */
   load(definition: unknown): void;
   readonly frame: HTMLIFrameElement;
@@ -40,7 +46,8 @@ export function createDesigner(host: HTMLElement, options: DesignerOptions): Des
   Object.assign(frame.style, { width: "100%", height: options.height ?? "720px", border: "0", display: "block" });
   host.replaceChildren(frame);
 
-  const pendingSaves: { resolve(value: { templateId: string; version: number }): void; reject(error: Error): void }[] = [];
+  type SaveResult = { templateId: string; version: number } | { definition: unknown };
+  const pendingSaves: { resolve(value: SaveResult): void; reject(error: Error): void }[] = [];
   // Messages sent before the designer has loaded would be lost, so queue them until it reports "ready".
   let ready = false;
   const queued: WithoutProtocol<HostToDesigner>[] = [];
@@ -52,7 +59,7 @@ export function createDesigner(host: HTMLElement, options: DesignerOptions): Des
     const message = event.data as DesignerToHost;
     if (message.type === "ready") {
       // A reload of the frame reports ready again; init again so it reopens the same template.
-      send({ type: "init", template: options.template, apiKey: options.apiKey });
+      send({ type: "init", template: options.template, apiKey: options.apiKey, definition: options.definition, saveMode: options.saveMode });
       ready = true;
       queued.splice(0).forEach(send);
       options.onReady?.();
@@ -61,6 +68,17 @@ export function createDesigner(host: HTMLElement, options: DesignerOptions): Des
       const saved = { templateId: message.templateId, version: message.version };
       pendingSaves.splice(0).forEach((pending) => pending.resolve(saved));
       options.onSave?.(saved);
+      host.dispatchEvent(new CustomEvent("report-saved", { detail: saved, bubbles: true, composed: true }));
+    } else if (message.type === "save-request") {
+      void Promise.resolve(options.onSaveDefinition?.(message.definition)).then(() => {
+        const success = typeof options.onSaveDefinition === "function";
+        send({ type: "save-result", requestId: message.requestId, success, ...(success ? {} : { message: "Configure onSaveDefinition to persist reports in host-managed mode." }) });
+      }, (error: unknown) => {
+        send({ type: "save-result", requestId: message.requestId, success: false, message: error instanceof Error ? error.message : String(error) });
+      });
+    } else if (message.type === "saved-definition") {
+      const saved = { definition: message.definition };
+      pendingSaves.splice(0).forEach((pending) => pending.resolve(saved));
       host.dispatchEvent(new CustomEvent("report-saved", { detail: saved, bubbles: true, composed: true }));
     } else if (message.type === "dirty") {
       options.onDirtyChange?.(message.dirty);

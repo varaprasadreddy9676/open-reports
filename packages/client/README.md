@@ -28,6 +28,18 @@ await fs.promises.writeFile("invoice.pdf", pdf.bytes);
 const base64 = Buffer.from(pdf.bytes).toString("base64"); // Only when the receiver requires Base64.
 ```
 
+If your application owns the report JSON, use `renderInline` and send the full definition with the data. Open Reports will not store the definition or resolve an ID from it:
+
+```ts
+const report = await hostReports.getForTenant(user.tenantId, "invoice");
+const pdf = await reports.renderInline({
+  report,
+  format: "pdf",
+  data: { invoice: authorizedInvoice },
+});
+await fs.promises.writeFile("invoice.pdf", pdf.bytes);
+```
+
 `tenantReports.get(...)` is your host application's tenant-to-template configuration lookup; it is not an Open Reports endpoint. Example IDs like `invoice` are not built-in templates. The helper only wraps inline and saved-template rendering. For template management, publishing, jobs, validation, analysis, and every other capability, call the REST endpoints directly. `OpenReportsError` preserves the HTTP status, API error code, and details.
 
 The render call returns PDF bytes in `pdf.bytes`, not a Base64 string. Prefer bytes for files, downloads, and email attachments because Base64 is larger. Convert with `Buffer.from(pdf.bytes).toString("base64")` only when another API specifically requires it.

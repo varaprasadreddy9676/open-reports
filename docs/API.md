@@ -24,10 +24,35 @@ Errors are JSON: `{ "error": { "code": "VALIDATION_FAILED", "message": "…", "d
 
 **`data` vs. the template:** `data` is `{ "<datasetId>": <json> }`. It replaces the dataset with that id for this one render (or adds an inline dataset) — so one template serves any record. **`parameters`** feed `params.x` and `{{params.x}}` in REST/SQL datasets.
 
+### Host-owned report definitions
+
+`POST /api/v1/render` accepts the complete report JSON in each request. Open Reports validates and renders it without looking up or storing a template. This is the recommended integration when the calling application owns tenant-specific definitions, permissions, and version history:
+
+```js
+const report = await hostReportStore.get(tenantId, "invoice");
+const response = await fetch(`${openReportsUrl}/api/v1/render`, {
+  method: "POST",
+  headers: { "content-type": "application/json", "x-api-key": openReportsApiKey },
+  body: JSON.stringify({
+    report, // complete report JSON; Open Reports does not look up this report by its id
+    format: "pdf",
+    data: { invoice: { number: "INV-1042", total: 15340 } },
+  }),
+});
+```
+
+The `id` inside the JSON is report metadata; it is not used to look up a saved template. For the optional Open Reports-managed workflow, create a record with `POST /api/v1/templates` and render it through `/api/v1/templates/{templateId}/render`.
+
 ## Examples
 
 ### curl
 ```bash
+# Host-owned definition: render-request.json contains {"report": <full definition>, "format": "pdf", "data": {...}}
+curl -X POST "$URL/api/v1/render" \
+  -H "x-api-key: $KEY" -H 'content-type: application/json' \
+  --data-binary @render-request.json -o invoice.pdf
+
+# Optional: render a published template stored by Open Reports.
 curl -X POST "$URL/api/v1/templates/$TEMPLATE_ID/render" \
   -H "x-api-key: $KEY" -H 'content-type: application/json' \
   -d '{"format":"pdf","data":{"adm":{"patient":{"name":"Asha"}}}}' -o discharge.pdf
