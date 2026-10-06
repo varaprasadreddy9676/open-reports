@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "patient-id-card",
   "name": "Patient ID Card",
-  "description": "CR80 card (85.6x54mm) with patient photo placeholder, UHID and QR.",
+  "description": "Hospital patient ID card with a replaceable logo, patient details, UHID and QR code.",
   "locale": "en-IN",
   "datasets": [
     {
@@ -49,13 +49,29 @@
       "type": "detail",
       "children": [
         {
-          "type": "text",
-          "value": "ACME HEALTH",
-          "style": {
-            "fontSize": 9,
-            "fontWeight": "bold",
-            "color": "#0f766e"
-          }
+          "type": "row",
+          "children": [
+            {
+              "type": "image",
+              "id": "hospital-card-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 14,
+              "height": 14,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
+              "type": "text",
+              "value": "NORTHSTAR MEDICAL CENTER",
+              "style": {
+                "fontSize": 7,
+                "fontWeight": "bold",
+                "color": "#143753"
+              }
+            }
+          ],
+          "gap": 2,
+          "alignItems": "center"
         },
         {
           "type": "row",

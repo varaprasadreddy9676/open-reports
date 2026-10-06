@@ -22,12 +22,43 @@ const footerPages = () => ({
   type: "pageFooter",
   children: [X('"Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 8, ...muted } })],
 });
+const HOSPITAL_LOGO = "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png";
+const HOSPITAL_SEAL = "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png";
+const hospitalMasthead = (title, compact = false) => [
+  row([
+    { type: "image", id: "hospital-left-logo", src: HOSPITAL_LOGO, width: compact ? 24 : 30, height: compact ? 24 : 30, fit: "contain", alt: "Replaceable hospital logo" },
+    col([
+      T("NORTHSTAR MEDICAL CENTER", { style: { fontSize: compact ? 10.5 : 15, fontWeight: "bold", color: "#143753" } }),
+      T("CARE WITH CLARITY · COMPASSION IN EVERY STEP", { style: { fontSize: compact ? 5.5 : 6.5, fontWeight: "bold", color: "#167c80" } }),
+      T("123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900", { style: { fontSize: compact ? 5.5 : 6.5, color: "#526575" } }),
+    ], { width: "*" }),
+    { type: "image", id: "hospital-right-seal", src: HOSPITAL_SEAL, width: compact ? 22 : 28, height: compact ? 22 : 28, fit: "contain", alt: "Replaceable hospital accreditation seal" },
+  ], { gap: 4, alignItems: "center" }),
+  line(),
+  T(title.toUpperCase(), { style: { fontSize: 8, fontWeight: "bold", color: "#526575" } }),
+];
+const hospitalHeader = (title, compact = false) => ({ type: "pageHeader", appliesTo: "first", children: hospitalMasthead(title, compact) });
+const hospitalRepeatHeader = (patientExpression, title) => ({
+  type: "pageHeader",
+  children: [row([
+    X(patientExpression, { width: "*", style: { fontSize: 7.5, color: "#526575" } }),
+    T(title.toUpperCase(), { style: { align: "right", fontSize: 7.5, fontWeight: "bold", color: "#143753" } }),
+  ]), line()],
+});
+const hospitalFooter = (left = T("Northstar Medical Center · 080 4567 8900 · northstar.example", { width: "*", style: { fontSize: 6.5, color: "#526575" } })) => ({
+  type: "pageFooter",
+  children: [
+    line(),
+    row([left, X('"Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 7, color: "#526575" } })]),
+    T("Confidential patient information · For care-team use", { style: { fontSize: 6, align: "center", color: "#718096" } }),
+  ],
+});
 const base = (id, name, description, extra) => ({ schemaVersion: "1.0", id, name, description, locale: "en-IN", ...extra });
 const write = (file, doc) => writeFileSync(join(out, `${file}.report.json`), JSON.stringify(doc, null, 2) + "\n");
 const rng = (seed) => () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
 
 // ---------------------------------------------------------------- invoice
-write("invoice", base("invoice", "Invoice", "Logo block, customer details, item table, tax and totals, QR code, repeating footer.", {
+write("invoice", base("invoice", "Invoice", "Clinic invoice with replaceable left and right hospital logos, patient billing details, payment QR, and a branded footer. Replace the image sources and hospital details.", {
   theme: { currency: "INR" },
   datasets: [{
     id: "invoice", source: "inline",
@@ -49,13 +80,7 @@ write("invoice", base("invoice", "Invoice", "Logo block, customer details, item 
   ],
   page: A4(),
   sections: [
-    { type: "pageHeader", children: [
-      row([
-        T("ACME HEALTH", { id: "company", width: "*", style: { fontSize: 18, fontWeight: "bold", color: "#1d4ed8" } }),
-        T("INVOICE", { style: { fontSize: 18, fontWeight: "bold", align: "right" } }),
-      ]),
-      line(),
-    ] },
+    hospitalHeader("Invoice"),
     { type: "detail", children: [
       spacer(8),
       row([
@@ -82,7 +107,7 @@ write("invoice", base("invoice", "Invoice", "Logo block, customer details, item 
       spacer(14),
       { type: "keepTogether", children: [
         row([
-          { type: "qrcode", id: "pay-qr", expression: '"upi://pay?pa=acme@bank&am=" + vars.total', width: 100, height: 80 },
+          { type: "qrcode", id: "pay-qr", expression: '"upi://pay?pa=northstar@bank&am=" + vars.total', width: 100, height: 80 },
           col([
             row([T("Subtotal", { width: "*" }), X("formatCurrency(vars.subtotal)", { width: 110, style: right })]),
             row([T("GST 18%", { width: "*" }), X("formatCurrency(vars.tax)", { width: 110, style: right })]),
@@ -92,23 +117,25 @@ write("invoice", base("invoice", "Invoice", "Logo block, customer details, item 
         ]),
       ] },
     ] },
-    footerPages(),
+    hospitalFooter(),
   ],
 }));
 
 // ---------------------------------------------------------------- receipt (80mm thermal)
-write("receipt", base("receipt", "Receipt (80mm)", "Compact single-page thermal receipt.", {
+write("receipt", base("receipt", "Receipt (80mm)", "Hospital pharmacy receipt with a replaceable logo, itemized bill, payment QR and branded thank-you footer.", {
   theme: { currency: "INR" },
   datasets: [{ id: "sale", source: "inline", query: { data: {
-    shop: "ACME PHARMACY", address: "12 MG Road, Bengaluru", bill: "B-20931", time: "2025-01-15 16:20",
+    shop: "NORTHSTAR PHARMACY", address: "123 Meridian Avenue, Bengaluru", bill: "B-20931", time: "2025-01-15 16:20",
     items: [{ name: "Paracetamol 500mg", qty: 2, price: 18 }, { name: "Cough Syrup 100ml", qty: 1, price: 96 }, { name: "Vitamin C", qty: 3, price: 42 }],
   } } }],
   variables: [{ id: "total", scope: "report", expression: 'sumProduct(data.sale.items, "qty", "price")' }],
   page: { size: "custom", width: 80, height: 170, unit: "mm", orientation: "portrait", margin: { top: 4, right: 4, bottom: 4, left: 4 } },
   print: { printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 },
   sections: [{ type: "detail", children: [
-    B("data.sale.shop", { style: { align: "center", fontWeight: "bold", fontSize: 12 } }),
-    B("data.sale.address", { style: { align: "center", fontSize: 8 } }),
+    row([
+      { type: "image", id: "hospital-receipt-logo", src: HOSPITAL_LOGO, width: 18, height: 18, fit: "contain", alt: "Replaceable hospital logo" },
+      col([B("data.sale.shop", { style: { fontWeight: "bold", fontSize: 10 } }), B("data.sale.address", { style: { fontSize: 7 } })], { width: "*" }),
+    ], { gap: 3, alignItems: "center" }),
     spacer(4), line(), spacer(2),
     X('"Bill " + data.sale.bill + "   " + data.sale.time', { style: { fontSize: 8 } }),
     spacer(2),
@@ -119,6 +146,7 @@ write("receipt", base("receipt", "Receipt (80mm)", "Compact single-page thermal 
     ] },
     spacer(6),
     T("Thank you - get well soon", { style: { align: "center", fontSize: 8 } }),
+    T("Northstar Medical Center · 080 4567 8900", { style: { align: "center", fontSize: 6, ...muted } }),
     { type: "qrcode", id: "rx-qr", expression: 'data.sale.bill', width: 56, height: 56, style: { align: "center" } },
   ] }],
 }));
@@ -235,7 +263,7 @@ write("grouped-sales", base("grouped-sales", "Grouped Sales Report", "Group head
 }));
 
 // ---------------------------------------------------------------- multilingual
-write("multilingual", base("multilingual", "Multilingual Report", "English, Hindi, Telugu, Kannada, Tamil and Arabic in one document (needs the Noto fonts for PDF).", {
+write("multilingual", base("multilingual", "Multilingual Report", "Hospital patient notice with replaceable left and right logos, multilingual content and a branded footer (needs Noto fonts for PDF). Replace the image sources and hospital details.", {
   theme: { fonts: { body: "Noto Sans" } },
   datasets: [{ id: "greetings", source: "inline", query: { data: [
     { language: "English", text: "Welcome to our hospital. Please keep this document safe.", dir: "ltr" },
@@ -246,14 +274,14 @@ write("multilingual", base("multilingual", "Multilingual Report", "English, Hind
     { language: "Arabic", text: "مرحبا بكم في مستشفانا. يرجى الاحتفاظ بهذه الوثيقة.", dir: "rtl" },
   ] } }],
   page: A4(),
-  sections: [{ type: "detail", children: [
+  sections: [hospitalHeader("Patient Notice"), { type: "detail", children: [
     T("Multilingual notice", { style: { fontSize: 18, fontWeight: "bold" } }), spacer(10),
     { type: "repeater", id: "lines", dataset: "greetings", children: [
       B("row.language", { style: { fontSize: 8, ...muted } }),
       B("row.text", { style: { fontSize: 12 } }),
       spacer(8),
     ] },
-  ] }],
+  ] }, hospitalFooter()],
 }));
 
 // ---------------------------------------------------------------- conditional
@@ -353,7 +381,7 @@ write("specimen-label", base("specimen-label", "Specimen Label 40x25mm", "Tiny l
 }));
 
 // ---------------------------------------------------------------- lab report
-write("lab-report", base("lab-report", "Laboratory Report", "Patient block, results table with out-of-range highlighting, interpretation kept with the result.", {
+write("lab-report", base("lab-report", "Laboratory Report", "Hospital letterhead with replaceable left and right logos, a results table, and a branded footer. Replace the image sources and hospital details to make it yours.", {
   datasets: [{ id: "report", source: "inline", query: { data: {
     patient: { name: "Alex Morgan", age: "31 Y", sex: "Male", uhid: "UH12345", consultant: "Dr. Smith" },
     collected: "2025-10-01 16:20", test: "Complete Blood Count",
@@ -367,7 +395,8 @@ write("lab-report", base("lab-report", "Laboratory Report", "Patient block, resu
   } } }],
   page: A4(),
   sections: [
-    { type: "pageHeader", children: [row([T("ACME DIAGNOSTICS", { width: "*", style: { fontSize: 16, fontWeight: "bold", color: "#0f766e" } }), T("Laboratory Report", { style: { align: "right", fontWeight: "bold" } })]), line()] },
+    hospitalHeader("Laboratory Report"),
+    hospitalRepeatHeader('"Patient: " + data.report.patient.name + " · UHID " + data.report.patient.uhid', "Laboratory Report"),
     { type: "detail", children: [
       spacer(8),
       row([
@@ -388,7 +417,7 @@ write("lab-report", base("lab-report", "Laboratory Report", "Patient block, resu
       spacer(10),
       { type: "keepTogether", children: [T("Interpretation", { style: { fontWeight: "bold" } }), B("data.report.interpretation")] },
     ] },
-    { type: "pageFooter", children: [row([T("Dr. Smith, MD Pathology", { width: "*", style: { fontSize: 8 } }), X('"Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 8 } })])] },
+    hospitalFooter(T("Dr. Smith, MD Pathology · Sign and stamp", { width: "*", style: { fontSize: 7, fontWeight: "bold", color: "#526575" } })),
   ],
 }));
 
@@ -396,14 +425,15 @@ write("lab-report", base("lab-report", "Laboratory Report", "Patient block, resu
 const labelPage = (w, h, extra = {}) => ({ size: "custom", width: w, height: h, unit: "mm", orientation: "landscape", margin: { top: 1.5, right: 2, bottom: 1.5, left: 2 }, ...extra });
 const patientData = { name: "Alex Morgan", uhid: "UH12345", age: "31", sex: "M", dob: "1994-05-12", ward: "Ward 4B", bed: "12", doctor: "Dr. Smith", allergy: "Penicillin", admitted: "2025-10-01 09:40" };
 
-write("wristband", base("wristband", "Patient Wristband 25x250mm", "Long thin patient wristband: name, UHID, DOB and a scannable barcode.", {
+write("wristband", base("wristband", "Patient Wristband 25x250mm", "Long hospital wristband with a replaceable logo, patient and allergy details, and a scannable UHID barcode.", {
   datasets: [{ id: "patient", source: "inline", query: { data: patientData } }],
   page: { size: "custom", width: 250, height: 25, unit: "mm", orientation: "landscape", margin: { top: 2, right: 4, bottom: 2, left: 4 } },
   print: { name: "Zebra wristband", printerType: "wristband", language: "zpl", dpi: 300, safeMargin: 1 },
   sections: [{ type: "detail", children: [
     row([
+      { type: "image", id: "hospital-wristband-logo", src: HOSPITAL_LOGO, width: 17, height: 17, fit: "contain", alt: "Replaceable hospital logo" },
       col([B("data.patient.name", { style: { fontSize: 12, fontWeight: "bold" } }), X('"UHID " + data.patient.uhid + "   DOB " + data.patient.dob + "   " + data.patient.sex', { style: { fontSize: 8 } }), X('"Allergy: " + data.patient.allergy', { style: { fontSize: 8, fontWeight: "bold", color: "#b91c1c" } })], { width: "*" }),
-      { type: "barcode", id: "uhid-barcode", value: "", expression: "data.patient.uhid", symbology: "code128", width: 90, height: 18 },
+      { type: "barcode", id: "uhid-barcode", value: "", expression: "data.patient.uhid", symbology: "code128", width: 80, height: 18 },
     ], { alignItems: "center", gap: 6 }),
   ] }],
 }));
@@ -435,12 +465,15 @@ write("blood-bag-label", base("blood-bag-label", "Blood Bag Label 100x50mm", "Bl
   ] }],
 }));
 
-write("patient-id-card", base("patient-id-card", "Patient ID Card", "CR80 card (85.6x54mm) with patient photo placeholder, UHID and QR.", {
+write("patient-id-card", base("patient-id-card", "Patient ID Card", "Hospital patient ID card with a replaceable logo, patient details, UHID and QR code.", {
   datasets: [{ id: "patient", source: "inline", query: { data: patientData } }],
   page: { size: "custom", width: 85.6, height: 54, unit: "mm", orientation: "landscape", margin: { top: 4, right: 4, bottom: 4, left: 4 } },
   print: { name: "Card printer", printerType: "card", language: "pdf", dpi: 300, safeMargin: 2 },
   sections: [{ type: "detail", children: [
-    T("ACME HEALTH", { style: { fontSize: 9, fontWeight: "bold", color: "#0f766e" } }),
+    row([
+      { type: "image", id: "hospital-card-logo", src: HOSPITAL_LOGO, width: 14, height: 14, fit: "contain", alt: "Replaceable hospital logo" },
+      T("NORTHSTAR MEDICAL CENTER", { style: { fontSize: 7, fontWeight: "bold", color: "#143753" } }),
+    ], { gap: 2, alignItems: "center" }),
     row([
       col([B("data.patient.name", { style: { fontSize: 11, fontWeight: "bold" } }), X('"UHID: " + data.patient.uhid', { style: { fontSize: 8 } }), X('"DOB: " + data.patient.dob + "  " + data.patient.sex', { style: { fontSize: 8 } })], { width: "*" }),
       { type: "qrcode", id: "card-qr", value: "", expression: "data.patient.uhid", width: 52, height: 52 },
@@ -448,14 +481,17 @@ write("patient-id-card", base("patient-id-card", "Patient ID Card", "CR80 card (
   ] }],
 }));
 
-write("receipt-58mm", base("receipt-58mm", "Receipt 58mm", "Narrow thermal receipt with line items and total.", {
+write("receipt-58mm", base("receipt-58mm", "Receipt 58mm", "Compact hospital pharmacy receipt with a replaceable logo, itemized total and contact footer.", {
   theme: { currency: "INR" },
-  datasets: [{ id: "sale", source: "inline", query: { data: { store: "ACME PHARMACY", number: "R-5521", date: "2025-10-01 16:40", items: [{ name: "Paracetamol 500", qty: 2, price: 24 }, { name: "ORS sachet", qty: 3, price: 18 }, { name: "Vitamin C", qty: 1, price: 95 }] } } }],
+  datasets: [{ id: "sale", source: "inline", query: { data: { store: "NORTHSTAR PHARMACY", number: "R-5521", date: "2025-10-01 16:40", items: [{ name: "Paracetamol 500", qty: 2, price: 24 }, { name: "ORS sachet", qty: 3, price: 18 }, { name: "Vitamin C", qty: 1, price: 95 }] } } }],
   variables: [{ id: "total", scope: "report", expression: 'sumProduct(data.sale.items, "qty", "price")' }],
   page: { size: "custom", width: 58, height: 160, unit: "mm", orientation: "portrait", margin: { top: 3, right: 3, bottom: 3, left: 3 } },
   print: { name: "58mm thermal", printerType: "receipt", language: "escpos", dpi: 203, safeMargin: 2 },
   sections: [{ type: "detail", children: [
-    B("data.sale.store", { style: { fontSize: 10, fontWeight: "bold", align: "center" } }),
+    row([
+      { type: "image", id: "hospital-receipt-logo", src: HOSPITAL_LOGO, width: 12, height: 12, fit: "contain", alt: "Replaceable hospital logo" },
+      B("data.sale.store", { style: { fontSize: 8, fontWeight: "bold" } }),
+    ], { gap: 2, alignItems: "center" }),
     X('data.sale.number + "  " + data.sale.date', { style: { fontSize: 6, align: "center", ...muted } }),
     line(),
     { type: "table", id: "lines", dataset: "sale.items", showHeader: false, style: { fontSize: 7 }, columns: [
@@ -465,7 +501,7 @@ write("receipt-58mm", base("receipt-58mm", "Receipt 58mm", "Narrow thermal recei
     ] },
     line(),
     row([T("TOTAL", { width: "*", style: { fontSize: 9, fontWeight: "bold" } }), X("vars.total", { format: "currency", style: { fontSize: 9, fontWeight: "bold", align: "right" } })]),
-    T("Thank you", { style: { fontSize: 6, align: "center", ...muted } }),
+    T("Thank you · Northstar Medical Center · 080 4567 8900", { style: { fontSize: 5.5, align: "center", ...muted } }),
   ] }],
 }));
 
@@ -495,7 +531,7 @@ write("label-100x50", base("label-100x50", "Label 100x50mm", "Shipping-style lab
   ] }],
 }));
 
-write("prescription", base("prescription", "Prescription", "Doctor's prescription with patient block, medicine table and signature area.", {
+write("prescription", base("prescription", "Prescription", "Hospital letterhead with replaceable left and right logos, patient and medicine details, and a signature area. Replace the image sources and hospital details.", {
   datasets: [{ id: "rx", source: "inline", query: { data: {
     doctor: { name: "Dr. A. Smith", reg: "KMC 48213", clinic: "ACME Health Clinic, Bengaluru" },
     patient: { name: "Alex Morgan", age: "31", sex: "Male", uhid: "UH12345", date: "2025-10-01" },
@@ -508,10 +544,11 @@ write("prescription", base("prescription", "Prescription", "Doctor's prescriptio
   } } }],
   page: A4({ size: "A5" }),
   sections: [
-    { type: "pageHeader", appliesTo: "first", children: [B("data.rx.doctor.name", { style: { fontSize: 15, fontWeight: "bold", color: "#0f766e" } }), X('data.rx.doctor.reg + " · " + data.rx.doctor.clinic', { style: { fontSize: 8, ...muted } }), line()] },
-    { type: "pageHeader", children: [X('"Prescription · " + data.rx.patient.name', { style: { fontSize: 8, ...muted } }), line()] },
+    hospitalHeader("Prescription", true),
+    hospitalRepeatHeader('"Prescription · " + data.rx.patient.name + " · UHID " + data.rx.patient.uhid', "Prescription"),
     { type: "detail", children: [
       spacer(6),
+      X('data.rx.doctor.name + " · " + data.rx.doctor.reg + " · " + data.rx.doctor.clinic', { style: { fontSize: 8, ...muted } }),
       row([X('"Patient: " + data.rx.patient.name + " (" + data.rx.patient.age + "/" + data.rx.patient.sex + ")"', { width: "*", style: bold }), X('"Date: " + data.rx.patient.date', { style: { align: "right" } })]),
       X('"Diagnosis: " + data.rx.diagnosis', { style: { fontSize: 9 } }),
       spacer(8),
@@ -525,11 +562,11 @@ write("prescription", base("prescription", "Prescription", "Doctor's prescriptio
       spacer(40),
       { type: "keepTogether", children: [line(), T("Doctor's signature", { style: { fontSize: 8, align: "right", ...muted } })] },
     ] },
-    footerPages(),
+    hospitalFooter(B("data.rx.doctor.name", { width: "*", style: { fontSize: 7, color: "#526575" } })),
   ],
 }));
 
-write("radiology-report", base("radiology-report", "Radiology Report", "Imaging report with findings kept with their headings and an impression at the end.", {
+write("radiology-report", base("radiology-report", "Radiology Report", "Hospital letterhead with replaceable left and right logos, patient and study details, findings, and a branded footer. Replace the image sources and hospital details.", {
   datasets: [{ id: "study", source: "inline", query: { data: {
     patient: { name: "Alex Morgan", age: "31 Y", sex: "Male", uhid: "UH12345" },
     exam: "X-ray chest PA view", date: "2025-10-01", radiologist: "Dr. R. Rao, MD Radiology",
@@ -541,7 +578,8 @@ write("radiology-report", base("radiology-report", "Radiology Report", "Imaging 
   } } }],
   page: A4(),
   sections: [
-    { type: "pageHeader", children: [row([T("ACME RADIOLOGY", { width: "*", style: { fontSize: 16, fontWeight: "bold", color: "#1d4ed8" } }), T("Radiology Report", { style: { align: "right", fontWeight: "bold" } })]), line()] },
+    hospitalHeader("Radiology Report"),
+    hospitalRepeatHeader('"Patient: " + data.study.patient.name + " · UHID " + data.study.patient.uhid', "Radiology Report"),
     { type: "detail", children: [
       spacer(8),
       row([X('"Patient: " + data.study.patient.name + " · " + data.study.patient.age + " / " + data.study.patient.sex', { width: "*", style: bold }), X('"UHID: " + data.study.patient.uhid')]),
@@ -552,11 +590,11 @@ write("radiology-report", base("radiology-report", "Radiology Report", "Imaging 
       ] },
       { type: "keepTogether", children: [T("Impression", { style: { fontWeight: "bold", fontSize: 11 } }), B("data.study.impression", { style: bold })] },
     ] },
-    { type: "pageFooter", children: [row([B("data.study.radiologist", { width: "*", style: { fontSize: 8 } }), X('"Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 8 } })])] },
+    hospitalFooter(B("data.study.radiologist", { width: "*", style: { fontSize: 7, fontWeight: "bold", color: "#526575" } })),
   ],
 }));
 
-write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi-page hospital discharge summary with first-page letterhead and repeating patient banner.", {
+write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi-page discharge summary with replaceable left and right hospital logos, a repeating patient banner, and a branded footer. Replace the image sources and hospital details.", {
   datasets: [{ id: "adm", source: "inline", query: { data: {
     patient: { name: "Alex Morgan", age: "31 Y", sex: "Male", uhid: "UH12345", ward: "Ward 4B" },
     admitted: "2025-09-28", discharged: "2025-10-01", doctor: "Dr. A. Smith", diagnosis: "Acute appendicitis - post laparoscopic appendicectomy",
@@ -570,8 +608,8 @@ write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi
   } } }],
   page: A4(),
   sections: [
-    { type: "pageHeader", appliesTo: "first", children: [row([T("ACME HOSPITAL", { width: "*", style: { fontSize: 20, fontWeight: "bold", color: "#0f766e" } }), T("Discharge Summary", { style: { align: "right", fontSize: 12, fontWeight: "bold" } })]), line()] },
-    { type: "pageHeader", children: [X('data.adm.patient.name + " · UHID " + data.adm.patient.uhid + " · Discharge Summary"', { style: { fontSize: 8, ...muted } }), line()] },
+    hospitalHeader("Discharge Summary"),
+    hospitalRepeatHeader('data.adm.patient.name + " · UHID " + data.adm.patient.uhid', "Discharge Summary"),
     { type: "detail", children: [
       spacer(6),
       row([
@@ -592,8 +630,8 @@ write("discharge-summary", base("discharge-summary", "Discharge Summary", "Multi
       spacer(8),
       { type: "keepTogether", children: [T("Follow-up", { style: { fontWeight: "bold", fontSize: 11 } }), B("data.adm.followup")] },
     ] },
-    { type: "pageFooter", appliesTo: "last", children: [row([B("data.adm.doctor", { width: "*", style: { fontSize: 9, fontWeight: "bold" } }), X('"Page " + page.number + " of " + page.total', { style: { align: "right", fontSize: 8 } })]), T("Signature and stamp", { style: { fontSize: 8, ...muted } })] },
-    footerPages(),
+    { type: "pageFooter", appliesTo: "last", children: [row([B("data.adm.doctor", { width: "*", style: { fontSize: 8, fontWeight: "bold" } }), T("Signature and stamp", { style: { fontSize: 7, ...muted } })])] },
+    hospitalFooter(),
   ],
 }));
 
@@ -633,7 +671,7 @@ write("sticker-sheet", base("sticker-sheet", "Sticker Sheet (A4, 2x4 labels)", "
     const dept = depts[Math.floor(r() * 3)];
     visits.push({ dept, doctor: docs[dept][Math.floor(r() * 2)], patient: `Patient ${String(i + 1).padStart(3, "0")}`, uhid: `UH${1000 + i}`, amount: Math.round(r() * 3000 + 300), note: r() > 0.7 ? "Follow-up advised in two weeks with repeat investigations." : "" });
   }
-  write("department-report", base("department-report", "Department Revenue (banded)", "Report header, page header/footer, nested groups (department → doctor) with repeated group headers, two detail bands, subtotals, grand total and a no-data band.", {
+  write("department-report", base("department-report", "Department Revenue (banded)", "Hospital-branded grouped report with replaceable left and right logos, repeating headers, subtotals, and a confidentiality footer. Replace the image sources and hospital details.", {
     theme: { currency: "INR" },
     datasets: [{ id: "visits", source: "inline", query: { data: visits } }],
     groups: [
@@ -643,9 +681,13 @@ write("sticker-sheet", base("sticker-sheet", "Sticker Sheet (A4, 2x4 labels)", "
     page: A4(),
     watermark: { text: "SAMPLE", opacity: 0.08, pages: "first" },
     sections: [
-      { type: "reportHeader", name: "Report title", children: [T("Department Revenue Report", { style: { fontSize: 18, fontWeight: "bold", color: "#0f766e" } }), T("Outpatient visits grouped by department and doctor", { style: { fontSize: 9, ...muted } }), spacer(6)] },
-      { type: "pageHeader", name: "Page header", appliesTo: "standard", children: [row([T("ACME HOSPITAL", { width: "*", style: { fontSize: 9, fontWeight: "bold" } }), T("Department Revenue", { style: { fontSize: 9, align: "right", ...muted } })]), line()] },
-      { type: "pageFooter", name: "Page footer", children: [line(), X('"Page " + page.number + " of " + page.total', { style: { fontSize: 8, align: "right", ...muted } })] },
+      { type: "reportHeader", name: "Report title", children: [...hospitalMasthead("Department Revenue Report"), T("Outpatient visits grouped by department and doctor", { style: { fontSize: 9, ...muted } }), spacer(6)] },
+      { type: "pageHeader", name: "Page header", appliesTo: "standard", children: [row([
+        { type: "image", id: "hospital-repeat-logo", src: HOSPITAL_LOGO, width: 14, height: 14, fit: "contain", alt: "Replaceable hospital logo" },
+        T("NORTHSTAR MEDICAL CENTER", { width: "*", style: { fontSize: 8, fontWeight: "bold", color: "#143753" } }),
+        T("Department Revenue", { style: { fontSize: 8, align: "right", color: "#526575" } }),
+      ], { gap: 3, alignItems: "center" }), line()] },
+      { type: "pageFooter", name: "Page footer", children: hospitalFooter().children },
       { type: "dataHeader", name: "Column headings", dataset: "visits", children: [row([T("Patient", { width: "*", style: { fontWeight: "bold", fontSize: 9 } }), T("UHID", { width: 70, style: { fontWeight: "bold", fontSize: 9 } }), T("Amount", { width: 80, style: { fontWeight: "bold", fontSize: 9, align: "right" } })]), line()] },
       { type: "groupHeader", name: "Department header", groupId: "dept", children: [X('"Department: " + group.key', { style: { fontSize: 12, fontWeight: "bold", color: "#1d4ed8" }, expression: '"Department: " + group.key' })], style: { background: "#eff6ff" } },
       { type: "groupHeader", name: "Doctor header", groupId: "doctor", children: [X('"   " + group.key + "  (" + group.count + " visits)"', { style: { fontWeight: "bold", fontSize: 10 } })] },

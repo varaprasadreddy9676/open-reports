@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "multilingual",
   "name": "Multilingual Report",
-  "description": "English, Hindi, Telugu, Kannada, Tamil and Arabic in one document (needs the Noto fonts for PDF).",
+  "description": "Hospital patient notice with replaceable left and right logos, multilingual content and a branded footer (needs Noto fonts for PDF). Replace the image sources and hospital details.",
   "locale": "en-IN",
   "theme": {
     "fonts": {
@@ -62,6 +62,81 @@
   },
   "sections": [
     {
+      "type": "pageHeader",
+      "appliesTo": "first",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "image",
+              "id": "hospital-left-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 30,
+              "height": 30,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "NORTHSTAR MEDICAL CENTER",
+                  "style": {
+                    "fontSize": 15,
+                    "fontWeight": "bold",
+                    "color": "#143753"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#167c80"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900",
+                  "style": {
+                    "fontSize": 6.5,
+                    "color": "#526575"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "image",
+              "id": "hospital-right-seal",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png",
+              "width": 28,
+              "height": 28,
+              "fit": "contain",
+              "alt": "Replaceable hospital accreditation seal"
+            }
+          ],
+          "gap": 4,
+          "alignItems": "center"
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "value": "PATIENT NOTICE",
+          "style": {
+            "fontSize": 8,
+            "fontWeight": "bold",
+            "color": "#526575"
+          }
+        }
+      ]
+    },
+    {
       "type": "detail",
       "children": [
         {
@@ -101,6 +176,46 @@
               "height": 8
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Northstar Medical Center · 080 4567 8900 · northstar.example",
+              "width": "*",
+              "style": {
+                "fontSize": 6.5,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#526575"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "value": "Confidential patient information · For care-team use",
+          "style": {
+            "fontSize": 6,
+            "align": "center",
+            "color": "#718096"
+          }
         }
       ]
     }

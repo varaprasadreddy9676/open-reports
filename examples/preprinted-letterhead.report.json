@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "preprinted-letterhead",
   "name": "Hospital Letterhead · Pre-printed Page",
-  "description": "A fictional hospital letterhead printed as a page background, with the discharge content flowing in the open area and page numbering added separately.",
+  "description": "A fictional hospital letterhead printed as a page background, with discharge content in the open area and page numbering. Replace the background image URL to try your own pre-printed stationery.",
   "locale": "en-IN",
   "datasets": [
     {

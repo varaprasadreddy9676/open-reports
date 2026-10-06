@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "receipt-58mm",
   "name": "Receipt 58mm",
-  "description": "Narrow thermal receipt with line items and total.",
+  "description": "Compact hospital pharmacy receipt with a replaceable logo, itemized total and contact footer.",
   "locale": "en-IN",
   "theme": {
     "currency": "INR"
@@ -13,7 +13,7 @@
       "source": "inline",
       "query": {
         "data": {
-          "store": "ACME PHARMACY",
+          "store": "NORTHSTAR PHARMACY",
           "number": "R-5521",
           "date": "2025-10-01 16:40",
           "items": [
@@ -69,13 +69,28 @@
       "type": "detail",
       "children": [
         {
-          "type": "text",
-          "binding": "data.sale.store",
-          "style": {
-            "fontSize": 10,
-            "fontWeight": "bold",
-            "align": "center"
-          }
+          "type": "row",
+          "children": [
+            {
+              "type": "image",
+              "id": "hospital-receipt-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 12,
+              "height": 12,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
+              "type": "text",
+              "binding": "data.sale.store",
+              "style": {
+                "fontSize": 8,
+                "fontWeight": "bold"
+              }
+            }
+          ],
+          "gap": 2,
+          "alignItems": "center"
         },
         {
           "type": "text",
@@ -150,9 +165,9 @@
         },
         {
           "type": "text",
-          "value": "Thank you",
+          "value": "Thank you · Northstar Medical Center · 080 4567 8900",
           "style": {
-            "fontSize": 6,
+            "fontSize": 5.5,
             "align": "center",
             "color": "#6b7280"
           }

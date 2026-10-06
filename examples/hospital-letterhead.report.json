@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "hospital-letterhead",
   "name": "Hospital Letterhead · Editable Logos",
-  "description": "A fictional discharge summary with separately positioned left and right logos, editable hospital details, a patient continuation banner, and a signed footer.",
+  "description": "A fictional discharge summary with separate left and right logo images, editable hospital details, a patient continuation banner, and a signed footer. Replace either image URL and the hospital text to try your own branding.",
   "locale": "en-IN",
   "datasets": [
     {

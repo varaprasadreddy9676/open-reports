@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "lab-report",
   "name": "Laboratory Report",
-  "description": "Patient block, results table with out-of-range highlighting, interpretation kept with the result.",
+  "description": "Hospital letterhead with replaceable left and right logos, a results table, and a branded footer. Replace the image sources and hospital details to make it yours.",
   "locale": "en-IN",
   "datasets": [
     {
@@ -68,26 +68,102 @@
   "sections": [
     {
       "type": "pageHeader",
+      "appliesTo": "first",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "image",
+              "id": "hospital-left-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 30,
+              "height": 30,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "NORTHSTAR MEDICAL CENTER",
+                  "style": {
+                    "fontSize": 15,
+                    "fontWeight": "bold",
+                    "color": "#143753"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#167c80"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900",
+                  "style": {
+                    "fontSize": 6.5,
+                    "color": "#526575"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "image",
+              "id": "hospital-right-seal",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png",
+              "width": 28,
+              "height": 28,
+              "fit": "contain",
+              "alt": "Replaceable hospital accreditation seal"
+            }
+          ],
+          "gap": 4,
+          "alignItems": "center"
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "text",
+          "value": "LABORATORY REPORT",
+          "style": {
+            "fontSize": 8,
+            "fontWeight": "bold",
+            "color": "#526575"
+          }
+        }
+      ]
+    },
+    {
+      "type": "pageHeader",
       "children": [
         {
           "type": "row",
           "children": [
             {
               "type": "text",
-              "value": "ACME DIAGNOSTICS",
+              "expression": "\"Patient: \" + data.report.patient.name + \" · UHID \" + data.report.patient.uhid",
               "width": "*",
               "style": {
-                "fontSize": 16,
-                "fontWeight": "bold",
-                "color": "#0f766e"
+                "fontSize": 7.5,
+                "color": "#526575"
               }
             },
             {
               "type": "text",
-              "value": "Laboratory Report",
+              "value": "LABORATORY REPORT",
               "style": {
                 "align": "right",
-                "fontWeight": "bold"
+                "fontSize": 7.5,
+                "fontWeight": "bold",
+                "color": "#143753"
               }
             }
           ]
@@ -279,14 +355,19 @@
       "type": "pageFooter",
       "children": [
         {
+          "type": "line"
+        },
+        {
           "type": "row",
           "children": [
             {
               "type": "text",
-              "value": "Dr. Smith, MD Pathology",
+              "value": "Dr. Smith, MD Pathology · Sign and stamp",
               "width": "*",
               "style": {
-                "fontSize": 8
+                "fontSize": 7,
+                "fontWeight": "bold",
+                "color": "#526575"
               }
             },
             {
@@ -294,10 +375,20 @@
               "expression": "\"Page \" + page.number + \" of \" + page.total",
               "style": {
                 "align": "right",
-                "fontSize": 8
+                "fontSize": 7,
+                "color": "#526575"
               }
             }
           ]
+        },
+        {
+          "type": "text",
+          "value": "Confidential patient information · For care-team use",
+          "style": {
+            "fontSize": 6,
+            "align": "center",
+            "color": "#718096"
+          }
         }
       ]
     }

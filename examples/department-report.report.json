@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "department-report",
   "name": "Department Revenue (banded)",
-  "description": "Report header, page header/footer, nested groups (department → doctor) with repeated group headers, two detail bands, subtotals, grand total and a no-data band.",
+  "description": "Hospital-branded grouped report with replaceable left and right logos, repeating headers, subtotals, and a confidentiality footer. Replace the image sources and hospital details.",
   "locale": "en-IN",
   "theme": {
     "currency": "INR"
@@ -780,12 +780,72 @@
       "name": "Report title",
       "children": [
         {
+          "type": "row",
+          "children": [
+            {
+              "type": "image",
+              "id": "hospital-left-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 30,
+              "height": 30,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "NORTHSTAR MEDICAL CENTER",
+                  "style": {
+                    "fontSize": 15,
+                    "fontWeight": "bold",
+                    "color": "#143753"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#167c80"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900",
+                  "style": {
+                    "fontSize": 6.5,
+                    "color": "#526575"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "image",
+              "id": "hospital-right-seal",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png",
+              "width": 28,
+              "height": 28,
+              "fit": "contain",
+              "alt": "Replaceable hospital accreditation seal"
+            }
+          ],
+          "gap": 4,
+          "alignItems": "center"
+        },
+        {
+          "type": "line"
+        },
+        {
           "type": "text",
-          "value": "Department Revenue Report",
+          "value": "DEPARTMENT REVENUE REPORT",
           "style": {
-            "fontSize": 18,
+            "fontSize": 8,
             "fontWeight": "bold",
-            "color": "#0f766e"
+            "color": "#526575"
           }
         },
         {
@@ -811,24 +871,36 @@
           "type": "row",
           "children": [
             {
+              "type": "image",
+              "id": "hospital-repeat-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 14,
+              "height": 14,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
               "type": "text",
-              "value": "ACME HOSPITAL",
+              "value": "NORTHSTAR MEDICAL CENTER",
               "width": "*",
               "style": {
-                "fontSize": 9,
-                "fontWeight": "bold"
+                "fontSize": 8,
+                "fontWeight": "bold",
+                "color": "#143753"
               }
             },
             {
               "type": "text",
               "value": "Department Revenue",
               "style": {
-                "fontSize": 9,
+                "fontSize": 8,
                 "align": "right",
-                "color": "#6b7280"
+                "color": "#526575"
               }
             }
-          ]
+          ],
+          "gap": 3,
+          "alignItems": "center"
         },
         {
           "type": "line"
@@ -843,12 +915,35 @@
           "type": "line"
         },
         {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Northstar Medical Center · 080 4567 8900 · northstar.example",
+              "width": "*",
+              "style": {
+                "fontSize": 6.5,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#526575"
+              }
+            }
+          ]
+        },
+        {
           "type": "text",
-          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "value": "Confidential patient information · For care-team use",
           "style": {
-            "fontSize": 8,
-            "align": "right",
-            "color": "#6b7280"
+            "fontSize": 6,
+            "align": "center",
+            "color": "#718096"
           }
         }
       ]

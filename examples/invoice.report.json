@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "invoice",
   "name": "Invoice",
-  "description": "Logo block, customer details, item table, tax and totals, QR code, repeating footer.",
+  "description": "Clinic invoice with replaceable left and right hospital logos, patient billing details, payment QR, and a branded footer. Replace the image sources and hospital details.",
   "locale": "en-IN",
   "theme": {
     "currency": "INR"
@@ -78,34 +78,76 @@
   "sections": [
     {
       "type": "pageHeader",
+      "appliesTo": "first",
       "children": [
         {
           "type": "row",
           "children": [
             {
-              "type": "text",
-              "value": "ACME HEALTH",
-              "id": "company",
-              "width": "*",
-              "style": {
-                "fontSize": 18,
-                "fontWeight": "bold",
-                "color": "#1d4ed8"
-              }
+              "type": "image",
+              "id": "hospital-left-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 30,
+              "height": 30,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
             },
             {
-              "type": "text",
-              "value": "INVOICE",
-              "style": {
-                "fontSize": 18,
-                "fontWeight": "bold",
-                "align": "right"
-              }
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "NORTHSTAR MEDICAL CENTER",
+                  "style": {
+                    "fontSize": 15,
+                    "fontWeight": "bold",
+                    "color": "#143753"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#167c80"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900",
+                  "style": {
+                    "fontSize": 6.5,
+                    "color": "#526575"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "image",
+              "id": "hospital-right-seal",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png",
+              "width": 28,
+              "height": 28,
+              "fit": "contain",
+              "alt": "Replaceable hospital accreditation seal"
             }
-          ]
+          ],
+          "gap": 4,
+          "alignItems": "center"
         },
         {
           "type": "line"
+        },
+        {
+          "type": "text",
+          "value": "INVOICE",
+          "style": {
+            "fontSize": 8,
+            "fontWeight": "bold",
+            "color": "#526575"
+          }
         }
       ]
     },
@@ -239,7 +281,7 @@
                 {
                   "type": "qrcode",
                   "id": "pay-qr",
-                  "expression": "\"upi://pay?pa=acme@bank&am=\" + vars.total",
+                  "expression": "\"upi://pay?pa=northstar@bank&am=\" + vars.total",
                   "width": 100,
                   "height": 80
                 },
@@ -322,12 +364,38 @@
       "type": "pageFooter",
       "children": [
         {
+          "type": "line"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Northstar Medical Center · 080 4567 8900 · northstar.example",
+              "width": "*",
+              "style": {
+                "fontSize": 6.5,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#526575"
+              }
+            }
+          ]
+        },
+        {
           "type": "text",
-          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "value": "Confidential patient information · For care-team use",
           "style": {
-            "align": "right",
-            "fontSize": 8,
-            "color": "#6b7280"
+            "fontSize": 6,
+            "align": "center",
+            "color": "#718096"
           }
         }
       ]

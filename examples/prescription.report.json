@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "prescription",
   "name": "Prescription",
-  "description": "Doctor's prescription with patient block, medicine table and signature area.",
+  "description": "Hospital letterhead with replaceable left and right logos, patient and medicine details, and a signature area. Replace the image sources and hospital details.",
   "locale": "en-IN",
   "datasets": [
     {
@@ -64,24 +64,73 @@
       "appliesTo": "first",
       "children": [
         {
-          "type": "text",
-          "binding": "data.rx.doctor.name",
-          "style": {
-            "fontSize": 15,
-            "fontWeight": "bold",
-            "color": "#0f766e"
-          }
-        },
-        {
-          "type": "text",
-          "expression": "data.rx.doctor.reg + \" · \" + data.rx.doctor.clinic",
-          "style": {
-            "fontSize": 8,
-            "color": "#6b7280"
-          }
+          "type": "row",
+          "children": [
+            {
+              "type": "image",
+              "id": "hospital-left-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 24,
+              "height": 24,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "NORTHSTAR MEDICAL CENTER",
+                  "style": {
+                    "fontSize": 10.5,
+                    "fontWeight": "bold",
+                    "color": "#143753"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                  "style": {
+                    "fontSize": 5.5,
+                    "fontWeight": "bold",
+                    "color": "#167c80"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900",
+                  "style": {
+                    "fontSize": 5.5,
+                    "color": "#526575"
+                  }
+                }
+              ],
+              "width": "*"
+            },
+            {
+              "type": "image",
+              "id": "hospital-right-seal",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png",
+              "width": 22,
+              "height": 22,
+              "fit": "contain",
+              "alt": "Replaceable hospital accreditation seal"
+            }
+          ],
+          "gap": 4,
+          "alignItems": "center"
         },
         {
           "type": "line"
+        },
+        {
+          "type": "text",
+          "value": "PRESCRIPTION",
+          "style": {
+            "fontSize": 8,
+            "fontWeight": "bold",
+            "color": "#526575"
+          }
         }
       ]
     },
@@ -89,12 +138,28 @@
       "type": "pageHeader",
       "children": [
         {
-          "type": "text",
-          "expression": "\"Prescription · \" + data.rx.patient.name",
-          "style": {
-            "fontSize": 8,
-            "color": "#6b7280"
-          }
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "expression": "\"Prescription · \" + data.rx.patient.name + \" · UHID \" + data.rx.patient.uhid",
+              "width": "*",
+              "style": {
+                "fontSize": 7.5,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "value": "PRESCRIPTION",
+              "style": {
+                "align": "right",
+                "fontSize": 7.5,
+                "fontWeight": "bold",
+                "color": "#143753"
+              }
+            }
+          ]
         },
         {
           "type": "line"
@@ -107,6 +172,14 @@
         {
           "type": "spacer",
           "height": 6
+        },
+        {
+          "type": "text",
+          "expression": "data.rx.doctor.name + \" · \" + data.rx.doctor.reg + \" · \" + data.rx.doctor.clinic",
+          "style": {
+            "fontSize": 8,
+            "color": "#6b7280"
+          }
         },
         {
           "type": "row",
@@ -206,12 +279,38 @@
       "type": "pageFooter",
       "children": [
         {
+          "type": "line"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "binding": "data.rx.doctor.name",
+              "width": "*",
+              "style": {
+                "fontSize": 7,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#526575"
+              }
+            }
+          ]
+        },
+        {
           "type": "text",
-          "expression": "\"Page \" + page.number + \" of \" + page.total",
+          "value": "Confidential patient information · For care-team use",
           "style": {
-            "align": "right",
-            "fontSize": 8,
-            "color": "#6b7280"
+            "fontSize": 6,
+            "align": "center",
+            "color": "#718096"
           }
         }
       ]

@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "id": "wristband",
   "name": "Patient Wristband 25x250mm",
-  "description": "Long thin patient wristband: name, UHID, DOB and a scannable barcode.",
+  "description": "Long hospital wristband with a replaceable logo, patient and allergy details, and a scannable UHID barcode.",
   "locale": "en-IN",
   "datasets": [
     {
@@ -52,6 +52,15 @@
           "type": "row",
           "children": [
             {
+              "type": "image",
+              "id": "hospital-wristband-logo",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 17,
+              "height": 17,
+              "fit": "contain",
+              "alt": "Replaceable hospital logo"
+            },
+            {
               "type": "column",
               "children": [
                 {
@@ -87,7 +96,7 @@
               "value": "",
               "expression": "data.patient.uhid",
               "symbology": "code128",
-              "width": 90,
+              "width": 80,
               "height": 18
             }
           ],
