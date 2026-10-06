@@ -1,12 +1,13 @@
 # Practical product videos
 
-These are narrated browser recordings of five real Open Reports workflows:
+These are narrated browser recordings of six real Open Reports workflows:
 
 1. Edit an invoice and preview the PDF.
 2. Import a Word template as an editable report.
 3. Convert a folder of JRXML reports and review the drafts.
 4. Preview a long supermarket basket as a continuous 58 mm receipt.
 5. Summarize sales by region and service with a crosstab.
+6. Review a discharge summary with a hospital masthead, repeating patient banner and sign-off footer.
 
 The recordings show the actual app running in Chromium at 1600 × 900, with voice narration, on-screen captions and downloadable WebVTT captions. Synthetic examples contain no real customer or patient data. The JasperReports clip demonstrates conversion to drafts and review; it does not claim one-to-one compatibility for every Jasper feature.
 

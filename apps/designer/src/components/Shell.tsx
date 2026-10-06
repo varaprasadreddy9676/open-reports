@@ -620,6 +620,7 @@ const PRACTICAL_VIDEOS = [
   { id: "jasper-folder-migration", title: "Migrate a JasperReports folder", summary: "Convert JRXML files to drafts, then inspect the migration." },
   { id: "supermarket-receipt", title: "Build a long 58 mm supermarket receipt", summary: "Load a grocery basket and preview the continuous thermal roll." },
   { id: "sales-crosstab", title: "Summarize sales with a crosstab", summary: "Compare sales by region and service, then preview the totals." },
+  { id: "hospital-letterhead", title: "Create a polished hospital letterhead", summary: "See a hospital masthead, repeating patient details and sign-off in a discharge summary." },
 ];
 
 function TourDialog() {
