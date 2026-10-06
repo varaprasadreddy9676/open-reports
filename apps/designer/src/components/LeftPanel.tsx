@@ -440,12 +440,33 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
   const selection = useStore((s) => s.selection);
   const editingText = useStore((s) => s.renaming);
   const [open, setOpen] = useState(true);
+  const [editingValue, setEditingValue] = useState(false);
+  const [valueDraft, setValueDraft] = useState("");
+  const valueInput = useRef<HTMLInputElement>(null);
+  const cancelValueEdit = useRef(false);
   const kids = ops.CHILD_LISTS.flatMap((k) => (Array.isArray(comp[k]) ? (comp[k] as ops.Comp[]) : []));
   const searching = !!search;
   const expanded = searching || open;
   const selected = selection.includes(comp.id);
   const renaming = editingText === comp.id;
+  const valueKey = comp.binding !== undefined ? "binding" : comp.expression !== undefined ? "expression" : "value";
+  const canEditValue = ["text", "field", "qrcode", "barcode"].includes(comp.type);
+  const displayedValue = String((comp as any)[valueKey] ?? "");
+  const rowLabel = comp.name ?? (canEditValue ? displayedValue || ops.layerName(comp) : ops.layerName(comp));
+  const fullLayerLabel = String(comp.name ?? (canEditValue ? (comp as any).binding ?? (comp as any).expression ?? (comp as any).value ?? ops.layerName(comp) : ops.layerName(comp)));
   const st = useStore.getState;
+  const beginValueEdit = () => {
+    if (!canEditValue) return;
+    setValueDraft(displayedValue);
+    cancelValueEdit.current = false;
+    setEditingValue(true);
+    requestAnimationFrame(() => valueInput.current?.focus());
+  };
+  const finishValueEdit = () => {
+    if (cancelValueEdit.current) { cancelValueEdit.current = false; return; }
+    if (valueDraft !== displayedValue) st().patch(comp.id, { [valueKey]: valueDraft }, `layer-value:${comp.id}`);
+    setEditingValue(false);
+  };
   const openActions = (x: number, y: number) => {
     if (!st().selection.includes(comp.id)) st().select([comp.id]);
     st().set({ contextMenu: { x, y, id: comp.id } });
@@ -510,10 +531,28 @@ function LayerRow({ comp, depth, search }: { comp: ops.Comp; depth: number; sear
               if (e.key === "Escape") st().set({ renaming: null });
             }}
           />
+        ) : editingValue ? (
+          <input
+            ref={valueInput}
+            className="layer-value-edit mono"
+            data-testid={`layer-value-${comp.id}`}
+            aria-label={`Edit data value for ${ops.layerName(comp)}`}
+            value={valueDraft}
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onChange={(event) => setValueDraft(event.target.value)}
+            onBlur={finishValueEdit}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
+              if (event.key === "Escape") { event.preventDefault(); cancelValueEdit.current = true; setEditingValue(false); }
+            }}
+          />
         ) : (
-          <span className="layer-name">{ops.layerName(comp)}</span>
+          <span className="layer-name" title={fullLayerLabel}>{rowLabel}</span>
         )}
-        <span className="layer-actions" aria-hidden="true">
+        <span className="layer-actions">
+          {canEditValue && <button className="layer-edit-value" type="button" aria-label={`Edit data value for ${ops.layerName(comp)}`} title="Edit data field or expression" data-testid={`layer-edit-value-${comp.id}`} onClick={(event) => { event.stopPropagation(); if (!selected) st().select([comp.id]); beginValueEdit(); }}>✎</button>}
           {comp.locked && <span title="Layout locked"><Icon name="lock" small /></span>}
           {comp.hidden && <span title="Hidden from output"><Icon name="hidden" small /></span>}
         </span>

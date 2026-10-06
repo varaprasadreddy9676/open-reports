@@ -605,7 +605,7 @@ textarea {
 .explorer-row {
   --explorer-indent: 16px;
   display: grid;
-  grid-template-columns: 14px 20px minmax(0, 1fr) 38px 22px;
+  grid-template-columns: 14px 20px minmax(0, 1fr) 44px 22px;
   column-gap: 3px;
   height: 29px;
   min-height: 29px;
@@ -629,9 +629,13 @@ textarea {
   display: inline-flex;
   justify-content: flex-end;
   align-items: center;
-  width: 38px;
+  width: 44px;
   gap: 3px;
 }
+.layer-edit-value { width: 18px; height: 22px; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--muted); font-size: var(--text-md); line-height: 1; opacity: 0; cursor: pointer; }
+.explorer-row:hover .layer-edit-value, .explorer-row.selected .layer-edit-value, .explorer-row:focus-within .layer-edit-value { opacity: 1; }
+.layer-edit-value:hover, .layer-edit-value:focus-visible { background: var(--panel); color: var(--accent); }
+.layer-value-edit { width: 100%; min-width: 0; height: 24px; padding: 2px 4px; border: 1px solid var(--accent); border-radius: var(--radius-xs); background: var(--panel); color: var(--text); font-size: var(--text-xs); }
 .explorer-row > .layer-actions > span { display: inline-flex; color: var(--muted); }
 .explorer-row > .layer-end { width: 22px; }
 .explorer-more { display: grid; place-items: center; height: 24px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); font-size: var(--text-2xl); line-height: 1; opacity: 0; }
@@ -688,10 +692,14 @@ textarea {
   font-weight: 700;
 }
 .layer-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
   white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
+.explorer-row:hover > .layer-name { scrollbar-color: var(--border-strong) transparent; }
 .add-section {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
