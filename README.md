@@ -12,15 +12,17 @@ Open source (MIT) · self-hosted · no seats, no per-document fees
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/varaprasadreddy9676/open-reports) [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/varaprasadreddy9676/open-reports)
 
-[![Open Reports in 64 seconds](docs/media/open-reports-launch.gif)](https://www.youtube.com/watch?v=_7LTG0cLO80)
+[![Watch the practical Open Reports walkthrough](apps/designer/public/open-reports-walkthrough-poster.png)](https://open-reports-demo.onrender.com/?tour=1)
 
-**[Watch the 64-second tour with sound](https://www.youtube.com/watch?v=_7LTG0cLO80)**
+**[Play the 90-second narrated walkthrough in the demo](https://open-reports-demo.onrender.com/?tour=1)** · [Watch the 64-second launch film](https://www.youtube.com/watch?v=_7LTG0cLO80)
 
 </div>
 
 ## Quick start
 
 **Want to try it first?** [Open the live demo](https://open-reports-demo.onrender.com), choose **Invoice**, change something, and press **Preview**. It runs on a free instance, so the first load after inactivity can take about a minute. The demo is shared and resets; use sample data only.
+
+The demo's **Watch walkthrough** button plays the first-use video in the app. [Read its captions](apps/designer/public/open-reports-walkthrough.vtt) if you prefer text.
 
 ```bash
 git clone https://github.com/varaprasadreddy9676/open-reports.git && cd open-reports

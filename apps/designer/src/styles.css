@@ -1522,6 +1522,17 @@ textarea {
 .modal.wide {
   width: min(860px, 94vw);
 }
+.modal.tour-modal {
+  width: min(1160px, 96vw);
+}
+.tour-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #14243a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
 .modal h2 {
   margin: 0 0 10px;
   font-size: var(--text-xl);

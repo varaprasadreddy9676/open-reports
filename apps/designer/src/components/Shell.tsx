@@ -415,7 +415,7 @@ function HistoryPanel() {
 }
 
 // ------------------------------------------------------------------ dialogs
-export function Modal({ children, onClose, wide, label = "Report dialog", closable = true }: { children: React.ReactNode; onClose: () => void; wide?: boolean; label?: string; closable?: boolean }) {
+export function Modal({ children, onClose, wide, className = "", label = "Report dialog", closable = true }: { children: React.ReactNode; onClose: () => void; wide?: boolean; className?: string; label?: string; closable?: boolean }) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const modal = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -443,7 +443,7 @@ export function Modal({ children, onClose, wide, label = "Report dialog", closab
   }, [onClose, closable]);
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && closable && onClose()}>
-      <div ref={modal} className={`modal ${wide ? "wide" : ""}`} role="dialog" aria-modal="true" aria-label={label}>
+      <div ref={modal} className={`modal ${wide ? "wide" : ""} ${className}`} role="dialog" aria-modal="true" aria-label={label}>
         <button ref={closeButton} className="modal-close" type="button" aria-label="Close dialog" title="Close (Esc)" disabled={!closable} onClick={onClose}>×</button>
         {children}
       </div>
@@ -551,6 +551,7 @@ export function HomeScreen() {
       <div className="home-header-actions">
         <label className="home-appearance">Appearance <select aria-label="Interface appearance" data-testid="home-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
         {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing →</button>}
+        <button className="btn" data-testid="home-tour" onClick={() => set({ dialog: "tour" })}>Watch walkthrough ▶</button>
         <button className="btn" data-testid="home-guide" onClick={() => set({ dialog: "guide" })}>What can I do?</button>
         <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
       </div>
@@ -566,6 +567,7 @@ export function HomeScreen() {
           <h2>Explore a complete invoice</h2>
           <p>See real layout, sample data, and PDF preview in a report you can edit.</p>
           <button className="btn primary" data-testid="home-try-invoice" onClick={() => openStarterExample("invoice")}>Try invoice example →</button>
+          <button className="btn" data-testid="home-tour-featured" onClick={() => set({ dialog: "tour" })}>See the 90-second walkthrough ▶</button>
         </div>
         <div className="home-steps" aria-label="How the demo works">
           <span><b>1</b> Open an example</span>
@@ -609,6 +611,20 @@ function GuideDialog() {
       onExample={openStarterExample}
       onImport={(format) => set({ dialog: format === "docx" ? "import-docx" : "import-jrxml" })}
     />
+  </Modal>;
+}
+
+function TourDialog() {
+  const set = useStore((state) => state.set);
+  return <Modal wide className="tour-modal" label="Open Reports walkthrough" onClose={() => set({ dialog: null })}>
+    <h2>Your first report in Open Reports</h2>
+    <p className="muted">A narrated walkthrough of the first edit, PDF preview, imports, crosstabs and exports.</p>
+    <video className="tour-video" controls playsInline preload="metadata" poster="/open-reports-walkthrough-poster.png" tabIndex={0}>
+      <source src="/open-reports-walkthrough.mp4" type="video/mp4" />
+      <track kind="captions" src="/open-reports-walkthrough.vtt" srcLang="en" label="English" />
+      Your browser does not support this video. <a href="/open-reports-walkthrough.mp4">Open the walkthrough</a>.
+    </video>
+    <div className="dialog-actions"><button className="btn primary" onClick={() => openStarterExample("invoice")}>Try the invoice →</button><button className="btn" onClick={() => set({ dialog: "guide" })}>Explore features</button></div>
   </Modal>;
 }
 
@@ -920,6 +936,7 @@ export function Dialogs() {
   if (dialog === "replace") return <Modal label="Unsaved changes" onClose={() => resolveReplaceReport(false)}><h2>Replace this report?</h2><p className="muted">Your changes to <strong>{useStore.getState().doc.name || "Untitled report"}</strong> are saved only in this local draft. Opening another report will replace it.</p><div className="dialog-actions"><button className="btn" data-testid="replace-cancel" data-default-focus onClick={() => resolveReplaceReport(false)}>Keep editing</button><span className="spacer" /><button className="btn danger" data-testid="replace-confirm" onClick={() => resolveReplaceReport(true)}>Replace report</button></div></Modal>;
   if (dialog === "new") return <NewDialog />;
   if (dialog === "guide") return <GuideDialog />;
+  if (dialog === "tour") return <TourDialog />;
   if (dialog === "import-jrxml") return <JrxmlImportDialog />;
   if (dialog === "import-docx") return <DocxImportDialog />;
   if (dialog === "open") return <OpenDialog />;

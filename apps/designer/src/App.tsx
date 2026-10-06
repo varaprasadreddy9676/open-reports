@@ -57,7 +57,7 @@ function MobileDesignerGate() {
       <h1>Design on a larger screen</h1>
       <p>The canvas, rulers, and properties need room to work accurately. Your {name || "report"} draft is still here when you return on a desktop.</p>
       <div className="mobile-gate-actions">
-        <a className="btn primary" href="https://www.youtube.com/watch?v=_7LTG0cLO80" target="_blank" rel="noopener noreferrer">Watch the 64-second tour ↗</a>
+        <button className="btn primary" onClick={() => set({ dialog: "tour" })}>Watch walkthrough ▶</button>
         <a className="btn" href="/sample-invoice.pdf" target="_blank" rel="noopener noreferrer">View a sample invoice PDF ↗</a>
       </div>
       <button className="mobile-gate-home" onClick={() => set({ home: true })}>← Back to examples</button>
@@ -87,7 +87,7 @@ export default function App() {
     } else {
       s.refresh();
     }
-    s.set({ home: true });
+    s.set({ home: true, ...(new URLSearchParams(window.location.search).get("tour") === "1" ? { dialog: "tour" as const } : {}) });
     s.loadCapabilities();
     s.loadBlocks();
   }, []);
