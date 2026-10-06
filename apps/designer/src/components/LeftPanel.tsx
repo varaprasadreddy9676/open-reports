@@ -772,9 +772,40 @@ function PagesTab() {
   );
 }
 
-export function LeftPanel() {
+const LEFT_PANEL_MIN = 240;
+const LEFT_PANEL_MAX = 560;
+
+export function LeftPanel({ width, onWidthChange }: { width: number; onWidthChange(width: number): void }) {
   const tab = useStore((s) => s.leftTab);
   const set = useStore((s) => s.set);
+  const resizeStart = useRef<{ x: number; width: number; pointerId: number } | null>(null);
+  const clampWidth = (value: number) => Math.max(LEFT_PANEL_MIN, Math.min(LEFT_PANEL_MAX, Math.round(value)));
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeStart.current = { x: event.clientX, width, pointerId: event.pointerId };
+  };
+  const moveResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = resizeStart.current;
+    if (start?.pointerId === event.pointerId) onWidthChange(clampWidth(start.width + event.clientX - start.x));
+  };
+  const finishResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (resizeStart.current?.pointerId !== event.pointerId) return;
+    resizeStart.current = null;
+    savePref("leftPanelWidth", String(width));
+  };
+  const resizeByKeyboard = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 48 : 16;
+    const next = event.key === "Home" ? LEFT_PANEL_MIN
+      : event.key === "End" ? LEFT_PANEL_MAX
+        : event.key === "ArrowLeft" ? clampWidth(width - step)
+          : event.key === "ArrowRight" ? clampWidth(width + step)
+            : null;
+    if (next === null) return;
+    event.preventDefault();
+    onWidthChange(next);
+    savePref("leftPanelWidth", String(next));
+  };
   const tabs = [
     { id: "layers", label: "Structure", icon: "structure" },
     { id: "data", label: "Data", icon: "data" },
@@ -807,6 +838,24 @@ export function LeftPanel() {
         {tab === "layers" && <ReportExplorer />}
         {tab === "pages" && <PagesTab />}
       </div>
+      <div
+        className="workspace-resize-handle"
+        role="separator"
+        aria-label="Resize workspace sidebar"
+        aria-orientation="vertical"
+        aria-valuemin={LEFT_PANEL_MIN}
+        aria-valuemax={LEFT_PANEL_MAX}
+        aria-valuenow={width}
+        aria-valuetext={`${width} pixels wide`}
+        tabIndex={0}
+        title="Drag to resize this sidebar; use arrow keys for precise sizing"
+        onPointerDown={startResize}
+        onPointerMove={moveResize}
+        onPointerUp={finishResize}
+        onPointerCancel={finishResize}
+        onLostPointerCapture={finishResize}
+        onKeyDown={resizeByKeyboard}
+      />
     </aside>
   );
 }

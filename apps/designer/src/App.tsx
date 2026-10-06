@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useStore, loadDraft } from "./store";
+import { useStore, loadDraft, savePref } from "./store";
 import { Canvas } from "./components/Canvas";
 import { LeftPanel } from "./components/LeftPanel";
 import { Properties } from "./components/Properties";
@@ -67,10 +67,23 @@ function MobileDesignerGate() {
   </main>;
 }
 
+const LEFT_PANEL_MIN = 240;
+const LEFT_PANEL_MAX = 560;
+
+function savedLeftPanelWidth(): number {
+  try {
+    const saved = Number(localStorage.getItem("designer.leftPanelWidth"));
+    return Number.isFinite(saved) && saved >= LEFT_PANEL_MIN && saved <= LEFT_PANEL_MAX ? saved : 312;
+  } catch {
+    return 312;
+  }
+}
+
 export default function App() {
   const { mode, home, leftOpen, rightOpen, split, tableEditId } = useStore();
   const set = useStore((s) => s.set);
   const previousPanels = useRef({ leftOpen, rightOpen });
+  const [leftPanelWidth, setLeftPanelWidth] = useState(savedLeftPanelWidth);
   const [phone, setPhone] = useState(() => window.matchMedia("(max-width: 700px)").matches);
   const showsLeft = mode === "design" && leftOpen;
   const showsRight = (mode === "design" || mode === "code") && rightOpen;
@@ -154,8 +167,8 @@ export default function App() {
     <div className="app" data-testid="app">
       {home ? <HomeScreen /> : phone ? <MobileDesignerGate /> : <>
       <Toolbar />
-      {mode === "design" && tableEditId ? <TableDesigner id={tableEditId} /> : <div className={`main ${showsLeft ? "has-left" : "no-left"} ${showsRight ? "has-right" : "no-right"}`}>
-        {showsLeft && <LeftPanel />}
+      {mode === "design" && tableEditId ? <TableDesigner id={tableEditId} /> : <div className={`main ${showsLeft ? "has-left" : "no-left"} ${showsRight ? "has-right" : "no-right"}`} style={{ "--left-panel-width": `${leftPanelWidth}px` } as React.CSSProperties}>
+        {showsLeft && <LeftPanel width={leftPanelWidth} onWidthChange={setLeftPanelWidth} />}
         <section className="center" aria-label="Workspace">
           {mode === "design" && <button className="edge left" aria-label={leftOpen ? "Hide insert panel" : "Show insert panel"} title="Toggle insert panel" onClick={() => set({ leftOpen: !leftOpen, focusCanvas: false, focusRestore: null })}>
             {leftOpen ? "‹" : "›"}

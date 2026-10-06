@@ -56,14 +56,14 @@ button {
 
 .main {
   display: grid;
-  grid-template-columns: 312px minmax(0, 1fr) 300px;
+  grid-template-columns: var(--left-panel-width, 312px) minmax(0, 1fr) 300px;
   min-height: 0;
 }
 .main.no-left {
   grid-template-columns: minmax(0, 1fr) 300px;
 }
 .main.no-right {
-  grid-template-columns: 312px minmax(0, 1fr);
+  grid-template-columns: var(--left-panel-width, 312px) minmax(0, 1fr);
 }
 .main.no-left.no-right {
   grid-template-columns: minmax(0, 1fr);
@@ -312,10 +312,38 @@ textarea {
   min-height: 0;
 }
 .panel.left {
+  position: relative;
   border-right: 1px solid var(--border);
   display: grid;
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
   overflow: hidden;
+}
+.workspace-resize-handle {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  right: 0;
+  width: 10px;
+  height: 56px;
+  transform: translateY(-50%);
+  border-radius: 5px 0 0 5px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.workspace-resize-handle::after {
+  content: "";
+  position: absolute;
+  inset: 18px 3px;
+  border-radius: 2px;
+  background: var(--muted);
+  opacity: 0.55;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+.workspace-resize-handle:hover::after,
+.workspace-resize-handle:focus-visible::after,
+.panel.left:has(.workspace-resize-handle:active) .workspace-resize-handle::after {
+  background: var(--accent);
+  opacity: 1;
 }
 .panel.right {
   border-left: 1px solid var(--border);
@@ -1769,7 +1797,7 @@ kbd {
 @media (max-width: 1200px) {
   .main,
   .main.no-right {
-    grid-template-columns: 312px minmax(0, 1fr);
+    grid-template-columns: var(--left-panel-width, 312px) minmax(0, 1fr);
     position: relative;
   }
   .main.no-left,
@@ -1819,7 +1847,7 @@ kbd {
     top: 0;
     bottom: 0;
     z-index: 30;
-    width: min(320px, 86vw);
+    width: min(var(--left-panel-width, 312px), 78vw);
     box-shadow: var(--shadow);
   }
   .panel.left {
@@ -1827,8 +1855,9 @@ kbd {
   }
   .panel.right {
     right: 0;
+    width: min(320px, 86vw);
   }
-  .main.has-left .center { margin-left: min(320px, 86vw); }
+  .main.has-left .center { margin-left: min(var(--left-panel-width, 312px), 78vw); }
   .main.has-right .center { margin-right: min(320px, 86vw); }
   .workspace-panel-head .compact-close,
   .structure-head .compact-close {
