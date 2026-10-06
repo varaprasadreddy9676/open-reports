@@ -127,7 +127,7 @@ curl -X POST http://localhost:4000/api/v1/render \
   -d "{\"format\":\"pdf\",\"report\":$(cat examples/invoice.report.json)}" -o invoice.pdf
 ```
 
-In production, save and publish templates once, then render them by id with fresh data. Published versions never change, large renders can run as background jobs, and the API is described by OpenAPI at `/openapi.json`. See the [API guide](docs/API.md) for Node, Python, Java, C# and Go snippets.
+In production, save and publish templates once, then render them by id with fresh data. Published versions never change, large renders can run as background jobs, and the API is described by OpenAPI at `/openapi.json`. See the [integration guide](docs/INTEGRATION_GUIDE.md) for the host-application workflow and the [API guide](docs/API.md) for Node, Python, Java, C# and Go examples.
 
 A report is a readable JSON document:
 
@@ -157,7 +157,7 @@ Data can come from inline JSON, CSV, REST APIs, PostgreSQL or MySQL. Everything 
 |---|---|
 | **Start** | [Getting started](docs/GETTING_STARTED.md) · [User guide](docs/USER_GUIDE.md) · [Use cases](docs/USE_CASES.md) · [Migrating from JasperReports](docs/JRXML_MIGRATION.md) |
 | **Run** | [Configuration](docs/CONFIGURATION.md) · [Deployment](docs/DEPLOYMENT.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) |
-| **Integrate** | [Embedding](docs/EMBEDDING.md) · [REST API](docs/API.md) · [Report definition](docs/REPORT_DEFINITION.md) · [AI and MCP](docs/AI_AND_MCP.md) |
+| **Integrate** | [Integration guide](docs/INTEGRATION_GUIDE.md) · [Embedding](docs/EMBEDDING.md) · [REST API](docs/API.md) · [Report definition](docs/REPORT_DEFINITION.md) · [AI and MCP](docs/AI_AND_MCP.md) |
 | **Extend** | [Plugins](docs/PLUGIN_DEVELOPMENT.md) · [Architecture](docs/ARCHITECTURE.md) |
 
 ## Quality

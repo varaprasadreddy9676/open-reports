@@ -836,41 +836,151 @@ function SettingsDialog() {
   const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const [key, setKey] = useState(settings.apiKey);
   const [base, setBase] = useState(settings.apiBase);
-  const [health, setHealth] = useState("");
+  const [tab, setTab] = useState<"preferences" | "connection" | "integrate">("connection");
+  const [showKey, setShowKey] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [connection, setConnection] = useState<{ ok: boolean; message: string } | null>(null);
+  const [example, setExample] = useState<"curl" | "node" | "java" | "python">("node");
+  const [copied, setCopied] = useState(false);
+  const onTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const current = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (current < 0 || !tabs.length) return;
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (current + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length;
+    event.preventDefault();
+    tabs[next]?.focus();
+    tabs[next]?.click();
+  };
+  const examples = {
+    curl: [
+      "BODY='{\"format\":\"pdf\",\"data\":{\"invoice\":{\"number\":\"INV-1042\",\"customer\":\"Asha Rao\",\"total\":15340}}}'",
+      'curl -X POST "$OPEN_REPORTS_URL/api/v1/templates/invoice/render" -H "content-type: application/json" -H "x-api-key: $OPEN_REPORTS_API_KEY" -d "$BODY" -o invoice.pdf',
+    ].join("\n"),
+    node: [
+      'const response = await fetch(process.env.OPEN_REPORTS_URL + "/api/v1/templates/invoice/render", {',
+      '  method: "POST",',
+      '  headers: {',
+      '    "content-type": "application/json",',
+      '    "x-api-key": process.env.OPEN_REPORTS_API_KEY,',
+      '  },',
+      '  body: JSON.stringify({ format: "pdf", data: { invoice: authorizedInvoice } }),',
+      '});',
+      'if (!response.ok) throw new Error(`Open Reports: ${response.status}`);',
+      'const pdf = Buffer.from(await response.arrayBuffer());',
+    ].join("\n"),
+    java: [
+      'var body = new ObjectMapper().createObjectNode();',
+      'body.put("format", "pdf");',
+      'body.set("data", mapper.valueToTree(Map.of("invoice", authorizedInvoice)));',
+      'var request = HttpRequest.newBuilder(URI.create(openReportsUrl',
+      '        + "/api/v1/templates/invoice/render"))',
+      '    .header("content-type", "application/json")',
+      '    .header("x-api-key", openReportsApiKey)',
+      '    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))',
+      '    .build();',
+      'var response = HttpClient.newHttpClient().send(request,',
+      '    HttpResponse.BodyHandlers.ofByteArray());',
+      'if (response.statusCode() / 100 != 2) throw new RuntimeException("Render failed");',
+      'byte[] pdf = response.body();',
+    ].join("\n"),
+    python: [
+      'response = requests.post(',
+      '    f"{OPEN_REPORTS_URL}/api/v1/templates/invoice/render",',
+      '    headers={"x-api-key": OPEN_REPORTS_API_KEY},',
+      '    json={"format": "pdf", "data": {"invoice": authorized_invoice}},',
+      '    timeout=120,',
+      ')',
+      'response.raise_for_status()',
+      'pdf_bytes = response.content',
+    ].join("\n"),
+  };
+  const testConnection = async () => {
+    setChecking(true);
+    setConnection(null);
+    const trimmedBase = base.trim().replace(/\/+$/, "");
+    let url: string;
+    try {
+      if (trimmedBase) {
+        const parsed = new URL(trimmedBase);
+        if (!(parsed.protocol === "http:" || parsed.protocol === "https:") || parsed.username || parsed.password || parsed.search || parsed.hash) {
+          throw new Error();
+        }
+        url = `${trimmedBase}/api/v1/templates`;
+      } else {
+        url = "/api/v1/templates";
+      }
+    } catch {
+      setConnection({ ok: false, message: "Enter a valid server URL, such as https://reports.example.com." });
+      setChecking(false);
+      return;
+    }
+
+    try {
+      const headers = new Headers();
+      if (key.trim()) headers.set("x-api-key", key.trim());
+      const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(10_000) });
+      if (response.ok) setConnection({ ok: true, message: "Connected. The server accepted this API key." });
+      else if (response.status === 401) setConnection({ ok: false, message: "Server reached, but this API key was not accepted." });
+      else if (response.status === 403) setConnection({ ok: false, message: "Server reached, but access was denied. Check the key and server permissions." });
+      else setConnection({ ok: false, message: `Server reached, but returned ${response.status}. Check the server URL and API configuration.` });
+    } catch {
+      setConnection({ ok: false, message: "Could not reach the server. Check the URL, that the server is running, and its CORS settings." });
+    } finally {
+      setChecking(false);
+    }
+  };
+  const copyExample = async () => {
+    try {
+      await navigator.clipboard.writeText(examples[example]);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  };
   return (
-    <Modal onClose={() => set({ dialog: null })}>
-      <h2>Settings</h2>
-      <label className="field wide"><span className="field-label">Interface appearance</span><select aria-label="Interface appearance" data-testid="settings-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
-      <label className="field wide">
-        <span className="field-label">API base URL (blank = same origin / dev proxy)</span>
-        <input value={base} onChange={(e) => setBase(e.target.value)} placeholder="http://localhost:4000" />
-      </label>
-      <label className="field wide">
-        <span className="field-label">API key</span>
-        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} />
-      </label>
-      {health && <p className={health.startsWith("OK") ? "ok-text" : "field-error"}>{health}</p>}
-      <div className="dialog-actions">
-        <button
-          className="btn"
-          onClick={async () => {
-            settings.apiBase = base;
-            settings.apiKey = key;
-            try {
-              const r = await fetch(`${base}/health`);
-              setHealth(r.ok ? "OK - server reachable" : `Server responded ${r.status}`);
-            } catch {
-              setHealth("Cannot reach the server");
-            }
-          }}
-        >
-          Test connection
-        </button>
-        <span className="spacer" />
-        <button className="btn primary" onClick={() => ((settings.apiBase = base), (settings.apiKey = key), set({ dialog: null }))}>
-          Save
-        </button>
+    <Modal wide className="settings-modal" label="Settings" onClose={() => set({ dialog: null })}>
+      <div className="settings-heading">
+        <div><p className="eyebrow">OPEN REPORTS</p><h2>Settings</h2></div>
+        <p>Connect the designer to a reporting server, or follow the quick start to integrate it with your application.</p>
       </div>
+      <div className="settings-tabs" role="tablist" aria-label="Settings sections" onKeyDown={onTabKeyDown}>
+        {([ ["connection", "Server connection"], ["integrate", "Integration guide"], ["preferences", "Preferences"] ] as const).map(([id, label]) => (
+          <button key={id} id={`settings-tab-${id}`} role="tab" aria-controls={`settings-panel-${id}`} tabIndex={tab === id ? 0 : -1} aria-selected={tab === id} data-testid={`settings-tab-${id}`} onClick={() => setTab(id)}>{label}</button>
+        ))}
+      </div>
+
+      {tab === "connection" && <section className="settings-section" id="settings-panel-connection" role="tabpanel" aria-labelledby="settings-tab-connection" tabIndex={0}>
+        <div className="settings-section-title"><div><h3>Reporting server</h3><p>Connect to the Open Reports instance that stores and renders your reports.</p></div><span className="settings-status-dot" aria-hidden="true" /></div>
+        <label className="field wide"><span className="field-label">Server URL</span><input data-testid="settings-api-base" type="url" value={base} onChange={(e) => { setBase(e.target.value); setConnection(null); }} placeholder="https://reports.example.com" autoComplete="url" /><span className="field-hint">Use the server’s base address. Leave blank when the designer and API share an origin.</span></label>
+        <label className="field wide"><span className="field-label">API key <span className="muted">(optional if server auth is disabled)</span></span><span className="settings-key-field"><input data-testid="settings-api-key" type={showKey ? "text" : "password"} value={key} onChange={(e) => { setKey(e.target.value); setConnection(null); }} autoComplete="off" spellCheck={false} placeholder="Paste the server API key" /><button className="btn" type="button" data-testid="settings-toggle-key" aria-label={showKey ? "Hide API key" : "Show API key"} onClick={() => setShowKey(!showKey)}>{showKey ? "Hide" : "Show"}</button></span><span className="field-hint">This designer stores the key in this browser. Server API keys are currently instance-wide; do not use a privileged key in a public or shared browser. For application integrations, keep it in your backend.</span></label>
+        {connection && <p className={connection.ok ? "ok-text settings-feedback" : "field-error settings-feedback"} role="status" data-testid="settings-connection-status">{connection.message}</p>}
+        <div className="dialog-actions settings-actions"><button className="btn" type="button" data-testid="settings-test-connection" disabled={checking} onClick={testConnection}>{checking ? "Checking…" : "Test connection"}</button><span className="spacer" /><button className="btn primary" type="button" data-testid="settings-save" onClick={() => { settings.apiBase = base.trim().replace(/\/+$/, ""); settings.apiKey = key.trim(); set({ dialog: null }); }}>Save connection</button></div>
+      </section>}
+
+      {tab === "preferences" && <section className="settings-section" id="settings-panel-preferences" role="tabpanel" aria-labelledby="settings-tab-preferences" tabIndex={0}>
+        <h3>Appearance</h3><p>Choose how the designer looks in this browser.</p>
+        <label className="field wide"><span className="field-label">Interface theme</span><select aria-label="Interface appearance" data-testid="settings-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
+      </section>}
+
+      {tab === "integrate" && <section className="settings-section integration-quickstart" id="settings-panel-integrate" role="tabpanel" aria-labelledby="settings-tab-integrate" tabIndex={0}>
+        <div className="integration-intro"><span className="integration-step">1</span><div><h3>Call the reporting API from your backend</h3><p>Your application keeps login, permissions, and business rules. It loads authorized data, then sends that data to Open Reports to render the document.</p></div></div>
+        <div className="integration-note"><strong>Keep your API key on the server.</strong> A key placed in browser JavaScript or an embedded page can be copied by users. Open Reports renders reports; your application decides who can request them.</div>
+        <div className="integration-code-heading"><div><h4>Render a saved template</h4><p>POST to <code>/api/v1/templates/{"{templateId}"}/render</code></p></div><div className="integration-code-tabs" role="tablist" aria-label="Code example language" onKeyDown={onTabKeyDown}>{([ ["node", "Node"], ["java", "Java"], ["python", "Python"], ["curl", "cURL"] ] as const).map(([id, label]) => <button key={id} id={`settings-example-tab-${id}`} role="tab" aria-controls="settings-example-panel" tabIndex={example === id ? 0 : -1} aria-selected={example === id} data-testid={`settings-example-${id}`} onClick={() => { setExample(id); setCopied(false); }}>{label}</button>)}</div></div>
+        <pre className="integration-code" id="settings-example-panel" role="tabpanel" aria-labelledby={`settings-example-tab-${example}`} tabIndex={0}><code>{examples[example]}</code></pre>
+        <div className="dialog-actions integration-actions"><button className="btn" type="button" data-testid="settings-copy-example" onClick={copyExample}>{copied ? "Copied" : "Copy example"}</button><span className="spacer" /><span className="field-hint">Uses your normal HTTP client; no SDK required.</span></div>
+        <div className="integration-next-steps"><h4>Typical setup</h4><ol><li>Deploy Open Reports and copy its server URL.</li><li>Create and publish a template in the designer.</li><li>From your backend, authorize the user and prepare a small JSON payload.</li><li>POST the template ID, output format, and data; return the PDF or other output from your application.</li></ol><p>For an embedded designer or viewer, use the embed package behind your app’s authentication or a trusted proxy.</p></div>
+        <div className="integration-branding-note"><h4>Use one template with different client branding</h4><p>Bind the logo image to <code>data.client.logoUrl</code>, and header/footer text to paths such as <code>data.client.headerText</code> and <code>data.client.footerText</code>. Pass each client’s branding in the render request:</p><pre className="integration-branding-code"><code>{`"data": {
+  "client": {
+    "logoUrl": "https://assets.example.com/client-logo.png",
+    "headerText": "Northstar Medical Center",
+    "footerText": "Care with clarity · northstar.example"
+  },
+  "invoice": { "number": "INV-1042", "total": 15340 }
+}`}</code></pre><p>A logo may be a PNG/JPEG/WebP URL reachable by the reporting server, or a <code>data:image/png;base64,...</code> value sent by your backend. Private image hosts must be explicitly allowed on the server; the client’s local file path is not automatically accessible to a hosted server.</p></div>
+        <div className="integration-doc-links"><a href="https://github.com/varaprasadreddy9676/open-reports/blob/claude/upbeat-volta-pe84n7/docs/INTEGRATION_GUIDE.md" target="_blank" rel="noreferrer">Full integration guide ↗</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/claude/upbeat-volta-pe84n7/docs/API.md" target="_blank" rel="noreferrer">REST API reference ↗</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/claude/upbeat-volta-pe84n7/docs/EMBEDDING.md" target="_blank" rel="noreferrer">Embedding guide ↗</a></div>
+      </section>}
     </Modal>
   );
 }

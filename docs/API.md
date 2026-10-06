@@ -20,7 +20,7 @@ Errors are JSON: `{ "error": { "code": "VALIDATION_FAILED", "message": "…", "d
 | `GET /api/v1/schema` · `/capabilities` · `/plugins` · `/examples[/:name]` · `/blocks` | Metadata (schema is public) |
 | `GET /health` | Liveness |
 
-**Formats:** `pdf`, `html`, `xlsx`, `csv`, `zpl` (labels), `escpos` (receipt printers), plus any plugin format. The response `content-type` matches; `x-render-id` and `x-render-warnings` headers are set.
+**Formats:** `pdf`, `html`, `docx`, `xlsx`, `csv`, `zpl` (labels), `escpos` (receipt printers), plus any plugin format. The response `content-type` matches; `x-render-id` and `x-render-warnings` headers are set.
 
 **`data` vs. the template:** `data` is `{ "<datasetId>": <json> }`. It replaces the dataset with that id for this one render (or adds an inline dataset) — so one template serves any record. **`parameters`** feed `params.x` and `{{params.x}}` in REST/SQL datasets.
 
@@ -33,7 +33,26 @@ curl -X POST $URL/api/v1/templates/discharge/render \
   -d '{"format":"pdf","data":{"adm":{"patient":{"name":"Asha"}}}}' -o discharge.pdf
 ```
 
-### Node 18+
+### Node 18+ with the client SDK
+
+For a TypeScript or Node backend, you can use the optional thin [`@reporting/client`](../packages/client/README.md) helper for rendering. The hosted REST API is the integration contract; this package does not wrap every endpoint:
+
+```ts
+import { OpenReportsClient } from "@reporting/client";
+
+const reports = new OpenReportsClient({
+  server: process.env.OPEN_REPORTS_URL!,
+  apiKey: process.env.OPEN_REPORTS_API_KEY,
+});
+const { bytes, mimeType } = await reports.renderTemplate("invoice", {
+  format: "pdf",
+  version: 3,
+  data: { invoice },
+});
+await fs.promises.writeFile("invoice.pdf", bytes);
+```
+
+### Node 18+ with `fetch`
 ```js
 const res = await fetch(`${URL}/api/v1/templates/invoice/render`, {
   method: "POST",
@@ -56,10 +75,14 @@ open("invoice.pdf", "wb").write(r.content)
 
 ### Java 11+
 ```java
+ObjectMapper mapper = new ObjectMapper();
+ObjectNode body = mapper.createObjectNode().put("format", "pdf");
+body.set("data", mapper.valueToTree(Map.of("invoice", invoiceDto)));
 var req = HttpRequest.newBuilder(URI.create(url + "/api/v1/templates/invoice/render"))
     .header("content-type", "application/json").header("x-api-key", key)
-    .POST(HttpRequest.BodyPublishers.ofString("{\"format\":\"pdf\",\"data\":{\"invoice\":" + invoiceJson + "}}")).build();
+    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body))).build();
 var res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofByteArray());
+if (res.statusCode() < 200 || res.statusCode() >= 300) throw new RuntimeException("Open Reports returned " + res.statusCode());
 Files.write(Path.of("invoice.pdf"), res.body());
 ```
 
@@ -107,3 +130,4 @@ curl -s -X POST $URL/api/v1/analyze -H 'content-type: application/json' -H "x-ap
 - Keep API keys on your backend. Browsers should call *your* backend.
 - Store templates once (`POST /templates` + publish); render with `data` — cheaper and versioned.
 - Re-use the JSON Schema (`/api/v1/schema`) for editor autocomplete when generating reports in code.
+- See the [integration guide](INTEGRATION_GUIDE.md) for host/backend boundaries, dataset choices, plugin guidance, and browser embedding.

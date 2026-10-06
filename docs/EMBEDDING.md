@@ -36,7 +36,7 @@ It renders the latest **published** version of the template, with:
 | `parameters` | JSON object of starting parameter values. |
 | `downloads` | Comma-separated download formats. Default `pdf,xlsx,csv`. |
 | `hide-parameters` | Hide the parameter form. |
-| `api-key` | Sent as `X-API-Key` when the server has API keys enabled. Prefer a key limited to rendering. |
+| `api-key` | Sent as `X-API-Key` when the server has API keys enabled. Configured keys are instance-wide; do not put a privileged key in browser markup. |
 
 Events (they bubble): `report-rendered` (`detail.template`, `detail.parameters`, `detail.version`, `detail.sort`), `report-drill` (`detail.template`, `detail.parameters`) and `report-error` (`detail.message`).
 
@@ -86,5 +86,8 @@ The same API is published as the `@reporting/embed` package for bundlers.
 ## Security
 
 - The designer frame and your page talk with `postMessage`. Both sides check the sender's window and origin, and the designer only answers the origin that embedded it. The API key is sent in a message, never in the frame's URL.
-- Rendering uses the server's normal API and API keys. For public pages, put the server behind your own authentication or give the page a key that can only render.
+- The viewer and designer run in the browser and make API requests to the report server. A key supplied in an attribute or JavaScript is visible to browser users. The current API keys are not scope-limited, so keep them on the host server and use an authenticated backend/reverse proxy for private reports and editing.
+- Only expose direct browser rendering when the report and its data are intentionally public. For application-owned data, have the host authorize and prepare the data before calling the render API.
 - The rendered report is shown in a sandboxed frame without scripts.
+
+See the [integration guide](INTEGRATION_GUIDE.md) for recommended host/backend and plugin patterns.

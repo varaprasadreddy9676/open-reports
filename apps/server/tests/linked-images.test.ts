@@ -28,6 +28,52 @@ beforeAll(async () => { await app.ready(); });
 afterAll(async () => { await app.close(); fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(outside, { recursive: true, force: true }); });
 
 describe("linked image sources", () => {
+  it("uses per-render client branding bindings for a reusable saved template", async () => {
+    const definition = {
+      schemaVersion: "1.0", id: "client-branding", name: "Client branded invoice",
+      datasets: [{ id: "client", source: "inline", query: { data: { logoUrl: "", headerText: "", footerText: "" } } }],
+      sections: [
+        { type: "pageHeader", children: [
+          { type: "image", id: "client-logo", binding: "data.client.logoUrl", width: "20mm", height: "12mm", whenMissing: "hide" },
+          { type: "text", id: "client-header", binding: "data.client.headerText" },
+        ] },
+        { type: "detail", children: [{ type: "text", value: "Invoice body" }] },
+        { type: "pageFooter", children: [{ type: "text", id: "client-footer", binding: "data.client.footerText" }] },
+      ],
+    };
+    const created = await app.inject({ method: "POST", url: "/api/v1/templates", headers: auth, payload: { id: "client-branding", name: "Client branded invoice", definition } });
+    expect(created.statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/templates/client-branding/versions/1/publish", headers: auth })).statusCode).toBe(200);
+
+    const renderFor = (color: [number, number, number], headerText: string, footerText: string) => app.inject({
+      method: "POST", url: "/api/v1/templates/client-branding/render", headers: auth,
+      payload: { format: "html", version: 1, data: { client: {
+        logoUrl: `data:image/png;base64,${png(color).toString("base64")}`,
+        headerText,
+        footerText,
+      } } },
+    });
+    const firstLogo = png([240, 20, 20]).toString("base64");
+    const secondLogo = png([20, 20, 240]).toString("base64");
+    const first = await renderFor([240, 20, 20], "Client One", "Footer One");
+    expect(first.statusCode).toBe(200);
+    expect(first.payload).toContain(firstLogo);
+    expect(first.payload).toContain("Client One");
+    expect(first.payload).toContain("Footer One");
+
+    const second = await renderFor([20, 20, 240], "Client Two", "Footer Two");
+    expect(second.statusCode).toBe(200);
+    expect(second.payload).toContain(secondLogo);
+    expect(second.payload).not.toContain(firstLogo);
+    expect(second.payload).toContain("Client Two");
+    expect(second.payload).toContain("Footer Two");
+
+    const saved = await app.inject({ url: "/api/v1/templates/client-branding/versions/1", headers: auth });
+    expect(saved.json().definition.sections[0].children[0]).toMatchObject({ type: "image", binding: "data.client.logoUrl" });
+    expect(JSON.stringify(saved.json().definition)).not.toContain(firstLogo);
+    expect(JSON.stringify(saved.json().definition)).not.toContain(secondLogo);
+  });
+
   it("keeps a saved file path and reads replacement bytes on the next render", async () => {
     const first = png([255, 0, 0]);
     const second = png([0, 0, 255]);

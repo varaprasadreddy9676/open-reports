@@ -27,6 +27,12 @@ export default definePlugin({
 | `registerDataSource(name, ds)` | dataset `"source": "plugin:<name>"` | `execute(definition, {parameters, limits})` → `{ value }`. Honour `limits.maxRows` and `limits.timeoutMs`. |
 | `registerStorage(provider)` | — | Full `StorageProvider` (templates, versions, blocks). One per server. |
 
+## Should this be a plugin?
+
+Use the host application's backend and send prepared datasets in the render request when it already owns the business data and authorization. Use a REST/JSON/SQL data source when the report server should fetch data with server-side credentials. Use a plugin for a capability installed with the report engine: a new output renderer, a reusable expression function or component, a custom data-source protocol, or a storage backend.
+
+Plugins run inside the report-server process with its filesystem and network permissions. Install only trusted code. A plugin is not an isolation boundary and should not be used to implement per-user authorization in the host application.
+
 Registration is **transactional**: if `setup` throws, nothing it registered is kept, the plugin is marked `failed` (see `GET /api/v1/plugins`), and the others keep working.
 
 ## Loading
