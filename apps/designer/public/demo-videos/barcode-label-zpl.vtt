@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:04.892 --> 00:00:13.364
+A barcode label must match the physical stock and printer resolution. We will check a 50 by 30 millimeter label and download its ZPL output.
+
+00:00:18.868 --> 00:00:25.467
+Open the Label 50 by 30 example. It uses fictional item data and a Code 128 barcode.
+
+00:00:29.096 --> 00:00:38.584
+Select the barcode to inspect its data expression, size and position. Keep it inside the printer safe area and make sure it stays readable beside the item text.
+
+00:00:42.925 --> 00:00:54.575
+Open Report settings and Print. The preset sets this label to 50 by 30 millimeters at 203 dots per inch. The printer dot count helps compare the report with the printer’s actual resolution.
+
+00:01:00.696 --> 00:01:11.027
+Preview the PDF to inspect the visual layout and the barcode alongside its item details. The PDF is a useful visual check, but the target printer still needs a real print check.
+
+00:01:15.434 --> 00:01:22.639
+Now open ZPL. This is the printer-language output, with the label dimensions and barcode commands rendered from the report.
+
+00:01:25.457 --> 00:01:36.064
+Download the ZPL file and send it only to a compatible Zebra printer. If the physical output is offset or scaled, use the documented calibration workflow and recheck a real print.
+
+00:01:37.484 --> 00:01:44.311
+The same approach works for other label sizes, cards and wristbands, with their own media dimensions and printer settings.
+
+00:01:46.016 --> 00:01:56.307
+Before using labels in production, print a calibration pattern on the exact stock. Check darkness, feed direction, barcode scans and cutter alignment on the target printer.
+
+00:01:57.884 --> 00:02:05.848
+Confirm the printer language and model before sending ZPL. A correct PDF does not guarantee a correctly calibrated thermal printer.

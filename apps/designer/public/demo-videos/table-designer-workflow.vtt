@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:04.795 --> 00:00:13.163
+A table repeats a set of columns for records in a dataset. Use Table Designer to edit those columns and check the result against live sample data.
+
+00:00:17.291 --> 00:00:26.108
+Open the invoice example, select its line-item table and choose Edit table. The focused designer keeps the working rows visible while you make changes.
+
+00:00:31.424 --> 00:00:38.897
+In Columns, rename Rate to Unit price and drag the Description column edge. The live sample updates as the column width changes.
+
+00:00:43.736 --> 00:00:52.053
+Multi-level headers let one heading span several columns. Add a header level and label it Invoice items; the column headings stay on the row below.
+
+00:01:01.019 --> 00:01:10.569
+Rows and cells shows actual sample records. Use this view to inspect cell merges; choose the record a merge should follow if sorting or filtering can change the row order.
+
+00:01:14.225 --> 00:01:22.166
+Totals controls the footer calculations. Sum the quantity column as well as the amount, so the reader can check both units and value.
+
+00:01:25.953 --> 00:01:34.660
+Pagination controls whether table headings repeat and whether a long row may split across pages. Keep invoice rows together so each line stays readable.
+
+00:01:40.671 --> 00:01:47.586
+Done returns to the report. Preview the PDF to check the renamed column, grouped heading and totals in the finished invoice.
+
+00:01:49.098 --> 00:01:58.383
+A table stays part of the report definition. Save the draft after the preview, then use the same sample rows again whenever you change its columns or pagination.

@@ -1,13 +1,28 @@
 WEBVTT
 
-00:00:04.904 --> 00:00:09.460
-Bring a JasperReports project over as a folder of JRXML sources.
+00:00:05.880 --> 00:00:19.573
+Bring a JasperReports project into Open Reports from its editable JRXML source files. Folder import can convert related reports together, but conversion is a reviewable starting point rather than a promise of exact Jasper parity.
 
-00:00:15.535 --> 00:00:19.778
-Open the folder importer and choose the parent report and its header subreport.
+00:00:25.941 --> 00:00:33.822
+Choose the small fictional receipt project. It contains a parent report and a reusable header report, both as JRXML source.
 
-00:00:23.928 --> 00:00:29.273
-Open Reports converts the files into editable drafts and links recognized child reports.
+00:00:36.455 --> 00:00:45.379
+Review the conversion rows before saving. Check which files converted, which need attention, and whether the parent’s subreport source matched the header file.
 
-00:00:36.599 --> 00:00:41.575
-Review the migration note for features that need attention before using the converted report.
+00:00:49.976 --> 00:01:02.634
+Save the converted files as editable report drafts. The importer links a child JRXML when it can identify one unambiguously; the result is Open Reports JSON, not a compiled .jasper file.
+
+00:01:10.200 --> 00:01:21.037
+Open the parent receipt and inspect its migration notes. This example has a static heading and a linked child header; the review panel identifies source features that still need your attention.
+
+00:01:23.709 --> 00:01:34.999
+JRXML SQL is not executed during import, and Java or Groovy expressions are not run. Reconnect data in your host application and replace or rewrite unsupported expressions safely.
+
+00:01:39.712 --> 00:01:51.234
+Open Code to inspect the converted JSON definition. It is now the editable report format; compare its sections, page size, and child report reference with the original JRXML.
+
+00:01:58.017 --> 00:02:09.137
+Preview the converted receipt to confirm the parent and header render together. Then check spacing and pagination against a Jasper-generated PDF using the same data before migrating production output.
+
+00:02:12.420 --> 00:02:21.101
+Import the whole folder again when related sources change, and keep the original JRXML as your migration reference until the output has been validated.

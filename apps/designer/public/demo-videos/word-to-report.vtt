@@ -1,10 +1,28 @@
 WEBVTT
 
-00:00:04.730 --> 00:00:08.309
-Already have a Word template? Bring it in as a starting point.
+00:00:05.759 --> 00:00:15.619
+Already have a Word form or letter? Import it as a starting point for a report, then connect real data and refine its layout. Treat the result as an editable draft that needs review.
 
-00:00:13.391 --> 00:00:16.949
-Open Import Word document and choose the clinic discharge letter.
+00:00:21.033 --> 00:00:30.435
+Choose the fictional clinic discharge template. Open Reports reads the DOCX locally in the browser; this sample contains only invented patient details.
 
-00:00:24.071 --> 00:00:28.906
-Open the editable draft, then review the layout and sample output before using it.
+00:00:33.430 --> 00:00:43.840
+Review the counts for paragraphs, tables and images. These tell you what the importer recognized, but they do not certify that every page break or spacing choice matches Word.
+
+00:00:46.073 --> 00:00:59.524
+Read every conversion warning before applying the draft. Word features such as floating objects, columns and exact typography may need rebuilding in the designer. If the import reports no warnings, still compare the output carefully.
+
+00:01:07.978 --> 00:01:18.606
+Open the editable draft and inspect the section tree. The document’s title, patient details, care table, instructions and signature are report elements you can reposition and edit.
+
+00:01:20.750 --> 00:01:30.296
+Switch to Pages to check the whole sheet and its margins. A Word page and a report page can lay out text differently, so confirm that the table and signature still fit.
+
+00:01:34.021 --> 00:01:44.629
+Edit the heading in place to identify this as a discharge summary. This proves the imported content is now part of an Open Reports definition, rather than an attached DOCX image.
+
+00:01:50.010 --> 00:02:00.422
+Preview the actual PDF and compare each important area with the source: header, table borders, paragraphs and signature space. Fix differences in the report designer.
+
+00:02:02.762 --> 00:02:14.618
+Once the layout is right, bind replaceable patient and visit values to your application data, then save and validate the report before publishing. Never use this fictional sample as a real clinical document.

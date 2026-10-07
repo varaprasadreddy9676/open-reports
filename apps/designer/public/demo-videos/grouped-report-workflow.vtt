@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:05.910 --> 00:00:12.578
+Grouping organizes a detail list into meaningful sections. Each group can add a heading, subtotal, or both.
+
+00:00:20.587 --> 00:00:26.060
+Open the fictional Department Revenue report. Its visits are grouped by department and then doctor.
+
+00:00:30.649 --> 00:00:36.602
+A group header appears when its value changes. The outer Department group contains a nested Doctor group.
+
+00:00:41.475 --> 00:00:49.257
+Select the Department group to see its grouping field and sort settings. The data is still the source list; the report adds structure around it.
+
+00:00:53.841 --> 00:00:59.074
+A Doctor subtotal belongs in its group footer, so it appears after that doctor’s visits.
+
+00:01:03.318 --> 00:01:08.009
+The Department footer adds a higher-level subtotal after all doctors in that department.
+
+00:01:12.152 --> 00:01:17.389
+The data footer appears once after all groups and records, for the overall report total.
+
+00:01:22.966 --> 00:01:34.005
+Preview the PDF and follow the department headers, doctor subtotals and final total from top to bottom. This is a useful pattern for sales, operations, and clinical summaries.

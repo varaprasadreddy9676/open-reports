@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:06.141 --> 00:00:16.563
+A report can use different headers, footers and backgrounds on its first, normal and final pages. We will customize the opening and closing pages of this fictional account statement.
+
+00:00:23.210 --> 00:00:30.680
+Open the Account Statement example. It spans several pages, so there is a clear first, middle and last page to compare.
+
+00:00:34.099 --> 00:00:40.343
+Choose Pages, then Edit page masters. Select a page type and see which bands it inherits from Normal.
+
+00:00:49.094 --> 00:00:57.517
+On First, choose Copy normal for the footer. The independent copy starts with the familiar page number but can now be changed for the opening page.
+
+00:00:59.657 --> 00:01:06.097
+Edit that footer to identify the opening statement. The Normal footer remains unchanged on the pages in between.
+
+00:01:18.194 --> 00:01:26.049
+On Last, copy Normal and label it as the final account summary. This is where a signature, closing balance or legal note can go.
+
+00:01:32.412 --> 00:01:38.752
+For any band you can keep Normal, make an independent copy, or leave it blank to suppress it on that page type.
+
+00:01:44.723 --> 00:01:51.780
+Preview the full PDF. Check page one, a middle page and the last page to confirm each footer appears in the right place.
+
+00:01:53.776 --> 00:01:59.515
+Use page masters when a cover, repeated page identity and final sign-off need different layouts.

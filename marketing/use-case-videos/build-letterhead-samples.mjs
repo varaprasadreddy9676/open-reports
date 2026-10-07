@@ -85,6 +85,10 @@ editable.sections.unshift(
   ] },
 );
 editable.sections.push(
+  { type: 'pageFooter', appliesTo: 'first', children: [
+    { type: 'line', style: { color: '#167c80' } },
+    { type: 'text', id: 'northstar-first-footer-contact', value: 'NORTHSTAR MEDICAL CENTER · +91 80 4567 8900', style: { fontSize: 7, color: '#526575' } },
+  ] },
   { type: 'pageFooter', appliesTo: 'standard', children: [
     { type: 'line', style: { color: '#167c80' } },
     { type: 'row', children: [

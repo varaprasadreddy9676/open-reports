@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:04.996 --> 00:00:15.442
+A server plugin adds a capability that your application can use while rendering reports. Plugins are installed with the server; a report request does not upload or execute plugin code.
+
+00:00:17.079 --> 00:00:26.853
+This local training server starts with the built clinic-pack example plugin. It is loaded from a trusted server-side entry path before the API begins accepting requests.
+
+00:00:28.931 --> 00:00:38.823
+The plugin registry shows whether the plugin is active and lists its version and registered capabilities. If a plugin fails to start, check this status before using its output.
+
+00:00:40.902 --> 00:00:53.476
+The capability list includes a plain-text renderer, the initials and maskId expression functions, a statusBadge component, and a number-range data source. Each one is registered by plugin code at server startup.
+
+00:00:56.904 --> 00:01:09.242
+If a plugin is missing or failed, inspect the real registry response and server startup log. The registry reports status and registered capabilities; it does not turn plugin code into an isolated sandbox.
+
+00:01:12.052 --> 00:01:18.491
+Render the fictional visit summary. This is a real request to the local server using the custom txt format.
+
+00:01:20.433 --> 00:01:28.444
+The response is plain text produced by the plugin renderer. The expression helpers format the name as initials and mask the sample record ID.
+
+00:01:29.857 --> 00:01:41.359
+A custom component can expand into ordinary report elements, and a plugin data source uses its registered name in a dataset definition. Install the extension before rendering reports that use it.
+
+00:01:42.826 --> 00:01:51.476
+The designer browser cannot execute trusted server plugin code. A plugin component can appear as a placeholder while server Preview and exports render it.
+
+00:01:52.938 --> 00:02:03.896
+Plugins run inside the report-server process, so install only code your team trusts. They are not a sandbox and must not replace your application’s authentication or tenant permissions.

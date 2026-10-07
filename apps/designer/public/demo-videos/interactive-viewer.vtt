@@ -1,0 +1,34 @@
+WEBVTT
+
+00:00:05.021 --> 00:00:14.538
+A report viewer lets people use a report inside the application they already work in. This example portal supplies its own report definition and fictional sales data.
+
+00:00:16.172 --> 00:00:25.066
+The report renders directly from host-owned JSON. The application can pass customer-specific data without storing its report template in Open Reports.
+
+00:00:27.947 --> 00:00:35.294
+Change the reporting period and refresh. The viewer sends the new parameter with the report request and renders the same definition again.
+
+00:00:38.202 --> 00:00:46.395
+Expand West to see its orders. The group subtotal stays visible, so readers can scan a summary first and open only the detail they need.
+
+00:00:49.332 --> 00:00:58.815
+Choose order SO-1042. Its link opens a detail report and passes the clicked order number as a parameter. The report trail shows where you came from.
+
+00:01:01.710 --> 00:01:10.735
+Use Back to return to the original report and its regional summaries. A drill-through link can open a detail or related report without losing the current context.
+
+00:01:13.612 --> 00:01:20.133
+Expand North, then search for Anita Rao. The viewer highlights the match and shows its position in the results.
+
+00:01:23.016 --> 00:01:29.406
+Open Contents to jump to the bookmarked sales overview. Bookmarks appear when the report definition includes them.
+
+00:01:32.226 --> 00:01:38.336
+Sort the visible customer column. The viewer asks the report engine to lay out the rows again in the chosen order.
+
+00:01:41.186 --> 00:01:48.589
+Download PDF for a fixed-page copy. CSV is useful when the host wants to offer the table data for spreadsheet work.
+
+00:01:51.522 --> 00:01:58.814
+The host application still decides which user may see each report and its data. Viewer actions are not an authorization boundary.

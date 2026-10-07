@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:05.819 --> 00:00:14.971
+Save a useful block once and reuse it across reports. A letterhead, signature, or shared legal note can stay consistent without rebuilding it each time.
+
+00:00:20.995 --> 00:00:27.638
+Start with a blank report and create a simple Northstar brand line. Select the element, then open Components.
+
+00:00:32.698 --> 00:00:41.078
+Choose Save selection and give the block a name. It is stored in this Open Reports server library, so authorized reports on the same instance can use it.
+
+00:00:44.681 --> 00:00:55.839
+The new block appears under My Components. Choose how it should be inserted: Linked follows later library updates, Pinned keeps the version used here, and Editable copy can change independently.
+
+00:01:00.433 --> 00:01:08.463
+Remove the original and insert the linked version. There is now one reusable line in this report, and its link follows later library updates.
+
+00:01:11.598 --> 00:01:20.767
+Pinned blocks keep the version they were inserted from, even when the shared library changes. Use the version controls when you deliberately want to update a pinned copy.
+
+00:01:24.127 --> 00:01:34.793
+An editable copy can change independently. Use blocks for shared content in one server library; use a host-owned report definition or subreport for customer-specific variations.

@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:07.362 --> 00:00:14.484
+Open Reports can turn one report into different outputs. Choose the format that matches what someone needs to do with the result.
+
+00:00:19.579 --> 00:00:26.039
+Open the invoice example. We will keep the same data and compare its document output with its data exports.
+
+00:00:31.512 --> 00:00:38.604
+PDF preserves the page layout for review, printing and sharing. Check page count and the rendered document before sending it.
+
+00:00:43.711 --> 00:00:50.360
+HTML keeps the report readable in a browser. It is useful when a recipient needs to view the report online.
+
+00:00:55.322 --> 00:01:05.953
+Excel creates a structured workbook from the report table, keeping values available for sorting and calculations. This is a data export, not a page-perfect copy of the PDF.
+
+00:01:10.973 --> 00:01:19.602
+CSV is a plain text export of table values. It is useful for spreadsheets and other systems, and it does not include the full visual layout.
+
+00:01:27.975 --> 00:01:39.088
+Word export creates an editable DOCX when the recipient needs to make document edits. The result can differ from the fixed PDF layout. The Word file is an editable DOCX download.
+
+00:01:44.089 --> 00:01:54.423
+For a printer-specific workflow, use the receipt or label examples to compare ESC/POS and ZPL. Those formats target compatible devices and need printer validation.
+
+00:01:56.744 --> 00:02:04.956
+Use the output preview to inspect the result, then export the format your workflow needs. The same report can serve each of these use cases.

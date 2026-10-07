@@ -1,0 +1,30 @@
+WEBVTT
+
+00:00:06.440 --> 00:00:17.222
+A label that looks right on screen can still shift on a physical printer. Match the report size and printer settings, then calibrate and save them together so the next label starts from a known setup.
+
+00:00:22.535 --> 00:00:32.176
+Open the fictional 50 by 30 millimeter barcode label. This example already has content, so we can keep the actual layout in view while setting up print output.
+
+00:00:35.643 --> 00:00:44.151
+Choose the matching ZPL printer preset. Check its physical dimensions, resolution and safe margin before positioning content close to an edge.
+
+00:00:48.081 --> 00:01:02.737
+Before printing a batch, open Calibrate ZPL printer and download its test label. Print it on the target device, then measure the black box with a ruler. The PDF and canvas keep their nominal layout; calibration adjusts ZPL output only.
+
+00:01:06.969 --> 00:01:19.149
+For this walkthrough only, enter a sample measurement slightly smaller than the expected width and a small position offset. In production, enter the measurements from your own printer test, not these example numbers.
+
+00:01:23.720 --> 00:01:33.481
+Apply the correction and review its scale and position values. Now save the label media, DPI and correction together as the Northstar Zebra 50 by 30 profile.
+
+00:01:38.669 --> 00:01:48.111
+Switch to a different label preset. Applying the saved profile restores the original 50 by 30 millimeter stock and its 203 DPI ZPL settings.
+
+00:01:52.048 --> 00:02:02.706
+Confirm the print facts match the target media before exporting. Applying a saved profile copies its settings into this report; it does not create a live link to future profile edits.
+
+00:02:04.901 --> 00:02:14.326
+Print one calibration sample and scan or inspect it on the actual device before running a production batch. Printer margins and feed behavior vary by model and stock.
+
+00:02:16.292 --> 00:02:17.217

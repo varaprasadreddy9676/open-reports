@@ -549,7 +549,7 @@ export function HomeScreen() {
       <div className="home-header-actions">
         <label className="home-appearance">Appearance <select aria-label="Interface appearance" data-testid="home-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
         {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing →</button>}
-        <button className="btn" data-testid="home-tour" onClick={() => set({ dialog: "tour" })}>Practical videos ▶</button>
+        <button className="btn" data-testid="home-tour" onClick={() => set({ dialog: "tour" })}>Training videos ▶</button>
         <button className="btn" data-testid="home-guide" onClick={() => set({ dialog: "guide" })}>What can I do?</button>
         <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
       </div>
@@ -565,7 +565,7 @@ export function HomeScreen() {
           <h2>Explore a complete invoice</h2>
           <p>See real layout, sample data, and PDF preview in a report you can edit.</p>
           <button className="btn primary" data-testid="home-try-invoice" onClick={() => openStarterExample("invoice")}>Try invoice example →</button>
-          <button className="btn" data-testid="home-tour-featured" onClick={() => set({ dialog: "tour" })}>Watch practical examples ▶</button>
+          <button className="btn" data-testid="home-tour-featured" onClick={() => set({ dialog: "tour" })}>Guided lessons & examples ▶</button>
         </div>
         <div className="home-steps" aria-label="How the demo works">
           <span><b>1</b> Open an example</span>
@@ -613,25 +613,53 @@ function GuideDialog() {
 }
 
 const PRACTICAL_VIDEOS = [
-  { id: "invoice-to-pdf", title: "Create an invoice and preview the PDF", summary: "Edit a working invoice, then inspect the finished PDF." },
-  { id: "word-to-report", title: "Turn a Word template into an editable report", summary: "Import a DOCX template, open the draft and review its output." },
-  { id: "jasper-folder-migration", title: "Migrate a JasperReports folder", summary: "Convert JRXML files to drafts, then inspect the migration." },
-  { id: "supermarket-receipt", title: "Build a long 58 mm supermarket receipt", summary: "Load a grocery basket and preview the continuous thermal roll." },
-  { id: "sales-crosstab", title: "Summarize sales with a crosstab", summary: "Compare sales by region and service, then preview the totals." },
-  { id: "hospital-letterhead", title: "Build a hospital letterhead with logos", summary: "Align left and right logos, then compare editable headers with pre-printed stationery." },
+  { id: "open-reports-intro", title: "Open Reports in one minute", summary: "See how a report goes from data and design to a printable result.", duration: "1:15", category: "Start here" },
+  { id: "designer-tour", title: "Find your way around the designer", summary: "Start at Home, explore Design, Data, Code and Preview, then return home.", duration: "2:02", category: "Start here" },
+  { id: "first-report", title: "Build your first report from data", summary: "Create a heading, connect sample JSON, add a bound field and table, calculate a total, and preview the PDF.", duration: "2:07", category: "Start here" },
+  { id: "table-designer-workflow", title: "Edit an invoice table", summary: "Resize columns, add a grouped header, inspect rows and set totals before previewing.", duration: "2:01", category: "Tables" },
+  { id: "table-merges-rules", title: "Merge table cells and highlight rows", summary: "Merge repeated transaction dates and inspect a conditional low-balance style in a real statement.", duration: "1:57", category: "Tables" },
+  { id: "grouped-report-workflow", title: "Group records and calculate subtotals", summary: "Read nested department and doctor groups, inspect subtotal bands, and verify the report total.", duration: "1:36", category: "Data" },
+  { id: "group-create-workflow", title: "Create a group and add subtotals", summary: "Group fictional sales by region, label each group, and calculate its revenue total.", duration: "1:43", category: "Data" },
+  { id: "barcode-label-zpl", title: "Design a barcode label and export ZPL", summary: "Check a 50 × 30 mm label, its safe area and barcode, then download printer-ready ZPL.", duration: "2:08", category: "Print" },
+  { id: "printer-profiles", title: "Calibrate and reuse a printer profile", summary: "Download a ZPL calibration label, save stock and DPI settings, then apply the profile to another report.", duration: "2:20", category: "Print" },
+  { id: "layout-precision", title: "Set up a page and place elements precisely", summary: "Choose A4, A5 or A6 and orientation, then align and resize on the canvas.", duration: "1:49", category: "Design" },
+  { id: "sections-explained", title: "Sections and bands explained", summary: "Learn what runs once, repeats on each page, groups records, and prints for each row.", duration: "2:08", category: "Design" },
+  { id: "data-sources", title: "Connect data from JSON, CSV and a REST API", summary: "Test sample data, pass a report parameter to an API, and bind a returned field.", duration: "2:09", category: "Data" },
+  { id: "formulas-conditions", title: "Use formulas and conditions", summary: "Transform a value, format a date, and control element visibility with a rule.", duration: "2:09", category: "Data" },
+  { id: "long-report-pagination", title: "Keep long reports readable across pages", summary: "Inspect page breaks, repeat table headings, and choose first, normal, and last page masters.", duration: "2:16", category: "Pagination" },
+  { id: "page-master-variants", title: "Customize first, normal and last page bands", summary: "Give an account statement a distinct opening and final page footer, then review the real PDF.", duration: "2:02", category: "Pagination" },
+  { id: "client-letterhead", title: "Customize a client letterhead and footer", summary: "Replace logo sources, update organization details, and compare a pre-printed page.", duration: "2:09", category: "Design" },
+  { id: "shared-header-subreport", title: "Reuse a client header with a subreport", summary: "Select a child report file and attach its logos and contact details to multiple parent reports.", duration: "1:45", category: "Reuse" },
+  { id: "crosstab-workflow", title: "Build a sales crosstab", summary: "Compare regions and services, change the calculation, and review totals.", duration: "2:01", category: "Data" },
+  { id: "output-formats", title: "Choose the right report output", summary: "Compare PDF, HTML, Excel, CSV and Word exports, then see where printer formats fit.", duration: "2:07", category: "Output" },
+  { id: "publish-review", title: "Review and publish a report version", summary: "Run validation, inspect the PDF, publish an immutable version, and compare later edits.", duration: "1:49", category: "Quality and sharing" },
+  { id: "interactive-viewer", title: "Use the interactive report viewer", summary: "Change report parameters, drill into grouped records, open a linked detail report, search, sort, and download a PDF.", duration: "2:01", category: "Sharing" },
+  { id: "api-rendering", title: "Render a report from your application API", summary: "Send host-owned report JSON and authorized data, then use the rendered PDF bytes in your app.", duration: "1:48", category: "Developers" },
+  { id: "designer-embedding", title: "Embed the designer in your application", summary: "Load a host-owned report into the embedded designer, edit it, and save the JSON through your host callback.", duration: "1:34", category: "Developers" },
+  { id: "settings-security", title: "Connect the designer and protect API keys", summary: "Set the server URL, test the connection, and review safer backend integration patterns.", duration: "1:27", category: "Developers" },
+  { id: "plugin-workflow", title: "Extend the server with a trusted plugin", summary: "Inspect a real plugin registry and use its custom renderer and expression functions.", duration: "2:06", category: "Developers" },
+  { id: "reusable-blocks", title: "Save and reuse report components", summary: "Save a shared brand element and choose whether report copies follow, pin, or detach from updates.", duration: "1:37", category: "Reuse" },
+  { id: "async-render-jobs", title: "Handle a long render as a background job", summary: "Queue a render, poll its status, download the completed file, and understand the current job store limits.", duration: "1:34", category: "Developers" },
+  { id: "invoice-to-pdf", title: "Create an invoice and preview the PDF", summary: "Edit a working invoice, then inspect the finished PDF.", duration: "0:36", category: "Examples" },
+  { id: "hospital-letterhead", title: "Build a hospital letterhead with logos", summary: "Align left and right logos, then compare editable headers with pre-printed stationery.", duration: "1:09", category: "Examples" },
+  { id: "sales-crosstab", title: "Summarize sales with a crosstab", summary: "Compare sales by region and service, then preview the totals.", duration: "0:36", category: "Examples" },
+  { id: "supermarket-receipt", title: "Build and print a long supermarket receipt", summary: "Edit a 45-item grocery basket, inspect the continuous roll, compare PDF with ESC/POS, and download printer bytes.", duration: "2:00", category: "Print" },
+  { id: "sticker-sheet-workflow", title: "Print a sheet of address or inventory labels", summary: "Choose A4 label stock, fill one label per record, use a start position and check print alignment.", duration: "1:36", category: "Print" },
+  { id: "word-to-report", title: "Turn a Word template into an editable report", summary: "Review DOCX counts and warnings, edit the draft, and compare its PDF.", duration: "2:17", category: "Import" },
+  { id: "jasper-folder-migration", title: "Review a JasperReports folder migration", summary: "Convert related JRXML files into separate JSON drafts, inspect the linked child, and preview the result.", duration: "2:24", category: "Import" },
 ];
 
 function TourDialog() {
   const set = useStore((state) => state.set);
   const [selectedId, setSelectedId] = useState(PRACTICAL_VIDEOS[0]!.id);
   const selected = PRACTICAL_VIDEOS.find((video) => video.id === selectedId) ?? PRACTICAL_VIDEOS[0]!;
-  return <Modal wide className="tour-modal" label="Practical video library" onClose={() => set({ dialog: null })}>
-    <h2>See what you can make</h2>
-    <p className="muted">Short, narrated recordings of real report workflows. Choose a job to see it in the designer.</p>
+  return <Modal wide className="tour-modal" label="Open Reports training videos" onClose={() => set({ dialog: null })}>
+    <h2>Learn with Open Reports</h2>
+    <p className="muted">Start with the three Start here lessons, then choose a focused example or import workflow. Videos play here with English captions.</p>
     <div className="demo-video-library">
-      <nav className="demo-video-list" aria-label="Practical video examples">
+      <nav className="demo-video-list" aria-label="Open Reports training lessons">
         {PRACTICAL_VIDEOS.map((video, index) => <button key={video.id} className="demo-video-choice" aria-pressed={selected.id === video.id} onClick={() => setSelectedId(video.id)}>
-          <span className="demo-video-number">{String(index + 1).padStart(2, "0")}</span><span><strong>{video.title}</strong><small>{video.summary}</small></span><span aria-hidden="true">▶</span>
+          <span className="demo-video-number">{String(index + 1).padStart(2, "0")}</span><span><strong>{video.title}</strong><small>{video.summary}</small><small className="demo-video-meta">{video.duration} · {video.category}</small></span><span aria-hidden="true">▶</span>
         </button>)}
       </nav>
       <section className="demo-video-player" aria-label={selected.title}>
@@ -639,6 +667,7 @@ function TourDialog() {
         <p className="muted">{selected.summary}</p>
         <video key={selected.id} className="tour-video" controls playsInline preload="metadata" poster={`/demo-videos/${selected.id}-poster.jpg`} tabIndex={0}>
           <source src={`/demo-videos/${selected.id}.mp4`} type="video/mp4" />
+          <track kind="captions" src={`/demo-videos/${selected.id}.vtt`} srcLang="en" label="English" default />
           Your browser does not support this video. <a href={`/demo-videos/${selected.id}.mp4`}>Open the video</a>.
         </video>
         <a className="demo-caption-link" href={`/demo-videos/${selected.id}.vtt`} download={`${selected.id}-captions.vtt`}>Download English captions (.vtt)</a>

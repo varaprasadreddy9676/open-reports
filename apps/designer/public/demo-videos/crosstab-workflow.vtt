@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:05.000 --> 00:00:12.787
+A crosstab turns a list of records into a summary grid. Rows and columns group the data, and a measure calculates what each cell shows.
+
+00:00:16.762 --> 00:00:25.892
+Open the fictional Sales by region and service report. Its sample data has several sales for each region and service, so we can compare totals with averages.
+
+00:00:29.750 --> 00:00:39.428
+Regions run down the side, service types run across the top, and each cell sums its sales records. Row and column totals help readers compare the bigger picture.
+
+00:00:42.171 --> 00:00:51.469
+Change the row and column fields to switch the view: now services run down the side and regions across the top. The same data answers a different comparison question.
+
+00:00:54.392 --> 00:01:03.748
+Change the measure from Sum to Average to compare the typical sale amount. The repeated records now produce different averages, and the result keeps its currency format.
+
+00:01:06.946 --> 00:01:14.817
+Total row and total column are separate controls. Turn the row off and back on to see how totals can be hidden when readers only need the detail.
+
+00:01:17.047 --> 00:01:23.811
+Rename the summary label so readers know this table shows average amounts. The label updates with the total row and column.
+
+00:01:28.432 --> 00:01:36.847
+Preview the PDF to check the changed axes, average values and totals. The same summary can also feed Excel or CSV exports.
+
+00:01:38.264 --> 00:01:49.139
+After changing row fields, column fields or the calculation, check that totals still answer the business question. Empty groups and decimal rounding should be reviewed with representative data.
+
+00:01:50.606 --> 00:01:58.741
+A crosstab answers a summary question; keep the source detail available when users also need to trace a total to individual records.

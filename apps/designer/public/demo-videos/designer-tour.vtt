@@ -1,0 +1,37 @@
+WEBVTT
+
+00:00:04.932 --> 00:00:10.344
+Welcome to Open Reports. Home is your starting point for examples, new reports and help.
+
+00:00:14.284 --> 00:00:22.590
+Open Department Revenue. This three-page example lets us explore the designer with real sections, data and page breaks already in place.
+
+00:00:23.906 --> 00:00:32.667
+Design is where you arrange the report. The Structure panel lists its sections and elements, the page is in the center, and Properties edits the selected item.
+
+00:00:35.466 --> 00:00:42.261
+Switch to Data to inspect the sample records and fields that drive the report. You can search here before placing a field.
+
+00:00:45.002 --> 00:00:51.502
+Code shows the report definition as JSON. It is useful when you want to inspect or edit the structure directly.
+
+00:00:55.836 --> 00:01:01.644
+Sections is the layout view: it shows where page headers, details and footers belong in the report.
+
+00:01:05.374 --> 00:01:10.297
+Turn on Pagination to see the sample pages and where each starts in the report structure.
+
+00:01:13.187 --> 00:01:19.633
+Select Why beside a page to see the available space and the recorded reason that content continues on the next page.
+
+00:01:23.520 --> 00:01:29.322
+Pages shows the printable result one page at a time. Choose a page to inspect its actual layout.
+
+00:01:33.639 --> 00:01:40.324
+Preview renders the actual output. This is the PDF people can print or download, not a picture of the canvas.
+
+00:01:43.205 --> 00:01:49.289
+The Home button returns you to the starting point. From there you can reopen these videos or explore the feature guide.
+
+00:01:50.626 --> 00:02:00.042
+The quickest way to learn the interface is to start with a sample, follow its data into Design, and compare the canvas with Preview before adapting it to your own report.

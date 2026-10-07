@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:05.958 --> 00:00:13.757
+A label sheet prints one design repeatedly across a page. Set the exact stock and printer scaling before using a partly used sheet.
+
+00:00:20.316 --> 00:00:26.323
+Open the fictional A4 sticker sheet. The example has ten sample records and eight labels per sheet.
+
+00:00:29.410 --> 00:00:37.482
+Select the label sheet and choose the matching A4 two-column, four-row stock. Check the measured label area fits inside the printable page.
+
+00:00:40.722 --> 00:00:47.725
+One label per record fills each position from the selected data. Design one label; the sheet repeats it for each record.
+
+00:00:49.712 --> 00:00:57.784
+Set Start at position to five when the first four labels are already used. The next labels begin at position five instead of wasting that sheet.
+
+00:01:03.427 --> 00:01:11.124
+Turn on Draw label outlines and inspect the PDF. Print that outline on plain paper to check that labels line up with the physical stock.
+
+00:01:19.979 --> 00:01:27.144
+For production, turn outlines back off and print at Actual size. Printer scaling or different margins can shift every label.
+
+00:01:29.490 --> 00:01:33.714
+Preview the complete sheet count and page layout before loading the label stock.

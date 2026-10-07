@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:05.863 --> 00:00:14.025
+Tables can combine repeated values and highlight records that need attention. We will use a fictional account statement to explore those controls.
+
+00:00:18.762 --> 00:00:27.335
+Open the Account Statement example. The transaction list repeats some dates and highlights low balances, so it is useful for seeing table rules.
+
+00:00:34.550 --> 00:00:42.088
+Select the transactions table and open Edit table. Rows and cells lets you work with real sample records before changing the report.
+
+00:00:47.750 --> 00:00:55.578
+Select the Date cells in the first two records and choose Merge cells. The top-left value prints once; the second cell is covered by the merge.
+
+00:00:59.872 --> 00:01:08.183
+Keep the merge attached to its data record when the row order may change. A position-based merge stays at the same row position after sorting or filtering.
+
+00:01:14.051 --> 00:01:23.364
+For a whole column of adjacent duplicates, Columns also has Merge repeated values. It applies the merge automatically wherever consecutive values match.
+
+00:01:27.963 --> 00:01:38.316
+In Conditions, this sample highlights balances below thirty thousand in red. Table rules can style or hide an entire row, or replace or style values in a selected column.
+
+00:01:45.476 --> 00:01:54.228
+Preview the PDF to check that the date merge and conditional row colors are readable in the full statement. Always check a rendered report after editing sample cells.

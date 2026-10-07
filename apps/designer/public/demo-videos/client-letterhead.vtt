@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:04.816 --> 00:00:16.401
+This fictional discharge summary shows two practical ways to brand a report: editable logos and text in the template, or stationery that is already printed. We will update the editable version first.
+
+00:00:21.937 --> 00:00:31.597
+The page header has a left logo, organization details, and a right seal as separate elements. Select each one to change its content, size, or position.
+
+00:00:35.569 --> 00:00:43.941
+For a logo that rarely changes, embed a file so it travels with the report. This example replaces the left mark with a sample PNG.
+
+00:00:48.563 --> 00:00:59.397
+For a client-specific logo, use an image URL the rendering server can reach. A host application can substitute that URL for each client when it renders the same report definition.
+
+00:01:01.548 --> 00:01:07.092
+Update the organization name in the header. This text is editable independently from the logo image.
+
+00:01:09.476 --> 00:01:17.961
+This first-page footer has contact details. A report can also use a standard footer for following pages and a separate footer for its last page.
+
+00:01:22.930 --> 00:01:29.604
+Preview the PDF to check both logos, the changed organization name, patient fields, and footer together.
+
+00:01:32.455 --> 00:01:40.689
+Save an editable draft before sharing it. Keep client-specific logos and wording in the host application when each customer needs a different version.
+
+00:01:46.444 --> 00:01:54.731
+If your organization already prints on the paper, open the pre-printed letterhead example instead. Its background image supplies the fixed branding.
+
+00:01:59.697 --> 00:02:07.128
+The report content then uses the clear area below the printed header. Preview it to confirm the variable details stay in the right place.

@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:05.838 --> 00:00:14.782
+Long reports need clear page breaks, repeated column headings and the right footer on each page. This fictional account statement shows how to check all three.
+
+00:00:19.680 --> 00:00:26.303
+Open the Account Statement example. It has many transactions, so the real PDF spans several pages.
+
+00:00:32.188 --> 00:00:38.908
+Preview the PDF. Check that the transaction heading repeats and the page footer shows the current page and total pages.
+
+00:00:46.579 --> 00:00:57.903
+Back in Design, open the Pagination panel. It counts actual pages and records why each new page begins. Select a page start to inspect the measured space and the rule that moved its first item.
+
+00:01:05.575 --> 00:01:19.812
+Select the transactions table and open Table Designer. Its Pagination tab controls whether column headings repeat and whether a long row may split. By default rows stay whole; a row too tall for a page must be fixed or explicitly allowed to split.
+
+00:01:22.916 --> 00:01:32.649
+Minimum rows before and after a break can avoid awkward page starts with only one or two records. Adjust these values to suit the report, then recheck the real PDF.
+
+00:01:45.945 --> 00:01:58.179
+In Pages, open Edit page masters. First, Normal and Last pages can each use their own header, footer or background. Use Last for a final total or signature and Normal for the pages in between.
+
+00:02:03.910 --> 00:02:13.103
+Preview again after changes. Verify the page count, repeated heading, page numbering and any first or last page variation before sharing the report.

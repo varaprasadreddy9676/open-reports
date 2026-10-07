@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar Developer Console · Render Jobs</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:#172b48;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{padding:16px 28px;background:#fff;border-bottom:1px solid #dbe3ef;font-weight:750}main{width:min(1440px,calc(100vw - 56px));margin:28px auto}h1{margin:0 0 6px;font-size:25px;letter-spacing:-.025em}.sub{margin:0 0 20px;color:#68788d}.grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:18px}.card{overflow:hidden;border:1px solid #d8e1ec;border-radius:12px;background:#fff;box-shadow:0 8px 26px #1c33530b}.head{padding:13px 17px;border-bottom:1px solid #e1e7ef;font-weight:700}pre{height:335px;margin:0;padding:17px;overflow:auto;background:#10243d;color:#e1ebf8;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}.note{margin:14px 17px;padding:11px 12px;border-left:3px solid #e4aa45;background:#fff8e8;color:#70542a;font-size:12px}button{margin:0 17px 17px;border:0;border-radius:8px;padding:10px 15px;background:#2563eb;color:white;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.facts{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:14px 17px}.fact{padding:9px 10px;border-radius:7px;background:#f5f7fa}.fact small{display:block;margin-bottom:2px;color:#74839a}.fact strong{font-size:12px}.status{padding:0 17px 12px;color:#58708d;font-size:12px}.steps{display:flex;gap:7px;padding:0 17px 12px}.step{padding:6px 8px;border-radius:6px;background:#f3f5f8;color:#7a8798;font-size:11px}.step.active{background:#e1f3eb;color:#126644;font-weight:700}.preview{height:420px;overflow:auto;border-top:1px solid #e1e7ef;background:#eef1f5;padding:12px}#pdf-page{display:block;max-width:100%;height:auto;margin:0 auto;background:white;box-shadow:0 2px 12px #1c335322}
+  </style>
+</head>
+<body>
+  <header>Northstar · Developer Console</header>
+  <main>
+    <h1>Queue a report export and collect its result</h1>
+    <p class="sub">The host submits the same report request as a background job, checks its status, then downloads the completed file.</p>
+    <div class="grid">
+      <section class="card">
+        <div class="head">Host application · async render request</div>
+        <pre>const accepted = await fetch(
+  `${OPEN_REPORTS_URL}/api/v1/render/jobs`,
+  {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      report: statementReport,
+      format: "pdf",
+      data: { transactions: authorizedRows },
+    }),
+  },
+);
+
+const { jobId } = await accepted.json();
+// Poll GET /api/v1/render/jobs/{jobId}
+// Download GET /api/v1/render/jobs/{jobId}/output</pre>
+        <div class="note">This local sample has API authentication disabled. In production, keep the report data and any API key in your authenticated backend.</div>
+        <button id="run" type="button">Queue statement PDF</button>
+      </section>
+      <section class="card">
+        <div class="head">Real render-job status and output</div>
+        <div class="facts">
+          <div class="fact"><small>Enqueue response</small><strong id="accepted">—</strong></div>
+          <div class="fact"><small>Job ID</small><strong id="job-id">—</strong></div>
+          <div class="fact"><small>Current status</small><strong id="job-status">Ready</strong></div>
+          <div class="fact"><small>Downloaded output</small><strong id="output-size">—</strong></div>
+        </div>
+        <div class="steps"><span class="step" data-step="queued">Queued</span><span class="step" data-step="running">Running</span><span class="step" data-step="completed">Completed</span></div>
+        <div class="status" id="message" aria-live="polite">Ready to submit a report job.</div>
+        <div class="preview"><canvas id="pdf-page" aria-label="First page of the rendered statement"></canvas></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const rows=Array.from({length:84},(_,i)=>({date:`2026-09-${String(i%28+1).padStart(2,"0")}`,reference:`TXN-${String(2041+i)}`,description:["Consultation","Diagnostics","Equipment","Pharmacy"][i%4],amount:[650,1200,475,840][i%4]}));
+    const report={schemaVersion:"1.0",id:"northstar-activity-statement",name:"Northstar activity statement",page:{size:"A4",orientation:"portrait",unit:"mm",margin:{top:16,right:16,bottom:16,left:16}},datasets:[{id:"transactions",source:"inline",query:{data:[]}}],sections:[{type:"reportHeader",children:[{type:"text",value:"NORTHSTAR SUPPLY CO.",style:{fontSize:18,fontWeight:"bold",color:"#17365c"}},{type:"text",value:"ACCOUNT ACTIVITY STATEMENT · TRAINING SAMPLE"}]},{type:"detail",children:[{type:"table",id:"transactions-table",dataset:"transactions",columns:[{id:"date",header:"Date",binding:"row.date",width:35},{id:"reference",header:"Reference",binding:"row.reference",width:38},{id:"description",header:"Description",binding:"row.description",width:70},{id:"amount",header:"Amount",binding:"row.amount",width:35,style:{align:"right"}}]}]}]};
+    const $=id=>document.getElementById(id);const setStatus=status=>{ $("job-status").textContent=status;document.querySelectorAll(".step").forEach(el=>el.classList.toggle("active",el.dataset.step===status)); };
+    $("run").addEventListener("click",async()=>{const button=$("run");button.disabled=true;setStatus("queued");$("message").textContent="Submitting the real render job…";try{const accepted=await fetch("http://localhost:4000/api/v1/render/jobs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({report,format:"pdf",data:{transactions:rows}})});const body=await accepted.json();if(accepted.status!==202)throw new Error(`Expected HTTP 202, received ${accepted.status}: ${JSON.stringify(body)}`);$("accepted").textContent=`${accepted.status} Accepted`;$ ("job-id").textContent=body.jobId;$("message").textContent="The server accepted the job. Checking its current state…";let status;for(let i=0;i<80;i++){const response=await fetch(`http://localhost:4000/api/v1/render/jobs/${body.jobId}`);const job=await response.json();status=job.status;setStatus(status);if(status==="completed")break;if(status==="failed"||status==="cancelled")throw new Error(`Job ${status}: ${job.error??""}`);await new Promise(resolve=>setTimeout(resolve,250));}if(status!=="completed")throw new Error("Job did not complete within the sample wait window.");$("message").textContent="The job completed. Fetching the actual PDF output…";const output=await fetch(`http://localhost:4000/api/v1/render/jobs/${body.jobId}/output`);const bytes=await output.arrayBuffer();if(!output.ok)throw new Error(`Output request returned ${output.status}`);$("output-size").textContent=`${bytes.byteLength.toLocaleString()} bytes · ${output.headers.get("content-type")}`;const pdfjs=await import("http://localhost:3000/node_modules/.vite/deps/pdfjs-dist.js");pdfjs.GlobalWorkerOptions.workerSrc="http://localhost:3000/node_modules/pdfjs-dist/build/pdf.worker.min.mjs";const pdf=await pdfjs.getDocument({data:new Uint8Array(bytes)}).promise;const page=await pdf.getPage(1);const viewport=page.getViewport({scale:.72});const canvas=$("pdf-page");canvas.width=viewport.width;canvas.height=viewport.height;await page.render({canvasContext:canvas.getContext("2d"),viewport}).promise;$("message").textContent=`Downloaded and rendered the real job output · ${pdf.numPages} pages.`;}catch(error){setStatus("failed");$("message").textContent=`Job failed: ${error.message}`;}finally{button.disabled=false;}});
+  </script>
+</body>
+</html>

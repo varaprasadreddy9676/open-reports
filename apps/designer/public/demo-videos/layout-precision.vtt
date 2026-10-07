@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:04.818 --> 00:00:11.770
+Print layout starts with the right paper size. Then use the canvas rulers and guides to place and size elements with control.
+
+00:00:14.559 --> 00:00:18.551
+Choose Blank report so we can set up the page before adding content.
+
+00:00:22.383 --> 00:00:31.448
+Page size and orientation are separate settings. Choose A4, A5 or A6, then set portrait or landscape. The page updates to match.
+
+00:00:32.783 --> 00:00:41.643
+For this example choose A5 landscape. The canvas shows the printable page shape, while the page inspector keeps exact size and margins available.
+
+00:00:45.190 --> 00:00:51.595
+Add a heading and change its text. Select it to reveal its size and position in the inspector and above the selection.
+
+00:00:55.469 --> 00:01:07.014
+Open Canvas settings, switch the ruler to millimeters, and choose a 5 millimeter grid. Grid and object snapping help keep edges aligned; hold Alt or Option while dragging to place something freely.
+
+00:01:12.927 --> 00:01:17.633
+Drag the heading into position. It follows your cursor and snaps to the page grid.
+
+00:01:21.466 --> 00:01:26.594
+Add a rectangle as a simple shape, then drag it independently to another part of the page.
+
+00:01:28.142 --> 00:01:36.392
+Resize the rectangle while holding its corner handle. The outline and measurements update as you drag, so you can judge the new size before releasing.
+
+00:01:41.808 --> 00:01:47.286
+Preview the page to check how its paper size, orientation, and placed content print.

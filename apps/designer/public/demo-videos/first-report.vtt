@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:04.836 --> 00:00:15.932
+In this lesson, we will build a small invoice from scratch. We will add a title, connect sample data, show a customer name, calculate line amounts, and check the printable PDF.
+
+00:00:18.772 --> 00:00:24.378
+Choose Blank report. It gives you a clean page while keeping the usual designer panels available.
+
+00:00:28.123 --> 00:00:36.618
+Add a text element and enter a useful title. You can select the element later in Structure or directly on the canvas to change its content and style.
+
+00:00:42.398 --> 00:00:53.514
+Open Data and create a dataset called invoice. The example contains a customer and a list of line items. Test the JSON before saving so you can catch a shape or syntax problem early.
+
+00:00:57.449 --> 00:01:06.877
+The saved dataset exposes fields on the left. Drag customer.name onto the page. This creates a bound value that changes with the data instead of fixed text.
+
+00:01:11.172 --> 00:01:20.034
+Drag the items list onto the page and choose Table. The designer can create columns from the item fields, giving the repeating rows a clear starting structure.
+
+00:01:28.457 --> 00:01:41.976
+Open Edit table and add an Amount column. Set its formula to quantity times rate, then choose a currency format and sum the column in the footer. Formulas use Open Reports expression syntax, not unrestricted JavaScript.
+
+00:01:47.011 --> 00:01:56.332
+Preview renders the document with the sample data. Check the customer, line amounts, and total in the PDF, then return to Design if anything needs adjustment.
+
+00:01:59.100 --> 00:02:04.896
+Save keeps an editable draft in this server. Publishing is a separate step when the report is ready to share.

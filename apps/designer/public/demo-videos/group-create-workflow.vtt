@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:05.781 --> 00:00:11.652
+A group collects neighboring records with the same value. Add a heading for each group and a subtotal in its footer.
+
+00:00:16.832 --> 00:00:23.942
+Open the fictional Regional Sales grouping practice report. It has a short sales list with region, city and amount fields.
+
+00:00:29.020 --> 00:00:34.636
+In the Structure explorer, choose Add, then Group. Pick the sales list and group it by region.
+
+00:00:36.681 --> 00:00:42.734
+Name the group Region, sort it alphabetically, and repeat its header if the group continues on another page.
+
+00:00:53.703 --> 00:00:59.857
+The new group gets header and footer bands. Add a formula in the header so each section displays its region name.
+
+00:01:13.032 --> 00:01:20.065
+In the group footer, calculate the total for only this region with sumBy over group.rows. Format the result as currency.
+
+00:01:25.107 --> 00:01:31.235
+Preview the report. Verify that cities sit under the right region and each regional total follows its group.
+
+00:01:33.417 --> 00:01:40.465
+The same pattern works for customers, product families, departments or any data field that defines a useful section.

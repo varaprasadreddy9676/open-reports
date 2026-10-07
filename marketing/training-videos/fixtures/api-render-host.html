@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar Developer Console · API Rendering Training Sample</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f6fb; color: #172b48; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    header { padding: 16px 28px; background: #fff; border-bottom: 1px solid #dbe3ef; font-weight: 750; }
+    main { width: min(1420px, calc(100vw - 56px)); margin: 28px auto; }
+    h1 { margin: 0 0 6px; font-size: 25px; letter-spacing: -.025em; }
+    .sub { margin: 0 0 20px; color: #68788d; }
+    .grid { display: grid; grid-template-columns: 1.08fr .92fr; gap: 18px; align-items: stretch; }
+    .card { overflow: hidden; border: 1px solid #d8e1ec; border-radius: 12px; background: white; box-shadow: 0 8px 26px #1c33530b; }
+    .card-head { padding: 13px 17px; border-bottom: 1px solid #e1e7ef; font-weight: 700; }
+    pre { min-height: 310px; margin: 0; padding: 18px; overflow: auto; background: #10243d; color: #e1ebf8; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+    .request { margin: 14px 17px; padding: 10px 12px; border: 1px solid #dbe3ef; border-radius: 8px; background: #f7f9fc; color: #324b6b; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .request strong { color: #176948; }
+    .call { margin: 0 17px 15px; padding: 11px 12px; border-left: 3px solid #5d8de4; background: #f0f5ff; color: #3d587a; font-size: 12px; }
+    button { margin: 0 17px 17px; border: 0; border-radius: 8px; padding: 10px 15px; background: #2563eb; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 14px 17px; }
+    .fact { padding: 9px 10px; border-radius: 7px; background: #f5f7fa; }
+    .fact small { display: block; margin-bottom: 2px; color: #74839a; }
+    .fact strong { font-size: 12px; }
+    .preview { height: 500px; overflow: auto; border-top: 1px solid #e1e7ef; background: #eef1f5; padding: 12px; }
+    #pdf-page { display: block; width: auto; max-width: 100%; height: auto; margin: 0 auto; background: white; box-shadow: 0 2px 12px #1c335322; }
+    .status { padding: 10px 17px; color: #58708d; font-size: 12px; }
+    #base64 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body>
+  <header>Northstar · Developer Console</header>
+  <main>
+    <h1>Render an invoice from your application</h1>
+    <p class="sub">Your host sends a report definition and authorized data to the Open Reports rendering API.</p>
+    <div class="grid">
+      <section class="card">
+        <div class="card-head">Host application · Node.js request</div>
+        <pre id="code">const response = await fetch(
+  `${OPEN_REPORTS_URL}/api/v1/render`,
+  {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": OPEN_REPORTS_API_KEY,
+    },
+    body: JSON.stringify({
+      report: invoiceReportDefinition,
+      format: "pdf",
+      data: { invoice: authorizedInvoice, items: authorizedLineItems },
+    }),
+  },
+);
+
+const pdfBytes = await response.arrayBuffer();
+// Keep the API key in this server-side code.
+// Your host can encode pdfBytes as Base64 if needed.</pre>
+        <div class="request"><strong>POST</strong> http://localhost:4000/api/v1/render · host-owned JSON · PDF</div>
+        <p class="call">In this example the Open Reports API key is intentionally omitted because local demo authentication is disabled. In production, call from your backend and keep the privileged key there.</p>
+        <button id="render" type="button">Render invoice PDF</button>
+      </section>
+      <section class="card">
+        <div class="card-head">Actual API response</div>
+        <div class="facts">
+          <div class="fact"><small>HTTP status</small><strong id="status-code">—</strong></div>
+          <div class="fact"><small>Content type</small><strong id="content-type">—</strong></div>
+          <div class="fact"><small>Response bytes</small><strong id="byte-count">—</strong></div>
+          <div class="fact"><small>Render ID</small><strong id="render-id">—</strong></div>
+          <div class="fact" style="grid-column:1/-1"><small>Host-side Base64 preview · PDF REST response is raw bytes</small><strong id="base64">—</strong></div>
+        </div>
+        <div class="status" id="status" aria-live="polite">Ready to render.</div>
+        <div class="preview"><canvas id="pdf-page" aria-label="First page of the rendered invoice PDF"></canvas></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const report = {
+      schemaVersion: "1.0",
+      id: "northstar-host-invoice",
+      name: "Northstar host-owned invoice",
+      page: { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 20, right: 18, bottom: 18, left: 18 } },
+      datasets: [
+        { id: "invoice", source: "inline", query: { data: [] } },
+        { id: "items", source: "inline", query: { data: [] } }
+      ],
+      sections: [
+        { type: "reportHeader", children: [
+          { type: "text", value: "NORTHSTAR SUPPLY CO.", style: { fontSize: 20, fontWeight: "bold", color: "#17365c" } },
+          { type: "text", value: "TAX INVOICE · TRAINING SAMPLE", style: { fontSize: 10, color: "#52657d" } },
+          { type: "spacer", height: 12 }
+        ] },
+        { type: "detail", dataset: "invoice", children: [
+          { type: "text", expression: '"Invoice " + row.number + " · " + row.customer', style: { fontSize: 14, fontWeight: "bold" } },
+          { type: "spacer", height: 8 },
+          { type: "table", id: "items", dataset: "items", columns: [
+            { id: "description", header: "Description", binding: "row.description", width: 220 },
+            { id: "quantity", header: "Qty", binding: "row.quantity", width: 50, style: { align: "right" } },
+            { id: "amount", header: "Amount", binding: "row.amount", width: 90, style: { align: "right" } }
+          ] },
+          { type: "spacer", height: 12 },
+          { type: "text", expression: '"Total: ₹" + formatNumber(row.total, 2)', style: { fontSize: 16, fontWeight: "bold", align: "right" } }
+        ] }
+      ]
+    };
+    const invoice = [{ number: "NS-2048", customer: "Alex Morgan", total: 15340 }];
+    const items = [
+      { description: "Eye Examination", quantity: 1, amount: 500 },
+      { description: "Progressive Lenses", quantity: 2, amount: 6400 },
+      { description: "Titanium Frame", quantity: 1, amount: 4800 },
+      { description: "Lens Coating", quantity: 1, amount: 650 }
+    ];
+    const $ = (id) => document.getElementById(id);
+    $("render").addEventListener("click", async () => {
+      const button = $("render"); button.disabled = true; $("status").textContent = "Sending the real render request…";
+      try {
+        const response = await fetch("http://localhost:4000/api/v1/render", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ report, format: "pdf", data: { invoice, items } })
+        });
+        const bytes = await response.arrayBuffer();
+        if (!response.ok) throw new Error(`${response.status}: ${new TextDecoder().decode(bytes)}`);
+        const base64 = btoa(Array.from(new Uint8Array(bytes), (byte) => String.fromCharCode(byte)).join(""));
+        $("status-code").textContent = `${response.status} ${response.statusText}`;
+        $("content-type").textContent = response.headers.get("content-type") ?? "unknown";
+        $("byte-count").textContent = `${bytes.byteLength.toLocaleString()} bytes`;
+        $("render-id").textContent = response.headers.get("x-render-id") ?? "not returned";
+        $("base64").textContent = `${base64.slice(0, 56)}… (${base64.length.toLocaleString()} characters)`;
+        const pdfjs = await import("http://localhost:3000/node_modules/.vite/deps/pdfjs-dist.js");
+        pdfjs.GlobalWorkerOptions.workerSrc = "http://localhost:3000/node_modules/pdfjs-dist/build/pdf.worker.min.mjs";
+        const pdf = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
+        const firstPage = await pdf.getPage(1);
+        const viewport = firstPage.getViewport({ scale: 0.7 });
+        const canvas = $("pdf-page"); canvas.width = viewport.width; canvas.height = viewport.height;
+        await firstPage.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        $("status").textContent = `Rendered from the host request · ${pdf.numPages} page${pdf.numPages === 1 ? "" : "s"}.`;
+      } catch (error) {
+        $("status").textContent = `Render failed: ${error.message}`;
+      } finally { button.disabled = false; }
+    });
+  </script>
+</body>
+</html>

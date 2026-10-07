@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar Developer Console · Plugin training sample</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f6fb; color: #172b48; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    header { display:flex; align-items:center; gap:12px; padding:16px 28px; background:#fff; border-bottom:1px solid #dbe3ef; font-weight:750; }
+    .mark { display:grid; place-items:center; width:30px; height:30px; border-radius:9px; background:#1d4ed8; color:#fff; font-size:12px; }
+    main { width:min(1420px,calc(100vw - 56px)); margin:28px auto; }
+    h1 { margin:0 0 6px; font-size:25px; letter-spacing:-.025em; }
+    .sub { margin:0 0 20px; color:#68788d; }
+    .grid { display:grid; grid-template-columns:.9fr 1.1fr; gap:18px; align-items:stretch; }
+    .card { overflow:hidden; border:1px solid #d8e1ec; border-radius:12px; background:#fff; box-shadow:0 8px 26px #1c33530b; }
+    .head { display:flex; align-items:center; justify-content:space-between; padding:13px 17px; border-bottom:1px solid #e1e7ef; font-weight:700; }
+    .status { color:#718198; font-size:12px; font-weight:600; }
+    .status.ok { color:#13754a; }
+    .status.error { color:#b42318; }
+    .content { padding:16px 17px; }
+    .plugin { padding:13px; border:1px solid #dce5ef; border-radius:9px; background:#fbfcfe; }
+    .plugin-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .plugin-top strong { font-size:15px; }
+    .badge { border-radius:999px; padding:4px 9px; background:#e4f7ed; color:#13754a; font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.05em; }
+    .muted { margin:5px 0 12px; color:#718198; font-size:12px; }
+    .capabilities { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .cap { padding:9px 10px; border-radius:7px; background:#f2f5f9; }
+    .cap small { display:block; color:#718198; font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
+    .cap strong { display:block; margin-top:2px; font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    pre { margin:14px 0 0; padding:13px; border-radius:8px; background:#10243d; color:#e1ebf8; font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; }
+    .hint { margin:13px 0 0; padding:10px 12px; border-left:3px solid #5d8de4; background:#f0f5ff; color:#3d587a; font-size:12px; }
+    button { margin-top:14px; border:0; border-radius:8px; padding:10px 15px; background:#2563eb; color:white; font:inherit; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:wait; }
+    button.secondary { margin-left:8px; border:1px solid #d8e1ec; background:#fff; color:#3c5575; }
+    .facts { display:grid; grid-template-columns:1fr 1fr; gap:9px; padding:14px 17px; border-bottom:1px solid #e1e7ef; }
+    .fact { padding:9px 10px; border-radius:7px; background:#f5f7fa; }
+    .fact small { display:block; margin-bottom:2px; color:#74839a; }
+    .fact strong { font-size:12px; }
+    .output { min-height:244px; margin:14px 17px 17px; padding:16px; border-radius:8px; background:#10243d; color:#e1ebf8; font:13px/1.8 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; }
+    .flow { display:flex; align-items:center; gap:8px; margin-top:15px; color:#68788d; font-size:11px; }
+    .flow b { padding:5px 8px; border-radius:6px; background:#eef3fb; color:#365171; font-weight:650; }
+    .flow span { color:#9aa8b9; }
+  </style>
+</head>
+<body>
+  <header><span class="mark">N</span><span>Northstar · Developer Console</span><span class="status" id="connection">Connecting to training server…</span></header>
+  <main>
+    <h1>Extend the reporting server with a trusted plugin</h1>
+    <p class="sub">Discover the sample plugin’s capabilities, then render a real report using its custom text output and expression functions.</p>
+    <div class="grid">
+      <section class="card">
+        <div class="head"><span>Loaded plugin</span><span class="status" id="plugin-state">Loading…</span></div>
+        <div class="content">
+          <div class="plugin">
+            <div class="plugin-top"><strong id="plugin-name">—</strong><span class="badge" id="plugin-badge">—</span></div>
+            <p class="muted" id="plugin-description">Waiting for the server registry.</p>
+            <div class="capabilities">
+              <div class="cap"><small>Renderer</small><strong id="renderers">—</strong></div>
+              <div class="cap"><small>Expression functions</small><strong id="functions">—</strong></div>
+              <div class="cap"><small>Custom component</small><strong id="components">—</strong></div>
+              <div class="cap"><small>Data source</small><strong id="datasources">—</strong></div>
+            </div>
+          </div>
+          <pre>REPORT_PLUGINS=/path/to/trusted/plugin-entry.js
+
+// The server loads this code at startup.
+// Install only plugins you trust.</pre>
+          <p class="hint">The example plugin runs inside the server process. Its custom renderer returns plain text; the host application still owns user access and report data.</p>
+          <div class="flow"><b>Load trusted code</b><span>→</span><b>Register capabilities</b><span>→</span><b>Use them in a render</b></div>
+          <button id="show-registry" class="secondary" type="button" hidden>Inspect raw registry response</button>
+          <pre id="registry-json" hidden></pre>
+        </div>
+      </section>
+      <section class="card">
+        <div class="head"><span>Real plugin renderer response</span><span class="status" id="render-state">Ready</span></div>
+        <div class="facts">
+          <div class="fact"><small>HTTP response</small><strong id="http-status">—</strong></div>
+          <div class="fact"><small>Content type</small><strong id="content-type">—</strong></div>
+          <div class="fact"><small>Output size</small><strong id="output-size">—</strong></div>
+          <div class="fact"><small>Format</small><strong>txt · plugin renderer</strong></div>
+        </div>
+        <pre class="output" id="output">Discovering the loaded plugin and its registered functions…</pre>
+        <div class="content" style="padding-top:0"><button id="render" type="button" disabled>Render the sample report</button><p class="muted">Fictional sample only: the plugin masks a demo record ID and formats the name as initials.</p></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const API = "http://localhost:4001/api/v1";
+    const $ = (id) => document.getElementById(id);
+    const report = {
+      schemaVersion: "1.0", id: "northstar-plugin-demo", name: "Northstar visit summary",
+      datasets: [{ id: "person", source: "inline", query: { data: { name: "Asha Rao", recordId: "MRN-1042" } } }],
+      page: { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 20, right: 20, bottom: 20, left: 20 } },
+      sections: [{ type: "reportHeader", children: [
+        { type: "text", value: "NORTHSTAR CLINIC · VISIT SUMMARY", style: { fontSize: 16, fontWeight: "bold" } },
+        { type: "text", expression: '"Patient initials: " + initials(data.person.name)' },
+        { type: "text", expression: '"Record ID: " + maskId(data.person.recordId, 3)' }
+      ] }]
+    };
+    async function init() {
+      try {
+        const [pluginResponse, capabilityResponse] = await Promise.all([fetch(`${API}/plugins`), fetch(`${API}/capabilities`)]);
+        const pluginPayload = await pluginResponse.json(); const capabilities = await capabilityResponse.json();
+        const plugin = pluginPayload.plugins?.find((item) => item.name === "clinic-pack" && item.state === "active");
+        if (!plugin) throw new Error(pluginPayload.plugins?.map((item) => `${item.name}: ${item.state}`).join("; ") || "No plugin is registered.");
+        $("plugin-name").textContent = `${plugin.name} · v${plugin.version}`;
+        $("plugin-badge").textContent = plugin.state;
+        $("plugin-description").textContent = plugin.description;
+        $("renderers").textContent = plugin.provides.renderers.join(", ") || "None";
+        $("functions").textContent = plugin.provides.functions.join(", ") || "None";
+        $("components").textContent = plugin.provides.components.join(", ") || "None";
+        $("datasources").textContent = plugin.provides.dataSources.join(", ") || "None";
+        $("plugin-state").textContent = `${capabilities.formats.some((format) => format.id === "txt" && format.plugin) ? "txt renderer available" : "Renderer not found"}`;
+        $("plugin-state").classList.add("ok");
+        $("connection").textContent = "Connected · local training server"; $("connection").classList.add("ok");
+        $("registry-json").textContent = JSON.stringify({ plugins: pluginPayload.plugins, formats: capabilities.formats.filter((format) => format.plugin), functions: capabilities.functions, customComponents: capabilities.customComponents, dataSources: capabilities.dataSources }, null, 2);
+        $("show-registry").hidden = false;
+        $("output").textContent = "Ready. Select Render to call the registered plugin renderer."; $("render").disabled = false;
+      } catch (error) {
+        $("plugin-state").textContent = "Unavailable"; $("plugin-state").classList.add("error");
+        $("connection").textContent = "Connection failed"; $("connection").classList.add("error"); $("output").textContent = error.message;
+      }
+    }
+    $("show-registry").addEventListener("click", () => { const panel = $("registry-json"); panel.hidden = !panel.hidden; $("show-registry").textContent = panel.hidden ? "Inspect raw registry response" : "Hide registry response"; });
+    $("render").addEventListener("click", async () => {
+      const button = $("render"); button.disabled = true; $("render-state").textContent = "Sending real request…";
+      try {
+        const response = await fetch(`${API}/render`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ report, format: "txt" }) });
+        const text = await response.text(); if (!response.ok) throw new Error(`${response.status}: ${text}`);
+        $("http-status").textContent = `${response.status} ${response.statusText}`; $("content-type").textContent = response.headers.get("content-type") || "unknown";
+        $("output-size").textContent = `${new TextEncoder().encode(text).length} bytes`; $("output").textContent = text; $("render-state").textContent = "Rendered by plugin"; $("render-state").classList.add("ok");
+      } catch (error) { $("render-state").textContent = "Render failed"; $("render-state").classList.add("error"); $("output").textContent = error.message; }
+      finally { button.disabled = false; }
+    });
+    void init();
+  </script>
+</body>
+</html>

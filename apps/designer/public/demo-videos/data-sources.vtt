@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00:04.994 --> 00:00:14.906
+A report can use inline JSON, a CSV file or a REST API. First test the data source, then bind its fields so the report uses current values.
+
+00:00:19.164 --> 00:00:24.927
+Open a blank report and choose Data. The side panel holds both datasets and report parameters.
+
+00:00:27.873 --> 00:00:35.672
+Add a parameter called userId with sample value 1. The host application can provide a different value each time it renders the report.
+
+00:00:40.106 --> 00:00:49.764
+Create a REST dataset and add the parameter to the URL. The server makes the request; API credentials belong in server secrets, not in the report file.
+
+00:00:52.574 --> 00:00:59.596
+Preview data sends this sample request. Check the returned fields and confirm the response has the shape the report expects.
+
+00:01:04.132 --> 00:01:11.229
+Save the dataset, then drag the returned name field onto the page. It becomes a bound value rather than fixed text.
+
+00:01:18.303 --> 00:01:26.009
+Add a CSV dataset and preview its rows. The first row supplies the field names, which you can then bind like API fields.
+
+00:01:30.702 --> 00:01:41.447
+Database sources use a named PostgreSQL or MySQL connection configured by the host on the server. The report keeps a connection name and parameterized SQL, not a password.
+
+00:01:47.592 --> 00:01:56.783
+Run Preview to check the report using the sample API response. Use the host application to control which record and credentials are supplied at render time.
+
+00:01:58.191 --> 00:02:06.726
+For production, validate the API response shape and configure credentials on the server. Keep tenant and record access in your host application.

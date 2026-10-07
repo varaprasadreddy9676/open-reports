@@ -1,0 +1,19 @@
+WEBVTT
+
+00:00:05.943 --> 00:00:12.587
+Settings connects the designer to a reporting server and gives application developers a safe starting point for integration.
+
+00:00:19.441 --> 00:00:27.197
+The server URL is the base address of the Open Reports instance. The API key is optional when server authentication is disabled.
+
+00:00:29.925 --> 00:00:37.727
+Test connection checks that this server is reachable and accepts the configured key. This local training server has authentication disabled.
+
+00:00:43.287 --> 00:00:53.886
+The integration tab shows real request examples for common host languages. The host backend loads the right customer definition and authorized data before it calls the render API.
+
+00:01:00.384 --> 00:01:09.080
+The browser stores this designer key locally, and browser users can inspect it. Do not place a privileged instance-wide key in a public page or embed.
+
+00:01:12.484 --> 00:01:24.092
+Keep private keys and data access on your authenticated backend or a trusted proxy. The report service renders the request; your host application decides which user may access each customer report.

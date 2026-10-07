@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0",
+  "id": "northstar-shared-brand-header",
+  "name": "Northstar shared brand header",
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "margin": { "top": 16, "right": 15, "bottom": 16, "left": 15 }
+  },
+  "sections": [
+    {
+      "type": "reportHeader",
+      "children": [
+        {
+          "type": "row",
+          "gap": 8,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "image",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png",
+              "width": 38,
+              "height": 38,
+              "fit": "contain",
+              "alt": "Northstar compass mark"
+            },
+            {
+              "type": "column",
+              "width": "*",
+              "gap": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "value": "NORTHSTAR MEDICAL CENTER",
+                  "style": { "fontSize": 15, "fontWeight": "bold", "color": "#143753" }
+                },
+                {
+                  "type": "text",
+                  "value": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                  "style": { "fontSize": 6.5, "fontWeight": "bold", "color": "#167c80" }
+                },
+                {
+                  "type": "text",
+                  "value": "123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900",
+                  "style": { "fontSize": 7, "color": "#526575" }
+                }
+              ]
+            },
+            {
+              "type": "image",
+              "src": "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png",
+              "width": 34,
+              "height": 34,
+              "fit": "contain",
+              "alt": "Northstar accreditation seal"
+            }
+          ]
+        },
+        { "type": "line" },
+        {
+          "type": "text",
+          "value": "SHARED CLIENT HEADER · Add this report file to another report to reuse the layout.",
+          "style": { "fontSize": 7, "color": "#526575" }
+        }
+      ]
+    }
+  ]
+}

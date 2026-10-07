@@ -1,0 +1,34 @@
+WEBVTT
+
+00:00:04.812 --> 00:00:16.070
+A report is made of sections, also called bands. They tell the report when to print each part: once for the report, at the start of a page, for a group of records, or for every record.
+
+00:00:22.985 --> 00:00:31.918
+Open Department Revenue. It is a fictional report with departments, doctors, visit rows and totals, so we can see the sections in a real layout.
+
+00:00:34.682 --> 00:00:40.104
+The report header is printed once near the beginning. Put a report title or introductory note here.
+
+00:00:42.859 --> 00:00:50.220
+The page header belongs to each printed page. Use it for a logo, report name or identifying information that should repeat.
+
+00:00:52.999 --> 00:00:59.219
+A data header holds column labels above a repeating list. This one names the columns readers see in the report.
+
+00:01:02.270 --> 00:01:08.988
+Group headers introduce a change in the data, such as the next department or doctor. They help readers scan the report.
+
+00:01:11.746 --> 00:01:19.273
+Detail sections repeat for each matching record. Here, each visit appears with its data instead of being typed as fixed text.
+
+00:01:22.016 --> 00:01:28.805
+A child section nests under its parent record. Use it for a note or detail that belongs with that specific record.
+
+00:01:32.988 --> 00:01:38.530
+Group footers can total one department or doctor. The data footer can show a report-wide total.
+
+00:01:41.278 --> 00:01:51.294
+A No Data section can show a helpful message when a dataset has no matching rows. A background section prints behind the content, for example a pre-printed page design.
+
+00:01:57.283 --> 00:02:05.933
+The page footer sits at the bottom of printed pages, while the report footer appears once at the end. Preview the pages to see how the sections flow together.

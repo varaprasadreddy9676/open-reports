@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar Sales Portal · Report Viewer Training Sample</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f6fb; color: #172b48; font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 18px 34px; background: #fff; border-bottom: 1px solid #dbe3ef; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 750; letter-spacing: -.02em; }
+    .mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: #1d4f91; color: white; font-size: 13px; }
+    .portal { color: #6b7b91; font-size: 13px; }
+    main { width: min(1260px, calc(100vw - 64px)); margin: 38px auto; }
+    .intro { margin: 0 0 20px; }
+    h1 { margin: 0 0 5px; font-size: 24px; letter-spacing: -.025em; }
+    .intro p { margin: 0; color: #66768d; }
+    .sample-note { color: #8491a3; font-size: 12px; }
+    .host-tabs { display:flex; gap:8px; margin:0 0 12px; }
+    .host-tabs button { border:1px solid #d8e1ec; border-radius:8px; padding:8px 12px; background:#fff; color:#445b77; font:inherit; font-size:13px; font-weight:650; cursor:pointer; }
+    .host-tabs button[aria-pressed="true"] { border-color:#2563eb; background:#eef4ff; color:#1d4ed8; }
+    open-report-viewer { display: block; min-height: 680px; overflow: hidden; border: 1px solid #d8e1ec; border-radius: 14px; background: white; box-shadow: 0 12px 36px #1c33530c; }
+    .status { min-height: 20px; padding-top: 11px; color: #6b7b91; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><span class="mark">N</span><span>Northstar · Sales portal</span></div><span class="portal">Reports / Sales activity</span></header>
+  <main>
+    <div class="intro"><h1>Quarterly sales activity</h1><p>Expand regional summaries, open an order detail, search, sort and download a copy.</p><span class="sample-note">Example portal · all names and sales figures are fictional.</span></div>
+    <div class="host-tabs" role="group" aria-label="Sales report view"><button id="region-view" type="button" aria-pressed="true">By region</button><button id="orders-view" type="button" aria-pressed="false">Order list</button></div>
+    <open-report-viewer id="viewer" server="http://localhost:4000" downloads="pdf,csv" style="height: 680px"></open-report-viewer>
+    <div class="status" id="status" aria-live="polite">Loading report…</div>
+  </main>
+  <script type="module">
+    import "http://localhost:4000/embed/open-reports.js";
+
+    const report = {
+      schemaVersion: "1.0",
+      id: "northstar-sales-activity",
+      name: "Quarterly sales activity",
+      parameters: [{ id: "period", type: "string", label: "Reporting period", default: "Q1 2026" }],
+      datasets: [{ id: "orders", source: "inline", query: { data: [] } }],
+      page: { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 16, right: 16, bottom: 16, left: 16 } },
+      sections: [{ type: "detail", children: [
+        { type: "text", expression: '"Northstar sales · " + params.period', bookmark: "Sales overview", style: { fontSize: 18, fontWeight: "bold", color: "#17365c" } },
+        { type: "text", value: "Sample orders for product training", style: { fontSize: 9, color: "#68788d" } },
+        { type: "group", id: "byRegion", dataset: "orders", groupBy: "row.region", drillDown: "collapsed",
+          header: [{ type: "text", expression: 'row.region', style: { fontSize: 12, fontWeight: "bold", color: "#17365c" } }],
+          children: [{ type: "text", expression: '"Order " + row.order + " · " + row.customer + " · ₹" + formatNumber(row.amount, 2)', link: { report: "order-detail", parameters: { orderId: "row.order" } } }],
+          footer: [{ type: "text", value: "Regional summary" }]
+        }
+      ] }]
+    };
+    const ordersReport = {
+      schemaVersion: "1.0", id: "northstar-order-list", name: "Order list",
+      parameters: [{ id: "period", type: "string", label: "Reporting period", default: "Q1 2026" }],
+      datasets: [{ id: "orders", source: "inline", query: { data: [] } }],
+      page: { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 16, right: 16, bottom: 16, left: 16 } },
+      sections: [{ type: "detail", children: [
+        { type: "text", expression: '"Northstar order list · " + params.period', bookmark: "Sales overview", style: { fontSize: 18, fontWeight: "bold", color: "#17365c" } },
+        { type: "table", id: "sales-orders", dataset: "orders", columns: [
+          { id: "customer", header: "Customer", binding: "row.customer", width: 130 },
+          { id: "region", header: "Region", binding: "row.region", width: 90 },
+          { id: "order", header: "Order · details", binding: "row.order", width: 110, link: { report: "order-detail", parameters: { orderId: "row.order" } } },
+          { id: "amount", header: "Amount", binding: "row.amount", width: 90, style: { align: "right" } }
+        ] }
+      ] }]
+    };
+    const viewer = document.querySelector("#viewer");
+    viewer.report = report;
+    viewer.data = { orders: [
+      { customer: "Charlie Reed", region: "West", order: "SO-1042", amount: 4200 },
+      { customer: "Alex Morgan", region: "South", order: "SO-1043", amount: 2750 },
+      { customer: "Anita Rao", region: "North", order: "SO-1044", amount: 6100 },
+      { customer: "Jordan Lee", region: "West", order: "SO-1045", amount: 1850 },
+      { customer: "Ravi Kumar", region: "South", order: "SO-1046", amount: 3950 }
+    ] };
+    const sampleData = viewer.data;
+    document.querySelector("#region-view").addEventListener("click", () => { viewer.report = report; viewer.data = sampleData; document.querySelector("#region-view").setAttribute("aria-pressed", "true"); document.querySelector("#orders-view").setAttribute("aria-pressed", "false"); });
+    document.querySelector("#orders-view").addEventListener("click", () => { viewer.report = ordersReport; viewer.data = sampleData; document.querySelector("#region-view").setAttribute("aria-pressed", "false"); document.querySelector("#orders-view").setAttribute("aria-pressed", "true"); });
+    viewer.addEventListener("report-rendered", (event) => {
+      document.querySelector("#status").textContent = `Rendered ${event.detail.template} from this host application's report JSON.`;
+    });
+    viewer.addEventListener("report-error", (event) => {
+      document.querySelector("#status").textContent = `Report error: ${event.detail.message}`;
+    });
+  </script>
+</body>
+</html>

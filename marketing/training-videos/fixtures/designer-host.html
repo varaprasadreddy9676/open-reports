@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar Portal · Embedded Report Designer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f6fb; color: #172b48; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 15px 30px; background: #fff; border-bottom: 1px solid #dbe3ef; }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 750; letter-spacing: -.02em; }
+    .mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #1d4f91; color: white; font-weight: 800; }
+    .portal, .muted { color: #6b7b91; font-size: 12px; }
+    main { width: min(1480px, calc(100vw - 52px)); margin: 22px auto; }
+    .intro { display: flex; justify-content: space-between; align-items: end; margin-bottom: 13px; }
+    h1 { margin: 0 0 3px; font-size: 21px; letter-spacing: -.025em; }
+    .intro p { margin: 0; color: #66768d; }
+    .save-state { color: #60748e; font-size: 12px; white-space: nowrap; }
+    .save-state strong { color: #147a55; }
+    open-report-designer { display: block; min-height: 740px; overflow: hidden; border: 1px solid #d8e1ec; border-radius: 12px; background: white; box-shadow: 0 12px 36px #1c33530c; }
+    .foot { display: flex; justify-content: space-between; padding-top: 9px; color: #8190a4; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><span class="mark">N</span><span>Northstar · Application portal</span></div><span class="portal">Admin / Report layouts</span></header>
+  <main>
+    <div class="intro"><div><h1>Customer invoice layout</h1><p>Edit the report in context; the host application owns and saves its JSON.</p></div><span class="save-state" id="save-state" aria-live="polite">Draft loaded · host version 1</span></div>
+    <div id="designer-host"></div>
+    <div class="foot"><span>Training sample · fictional company and customer data</span><span>Saved definitions stay in the host application's storage</span></div>
+  </main>
+  <script type="module">
+    import "http://localhost:3000/embed/open-reports.js";
+
+    const definition = {
+      schemaVersion: "1.0",
+      id: "northstar-customer-invoice",
+      name: "Northstar customer invoice",
+      page: { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 16, right: 16, bottom: 16, left: 16 } },
+      sections: [{ type: "reportHeader", height: 75, children: [
+        { type: "text", value: "NORTHSTAR SUPPLY CO.", style: { fontSize: 18, fontWeight: "bold", color: "#17365c" } },
+        { type: "text", value: "Customer invoice · INV-20841", style: { fontSize: 11, color: "#46617e" } },
+        { type: "text", value: "Bill to: Asha Rao", style: { fontSize: 11 } },
+        { type: "text", value: "Total due: ₹8,450", style: { fontSize: 16, fontWeight: "bold", color: "#176b55" } }
+      ] }]
+    };
+    const element = document.createElement("open-report-designer");
+    element.setAttribute("server", "http://localhost:3000");
+    element.setAttribute("save-mode", "host");
+    element.setAttribute("height", "740px");
+    element.definition = definition;
+    element.onSaveDefinition = async (next) => {
+      const prior = Number(localStorage.getItem("northstar.invoice.version") || "1");
+      localStorage.setItem("northstar.invoice.definition", JSON.stringify(next));
+      localStorage.setItem("northstar.invoice.version", String(prior + 1));
+      const size = new Blob([JSON.stringify(next)]).size;
+      document.querySelector("#save-state").innerHTML = `<strong>Saved in Northstar portal · v${prior + 1}</strong> · ${size.toLocaleString()} bytes`;
+    };
+    element.addEventListener("report-dirty", (event) => {
+      if (event.detail.dirty) document.querySelector("#save-state").textContent = "Unsaved edits · use Save to write to the host";
+    });
+    element.addEventListener("report-error", (event) => {
+      document.querySelector("#save-state").textContent = `Host save error · ${event.detail.message}`;
+    });
+    document.querySelector("#designer-host").append(element);
+  </script>
+</body>
+</html>

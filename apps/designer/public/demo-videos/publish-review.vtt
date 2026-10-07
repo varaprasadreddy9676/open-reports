@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:05.858 --> 00:00:12.734
+Saving keeps a report draft editable. Publishing runs checks and creates a version your viewer or application can rely on.
+
+00:00:16.409 --> 00:00:21.952
+Open the invoice example, name this report, and save the draft so it has a version history.
+
+00:00:27.852 --> 00:00:37.835
+Choose Publish to open the review. Before publishing, the designer validates the definition and tests sample data with empty, typical, larger and stress values.
+
+00:00:47.910 --> 00:00:55.847
+Review the check results, then inspect the generated PDF. This is the actual render, including its page count and any warnings.
+
+00:00:57.961 --> 00:01:07.787
+Mark the PDF reviewed, add a short version note, and acknowledge any warnings after checking them. Publishing stays disabled until the required review is complete.
+
+00:01:11.311 --> 00:01:17.522
+Publish the version. Published definitions are immutable, so the viewer continues to use a stable result.
+
+00:01:23.431 --> 00:01:31.530
+Now make a small draft edit and save it as a new version. Open Compare versions to review the change list or compare the two page layouts visually.
+
+00:01:41.971 --> 00:01:47.049
+Use the review gate for each release, and keep notes that explain why the version changed.

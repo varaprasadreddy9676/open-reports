@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:06.077 --> 00:00:16.426
+Open Reports can render a report directly from your application without storing a template. The host loads the customer’s definition and data, then sends both with the output format.
+
+00:00:18.532 --> 00:00:28.364
+This Node request sends the report definition, a PDF format and data keyed by dataset. The report id inside the JSON is metadata; it is not a lookup key.
+
+00:00:32.517 --> 00:00:40.732
+Render the invoice. This page sends a real request to the local Open Reports API and shows its actual response beside the host request.
+
+00:00:45.599 --> 00:00:55.036
+The API returns raw PDF bytes with a content type and render id. The host can stream those bytes to a browser download, store them, or attach them to an email.
+
+00:00:57.334 --> 00:01:08.895
+If your host contract needs Base64, encode the returned bytes in the host application. This preview shows a short sample of that encoding; the REST API response itself stays binary.
+
+00:01:11.136 --> 00:01:20.924
+The request data should contain only fields the report needs and that this user is authorized to see. Your application remains responsible for tenant access and record permissions.
+
+00:01:23.176 --> 00:01:34.192
+This server is unauthenticated for the local training example, so the request omits an API key. In production, keep a privileged key in your host backend or behind a trusted proxy.
+
+00:01:36.365 --> 00:01:45.534
+If you want Open Reports to own drafts and published versions, use its optional template endpoints instead. Choose the storage model that matches your application.

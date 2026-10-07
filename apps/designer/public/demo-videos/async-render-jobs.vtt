@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:06.344 --> 00:00:16.373
+For a larger export or a request that should not hold a web request open, use the asynchronous render-job endpoints. The host submits once, then checks for the result.
+
+00:00:18.574 --> 00:00:25.434
+This is a real request to create a PDF job. The same report definition and authorized data go in the request body.
+
+00:00:28.324 --> 00:00:36.461
+The API responds with HTTP 202 and a job ID. Keep that ID in the host application so you can check this particular render.
+
+00:00:40.125 --> 00:00:50.189
+Poll the job endpoint until it reports completed, failed, or cancelled. Here the server returned a completed job. Fast jobs can finish before the first visible poll.
+
+00:00:52.644 --> 00:01:02.294
+When complete, fetch the output endpoint and handle its file bytes just like a synchronous render result. This page displays the actual PDF returned by the job.
+
+00:01:04.573 --> 00:01:18.441
+Job output is retained only for a limited time. The current job store is in server memory, so a restart or another server instance does not provide a durable shared queue. Design production retry and persistence behavior around your deployment.
+
+00:01:20.655 --> 00:01:31.648
+Keep API keys in the backend and authorize the report data before enqueueing. Async rendering changes how you collect the result; it does not move tenant access decisions into Open Reports.

@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:06.696 --> 00:00:17.985
+You can put the Open Reports designer inside an existing application so users do not have to leave their normal workflow. The host application can keep ownership of each customer’s report definition.
+
+00:00:21.209 --> 00:00:29.810
+This portal embeds the actual designer in a frame and loads the invoice definition supplied by the host. The report stays in the application context.
+
+00:00:32.709 --> 00:00:40.517
+Update the heading for this customer. The user edits with the full designer while the host application still controls which definition was loaded.
+
+00:00:42.734 --> 00:00:51.964
+The change is marked unsaved. In host save mode, Open Reports sends the edited JSON back to the host callback instead of creating an Open Reports template.
+
+00:00:55.627 --> 00:01:03.009
+Choose Save. The example host stores the returned definition and updates its own version and size status after the save completes.
+
+00:01:05.371 --> 00:01:19.888
+Your application should authorize who may edit each tenant report, validate and version the returned JSON, and keep privileged API credentials on the backend. The embed frame checks the message origin; the host remains responsible for user access.
+
+00:01:22.111 --> 00:01:31.461
+Use server-managed templates when you want Open Reports to own publishing and version history. Use host save mode when your application owns persistence and access rules.
