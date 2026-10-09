@@ -149,7 +149,7 @@ export async function runRender(input: RunRenderInput, runtime: RenderRuntime = 
   if (input.strict !== false && dataLossWarnings.length > 0) {
     const missingChild = dataLossWarnings.some((warning) => warning.code === "SUBREPORT_NOT_RENDERED");
     throw new RenderPipelineError(missingChild
-      ? "A nested report could not be rendered. Supply its JRXML-derived definition and datasets, then retry."
+      ? "A nested report could not be rendered. Supply the child report definition and its data, then retry."
       : "Report content exceeds its layout. Adjust the named component or choose an explicit clipping policy before rendering.",
     "REPORT_RENDER_FAILED", 422, { renderId, warnings: dataLossWarnings });
   }

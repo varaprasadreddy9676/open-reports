@@ -537,3 +537,18 @@ describe("data override", () => {
     expect(b.payload).not.toContain("Default");
   });
 });
+
+describe('host-owned report bundles', () => {
+  it('renders a bundled client header without template storage and permits a request override', async () => {
+    const child={schemaVersion:'1.0',id:'client-header',name:'Client header',datasets:[],sections:[{type:'detail',children:[{type:'text',value:'Bundled client branding'}]}]};
+    const parent={schemaVersion:'1.0',id:'host-owned-bundle',name:'Host invoice',datasets:[],subreports:{'client-header':child},sections:[{type:'pageHeader',children:[{type:'subreport',reportId:'client-header'}]},{type:'detail',children:[{type:'text',value:'Invoice body'}]}]};
+    const bundled=await app.inject({method:'POST',url:'/api/v1/render',payload:{report:parent,format:'html'}});
+    expect(bundled.statusCode).toBe(200);
+    expect(bundled.payload).toContain('Bundled client branding');
+    const override=await app.inject({method:'POST',url:'/api/v1/render',payload:{report:parent,format:'html',subreports:{'client-header':{report:{...child,sections:[{type:'detail',children:[{type:'text',value:'Customer-specific override'}]}]}}}}});
+    expect(override.statusCode).toBe(200);
+    expect(override.payload).toContain('Customer-specific override');
+    expect(override.payload).not.toContain('Bundled client branding');
+    expect((await app.inject({method:'GET',url:'/api/v1/templates/host-owned-bundle'})).statusCode).toBe(404);
+  });
+});

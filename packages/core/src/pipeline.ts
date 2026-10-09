@@ -9,6 +9,7 @@ import { computeReportVariables } from "./variables.js";
 import { PAGE_BAND_TYPES } from "@reporting/schema";
 import { expandBodyBands } from "./bands.js";
 import { resolveNestedReport, type SubreportSource } from "./subreports.js";
+import { bundledSubreports } from "./bundled-subreports.js";
 import { lookupDataset, resolveComponents, themeStyle, type CustomComponentExpander, type ResolveEnv } from "./resolve-component.js";
 import type { ResolvedComponent, ResolvedReport, ResolvedSection, ResolvedWarning } from "./resolved-report.js";
 import type { ResolveContext } from "./context.js";
@@ -61,6 +62,7 @@ export function pageFacts(page: { number: number; total: number }) {
  * output of this function.
  */
 export async function resolveReport(report: ReportDefinition, options: RenderPipelineOptions): Promise<RenderPipelineResult> {
+  const subreports = bundledSubreports(report, options.subreports);
   const locale = report.locale ?? report.theme?.locale ?? "en-US";
   const currency = report.theme?.currency ?? "USD";
   const timeZone = report.theme?.timezone || undefined;
@@ -130,7 +132,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
     decisions,
     theme: report.theme,
     subreportStack: [report.id],
-    subreportResolver: (component, ctx, env) => resolveNestedReport(component, ctx, env, options.subreports),
+    subreportResolver: (component, ctx, env) => resolveNestedReport(component, ctx, env, subreports),
   });
 
   /** A page band's own rules decide whether it prints; in the per-page pass they also see `page.*`. */
@@ -211,7 +213,7 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
       decisions,
       theme: report.theme,
       subreportStack: [report.id],
-      subreportResolver: (component, ctx, nestedEnv) => resolveNestedReport(component, ctx, nestedEnv, options.subreports),
+      subreportResolver: (component, ctx, nestedEnv) => resolveNestedReport(component, ctx, nestedEnv, subreports),
     };
     return pageBandChildren(section.sourceIndex, { ...baseCtx, page: pageFacts(page) }, env);
   };
