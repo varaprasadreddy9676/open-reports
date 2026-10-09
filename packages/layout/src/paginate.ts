@@ -290,7 +290,8 @@ function layoutBlock(components: ResolvedComponent[], width: number, measurer: T
     const free = component.x !== undefined || component.y !== undefined;
     const x = free ? origin.x + (resolveDimension(component.x, width, "pt") ?? 0) : origin.x + m.left;
     const top = free ? origin.y + (resolveDimension(component.y, 0, "pt") ?? 0) : y + m.top;
-    const node = layoutComponent(component, { x, y: top, width: Math.max(1, width - m.left - m.right), height: 0 }, measurer);
+    const availableWidth = width - m.left - m.right - (free && component.width === undefined ? Math.max(0, x - origin.x) : 0);
+    const node = layoutComponent(component, { x, y: top, width: Math.max(1, availableWidth), height: 0 }, measurer);
     nodes.push(node);
     if (free) freeBottom = Math.max(freeBottom, node.box.y + node.box.height);
     else y = node.box.y + node.box.height + m.bottom;

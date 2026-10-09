@@ -21,6 +21,16 @@ function table(rows: number, extra: Record<string, unknown> = {}): ResolvedTable
 }
 
 describe("mixed free and flow placement", () => {
+  it("an automatic-width free text fills only the space remaining after its x position", () => {
+    const node = layoutComponent({ type: "container", layout: "absolute", children: [text("offset", "Bound field", { x: 120 })] } as any, box, defaultTextMeasurer);
+    expect(node.children?.[0]?.box).toMatchObject({ x: 120, width: 180 });
+  });
+
+  it("automatic-width text in a page header fits after its x position", () => {
+    const result = paginate(report([], 300, [{ type: "pageHeader", children: [text("header", "Client header", { x: 120, y: 0 })] }]));
+    expect(result.pages[0]?.header[0]?.box).toMatchObject({ x: 120, width: 180 });
+  });
+
   it("moves a row child without changing its sibling's measured position", () => {
     const row = { type: "row", children: [
       { id: "qr", type: "qrcode", value: "abc", width: 80, height: 80 },

@@ -953,7 +953,7 @@ export function Canvas() {
                   <div key={`sel${i}`} className="selbox" style={boxStyle(n, k)}>
                     {showHandles && source === single && !ops.find(doc, (single.component as any).id)?.comp.locked && (
                       <>
-                        {(typeof ops.find(doc, (single.component as any).id)?.comp.x === "number" || typeof ops.find(doc, (single.component as any).id)?.comp.y === "number" ? ["n", "s", "e", "w", "ne", "nw", "se", "sw"] : ["e", "s", "se"]).map((h) => (
+                        {(typeof ops.find(doc, (single.component as any).id)?.comp.x === "number" || typeof ops.find(doc, (single.component as any).id)?.comp.y === "number" ? ["n", "s", "e", "w", "ne", "nw", "se", "sw"] : ["e", "s", "se"]).filter((h) => !(["n", "s"].includes(h) && n.box.height * k < 24) && !(["e", "w"].includes(h) && n.box.width * k < 24)).map((h) => (
                           <span key={h} className={`handle ${h}`} data-handle={h} title={h === "e" && ops.parentLayout(doc, (single.component as any).id) === "row" ? "Drag to resize; double-click to hug the content or fill the row" : undefined} />
                         ))}
                         <AutoLayoutHandles node={single} k={k} />

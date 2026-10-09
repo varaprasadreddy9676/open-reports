@@ -328,7 +328,7 @@ function layoutAbsolute(components: ResolvedComponent[], box: Box, measurer: Tex
   const nodes = components.map((component) => {
     const x = box.x + (resolveDimension(component.x, box.width, DEFAULT_UNIT) ?? 0);
     const y = box.y + (resolveDimension(component.y, box.height, DEFAULT_UNIT) ?? 0);
-    const width = resolveDimension(component.width, box.width, DEFAULT_UNIT) ?? box.width;
+    const width = resolveDimension(component.width, box.width, DEFAULT_UNIT) ?? Math.max(1, box.width - Math.max(0, x - box.x));
     const height = resolveDimension(component.height, box.height, DEFAULT_UNIT);
     return layoutComponent(component, { x, y, width, height: height ?? 0 }, measurer);
   });

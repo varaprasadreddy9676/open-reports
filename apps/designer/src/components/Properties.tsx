@@ -932,7 +932,7 @@ function SpacingEditor({ comp, prop, label }: { comp: ops.Comp; prop: "margin" |
 
 function QuickGeometry({ comp }: { comp: ops.Comp }) {
   const patch = useStore((s) => s.patch);
-  const absolute = comp.x !== undefined || comp.y !== undefined;
+  const absolute = comp.x !== undefined || comp.y !== undefined || ops.parentLayout(useStore.getState().doc, comp.id) === "absolute";
   return <div className="quick-geometry" data-testid="quick-geometry">
     <div className="grid2">
       <Field label="Width"><Dim label="Width" value={comp.width} onChange={(value) => patch(comp.id, { width: value })} /></Field>

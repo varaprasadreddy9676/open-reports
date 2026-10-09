@@ -1,5 +1,7 @@
 /* Shared designer surfaces and controls. Keep feature-specific colors in their feature styles. */
 :root {
+  --left-panel-width: 312px;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --bg: #f6f8fb;
   --panel: #ffffff;
   --panel-2: #f8faff;
