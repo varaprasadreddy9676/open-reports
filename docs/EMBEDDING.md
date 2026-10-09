@@ -21,7 +21,7 @@ Two custom elements put reports and the designer inside any web page, in any fra
 It renders the latest **published** version of the template, with:
 
 - a form for the report's parameters (text, number, date, choice lists), pre-filled from the report's defaults and the `parameters` attribute;
-- **Refresh**, **Print** and **Download** buttons (`downloads` chooses the formats: `pdf`, `xlsx`, `csv`, `html`, `zpl`, `escpos`);
+- **Refresh**, **Print** and **Download** buttons (`downloads` chooses the formats: `pdf`, `docx`, `xlsx`, `csv`, `html`, `zpl`, `escpos`);
 - **Find in report**, with every match highlighted and Enter / Shift+Enter (or ‹ ›) to step through them;
 - **Contents**: a sidebar built from the report's bookmarks;
 - **Click-to-sort columns**: click a table or crosstab heading to sort ascending, again for descending. The server re-lays the report, so page breaks and totals stay right, and downloads use the same order;
@@ -100,6 +100,8 @@ import { createDesigner, renderReport } from "@reporting/embed";
 const designer = createDesigner(document.querySelector("#designer")!, {
   server: OPEN_REPORTS_URL,
   definition: await reportStore.get(tenantId, "invoice"),
+  data: { invoice: safeSampleInvoice, client: safeSampleBranding },
+  parameters: { language: "en" },
   saveMode: "host",
   onSaveDefinition: async (nextDefinition) => {
     await reportStore.save(tenantId, "invoice", nextDefinition);
@@ -114,16 +116,53 @@ const pdf = await renderReport({ server: OPEN_REPORTS_URL, apiKey: OPEN_REPORTS_
 });
 ```
 
-In host mode, the designer's Save action waits for `onSaveDefinition` to finish. If saving fails, the designer reports an error and keeps the report dirty. Do not put a privileged API key in browser code; use your authenticated backend or trusted proxy for rendering and saving. For a custom element, assign both properties before connecting it:
+In host mode, the designer's Save action waits for `onSaveDefinition` to finish. Resolve only after your backend confirms persistence, and throw if the response is unsuccessful. Synchronous errors and rejected promises show an error and keep edits available for retry. Repeated SDK Save requests share the pending save. If the user edits while saving, the result contains the snapshot actually saved, and newer edits remain dirty. The default save timeout is 30 seconds; set `saveTimeout` in milliseconds if your backend needs longer.
+
+`data` and `parameters` supply the designer's preview. They do not become embedded sample values in the saved report JSON. Only send data that the editor user is allowed to see. Embedded reports and preview data are not written into the standalone designer's local draft storage. A reload reopens the latest host-confirmed saved definition (or the latest successfully loaded definition); unsaved edits do not survive a frame reload.
+
+`designer-ready` and `onReady` fire after the initial definition has been loaded. In host mode, the UI offers Save and Open file; server Publish, server template selection, and server version controls are omitted. Your host manages deployment/versioning. Users can export a `.json` definition and reopen it through **Open file**.
+
+Do not put a privileged API key in browser code; use your authenticated backend or trusted proxy for rendering and saving. For a custom element, assign properties before connecting it:
 
 ```js
 const element = document.createElement("open-report-designer");
 element.setAttribute("server", OPEN_REPORTS_URL);
 element.setAttribute("save-mode", "host");
 element.definition = await reportStore.get(tenantId, "invoice");
+element.data = { invoice: safeSampleInvoice };
 element.onSaveDefinition = (nextDefinition) => reportStore.save(tenantId, "invoice", nextDefinition);
 document.querySelector("#designer").append(element);
 ```
+
+To switch the active customer/report, load the authorized definition and its preview together:
+
+```js
+designer.load(nextDefinition, {
+  data: { invoice: nextSampleInvoice, client: nextSampleBranding },
+  parameters: { language: "en" },
+});
+```
+
+Supply new `data` when switching customers; omitted preview options retain the current preview. Invalid definitions report an error and leave the last valid report open. Destroy the designer when its host screen unmounts so listeners and pending saves are cleaned up.
+
+### Shared headers, footers, and other subreports
+
+Choosing a subreport JSON file in the designer attaches its definition under the parent report's `subreports` property. This bundled JSON can be saved in your host app and sent unchanged to `POST /api/v1/render` or assigned to `createViewer({ report })`. The engine resolves bundled children recursively; no template ID or Open Reports storage is needed.
+
+For request-specific replacements, pass `subreports` separately. Explicit request resources override children with the same key in the report JSON:
+
+```js
+createViewer(document.querySelector("#report"), {
+  server: OPEN_REPORTS_URL,
+  report: invoiceDefinition,
+  data: { invoice: safeInvoice },
+  subreports: {
+    "client-header": { report: clientHeaderDefinition, data: { client: safeBranding } },
+  },
+});
+```
+
+For a custom viewer element, assign its `subreports` property. Child report IDs must match the parent component's `reportId`. Child datasets still need supplied data (or a parent dataset binding); bundled definitions do not grant access to the host database. See [subreport rendering](API.md) for the full request contract.
 
 The existing `template` option and default `saveMode: "server"` continue to use Open Reports' optional template store. Use that for standalone deployments where you want Open Reports to own drafts and published versions.
 
@@ -136,7 +175,7 @@ createViewer(document.getElementById("report"), { server: "https://reports.examp
 createDesigner(document.getElementById("editor"), { server: "https://reports.example.com", template: "invoice", onSave: ({ version }) => notify(version) });
 ```
 
-The same API is published as the `@reporting/embed` package for bundlers.
+The same API is available in this repository's `@reporting/embed` workspace package for bundlers. The hosted module URL above works without installing a package.
 
 ## Security
 
