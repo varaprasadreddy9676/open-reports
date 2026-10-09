@@ -27,6 +27,71 @@ test("a first visitor can choose appearance and follow the invoice preview path"
   await expect(page.getByTestId("preview-tab-escpos")).toHaveCount(0);
 });
 
+test("every practical video plays inline with a working English captions track", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("home-tour").click();
+  const lessons = page.locator(".demo-video-choice");
+  const count = await lessons.count();
+  expect(count).toBeGreaterThan(0);
+  for (let index = 0; index < count; index += 1) {
+    await lessons.nth(index).click();
+    const video = page.locator(".tour-video");
+    const mediaSrc = await video.locator('source[type="video/mp4"]').getAttribute("src");
+    const captionsSrc = await video.locator('track[kind="captions"]').getAttribute("src");
+    const posterSrc = await video.getAttribute("poster");
+    expect(mediaSrc).toBeTruthy();
+    expect(captionsSrc).toBeTruthy();
+    expect(posterSrc).toBeTruthy();
+    await expect(video).toHaveAttribute("controls", "");
+    await expect(video.locator('track[kind="captions"]')).toHaveAttribute("srcLang", "en");
+    const captions = await page.request.get(captionsSrc!);
+    expect(captions.ok(), captionsSrc!).toBe(true);
+    expect(await captions.text(), captionsSrc!).toMatch(/^WEBVTT\s/);
+    const poster = await page.request.get(posterSrc!);
+    expect(poster.ok(), posterSrc!).toBe(true);
+    expect(poster.headers()["content-type"]).toContain("image/jpeg");
+    expect((await poster.body()).byteLength, posterSrc!).toBeGreaterThan(10000);
+    await video.waitFor({ state: "visible" });
+    const playback = await video.evaluate(async (element: HTMLVideoElement) => {
+      const trackElement = element.querySelector("track[kind='captions']") as HTMLTrackElement;
+      const track = trackElement.track;
+      track.mode = "showing";
+      await new Promise<void>((resolve) => {
+        if (trackElement.readyState === HTMLTrackElement.LOADED) resolve();
+        else trackElement.addEventListener("load", () => resolve(), { once: true });
+        window.setTimeout(resolve, 3000);
+      });
+      await new Promise<void>((resolve) => {
+        if (element.readyState >= 1) resolve();
+        else element.addEventListener("loadedmetadata", () => resolve(), { once: true });
+      });
+      element.currentTime = 6;
+      await element.play();
+      // Seeking may buffer on a cold connection; require real playback progress.
+      await new Promise<void>((resolve) => {
+        const timeout = window.setTimeout(finish, 5000);
+        function finish() {
+          window.clearTimeout(timeout);
+          element.removeEventListener("timeupdate", check);
+          element.removeEventListener("seeked", check);
+          resolve();
+        }
+        function check() { if (!element.seeking && element.currentTime > 6) finish(); }
+        element.addEventListener("timeupdate", check);
+        element.addEventListener("seeked", check);
+        check();
+      });
+      const result = { duration: element.duration, advanced: element.currentTime > 6, cues: track.cues?.length ?? 0, mode: track.mode };
+      element.pause();
+      return result;
+    });
+    expect(playback.duration, mediaSrc!).toBeGreaterThan(10);
+    expect(playback.advanced, mediaSrc!).toBe(true);
+    expect(playback.cues, captionsSrc!).toBeGreaterThan(0);
+    expect(playback.mode, captionsSrc!).toBe("showing");
+  }
+});
+
 test("a local edit is protected when opening a different starter", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("starter-blank").click();

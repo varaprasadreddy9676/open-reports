@@ -22,3 +22,9 @@ The shared-server demo notice appears beside the creation actions. It explains h
 ## Interaction and accessibility
 
 The layout adapts down to 320 pixels. The mobile navigation closes on Escape, an outside click, or a destination choice. Buttons retain visible keyboard focus, preview/category selectors expose their pressed state, the gallery announces its result count, and decorative art is hidden from assistive technology. Motion respects `prefers-reduced-motion`. Light, dark, and system appearance continue to use the saved interface preference.
+
+## Learning and capability dialogs
+
+The Learning Studio uses compact poster rows, topic filtering, search, and a video player with English captions. Previous/next controls remain visible on desktop, and the example action follows the lesson: document imports open their import flow, developer lessons open API settings, and report examples use the existing replacement guard. The player shows a retry action when a video cannot load.
+
+On phones, Browse lessons scrolls to the library; choosing a lesson returns to the player and focuses it. The capability explorer groups its seven starting workflows into Create & improve and Deliver & share. Both dialogs use the existing modal focus trap, Escape and outside-click dismissal, and the interface appearance preference.

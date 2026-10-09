@@ -21,6 +21,7 @@ import { JrxmlFolderImport } from "./JrxmlFolderImport";
 import type { WordImportResult } from "../lib/docx-import";
 import { FeatureGuide } from "./FeatureGuide";
 import { LandingPage } from "./home/LandingPage";
+import { LearningLibrary } from "./learning/LearningLibrary";
 
 /** Opens the "I tried Open Reports" issue form on the upstream repository. */
 const FEEDBACK_URL = "https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml";
@@ -551,10 +552,11 @@ function NewDialog() {
 
 function GuideDialog() {
   const set = useStore((state) => state.set);
-  return <Modal wide label="Feature guide" onClose={() => set({ dialog: null })}>
+  return <Modal wide className="feature-modal" label="Feature guide" onClose={() => set({ dialog: null })}>
     <FeatureGuide
       onExample={openStarterExample}
       onImport={(format) => set({ dialog: format === "docx" ? "import-docx" : "import-jrxml" })}
+      onLearn={() => set({ dialog: "tour" })}
     />
   </Modal>;
 }
@@ -598,34 +600,8 @@ const PRACTICAL_VIDEOS = [
 
 function TourDialog() {
   const set = useStore((state) => state.set);
-  const [selectedId, setSelectedId] = useState(PRACTICAL_VIDEOS[0]!.id);
-  const selected = PRACTICAL_VIDEOS.find((video) => video.id === selectedId) ?? PRACTICAL_VIDEOS[0]!;
-  return <Modal wide className="tour-modal" label="Open Reports training videos" onClose={() => set({ dialog: null })}>
-    <h2>Learn with Open Reports</h2>
-    <p className="muted">Start with the three Start here lessons, then choose a focused example or import workflow. Videos play here with English captions.</p>
-    <div className="demo-video-library">
-      <nav className="demo-video-list" aria-label="Open Reports training lessons">
-        {PRACTICAL_VIDEOS.map((video, index) => <button key={video.id} className="demo-video-choice" aria-pressed={selected.id === video.id} onClick={() => setSelectedId(video.id)}>
-          <span className="demo-video-number">{String(index + 1).padStart(2, "0")}</span><span><strong>{video.title}</strong><small>{video.summary}</small><small className="demo-video-meta">{video.duration} · {video.category}</small></span><span aria-hidden="true">▶</span>
-        </button>)}
-      </nav>
-      <section className="demo-video-player" aria-label={selected.title}>
-        <h3>{selected.title}</h3>
-        <p className="muted">{selected.summary}</p>
-        <video key={selected.id} className="tour-video" controls playsInline preload="metadata" poster={`/demo-videos/${selected.id}-poster.jpg`} tabIndex={0}>
-          <source src={`/demo-videos/${selected.id}.mp4`} type="video/mp4" />
-          <track kind="captions" src={`/demo-videos/${selected.id}.vtt`} srcLang="en" label="English" default />
-          Your browser does not support this video. <a href={`/demo-videos/${selected.id}.mp4`}>Open the video</a>.
-        </video>
-        <a className="demo-caption-link" href={`/demo-videos/${selected.id}.vtt`} download={`${selected.id}-captions.vtt`}>Download English captions (.vtt)</a>
-        {selected.id === "hospital-letterhead" && <div className="demo-asset-links" aria-label="Download hospital letterhead sample assets">
-          <a href="/demo-videos/letterhead-assets/northstar-primary-logo.png" download>Left logo (PNG)</a>
-          <a href="/demo-videos/letterhead-assets/northstar-accreditation-mark.png" download>Right seal (PNG)</a>
-          <a href="/demo-videos/letterhead-assets/northstar-preprinted-letterhead.png" download>Pre-printed page (PNG)</a>
-        </div>}
-      </section>
-    </div>
-    <div className="dialog-actions"><button className="btn primary" onClick={() => openStarterExample("invoice")}>Try the invoice →</button><button className="btn" onClick={() => set({ dialog: "guide" })}>Explore features</button></div>
+  return <Modal wide className="learning-modal" label="Open Reports training videos" onClose={() => set({ dialog: null })}>
+    <LearningLibrary lessons={PRACTICAL_VIDEOS} onExample={openStarterExample} onGuide={() => set({ dialog: "guide" })} onImport={(format) => set({ dialog: format === "docx" ? "import-docx" : "import-jrxml" })} onSettings={() => set({ dialog: "settings" })} />
   </Modal>;
 }
 
