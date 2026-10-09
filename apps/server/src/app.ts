@@ -52,7 +52,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   }
   // <script type="module" src="https://your-server/embed/open-reports.js"> for <open-report-viewer> and <open-report-designer>.
   const embedDist = resolveEmbedDist();
-  if (embedDist) void app.register(fastifyStatic, { root: embedDist, prefix: "/embed/", decorateReply: false, maxAge: "1h" });
+  if (embedDist) void app.register(fastifyStatic, { root: embedDist, prefix: "/embed/", decorateReply: false, maxAge: 0 });
   const dataSources = runtime.dataSources;
 
   app.addHook("onRequest", async (request, reply) => {
