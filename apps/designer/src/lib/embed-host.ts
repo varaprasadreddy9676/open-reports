@@ -1,6 +1,7 @@
 import { isEmbedMessage, PROTOCOL, type DesignerToHost, type HostToDesigner } from "@reporting/embed";
 import { useStore } from "../store";
-import { settings } from "./api";
+import { api, setEmbeddedConnection } from "./api";
+import { parseReportDefinition } from "@reporting/schema";
 import * as ops from "../model/ops";
 import { registerHostSaveHandler, unregisterHostSaveHandler } from "./embed-save";
 
@@ -24,14 +25,30 @@ export function startEmbedHost(): boolean {
 
   const post = (message: WithoutProtocol<DesignerToHost>) => window.parent.postMessage({ protocol: PROTOCOL, ...message }, origin);
   const store = useStore;
+  setEmbeddedConnection();
   store.getState().set({ embedded: true, home: false });
-  const pendingHostSaves = new Map<string, { resolve(): void; reject(error: Error): void }>();
+  const pendingHostSaves = new Map<string, { resolve(): void; reject(error: Error): void; definition: ops.Doc; timer: ReturnType<typeof setTimeout> }>();
+  let savedDefinition: ops.Doc | undefined;
   let saveRequest = 0;
+  let saveTimeout = 30_000;
   registerHostSaveHandler((definition) => new Promise<void>((resolve, reject) => {
     const requestId = `save-${++saveRequest}`;
-    pendingHostSaves.set(requestId, { resolve, reject });
+    const fail = (error: Error) => { post({ type: "error", message: error.message }); reject(error); };
+    const timer = setTimeout(() => {
+      pendingHostSaves.delete(requestId);
+      fail(new Error("The host application did not confirm saving. Your edits are still here; try saving again."));
+    }, saveTimeout);
+    pendingHostSaves.set(requestId, { resolve, reject: fail, definition, timer });
     post({ type: "save-request", requestId, definition });
   }));
+
+  const loadDefinition = (definition: unknown, data?: Record<string, unknown>, parameters?: Record<string, unknown>) => {
+    const parsed = parseReportDefinition(definition);
+    if (!parsed.valid) throw new Error(`Invalid report: ${parsed.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ")}`);
+    store.getState().loadDoc(ops.ensureIds(parsed.report as ops.Doc), {}, data ?? {});
+    store.getState().set({ parameters: parameters ?? {} });
+    store.getState().refresh();
+  };
 
   window.addEventListener("message", async (event) => {
     if (event.source !== window.parent || event.origin !== origin || !isEmbedMessage(event.data)) return;
@@ -39,24 +56,36 @@ export function startEmbedHost(): boolean {
     const s = store.getState();
     try {
       if (message.type === "init") {
-        if (message.apiKey) settings.apiKey = message.apiKey;
+        setEmbeddedConnection(message.apiKey);
+        saveTimeout = Number.isFinite(message.saveTimeout) && message.saveTimeout! > 0 ? message.saveTimeout! : 30_000;
         store.getState().set({ embeddedSaveMode: message.saveMode ?? "server" });
-        if (message.definition !== undefined) s.loadDoc(ops.ensureIds(message.definition as ops.Doc));
-        else if (message.template) await s.openTemplate(message.template);
+        if (message.definition !== undefined) loadDefinition(message.definition, message.data, message.parameters);
+        else if (message.template) {
+          const template = await api.getTemplate(message.template);
+          const version = await api.getVersion(message.template, template.currentVersion);
+          const parsed = parseReportDefinition(version.definition);
+          if (!parsed.valid) throw new Error("The saved template has an invalid report definition.");
+          store.getState().loadDoc(parsed.report as ops.Doc, { id: template.id, version: template.currentVersion, status: version.status, dirty: false }, message.data ?? {});
+          store.getState().set({ parameters: message.parameters ?? {} });
+          store.getState().refresh();
+        }
         store.getState().set({ home: false });
+        post({ type: "initialized" });
       } else if (message.type === "save-result") {
         const pending = pendingHostSaves.get(message.requestId);
         if (!pending) return;
         pendingHostSaves.delete(message.requestId);
+        clearTimeout(pending.timer);
         if (message.success) {
+          savedDefinition = pending.definition;
           pending.resolve();
-          post({ type: "saved-definition", definition: store.getState().doc });
         } else pending.reject(new Error(message.message || "The host application could not save this report."));
       } else if (message.type === "save") {
         await s.save();
-        if (store.getState().saveState === "error") post({ type: "error", message: "The report could not be saved. Check the designer for details." });
+        if (store.getState().embeddedSaveMode === "server" && store.getState().saveState === "error") post({ type: "error", message: "The report could not be saved. Check the designer for details." });
       } else if (message.type === "load") {
-        s.loadDoc(ops.ensureIds(message.definition as ops.Doc));
+        loadDefinition(message.definition, message.data, message.parameters);
+        post({ type: "loaded", definition: store.getState().doc });
       }
     } catch (error) {
       post({ type: "error", message: error instanceof Error ? error.message : String(error) });
@@ -69,6 +98,11 @@ export function startEmbedHost(): boolean {
       post({ type: "saved", templateId: state.meta.id, version: state.meta.version });
     }
     if (state.meta.dirty !== previous.meta.dirty) post({ type: "dirty", dirty: Boolean(state.meta.dirty) });
+    if (savedDefinition && state.saveState !== "saving") {
+      const definition = savedDefinition;
+      savedDefinition = undefined;
+      post({ type: "saved-definition", definition });
+    }
   });
 
   window.addEventListener("pagehide", unregisterHostSaveHandler, { once: true });

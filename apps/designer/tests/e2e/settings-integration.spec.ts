@@ -53,20 +53,20 @@ test.describe("settings and integration guidance", () => {
   test("integration guide provides backend examples and safe-key guidance", async ({ page, context }) => {
     await openSettings(page);
     await page.getByTestId("settings-tab-integrate").click();
-    await expect(page.getByRole("tabpanel", { name: "Integration guide" })).toContainText("Your application keeps login, permissions, and business rules");
+    await expect(page.getByRole("tabpanel", { name: "Integration guide" })).toContainText("Your application keeps login, permissions, business rules, and report definitions");
     await expect(page.getByRole("tabpanel", { name: "Integration guide" })).toContainText("Keep your API key on the server");
     await expect(page.getByRole("tabpanel", { name: "Integration guide" })).toContainText("data.client.logoUrl");
     await expect(page.getByRole("tabpanel", { name: "Integration guide" })).toContainText("data.client.footerText");
-    await expect(page.locator(".integration-code")).toContainText("authorizedInvoice");
+    await expect(page.locator("#settings-example-panel")).toContainText("authorizedInvoice");
 
     await page.getByTestId("settings-example-node").focus();
     await page.keyboard.press("ArrowRight");
     await expect(page.getByTestId("settings-example-java")).toHaveAttribute("aria-selected", "true");
-    await expect(page.locator(".integration-code")).toContainText("HttpClient.newHttpClient");
+    await expect(page.locator("#settings-example-panel")).toContainText("HttpClient.newHttpClient");
     await page.getByTestId("settings-example-python").click();
-    await expect(page.locator(".integration-code")).toContainText("requests.post");
+    await expect(page.locator("#settings-example-panel")).toContainText("requests.post");
     await page.getByTestId("settings-example-curl").click();
-    await expect(page.locator(".integration-code")).toContainText("curl -X POST");
+    await expect(page.locator("#settings-example-panel")).toContainText("curl -X POST");
 
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.getByTestId("settings-copy-example").click();
@@ -80,4 +80,19 @@ test.describe("settings and integration guidance", () => {
     await expect(page.getByLabel("Interface appearance")).toBeVisible();
     await page.getByLabel("Interface appearance").selectOption("light");
   });
+});
+
+test('a web page response does not masquerade as a working reporting API', async ({ page }) => {
+  await openSettings(page);
+  await page.route('**/api/v1/templates', route => route.fulfill({status:200,contentType:'text/html',body:'<html>Hosting welcome page</html>'}));
+  await page.getByTestId('settings-test-connection').click();
+  await expect(page.getByTestId('settings-connection-status')).toContainText('web page instead of the reporting API');
+});
+
+test('Save connection validates the URL even without testing first', async ({ page }) => {
+  await openSettings(page);
+  await page.getByTestId('settings-api-base').fill('ftp://reports.example.com');
+  await page.getByTestId('settings-save').click();
+  await expect(page.getByRole('dialog', {name:'Settings'})).toBeVisible();
+  await expect(page.getByTestId('settings-connection-status')).toContainText('valid server URL');
 });

@@ -1,7 +1,7 @@
 import { ThemeDialogBody } from "./ThemeDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { requestReplaceReport, resolveReplaceReport, useStore, type Mode } from "../store";
-import { api, ApiError, settings, type TemplateRecord } from "../lib/api";
+import { api, ApiError, normalizeServerUrl, settings, type TemplateRecord } from "../lib/api";
 import { STARTERS, blankReport } from "../lib/templates";
 import { generateReportFromJson } from "../lib/generate";
 import { insertFromPalette, PALETTE_ITEMS } from "./LeftPanel";
@@ -22,6 +22,9 @@ import type { WordImportResult } from "../lib/docx-import";
 import { FeatureGuide } from "./FeatureGuide";
 import { LandingPage } from "./home/LandingPage";
 import { LearningLibrary } from "./learning/LearningLibrary";
+import { ReportFilePicker } from "./ReportFilePicker";
+import { DesignerIntegrationExample } from "./DesignerIntegrationExample";
+import "./integration.css";
 
 /** Opens the "I tried Open Reports" issue form on the upstream repository. */
 const FEEDBACK_URL = "https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml";
@@ -39,10 +42,11 @@ function useOutsideClose(open: boolean, close: () => void) {
 }
 
 function SaveIndicator() {
-  const { saveState, meta } = useStore();
-  const text = saveState === "saving" ? "Saving…" : saveState === "error" ? "Save failed" : saveState === "dirty" ? (meta.id ? "Unsaved changes" : "Draft kept locally") : meta.id ? "✓ Saved" : "✓ Draft saved locally";
+  const { saveState, meta, embedded, embeddedSaveMode } = useStore();
+  const hostManaged = embedded && embeddedSaveMode === "host";
+  const text = saveState === "saving" ? "Saving…" : saveState === "error" ? "Save failed" : saveState === "dirty" ? (hostManaged || meta.id ? "Unsaved changes" : "Draft kept locally") : hostManaged ? "✓ Saved in your application" : meta.id ? "✓ Saved" : "✓ Draft saved locally";
   return (
-    <span className={`save-state ${saveState}`} data-testid="save-state" aria-live="polite">
+    <span className={`save-state ${saveState}${hostManaged ? " host-managed" : ""}`} data-testid="save-state" aria-live="polite">
       {text}
     </span>
   );
@@ -58,7 +62,8 @@ const TARGETS = [
 ];
 
 export function Toolbar() {
-  const { doc, meta, view, snap, past, future, engineBusy, target, mode, split, embedded } = useStore();
+  const { doc, meta, view, snap, past, future, engineBusy, target, mode, split, embedded, embeddedSaveMode, saveState } = useStore();
+  const hostManaged = embedded && embeddedSaveMode === "host";
   const s = useStore.getState;
   const set = useStore((st) => st.set);
   const [menu, setMenu] = useState<null | "export" | "more" | "view">(null);
@@ -79,7 +84,7 @@ export function Toolbar() {
           <span className="logo" aria-hidden="true">▤</span>
           <span>Home</span>
         </button>}
-        <span className="sep-slash">/</span>
+        {!embedded && <span className="sep-slash">/</span>}
         <input
           className="title-input"
           data-testid="title-input"
@@ -87,9 +92,9 @@ export function Toolbar() {
           value={doc.name ?? ""}
           onChange={(e) => s().setDoc({ ...s().doc, name: e.target.value }, { coalesce: "name" })}
         />
-        <span className={`status-pill ${meta.status ?? "draft"}`} data-testid="status-pill">
+        {!hostManaged && <span className={`status-pill ${meta.status ?? "draft"}`} data-testid="status-pill">
           {meta.id ? `${meta.status ?? "draft"} · v${meta.version ?? 1}` : "unsaved"}
-        </span>
+        </span>}
         <SaveIndicator />
         {engineBusy && <span className="busy" aria-label="Updating">⟳</span>}
       </div>
@@ -108,10 +113,10 @@ export function Toolbar() {
       </div>
 
       <div className="toolbar-group right">
-        <button className="btn toolbar-open" data-testid="btn-open" onClick={() => set({ dialog: "open" })}>Open</button>
+        <button className="btn toolbar-open" data-testid="btn-open" onClick={() => set({ dialog: "open" })}>{hostManaged ? "Open file" : "Open"}</button>
         <button className="btn" data-testid="btn-preview" onClick={() => set({ mode: "preview", demoHint: null })}>▶ Run preview</button>
-        <button className="btn" data-testid="btn-save" title={`Save a new draft version on this server, to reopen and keep editing. Drafts are not what the report viewer or API render.${isPublicDemo() ? " Public demo: every visitor can open saved reports, and they may be reset." : ""}`} onClick={() => s().save()}>Save</button>
-        <button className="btn publish" data-testid="btn-publish" title="Check the report, then make this version the one the report viewer, API and embedded pages render. Published versions never change." onClick={() => set({ dialog: "publish" })}>Publish</button>
+        <button className="btn" data-testid="btn-save" disabled={saveState === "saving"} title={hostManaged ? "Save the report JSON back to your application." : `Save a new draft version on this server, to reopen and keep editing. Drafts are not what the report viewer or API render.${isPublicDemo() ? " Public demo: every visitor can open saved reports, and they may be reset." : ""}`} onClick={() => s().save()}>{saveState === "saving" ? "Saving…" : "Save"}</button>
+        {!hostManaged && <button className="btn publish" data-testid="btn-publish" title="Check the report, then make this version the one the report viewer, API and embedded pages render. Published versions never change." onClick={() => set({ dialog: "publish" })}>Publish</button>}
         <button className="icon-btn" data-testid="btn-guide" aria-label="Feature guide" title="What can I do?" onClick={() => set({ dialog: "guide" })}>?</button>
         <div className="menu-wrap" onKeyDown={(e) => {
           if (!menu) return;
@@ -133,11 +138,11 @@ export function Toolbar() {
           {menu === "more" && (
             <div className="menu right" role="menu">
               <button role="menuitem" data-testid="btn-new" onClick={() => (setMenu(null), set({ dialog: "new" }))}>New report…</button>
-              <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "open" }))}>Open…</button>
+              <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "open" }))}>{hostManaged ? "Open report file…" : "Open…"}</button>
               <button role="menuitem" data-testid="menu-import-jrxml" onClick={() => (setMenu(null), set({ dialog: "import-jrxml" }))}>Import JRXML…</button>
               <button role="menuitem" data-testid="menu-import-docx" onClick={() => (setMenu(null), set({ dialog: "import-docx" }))}>Import Word document…</button>
               <button role="menuitem" data-testid="menu-duplicate" onClick={() => (setMenu(null), duplicateReport())}>Duplicate report</button>
-              <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "compare", compareVersion: null }))} disabled={!meta.id}>Compare versions…</button>
+              {!hostManaged && <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "compare", compareVersion: null }))} disabled={!meta.id}>Compare versions…</button>}
               <hr />
               <button role="menuitem" data-testid="btn-view" onClick={() => setMenu("view")}>Canvas view options…</button>
               <button role="menuitemcheckbox" aria-checked={split} data-testid="toggle-split" onClick={() => (set({ split: !split, mode: split ? s().mode : "design" }), setMenu(null))}><span className="check">{split ? "✓" : ""}</span>Split design and code</button>
@@ -154,7 +159,7 @@ export function Toolbar() {
               <button role="menuitem" onClick={() => (setMenu(null), set({ dialog: "settings" }))}>Settings…</button>
               {!embedded && <a role="menuitem" data-testid="menu-feedback" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenu(null)}>Send feedback ↗</a>}
               <hr />
-              <button role="menuitem" className="danger" disabled={!meta.id} onClick={() => (setMenu(null), deleteReport())}>Delete report</button>
+              {!hostManaged && <button role="menuitem" className="danger" disabled={!meta.id} onClick={() => (setMenu(null), deleteReport())}>Delete report</button>}
             </div>
           )}
           {menu === "export" && <div className="menu right" role="menu">
@@ -749,15 +754,18 @@ function GenerateDialog() {
 function OpenDialog() {
   const set = useStore((s) => s.set);
   const home = useStore((s) => s.home);
+  const hostManaged = useStore((s) => s.embedded && s.embeddedSaveMode === "host");
+  const embedded = useStore((s) => s.embedded);
   const [items, setItems] = useState<TemplateRecord[] | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    api.listTemplates().then(setItems).catch((e) => setError((e as Error).message));
-  }, []);
+    if (!hostManaged) api.listTemplates().then(setItems).catch((e) => setError((e as Error).message));
+  }, [hostManaged]);
   return (
-    <Modal label="Open a saved report" onClose={() => set({ dialog: null })}>
-      <h2>Open a saved report</h2>
-      <p className="muted">Select a report to edit, or close this dialog to return.</p>
+    <Modal label={hostManaged ? "Open report file" : "Open a saved report"} onClose={() => set({ dialog: null })}>
+      <h2>{hostManaged ? "Open report file" : "Open a saved report"}</h2>
+      <ReportFilePicker />
+      {!hostManaged && <><h3>Saved on this server</h3><p className="muted">Select a report to edit, or close this dialog to return.</p>
       {error && <div className="field-error" role="alert">{error}</div>}
       {!items && !error && <p className="muted" role="status">Loading saved reports…</p>}
       {items && items.length === 0 && <p className="muted">Nothing saved yet. Use Save to store this report on the server.</p>}
@@ -772,9 +780,10 @@ function OpenDialog() {
           </li>
         ))}
       </ul>
+      </>}
       <div className="dialog-actions">
         <button className="btn" onClick={() => set({ dialog: null })}>Close</button>
-        {!home && <button className="btn" onClick={() => set({ dialog: null, home: true })}>Go Home</button>}
+        {!home && !embedded && <button className="btn" onClick={() => set({ dialog: null, home: true })}>Go Home</button>}
         <span className="spacer" />
         <button className="btn" onClick={() => set({ dialog: "new" })}>New report</button>
       </div>
@@ -784,6 +793,7 @@ function OpenDialog() {
 
 function SettingsDialog() {
   const set = useStore((s) => s.set);
+  const embedded = useStore((s) => s.embedded);
   const interfaceTheme = useStore((s) => s.interfaceTheme);
   const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const [key, setKey] = useState(settings.apiKey);
@@ -853,18 +863,9 @@ function SettingsDialog() {
   const testConnection = async () => {
     setChecking(true);
     setConnection(null);
-    const trimmedBase = base.trim().replace(/\/+$/, "");
     let url: string;
     try {
-      if (trimmedBase) {
-        const parsed = new URL(trimmedBase);
-        if (!(parsed.protocol === "http:" || parsed.protocol === "https:") || parsed.username || parsed.password || parsed.search || parsed.hash) {
-          throw new Error();
-        }
-        url = `${trimmedBase}/api/v1/templates`;
-      } else {
-        url = "/api/v1/templates";
-      }
+      url = `${normalizeServerUrl(base)}/api/v1/templates`;
     } catch {
       setConnection({ ok: false, message: "Enter a valid server URL, such as https://reports.example.com." });
       setChecking(false);
@@ -875,12 +876,15 @@ function SettingsDialog() {
       const headers = new Headers();
       if (key.trim()) headers.set("x-api-key", key.trim());
       const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(10_000) });
-      if (response.ok) setConnection({ ok: true, message: "Connected. The server accepted this API key." });
+      if (response.ok) {
+        const body: unknown = await response.json();
+        setConnection(Array.isArray(body) ? { ok: true, message: key.trim() ? "Connected. The server accepted this API key." : "Connected. The reporting API is reachable without an API key." } : { ok: false, message: "This URL did not return the reporting API. Check the server base address." });
+      }
       else if (response.status === 401) setConnection({ ok: false, message: "Server reached, but this API key was not accepted." });
       else if (response.status === 403) setConnection({ ok: false, message: "Server reached, but access was denied. Check the key and server permissions." });
       else setConnection({ ok: false, message: `Server reached, but returned ${response.status}. Check the server URL and API configuration.` });
-    } catch {
-      setConnection({ ok: false, message: "Could not reach the server. Check the URL, that the server is running, and its CORS settings." });
+    } catch (error) {
+      setConnection({ ok: false, message: error instanceof SyntaxError ? "This URL returned a web page instead of the reporting API. Check the server base address." : "Could not reach the server. Check the URL, that the server is running, and its CORS settings." });
     } finally {
       setChecking(false);
     }
@@ -907,11 +911,11 @@ function SettingsDialog() {
       </div>
 
       {tab === "connection" && <section className="settings-section" id="settings-panel-connection" role="tabpanel" aria-labelledby="settings-tab-connection" tabIndex={0}>
-        <div className="settings-section-title"><div><h3>Reporting server</h3><p>Connect to the Open Reports instance that stores and renders your reports.</p></div><span className="settings-status-dot" aria-hidden="true" /></div>
+        <div className="settings-section-title"><div><h3>Reporting server</h3><p>Connect to the Open Reports instance that renders your reports. Template storage is optional.</p></div><span className="settings-status-dot" aria-hidden="true" /></div>
         <label className="field wide"><span className="field-label">Server URL</span><input data-testid="settings-api-base" type="url" value={base} onChange={(e) => { setBase(e.target.value); setConnection(null); }} placeholder="https://reports.example.com" autoComplete="url" /><span className="field-hint">Use the server’s base address. Leave blank when the designer and API share an origin.</span></label>
-        <label className="field wide"><span className="field-label">API key <span className="muted">(optional if server auth is disabled)</span></span><span className="settings-key-field"><input data-testid="settings-api-key" type={showKey ? "text" : "password"} value={key} onChange={(e) => { setKey(e.target.value); setConnection(null); }} autoComplete="off" spellCheck={false} placeholder="Paste the server API key" /><button className="btn" type="button" data-testid="settings-toggle-key" aria-label={showKey ? "Hide API key" : "Show API key"} onClick={() => setShowKey(!showKey)}>{showKey ? "Hide" : "Show"}</button></span><span className="field-hint">This designer stores the key in this browser. Server API keys are currently instance-wide; do not use a privileged key in a public or shared browser. For application integrations, keep it in your backend.</span></label>
+        <label className="field wide"><span className="field-label">API key <span className="muted">(optional if server auth is disabled)</span></span><span className="settings-key-field"><input data-testid="settings-api-key" type={showKey ? "text" : "password"} value={key} onChange={(e) => { setKey(e.target.value); setConnection(null); }} autoComplete="off" spellCheck={false} placeholder="Paste the server API key" /><button className="btn" type="button" data-testid="settings-toggle-key" aria-label={showKey ? "Hide API key" : "Show API key"} onClick={() => setShowKey(!showKey)}>{showKey ? "Hide" : "Show"}</button></span><span className="field-hint">{embedded ? "Connection settings apply only to this embedded editor session. Keep privileged API keys in your host backend." : "This designer stores the key in this browser. Server API keys are currently instance-wide; do not use a privileged key in a public or shared browser. For application integrations, keep it in your backend."}</span></label>
         {connection && <p className={connection.ok ? "ok-text settings-feedback" : "field-error settings-feedback"} role="status" data-testid="settings-connection-status">{connection.message}</p>}
-        <div className="dialog-actions settings-actions"><button className="btn" type="button" data-testid="settings-test-connection" disabled={checking} onClick={testConnection}>{checking ? "Checking…" : "Test connection"}</button><span className="spacer" /><button className="btn primary" type="button" data-testid="settings-save" onClick={() => { settings.apiBase = base.trim().replace(/\/+$/, ""); settings.apiKey = key.trim(); set({ dialog: null }); }}>Save connection</button></div>
+        <div className="dialog-actions settings-actions"><button className="btn" type="button" data-testid="settings-test-connection" disabled={checking} onClick={testConnection}>{checking ? "Checking…" : "Test connection"}</button><span className="spacer" /><button className="btn primary" type="button" data-testid="settings-save" disabled={checking} onClick={() => { try { settings.apiBase = normalizeServerUrl(base); settings.apiKey = key.trim(); set({ dialog: null }); } catch { setConnection({ ok: false, message: "Enter a valid server URL, such as https://reports.example.com." }); } }}>Save connection</button></div>
       </section>}
 
       {tab === "preferences" && <section className="settings-section" id="settings-panel-preferences" role="tabpanel" aria-labelledby="settings-tab-preferences" tabIndex={0}>
@@ -926,6 +930,7 @@ function SettingsDialog() {
         <pre className="integration-code" id="settings-example-panel" role="tabpanel" aria-labelledby={`settings-example-tab-${example}`} tabIndex={0}><code>{examples[example]}</code></pre>
         <div className="dialog-actions integration-actions"><button className="btn" type="button" data-testid="settings-copy-example" onClick={copyExample}>{copied ? "Copied" : "Copy example"}</button><span className="spacer" /><span className="field-hint">Uses your normal HTTP client; no SDK required.</span></div>
         <div className="integration-next-steps"><h4>Typical setup</h4><ol><li>Keep each tenant’s report JSON in your application’s normal storage and versioning system.</li><li>From your backend, authorize the user and prepare the data and branding for that request.</li><li>POST the report definition, format, and data to <code>/api/v1/render</code>; return the PDF or other output from your application.</li></ol><p>Open Reports also has optional server-side template storage for standalone use. For an embedded designer, enable host-managed saving so edited JSON returns to your application.</p></div>
+        <DesignerIntegrationExample />
         <div className="integration-branding-note"><h4>Use one report definition with different client branding</h4><p>Bind the logo image to <code>data.client.logoUrl</code>, and header/footer text to paths such as <code>data.client.headerText</code> and <code>data.client.footerText</code>. Pass each client’s branding in the render request:</p><pre className="integration-branding-code"><code>{`"data": {
   "client": {
     "logoUrl": "https://assets.example.com/client-logo.png",
@@ -975,7 +980,8 @@ function useCommands(): Command[] {
     ];
     // Keyboard commands come first and carry their shortcut, so the palette teaches the keys.
     const keyed: Command[] = COMMANDS.filter((command) => command.palette).map((command) => ({ id: command.id, label: command.label, hint: shortcutLabel(command.id), run: () => void command.run(s()) }));
-    return [...keyed, ...cmds];
+    const hostManaged = s().embedded && s().embeddedSaveMode === "host";
+    return [...keyed, ...cmds].filter((command) => !hostManaged || command.id !== "publish");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useStore.getState().dialog]);
 }
@@ -994,6 +1000,7 @@ function CommandPalette() {
     <Modal onClose={() => set({ dialog: null })}>
       <input
         autoFocus
+        data-default-focus
         className="palette-input"
         data-testid="palette-input"
         placeholder="Type a command... (add table, create dataset, preview PDF)"

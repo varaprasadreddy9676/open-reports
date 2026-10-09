@@ -6,9 +6,24 @@ import type { Doc } from "../model/ops";
 import { subreportSources } from "./subreports";
 const KEY = "designer.apiKey";
 const BASE = "designer.apiBase";
+let embeddedConnection: { apiKey: string; apiBase: string } | undefined;
+
+/** An embed must not inherit or persist another host application's connection. */
+export function setEmbeddedConnection(apiKey = ""): void {
+  embeddedConnection = { apiKey, apiBase: "" };
+}
+
+export function normalizeServerUrl(value: string): string {
+  const base = value.trim().replace(/\/+$/, "");
+  if (!base) return "";
+  const parsed = new URL(base);
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error("Invalid server URL");
+  return base;
+}
 
 export const settings = {
   get apiKey() {
+    if (embeddedConnection) return embeddedConnection.apiKey;
     try {
       return localStorage.getItem(KEY) ?? "";
     } catch {
@@ -16,6 +31,7 @@ export const settings = {
     }
   },
   set apiKey(v: string) {
+    if (embeddedConnection) { embeddedConnection.apiKey = v; return; }
     try {
       localStorage.setItem(KEY, v);
     } catch {
@@ -23,6 +39,7 @@ export const settings = {
     }
   },
   get apiBase() {
+    if (embeddedConnection) return embeddedConnection.apiBase;
     try {
       return localStorage.getItem(BASE) ?? "";
     } catch {
@@ -30,6 +47,7 @@ export const settings = {
     }
   },
   set apiBase(v: string) {
+    if (embeddedConnection) { embeddedConnection.apiBase = v; return; }
     try {
       localStorage.setItem(BASE, v);
     } catch {
@@ -57,7 +75,7 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
   try {
     res = await fetch(`${settings.apiBase}${path}`, { ...init, headers });
   } catch {
-    throw new ApiError("Cannot reach the reporting server. Start it with `pnpm dev` (API on :4000).", 0, "NETWORK");
+    throw new ApiError("Cannot reach the reporting server. Check your connection and server address, then try again.", 0, "NETWORK");
   }
   if (!res.ok) {
     let body: any = undefined;

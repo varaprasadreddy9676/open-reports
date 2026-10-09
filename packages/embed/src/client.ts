@@ -77,13 +77,15 @@ export interface RenderReportRequest {
   parameters?: Record<string, unknown>;
   data?: Record<string, unknown>;
   viewerState?: ViewerState;
+  /** Optional overrides for reusable child reports; bundled report.subreports are resolved automatically. */
+  subreports?: Record<string, { report: unknown; data?: Record<string, unknown> }>;
 }
 
 export async function renderReport(options: ServerOptions, request: RenderReportRequest): Promise<Blob> {
   const response = await fetch(url(options, "/api/v1/render"), {
     method: "POST",
     headers: headers(options, true),
-    body: JSON.stringify({ report: request.report, format: request.format, parameters: request.parameters, data: request.data, viewerState: request.viewerState }),
+    body: JSON.stringify({ report: request.report, format: request.format, parameters: request.parameters, data: request.data, viewerState: request.viewerState, subreports: request.subreports }),
   });
   if (!response.ok) throw await failure(response);
   return response.blob();

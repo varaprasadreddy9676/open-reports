@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { createServer, type Server } from "node:http";
 
 const report = {
   schemaVersion: "1.0",
@@ -108,7 +109,7 @@ test("the embedded designer can save report JSON to the host without creating a 
 test("the embedded designer ignores messages from other origins", async ({ page }) => {
   await hostPage(page, `<open-report-designer height="600px"></open-report-designer>`);
   const frame = page.frameLocator("open-report-designer >> iframe");
-  await expect(frame.getByTestId("canvas").or(frame.getByTestId("app"))).toBeVisible();
+  await expect(frame.getByTestId("app")).toBeVisible();
   // A message in the right format but from a window other than the host page (here the iframe itself) is ignored.
   const docBefore = await page.evaluate(() => (document.querySelector("open-report-designer iframe") as HTMLIFrameElement).contentWindow!.eval("JSON.stringify(window.__designer.getState().doc.name)"));
   await page.evaluate(() => {
@@ -127,4 +128,150 @@ test("the host page can replace the open report", async ({ page }) => {
   await expect(frame.getByTestId("app")).toBeVisible();
   await page.evaluate(() => (document.querySelector("open-report-designer") as any).designer.load({ schemaVersion: "1.0", id: "from-host", name: "From the host", page: { size: "A4" }, datasets: [], sections: [{ type: "detail", children: [{ type: "text", value: "Loaded by the host" }] }] }));
   await expect(frame.locator(".page")).toContainText("Loaded by the host");
+});
+
+let hostServer: Server | undefined;
+test.afterEach(async () => {
+  if (hostServer) { const server=hostServer; hostServer=undefined; await new Promise<void>(resolve=>server.close(()=>resolve())); }
+});
+
+async function crossOriginHost(page: Page, script: string) {
+  const server = 'http://127.0.0.1:3100';
+  const body = `<!doctype html><html><body><div id="editor"></div><script type="module">
+    import { createDesigner } from '${server}/embed/open-reports.js';
+    window.events = [];
+    document.addEventListener('report-saved', e => window.events.push(e.detail));
+    ${script}
+  </script></body></html>`;
+  hostServer=createServer((_request,response)=>{response.setHeader('content-type','text/html');response.end(body);});
+  await new Promise<void>(resolve=>hostServer!.listen(0,'127.0.0.1',resolve));
+  const address=hostServer.address() as {port:number};
+  await page.goto(`http://127.0.0.1:${address.port}/host.html`);
+  await expect.poll(() => page.evaluate(() => Boolean((window as any).ready))).toBe(true);
+  return page.frameLocator('iframe[title="Report designer"]');
+}
+
+for (const failure of ['sync', 'async']) {
+  test(`a cross-origin host ${failure} save failure rejects and can be retried without losing edits`, async ({ page, request }) => {
+    const frame = await crossOriginHost(page, `
+      window.fail = true;
+      window.designer = createDesigner(document.querySelector('#editor'), {
+        server: 'http://127.0.0.1:3100', definition: ${JSON.stringify(report)}, saveMode: 'host',
+        onReady: () => window.ready = true,
+        onSaveDefinition: ${failure === 'async' ? 'async' : ''} (definition) => { if (window.fail) throw new Error('Host storage unavailable'); window.stored = definition; },
+      });`);
+    await frame.getByLabel('Report name').fill('Retained host edit');
+    const failureResult = await page.evaluate(() => (window as any).designer.save().then(() => 'saved', (e: Error) => e.message));
+    expect(failureResult).toContain('Host storage unavailable');
+    await expect(frame.getByTestId('save-state')).toHaveText('Save failed');
+    await expect(frame.getByLabel('Report name')).toHaveValue('Retained host edit');
+    await expect(frame.getByTestId('btn-publish')).toHaveCount(0);
+    await page.evaluate(() => { (window as any).fail = false; });
+    const result = await page.evaluate(() => (window as any).designer.save());
+    expect(result.definition.name).toBe('Retained host edit');
+    await expect(frame.getByTestId('save-state')).toContainText('Saved in your application');
+    expect((await request.get('/api/v1/templates/embed-greeting')).status()).toBe(404);
+  });
+}
+
+test('slow host saves return the stored snapshot, keep newer edits dirty, and coalesce repeated Save requests', async ({ page }) => {
+  const frame = await crossOriginHost(page, `window.calls=0;
+    window.designer=createDesigner(document.querySelector('#editor'), {server:'http://127.0.0.1:3100',definition:${JSON.stringify(report)},saveMode:'host',onReady:()=>window.ready=true,
+    onSaveDefinition:async definition=>{window.calls++;await new Promise(resolve=>window.finish=resolve);window.stored=definition;}});`);
+  await frame.getByLabel('Report name').fill('First edit');
+  await page.evaluate(() => { (window as any).saving = Promise.all([(window as any).designer.save(), (window as any).designer.save()]); });
+  await expect.poll(() => page.evaluate(() => (window as any).calls)).toBe(1);
+  await frame.getByLabel('Report name').fill('Newer edit');
+  await expect(frame.getByTestId('btn-save')).toBeDisabled();
+  await page.evaluate(() => (window as any).finish());
+  const results = await page.evaluate(() => (window as any).saving);
+  expect(results.map((r: any) => r.definition.name)).toEqual(['First edit', 'First edit']);
+  await expect(frame.getByTestId('save-state')).toHaveText('Unsaved changes');
+  await expect(frame.getByLabel('Report name')).toHaveValue('Newer edit');
+});
+
+test('host preview data and parameters work, stay outside saved JSON, and reload restores the saved definition', async ({ page }) => {
+  const definition = { ...report, sections: [{ type: 'detail', children: [{ type: 'text', expression: 'data.client.name + ": " + params.name' }] }] };
+  const frame = await crossOriginHost(page, `window.designer=createDesigner(document.querySelector('#editor'), {server:'http://127.0.0.1:3100',definition:${JSON.stringify(definition)},data:{client:{name:'Acme Tenant'}},parameters:{name:'Sam Lee'},saveMode:'host',onReady:()=>window.ready=true,onSaveDefinition:definition=>window.stored=definition});`);
+  await expect(frame.locator('.page')).toContainText('Acme Tenant: Sam Lee');
+  await frame.getByLabel('Report name').fill('Saved customer report');
+  const result = await page.evaluate(() => (window as any).designer.save());
+  expect(JSON.stringify(result.definition)).not.toContain('Acme Tenant');
+  await page.evaluate(() => { (window as any).ready=false; const f=(window as any).designer.frame; f.src=f.src; });
+  await expect.poll(() => page.evaluate(() => (window as any).ready)).toBe(true);
+  await expect(frame.getByLabel('Report name')).toHaveValue('Saved customer report');
+  await expect(frame.locator('.page')).toContainText('Acme Tenant: Sam Lee');
+});
+
+test('the host can load a new definition and preview data, and invalid input leaves the previous report intact', async ({ page }) => {
+  const frame = await crossOriginHost(page, `window.errors=[];window.designer=createDesigner(document.querySelector('#editor'), {server:'http://127.0.0.1:3100',definition:${JSON.stringify(report)},onReady:()=>window.ready=true,onError:m=>window.errors.push(m)});`);
+  const definition={...report,name:'New host report',sections:[{type:'detail',children:[{type:'text',expression:'data.client.name'}]}]};
+  await page.evaluate((definition) => (window as any).designer.load(definition, {data:{client:{name:'New tenant preview'}}}), definition);
+  await expect(frame.locator('.page')).toContainText('New tenant preview');
+  await page.evaluate(() => (window as any).designer.load({id:'invalid'}));
+  await expect.poll(() => page.evaluate(() => (window as any).errors.join())).toContain('Invalid report');
+  await expect(frame.getByLabel('Report name')).toHaveValue('New host report');
+});
+
+test('a host-managed designer opens a JSON file without accessing the server template list', async ({ page }) => {
+  const frame=await crossOriginHost(page,`window.designer=createDesigner(document.querySelector('#editor'),{server:'http://127.0.0.1:3100',definition:${JSON.stringify(report)},saveMode:'host',onReady:()=>window.ready=true,onSaveDefinition:()=>{}});`);
+  let templateLookups=0;
+  page.on('request',request=>{if(request.url().endsWith('/api/v1/templates'))templateLookups++;});
+  await frame.getByTestId('btn-open').click();
+  await expect(frame.getByRole('dialog',{name:'Open report file'})).toBeVisible();
+  await frame.getByLabel('Open report JSON file').setInputFiles({name:'broken.report.json',mimeType:'application/json',buffer:Buffer.from('{bad json')});
+  await expect(frame.getByRole('alert')).toContainText('not valid JSON');
+  const next={...report,name:'Opened report file'};
+  await frame.getByLabel('Open report JSON file').setInputFiles({name:'valid.report.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(next))});
+  await expect(frame.getByLabel('Report name')).toHaveValue('Opened report file');
+  expect(templateLookups).toBe(0);
+});
+
+test('the viewer can retry after its first template lookup fails', async ({ page, request }) => {
+  await publishTemplate(request,'viewer-retry');
+  await page.route('**/api/v1/templates/viewer-retry/versions',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Temporarily unavailable'}})}));
+  await hostPage(page,'<open-report-viewer template="viewer-retry"></open-report-viewer>');
+  const viewer=page.locator('open-report-viewer');
+  await expect(viewer.getByRole('status')).toContainText('Temporarily unavailable');
+  await page.unroute('**/api/v1/templates/viewer-retry/versions');
+  await viewer.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.frameLocator('open-report-viewer >> iframe').locator('body')).toContainText('Hello Alex Morgan');
+});
+
+test('the host viewer renders a JSON file with its bundled shared header and accepts a client override', async ({ page }) => {
+  const child={...report,id:'shared-header',name:'Shared header',parameters:[],sections:[{type:'detail',children:[{type:'text',value:'Bundled client header'}]}]};
+  const parent={...report,id:'bundled-invoice',subreports:{'shared-header':child},sections:[{type:'pageHeader',children:[{type:'subreport',reportId:'shared-header'}]},{type:'detail',children:[{type:'text',value:'Invoice body'}]}]};
+  await hostPage(page,`<open-report-viewer></open-report-viewer><script>document.querySelector('open-report-viewer').report=${JSON.stringify(parent)};</script>`);
+  const frame=page.frameLocator('open-report-viewer >> iframe');
+  await expect(frame.locator('body')).toContainText('Bundled client header');
+  await expect(frame.locator('body')).toContainText('Invoice body');
+  await page.evaluate((child)=>{(document.querySelector('open-report-viewer') as any).subreports={'shared-header':{report:{...child,sections:[{type:'detail',children:[{type:'text',value:'Tenant header override'}]}]}}};},child);
+  await expect(frame.locator('body')).toContainText('Tenant header override');
+  await expect(frame.locator('body')).not.toContainText('Bundled client header');
+});
+
+test('host saving times out visibly and a subsequent save can succeed',async({page})=>{
+  const frame=await crossOriginHost(page,`window.fail=true;window.designer=createDesigner(document.querySelector('#editor'),{server:'http://127.0.0.1:3100',definition:${JSON.stringify(report)},saveMode:'host',saveTimeout:150,onReady:()=>window.ready=true,onSaveDefinition:()=>window.fail?new Promise(()=>{}):undefined});`);
+  await frame.getByLabel('Report name').fill('Retained after timeout');
+  const error=await page.evaluate(()=>(window as any).designer.save().then(()=>'',(error:Error)=>error.message));
+  expect(error).toMatch(/timed out|did not confirm/);
+  await expect(frame.getByTestId('save-state')).toHaveText('Save failed');
+  await expect(frame.getByLabel('Report name')).toHaveValue('Retained after timeout');
+  await page.evaluate(()=>(window as any).fail=false);
+  const result=await page.evaluate(()=>(window as any).designer.save());
+  expect(result.definition.name).toBe('Retained after timeout');
+});
+
+test('the custom element uses the latest host save callback and reconnects with its last saved JSON',async({page})=>{
+  await hostPage(page,`<open-report-designer save-mode="host"></open-report-designer><script>
+    const element=document.querySelector('open-report-designer');element.definition=${JSON.stringify(report)};
+    element.onSaveDefinition=()=>{throw new Error('Old callback must not run');};
+  </script>`);
+  const frame=page.frameLocator('open-report-designer >> iframe');
+  await expect(frame.getByLabel('Report name')).toHaveValue(report.name);
+  await page.evaluate(()=>{(document.querySelector('open-report-designer') as any).onSaveDefinition=(definition:any)=>(window as any).stored=definition;});
+  await frame.getByLabel('Report name').fill('Reconnected report');
+  await page.evaluate(()=>(document.querySelector('open-report-designer') as any).designer.save());
+  await page.evaluate(()=>{const element=document.querySelector('open-report-designer')!;element.remove();document.body.append(element);});
+  await expect(frame.getByLabel('Report name')).toHaveValue('Reconnected report');
 });

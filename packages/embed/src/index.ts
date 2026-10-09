@@ -1,6 +1,6 @@
 import { createDesigner, type Designer } from "./designer.js";
 import { createViewer, type Viewer } from "./viewer.js";
-import type { OutputFormat } from "./client.js";
+import type { OutputFormat, RenderReportRequest } from "./client.js";
 
 export { createViewer, type Viewer, type ViewerOptions } from "./viewer.js";
 export { createDesigner, type Designer, type DesignerOptions } from "./designer.js";
@@ -27,14 +27,16 @@ export class OpenReportViewer extends HTMLElement {
   #scheduled = false;
   #report?: unknown;
   #data?: Record<string, unknown>;
+  #subreports?: RenderReportRequest["subreports"];
 
   constructor() {
     super();
     this.#upgradeProperty("report");
     this.#upgradeProperty("data");
+    this.#upgradeProperty("subreports");
   }
 
-  #upgradeProperty(name: "report" | "data") {
+  #upgradeProperty(name: "report" | "data" | "subreports") {
     if (!Object.prototype.hasOwnProperty.call(this, name)) return;
     const value = (this as unknown as Record<string, unknown>)[name];
     delete (this as unknown as Record<string, unknown>)[name];
@@ -50,6 +52,11 @@ export class OpenReportViewer extends HTMLElement {
   get data(): Record<string, unknown> | undefined { return this.#data; }
   set data(value: Record<string, unknown> | undefined) {
     this.#data = value;
+    if (this.isConnected) this.#schedule();
+  }
+  get subreports(): RenderReportRequest["subreports"] { return this.#subreports; }
+  set subreports(value: RenderReportRequest["subreports"]) {
+    this.#subreports = value;
     if (this.isConnected) this.#schedule();
   }
 
@@ -76,6 +83,7 @@ export class OpenReportViewer extends HTMLElement {
     this.#scheduled = true;
     queueMicrotask(() => {
       this.#scheduled = false;
+      if (!this.isConnected) return;
       const server = this.getAttribute("server") ?? location.origin;
       const template = this.getAttribute("template");
       const report = this.report ?? parseJson(this.getAttribute("report"));
@@ -90,6 +98,7 @@ export class OpenReportViewer extends HTMLElement {
         version: version ? Number(version) : undefined,
         parameters: parseJson(this.getAttribute("parameters")),
         data: this.data ?? parseJson(this.getAttribute("data")),
+        subreports: this.subreports,
         downloads: this.getAttribute("downloads")?.split(",").map((format) => format.trim()).filter(Boolean) as OutputFormat[] | undefined,
         hideParameters: this.hasAttribute("hide-parameters"),
       });
@@ -102,14 +111,18 @@ export class OpenReportDesigner extends HTMLElement {
   #designer?: Designer;
   #definition?: unknown;
   #saveDefinition?: (definition: unknown) => void | Promise<void>;
+  #data?: Record<string, unknown>;
+  #parameters?: Record<string, unknown>;
 
   constructor() {
     super();
     this.#upgradeProperty("definition");
     this.#upgradeProperty("onSaveDefinition");
+    this.#upgradeProperty("data");
+    this.#upgradeProperty("parameters");
   }
 
-  #upgradeProperty(name: "definition" | "onSaveDefinition") {
+  #upgradeProperty(name: "definition" | "onSaveDefinition" | "data" | "parameters") {
     if (!Object.prototype.hasOwnProperty.call(this, name)) return;
     const value = (this as unknown as Record<string, unknown>)[name];
     delete (this as unknown as Record<string, unknown>)[name];
@@ -117,7 +130,11 @@ export class OpenReportDesigner extends HTMLElement {
   }
   /** Assign before connecting, or use `element.designer.load(definition)` after ready. */
   get definition(): unknown { return this.#definition; }
-  set definition(value: unknown) { this.#definition = value; }
+  set definition(value: unknown) { this.#definition = value; this.#designer?.load(value, { data: this.data, parameters: this.parameters }); }
+  get data(): Record<string, unknown> | undefined { return this.#data; }
+  set data(value: Record<string, unknown> | undefined) { this.#data = value; }
+  get parameters(): Record<string, unknown> | undefined { return this.#parameters; }
+  set parameters(value: Record<string, unknown> | undefined) { this.#parameters = value; }
   /** Required for host-owned persistence; resolve only after the host has stored the definition. */
   get onSaveDefinition(): ((definition: unknown) => void | Promise<void>) | undefined { return this.#saveDefinition; }
   set onSaveDefinition(value: ((definition: unknown) => void | Promise<void>) | undefined) { this.#saveDefinition = value; }
@@ -131,8 +148,15 @@ export class OpenReportDesigner extends HTMLElement {
       server: this.getAttribute("server") ?? location.origin,
       template: this.getAttribute("template") ?? undefined,
       definition: this.definition,
+      data: this.data,
+      parameters: this.parameters,
       saveMode: (this.getAttribute("save-mode") as "server" | "host" | null) ?? (this.onSaveDefinition ? "host" : "server"),
-      onSaveDefinition: this.onSaveDefinition,
+      onSaveDefinition: async (definition) => {
+        if (!this.onSaveDefinition) throw new Error("Configure onSaveDefinition to persist reports in host-managed mode.");
+        const previous = this.#definition;
+        await this.onSaveDefinition(definition);
+        if (this.#definition === previous) this.#definition = definition;
+      },
       apiKey: this.getAttribute("api-key") ?? undefined,
       height: this.getAttribute("height") ?? undefined,
     });

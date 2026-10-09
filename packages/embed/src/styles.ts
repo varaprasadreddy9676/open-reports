@@ -10,6 +10,7 @@ export const VIEWER_STYLES = `
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 button { font: inherit; padding: 6px 12px; border: 1px solid var(--or-border); border-radius: 6px; background: #fff; color: var(--or-text); cursor: pointer; }
 button:hover { border-color: var(--or-accent); }
+button:disabled { opacity: .5; cursor: default; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--or-accent); outline-offset: 1px; }
 button.primary { background: var(--or-accent); border-color: var(--or-accent); color: #fff; font-weight: 600; }
 .status { padding: 0 12px; font-size: 12px; color: var(--or-muted); }

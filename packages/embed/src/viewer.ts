@@ -1,4 +1,4 @@
-import { fetchTemplateVersion, renderReport, renderTemplate, type OutputFormat, type ServerOptions } from "./client.js";
+import { fetchTemplateVersion, renderReport, renderTemplate, type OutputFormat, type RenderReportRequest, type ServerOptions } from "./client.js";
 import { coerceParameter, initialParameters, type ParameterDefinition } from "./params.js";
 import { contentsOf, enableDrillDown, enableDrillThrough, enableSorting, focusHit, highlight, type DrillTarget, type SortState } from "./interactive.js";
 import { VIEWER_STYLES } from "./styles.js";
@@ -14,6 +14,8 @@ export interface ViewerOptions extends ServerOptions {
   parameters?: Record<string, unknown>;
   /** Data to render with instead of the report's own data sources. */
   data?: Record<string, unknown>;
+  /** Request-specific reusable child definitions and their authorized data. */
+  subreports?: RenderReportRequest["subreports"];
   /** Download buttons to offer. Default: PDF, Excel and CSV. */
   downloads?: OutputFormat[];
   /** Hide the parameter form even when the report has parameters. */
@@ -156,12 +158,19 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
   let hitIndex = -1;
   let destroyed = false;
   let renderCount = 0;
+  let hasRendered = false;
 
   const setStatus = (text: string, kind: "busy" | "error" | "" = "") => {
+    if (destroyed) return;
     status.textContent = text;
     status.dataset.kind = kind;
+    run.disabled = kind === "busy";
+    print.disabled = kind !== "" || !hasRendered;
+    actions.querySelectorAll<HTMLButtonElement>("[data-format]").forEach((button) => { button.disabled = kind === "busy" || !hasRendered; });
+    frame.setAttribute("aria-busy", String(kind === "busy"));
   };
   const fail = (error: unknown) => {
+    if (destroyed) return;
     const message = error instanceof Error ? error.message : String(error);
     setStatus(message, "error");
     host.dispatchEvent(new CustomEvent("report-error", { detail: { message }, bubbles: true, composed: true }));
@@ -191,6 +200,17 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
     target.definitions = loaded.definition.parameters ?? [];
     target.values = initialParameters(target.definitions, target.values);
   };
+  // A failed first lookup must be retried, rather than retaining a rejected promise forever.
+  let ready: Promise<void> | undefined;
+  const initialize = (): Promise<void> => ready ??= (async () => {
+    try {
+      await load(place);
+      if (!destroyed) { showParameters(); showTrail(); }
+    } catch (error) {
+      ready = undefined;
+      throw error;
+    }
+  })();
 
   const runSearch = () => {
     const doc = frame.contentDocument;
@@ -252,33 +272,38 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
     async refresh(nextValues) {
       const ticket = ++renderCount;
       try {
-        await ready;
+        setStatus("Loading report…", "busy");
+        await initialize();
+        if (destroyed || ticket !== renderCount) return;
         if (nextValues) place.values = { ...place.values, ...nextValues };
         else if (!options.hideParameters) place.values = { ...place.values, ...readForm(form, place.definitions) };
         setStatus("Rendering…", "busy");
         const requestData = history.length ? undefined : options.data;
         const state = viewerState();
         const blob = place.report !== undefined
-          ? await renderReport(options, { report: place.report, format: "html", parameters: place.values, data: requestData, viewerState: state })
+          ? await renderReport(options, { report: place.report, format: "html", parameters: place.values, data: requestData, viewerState: state, subreports: options.subreports })
           : await renderTemplate(options, { template: place.template, version: place.version, format: "html", parameters: place.values, data: requestData, viewerState: state });
         const html = await blob.text();
         if (destroyed || ticket !== renderCount) return;
         frame.srcdoc = html;
+        hasRendered = true;
         setStatus("");
         host.dispatchEvent(new CustomEvent("report-rendered", { detail: { template: place.template, parameters: { ...place.values }, version: place.version, sort: place.sort }, bubbles: true, composed: true }));
       } catch (error) {
-        fail(error);
+        if (ticket === renderCount) fail(error);
       }
     },
     async download(format) {
       try {
-        await ready;
+        await initialize();
+        if (destroyed) return;
         setStatus(`Preparing ${LABELS[format]}…`, "busy");
         const requestData = history.length ? undefined : options.data;
         const state = viewerState();
         const blob = place.report !== undefined
-          ? await renderReport(options, { report: place.report, format, parameters: place.values, data: requestData, viewerState: state })
+          ? await renderReport(options, { report: place.report, format, parameters: place.values, data: requestData, viewerState: state, subreports: options.subreports })
           : await renderTemplate(options, { template: place.template, version: place.version, format, parameters: place.values, data: requestData, viewerState: state });
+        if (destroyed) return;
         const link = element("a", { href: URL.createObjectURL(blob), download: `${place.template}.${EXTENSIONS[format]}` });
         link.click();
         setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
@@ -320,12 +345,6 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
     },
   };
 
-  const ready = (async () => {
-    await load(place);
-    showParameters();
-    showTrail();
-  })();
-
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void viewer.refresh();
@@ -344,6 +363,6 @@ export function createViewer(host: HTMLElement, options: ViewerOptions): Viewer 
   });
   previous.addEventListener("click", () => step(-1));
   next.addEventListener("click", () => step(1));
-  ready.then(() => viewer.refresh(), fail);
+  void viewer.refresh(place.values);
   return viewer;
 }

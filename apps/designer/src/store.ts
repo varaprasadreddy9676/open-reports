@@ -270,6 +270,7 @@ function scheduleAutosave() {
 }
 
 function persistDraft(doc: Doc, sample: Record<string, unknown>, dirty = false) {
+  if (useStore.getState().embedded) return;
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc, sample, dirty }));
   } catch {
@@ -362,7 +363,7 @@ export const useStore = create<State>((set, get) => ({
       future: [],
       lastCoalesce: opts.coalesce ? { key: opts.coalesce, at: now } : null,
       meta: { ...s.meta, dirty: true },
-      saveState: "dirty",
+      saveState: s.saveState === "saving" ? "saving" : "dirty",
       demoHint: s.demoHint === "edit" ? "preview" : s.demoHint,
     });
     persistDraft(doc, s.sample, true);
@@ -385,7 +386,7 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     const prev = s.past[s.past.length - 1];
     if (!prev) return;
-    set({ doc: prev.doc, past: s.past.slice(0, -1), future: [{ doc: s.doc, label: prev.label, at: Date.now() }, ...s.future], lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: "dirty" });
+    set({ doc: prev.doc, past: s.past.slice(0, -1), future: [{ doc: s.doc, label: prev.label, at: Date.now() }, ...s.future], lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: s.saveState === "saving" ? "saving" : "dirty" });
     persistDraft(prev.doc, s.sample, true);
     get().refresh();
   },
@@ -394,7 +395,7 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     const next = s.future[0];
     if (!next) return;
-    set({ doc: next.doc, past: [...s.past, { doc: s.doc, label: next.label, at: Date.now() }], future: s.future.slice(1), lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: "dirty" });
+    set({ doc: next.doc, past: [...s.past, { doc: s.doc, label: next.label, at: Date.now() }], future: s.future.slice(1), lastCoalesce: null, meta: { ...s.meta, dirty: true }, saveState: s.saveState === "saving" ? "saving" : "dirty" });
     persistDraft(next.doc, s.sample, true);
     get().refresh();
   },
@@ -569,6 +570,7 @@ export const useStore = create<State>((set, get) => ({
 
   async save() {
     const s = get();
+    if (s.saveState === "saving") return;
     set({ saveState: "saving" });
     try {
       if (s.embedded && s.embeddedSaveMode === "host") {
@@ -612,6 +614,10 @@ export const useStore = create<State>((set, get) => ({
 
   async publish(notes) {
     const s = get();
+    if (s.embedded && s.embeddedSaveMode === "host") {
+      get().toast("Save this report to your application. Your application manages publishing and version history.", "info");
+      return false;
+    }
     if (s.meta.dirty || !s.meta.id) await get().save();
     const m = get().meta;
     if (!m.id || !m.version || m.dirty || get().saveState === "error") return false;

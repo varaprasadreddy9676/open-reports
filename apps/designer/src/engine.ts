@@ -74,6 +74,10 @@ export function withSampleData(doc: Doc, sample: Record<string, unknown>): Doc {
     if (ds.source === "inline") return ds;
     return { id: ds.id, source: "inline", query: { data: null } };
   });
+  const declared = new Set(next.datasets.map((dataset: any) => dataset.id));
+  for (const [id, value] of Object.entries(sample)) {
+    if (!declared.has(id)) next.datasets.push({ id, source: "inline", query: { data: value } });
+  }
   return next;
 }
 

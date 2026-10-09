@@ -10,6 +10,8 @@ export const PROTOCOL = "open-reports/1";
 
 export type DesignerToHost =
   | { protocol: typeof PROTOCOL; type: "ready" }
+  | { protocol: typeof PROTOCOL; type: "initialized" }
+  | { protocol: typeof PROTOCOL; type: "loaded"; definition: unknown }
   | { protocol: typeof PROTOCOL; type: "saved"; templateId: string; version: number }
   | { protocol: typeof PROTOCOL; type: "save-request"; requestId: string; definition: unknown }
   | { protocol: typeof PROTOCOL; type: "saved-definition"; definition: unknown }
@@ -17,10 +19,10 @@ export type DesignerToHost =
   | { protocol: typeof PROTOCOL; type: "error"; message: string };
 
 export type HostToDesigner =
-  | { protocol: typeof PROTOCOL; type: "init"; template?: string; apiKey?: string; definition?: unknown; saveMode?: "server" | "host" }
+  | { protocol: typeof PROTOCOL; type: "init"; template?: string; apiKey?: string; definition?: unknown; data?: Record<string, unknown>; parameters?: Record<string, unknown>; saveMode?: "server" | "host"; saveTimeout?: number }
   | { protocol: typeof PROTOCOL; type: "save" }
   | { protocol: typeof PROTOCOL; type: "save-result"; requestId: string; success: boolean; message?: string }
-  | { protocol: typeof PROTOCOL; type: "load"; definition: unknown };
+  | { protocol: typeof PROTOCOL; type: "load"; definition: unknown; data?: Record<string, unknown>; parameters?: Record<string, unknown> };
 
 export type EmbedMessage = DesignerToHost | HostToDesigner;
 
