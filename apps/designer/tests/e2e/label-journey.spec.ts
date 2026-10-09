@@ -25,7 +25,7 @@ test("build a 40 × 25 mm patient label through the UI, validate it, and preview
   await page.getByTestId("section-detail").first().click();
   await page.getByTestId("band-tab-layout").click();
   await page.getByTestId("band-layout-absolute").click();
-  await page.getByTestId("page-1").click();
+  await page.getByTestId("page-1").click({ position: { x: 8, y: 8 } });
   await page.getByTestId("report-tab-print").click();
   await page.getByTestId("print-preset").selectOption({ label: "Label 40 × 25 mm (ZPL 203 dpi)" });
   await expect(page.getByTestId("print-preset")).toHaveValue("3");

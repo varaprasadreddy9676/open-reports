@@ -13,6 +13,7 @@ async function start(page: Page) {
     const store = (window as any).__designer.getState();
     store.loadDoc({ ...store.doc, id: "orders", datasets: [{ id: "orders", source: "inline", query: { data: orders } }], sections: [{ type: "detail", children: [] }] });
   }, orders);
+  await page.getByTestId("view-structure").click();
   await page.getByTestId("left-tab-data").click();
   await page.getByTestId("field-orders-lines").scrollIntoViewIfNeeded();
 }

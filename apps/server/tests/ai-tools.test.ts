@@ -83,14 +83,16 @@ describe("AI tools against the real server", () => {
   });
 
   it("a bad patch is rejected atomically with the failing op index", async () => {
-    const report = (await run("get_example", { name: "invoice" })).data;
+    const report = (await run("get_example", { name: "invoice" })).data as any;
+    report.sections.unshift({ type: "reportHeader", children: [{ id: "company", type: "text", value: "Fixture company" }] });
     const r = await run("patch_report", { report, ops: [{ op: "replace", path: "#company/value", value: "X" }, { op: "replace", path: "#does-not-exist/value", value: "Y" }] });
     expect(r.isError).toBe(true);
     expect(r.text).toMatch(/op 1/);
   });
 
   it("a patch that breaks the schema is applied but flagged by the analysis, so the model can repair it", async () => {
-    const report = (await run("get_example", { name: "invoice" })).data;
+    const report = (await run("get_example", { name: "invoice" })).data as any;
+    report.sections.unshift({ type: "reportHeader", children: [{ id: "company", type: "text", value: "Fixture company" }] });
     const r = await run("patch_report", { report, ops: [{ op: "replace", path: "#company/type", value: "bogus" }] });
     expect(r.isError).toBeFalsy();
     expect(((r.data as any).analysis).valid).toBe(false);
@@ -108,6 +110,9 @@ describe("AI tools against the real server", () => {
 
   it("templates: save (create then new draft), get, list, publish, render by id", async () => {
     const report = (await run("get_example", { name: "receipt" })).data as any;
+    // This verifies template persistence; use a small marker rather than a Base64 letterhead
+    // that exhausts the tool's intentional 40 KB text preview before reaching body text.
+    report.sections = [{ type: "detail", children: [{ type: "text", value: "AI template round trip" }] }];
     const created = await run("save_template", { id: "ai-demo", report });
     expect(created.text).toMatch(/Created/);
     const again = await run("save_template", { id: "ai-demo", report: { ...report, description: "v2" } });
@@ -116,6 +121,6 @@ describe("AI tools against the real server", () => {
     expect(((await run("get_template", { id: "ai-demo" })).data as any).version).toBe(2);
     await run("publish_template", { id: "ai-demo", version: 2 });
     const r = await run("render_report", { templateId: "ai-demo", format: "html" });
-    expect((r.data as any).text).toContain("ACME PHARMACY");
+    expect((r.data as any).text).toContain("AI template round trip");
   });
 });

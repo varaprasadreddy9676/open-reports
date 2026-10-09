@@ -26,6 +26,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("starter-blank").click();
   await expect(page.getByTestId("page-1")).toBeVisible();
+  // Blank reports deliberately start in Pages; these tests exercise Sections.
+  await page.getByTestId("view-structure").click();
 });
 
 test("structure view shows band tabs; the + menu inserts bands in reading order", async ({ page }) => {

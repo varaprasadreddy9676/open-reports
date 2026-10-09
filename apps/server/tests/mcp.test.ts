@@ -71,8 +71,8 @@ describe("MCP server", () => {
 
   it("an agent can fetch an example, patch it by id, analyze and render - through MCP", async () => {
     const c = await connect();
-    const ex = JSON.parse(textOf(await c.callTool({ name: "get_example", arguments: { name: "receipt" } })).split("\n")[1]!);
-    const patched = await c.callTool({ name: "patch_report", arguments: { report: ex, ops: [{ op: "add", path: "/sections/0/children/-", value: { type: "text", value: "Added by an AI agent" } }] } });
+    const ex = JSON.parse(textOf(await c.callTool({ name: "get_example", arguments: { name: "conditional" } })).split("\n")[1]!);
+    const patched = await c.callTool({ name: "patch_report", arguments: { report: ex, ops: [{ op: "add", path: "/sections/-", value: { type: "detail", children: [{ type: "text", value: "Added by an AI agent" }] } }] } });
     expect(patched.isError).toBeFalsy();
     const report = JSON.parse(textOf(patched).split("\n")[1]!).report;
     const html = textOf(await c.callTool({ name: "render_report", arguments: { report, format: "html" } }));

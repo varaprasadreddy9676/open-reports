@@ -21,6 +21,8 @@ test("canvas loads the PDF renderer's Telugu face and exports it embedded", asyn
   await expect(node).toBeVisible();
   await expect(node).toContainText("తెలుగు");
   await expect(node).toHaveCSS("font-family", /Noto Sans Telugu/);
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  await expect.poll(() => page.evaluate(() => (window as any).__designer.getState().engineBusy)).toBe(false);
   const canvasText = await page.evaluate(() => {
     const pageEl = document.querySelector('[data-testid="page-1"]')!;
     const paper = pageEl.getBoundingClientRect();

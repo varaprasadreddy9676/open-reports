@@ -5,6 +5,14 @@ import os from "node:os";
 import path from "node:path";
 
 const doc = (page: Page) => page.evaluate(() => (window as any).__designer.getState().doc);
+const company = (page: Page) => page.evaluate(() => {
+  const find = (value: any): any => {
+    if (!value || typeof value !== "object") return undefined;
+    if (value.id === "company") return value;
+    for (const child of Object.values(value)) { const found = find(child); if (found) return found; }
+  };
+  return find((window as any).__designer.getState().doc);
+});
 const state = (page: Page) => page.evaluate(() => {
   const s = (window as any).__designer.getState();
   return { selection: s.selection, doc: s.doc, past: s.past.length, future: s.future.length, clipboard: s.clipboard.length };
@@ -444,7 +452,7 @@ test.describe("editing", () => {
     await page.keyboard.press("Enter");
     await input.type(")");
     await expect(page.getByTestId("canvas")).toContainText("ALEX MORGAN");
-    expect((await doc(page)).sections[0].children[0].children[0].expression).toBe("upper(data.invoice.customer.name)");
+    expect((await company(page)).expression).toBe("upper(data.invoice.customer.name)");
 
     await input.fill("1 +");
     await expect(page.getByRole("alert")).toBeVisible();
@@ -490,7 +498,7 @@ test.describe("data, code and problems", () => {
     await page.getByTestId("mode-code").click();
     const setCode = (t: string) => page.evaluate((text) => { const v = (window as any).__codeView; v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } }); }, t);
     const original = await page.evaluate(() => (window as any).__codeView.state.doc.toString());
-    expect(original).toContain("ACME PHARMACY");
+    expect(original).toContain("NORTHSTAR PHARMACY");
     const edited = original.replace("Thank you - get well soon", "Edited from code");
     await setCode(edited);
     await expect(page.getByTestId("code-status")).toContainText("valid");

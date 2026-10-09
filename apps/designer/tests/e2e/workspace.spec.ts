@@ -3,6 +3,14 @@ import path from "node:path";
 import fs from "node:fs";
 
 const doc = (page: Page) => page.evaluate(() => (window as any).__designer.getState().doc);
+const company = (page: Page) => page.evaluate(() => {
+  const find = (value: any): any => {
+    if (!value || typeof value !== "object") return undefined;
+    if (value.id === "company") return value;
+    for (const child of Object.values(value)) { const found = find(child); if (found) return found; }
+  };
+  return find((window as any).__designer.getState().doc);
+});
 const st = (page: Page) => page.evaluate(() => {
   const s = (window as any).__designer.getState();
   return { selection: s.selection, bottom: s.bottom, mode: s.mode, past: s.past.length };
@@ -102,21 +110,24 @@ test.describe("workspace", () => {
     await page.getByTestId("starter-department-report").click();
     await expect(page.getByTestId("left-tab-layers")).toHaveAttribute("aria-selected", "true");
     await page.getByTestId("view-structure").click();
-    await expect(page.locator(".canvas-scroll")).toContainText("Department Revenue Report");
+    await expect(page.locator(".canvas-scroll")).toContainText("DEPARTMENT REVENUE REPORT");
     const reportBand = page.getByTestId("section-reportHeader");
+    const countChildren = (items: any[]): number => items.reduce((count, item) => count + 1 + countChildren(item.children ?? []), 0);
+    const expectedChildren = countChildren((await doc(page)).sections[0].children);
     const bandContents = reportBand.locator("..").locator('.explorer-row[data-testid^="layer-"]');
     await expect(bandContents).toHaveCount(0);
     const screenshots = path.resolve("../../output/playwright/ui-audit-2026-10-03");
     fs.mkdirSync(screenshots, { recursive: true });
     await page.screenshot({ path: path.join(screenshots, "67-structure-overview.png") });
     await page.getByTestId("explorer-collapse-0").click();
-    await expect(bandContents).toHaveCount(3);
+    await expect(bandContents).toHaveCount(expectedChildren);
     expect((await doc(page)).sections[0].collapsed).toBeUndefined();
     await page.reload();
+    await page.getByTestId("home-continue").click();
     await expect(page.getByTestId("left-tab-layers")).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("section-reportHeader").locator("..").locator('.explorer-row[data-testid^="layer-"]')).toHaveCount(0);
     await page.evaluate(() => { const s = (window as any).__designer.getState(); s.select([s.doc.sections[0].children[0].id]); });
-    await expect(page.getByTestId("section-reportHeader").locator("..").locator('.explorer-row[data-testid^="layer-"]')).toHaveCount(3);
+    await expect(page.getByTestId("section-reportHeader").locator("..").locator('.explorer-row[data-testid^="layer-"]')).toHaveCount(expectedChildren);
   });
 
   test("report settings keep page, print, and details in focused inspector views", async ({ page }) => {
@@ -125,7 +136,7 @@ test.describe("workspace", () => {
     await page.getByTestId("starter-search").fill("department");
     await page.getByTestId("starter-department-report").click();
     await page.getByTestId("view-structure").click();
-    await expect(page.locator(".canvas-scroll")).toContainText("Department Revenue Report");
+    await expect(page.locator(".canvas-scroll")).toContainText("DEPARTMENT REVENUE REPORT");
     await expect(page.getByTestId("report-tab-page")).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("page-size")).toBeVisible();
     await expect(page.getByTestId("print-preset")).toHaveCount(0);
@@ -577,7 +588,7 @@ test.describe("properties, masters, print, blocks", () => {
     await page.getByTestId("layer-company").hover();
     await page.getByTestId("layer-actions-company").click();
     await page.getByTestId("ctx-hide").click();
-    expect((await doc(page)).sections[0].children[0].children[0].hidden).toBe(true);
+    expect((await company(page)).hidden).toBe(true);
     await expect(page.getByTestId("layer-company").locator(".layer-actions svg")).toHaveCount(1);
     await page.getByTestId("layer-company").focus();
     await page.getByTestId("layer-company").press("F2");
@@ -623,6 +634,8 @@ test.describe("properties, masters, print, blocks", () => {
     await page.getByTestId("starter-invoice").click();
     await page.evaluate(() => (window as any).__designer.getState().select([]));
     await page.getByRole("button", { name: /Headers & footers/ }).click();
+    // The invoice already has a first-page header; remove it before testing creation.
+    await page.getByTestId("master-remove-pageHeader-first").click();
     await page.getByTestId("master-add-pageHeader-first").click();
     const sections = (await doc(page)).sections;
     expect(sections.some((s: any) => s.type === "pageHeader" && s.appliesTo === "first")).toBe(true);
@@ -836,7 +849,7 @@ test.describe("AI assistant (BYOK, mocked provider)", () => {
     await expect(page.getByTestId("ai-proposal")).toBeVisible();
     await expect(page.getByTestId("ai-changes")).toContainText('changed text "company"');
     // nothing committed yet
-    expect((await doc(page)).sections[0].children[0].children[0].style.fontSize).not.toBe(28);
+    expect((await company(page)).style.fontSize).not.toBe(28);
     // the model never saw sample data values
     expect(mock.body()).not.toContain("Alex Morgan");
     expect(mock.body()).toContain("claude-test");

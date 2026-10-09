@@ -86,6 +86,7 @@ test("a real two-logo letterhead is composed and exported entirely through desig
   fs.mkdirSync(screenshotDir, { recursive: true });
   await page.screenshot({ path: path.join(screenshotDir, "31-ui-composed-radiology-header.png") });
 
+  await page.getByRole("button", { name: "Fit to width" }).click();
   const fitted = Number((await page.getByTestId("zoom-label").innerText()).replace("%", ""));
   await page.getByRole("button", { name: "Hide properties" }).click();
   await expect.poll(async () => Number((await page.getByTestId("zoom-label").innerText()).replace("%", ""))).toBeGreaterThan(fitted);
@@ -97,6 +98,7 @@ test("a real two-logo letterhead is composed and exported entirely through desig
   await expect(page.getByTestId("zoom-label")).toHaveText(manual);
   await page.getByRole("button", { name: "Show properties" }).click();
   await page.reload();
+  await page.getByTestId("home-continue").click();
   await expect(page.locator(".page img[data-cid]")).toHaveCount(2);
   for (const image of await page.locator(".page img[data-cid]").all()) await expect(image).toBeInViewport({ ratio: 0.8 });
 
