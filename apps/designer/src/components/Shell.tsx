@@ -1,6 +1,6 @@
 import { ThemeDialogBody } from "./ThemeDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { loadDraft, requestReplaceReport, resolveReplaceReport, useStore, type Mode } from "../store";
+import { requestReplaceReport, resolveReplaceReport, useStore, type Mode } from "../store";
 import { api, ApiError, settings, type TemplateRecord } from "../lib/api";
 import { STARTERS, blankReport } from "../lib/templates";
 import { generateReportFromJson } from "../lib/generate";
@@ -20,6 +20,7 @@ import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 import { JrxmlFolderImport } from "./JrxmlFolderImport";
 import type { WordImportResult } from "../lib/docx-import";
 import { FeatureGuide } from "./FeatureGuide";
+import { LandingPage } from "./home/LandingPage";
 
 /** Opens the "I tried Open Reports" issue form on the upstream repository. */
 const FEEDBACK_URL = "https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml";
@@ -461,7 +462,7 @@ const DOC_SIZES: { label: string; page: Record<string, unknown>; print?: Record<
   { label: "Label 100 × 50 mm", page: { size: "custom", width: 100, height: 50, unit: "mm", orientation: "landscape", margin: { top: 3, right: 4, bottom: 3, left: 4 } } },
 ];
 
-function StarterChoices() {
+function StarterChoices({ actionsOnly = false }: { actionsOnly?: boolean }) {
   const set = useStore((s) => s.set);
   const [q, setQ] = useState("");
   const [size, setSize] = useState(0);
@@ -503,7 +504,7 @@ function StarterChoices() {
           <span>Turn a DOCX file into an editable report draft</span>
         </button>
       </div>
-      <input className="search" data-testid="starter-search" placeholder="Search templates (invoice, label, wristband…)" aria-label="Search templates" value={q} onChange={(e) => setQ(e.target.value)} />
+      {!actionsOnly && <><input className="search" data-testid="starter-search" placeholder="Search templates (invoice, label, wristband…)" aria-label="Search templates" value={q} onChange={(e) => setQ(e.target.value)} />
       {groups.filter((g) => STARTERS.some((t) => t.group === g && `${t.name} ${t.description}`.toLowerCase().includes(q.toLowerCase()))).map((g) => (
         <div key={g}>
           <div className="group-title">{g}</div>
@@ -521,77 +522,23 @@ function StarterChoices() {
             ))}
           </div>
         </div>
-      ))}
+      ))}</>}
     </>;
 }
 
-function openStarterExample(key: string, message?: string) {
+function openStarterExample(key: string, message?: string, guided = true) {
   const example = STARTERS.find((item) => item.key === key);
   if (!example) return;
   requestReplaceReport(() => {
     const state = useStore.getState();
     state.loadDoc({ ...structuredClone(example.doc), id: `${example.doc.id}-${Date.now().toString(36).slice(-4)}` });
-    state.set({ dialog: null, mode: "design", demoHint: message ? null : "edit" });
+    state.set({ dialog: null, mode: "design", demoHint: !message && guided ? "edit" : null });
     if (message) state.toast(message);
   });
 }
 
 export function HomeScreen() {
-  const { doc, meta } = useStore();
-  const set = useStore((s) => s.set);
-  const interfaceTheme = useStore((s) => s.interfaceTheme);
-  const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
-  const hasDraft = Boolean(loadDraft()?.doc);
-  const publicDemo = isPublicDemo();
-  return <main className="home-screen" data-testid="home-screen">
-    <header className="home-header">
-      <div className="home-brand"><span className="logo" aria-hidden="true">▤</span><strong>Open Reports</strong></div>
-      <div className="home-header-actions">
-        <label className="home-appearance">Appearance <select aria-label="Interface appearance" data-testid="home-appearance" value={interfaceTheme} onChange={(event) => setInterfaceTheme(event.target.value as typeof interfaceTheme)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
-        {hasDraft && <button className="btn" data-testid="home-continue" onClick={() => set({ home: false })}>Continue editing →</button>}
-        <button className="btn" data-testid="home-tour" onClick={() => set({ dialog: "tour" })}>Training videos ▶</button>
-        <button className="btn" data-testid="home-guide" onClick={() => set({ dialog: "guide" })}>What can I do?</button>
-        <a className="btn" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">Give feedback ↗</a>
-      </div>
-    </header>
-    <div className="home-content">
-      <p className="home-eyebrow">REPORT DESIGNER</p>
-      <h1>Start with a working report</h1>
-      <p className="home-intro">Choose an example, change it in the designer, then run Preview to see the printable result.</p>
-      {publicDemo && <p className="home-demo-note">Public demo: Save stores reports on a server every visitor shares, and it resets when the service restarts. To keep your work, use Export → Report file.</p>}
-      <div className="home-featured" aria-label="Quick start examples">
-        <div className="home-featured-copy">
-          <span className="home-featured-label">RECOMMENDED FIRST TRY</span>
-          <h2>Explore a complete invoice</h2>
-          <p>See real layout, sample data, and PDF preview in a report you can edit.</p>
-          <button className="btn primary" data-testid="home-try-invoice" onClick={() => openStarterExample("invoice")}>Try invoice example →</button>
-          <button className="btn" data-testid="home-tour-featured" onClick={() => set({ dialog: "tour" })}>Guided lessons & examples ▶</button>
-        </div>
-        <div className="home-steps" aria-label="How the demo works">
-          <span><b>1</b> Open an example</span>
-          <span><b>2</b> Edit text, data, or layout</span>
-          <span><b>3</b> Run preview and export</span>
-        </div>
-      </div>
-      <section className="home-discover" aria-labelledby="home-discover-title">
-        <div className="home-discover-head"><div><span className="home-featured-label">MORE TO EXPLORE</span><h2 id="home-discover-title">Choose a result, then try it</h2></div><button className="btn" data-testid="home-explore-features" onClick={() => set({ dialog: "guide" })}>Explore all features →</button></div>
-        <div className="home-discover-list">
-          <span><strong>Bring a file</strong> Import a Word document or JasperReports layout.</span>
-          <span><strong>See a summary</strong> Compare totals across rows and columns.</span>
-          <span><strong>Share the result</strong> Export Word or embed a published report.</span>
-        </div>
-      </section>
-      <div className="home-section-head"><div><h2>Your workspace</h2><p>Pick up where you left off or open a saved report.</p></div></div>
-      <div className="home-workspace-actions">
-        {hasDraft && <button className="home-workspace-card" onClick={() => set({ home: false })}>
-          <strong>Continue {doc.name || "Untitled report"}</strong><span>{meta.id ? "Saved report" : "Local draft"} · Return to the designer →</span>
-        </button>}
-        <button className="home-workspace-card" data-testid="home-open" onClick={() => set({ dialog: "open" })}><strong>Open a saved report</strong><span>Browse reports saved on this server →</span></button>
-      </div>
-      <div className="home-section-head"><div><h2>Create something new</h2><p>Start blank, use your data, or browse the examples below.</p></div></div>
-      <StarterChoices />
-    </div>
-  </main>;
+  return <LandingPage onExample={openStarterExample} onTemplate={(key) => openStarterExample(key, undefined, false)}><StarterChoices actionsOnly /></LandingPage>;
 }
 
 function NewDialog() {
