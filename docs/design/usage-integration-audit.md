@@ -17,7 +17,7 @@ The host-owned reporting workflow is usable after the fixes below: load JSON, pr
 | Host preview | Initial data/parameters had no public designer option; undeclared preview objects disappeared. | `data`, `parameters`, and `load(definition, preview)` work without adding sample values to saved JSON. |
 | Host UI | Publish, server template actions, “unsaved” version pills, and local-draft wording appeared in host mode. | Show host save status and Open file; leave publishing and version history with the host. |
 | Host isolation | An embedded designer inherited browser connection settings and wrote report/sample data into the standalone local draft. | Session-only embedded connection settings; no embedded local-draft persistence. |
-| Export/reopen | Exported JSON had no obvious file-opening workflow. | Validated JSON file picker in Open, with invalid-file feedback and existing replacement protection. |
+| Export/reopen | Exported JSON had no obvious file-opening workflow. | Validated JSON file picker in Open, with invalid-file feedback and existing replacement protection. Imports remain unsaved until the host confirms persistence. |
 | Shared headers/footers | Exported bundled subreports were ignored when the JSON was sent directly to the engine. | Resolve bundled children recursively; explicit request resources can override them. |
 | Viewer recovery | A rejected first lookup was retained forever, so Refresh could not recover. | Retry initial lookup; show progress, disable unavailable print/download controls, ignore obsolete request errors. |
 | Settings | A web page with HTTP 200 was reported as a working API; Save accepted invalid server URLs. | Check the response shape and validate before saving. Add an embedded-editor quick start. |

@@ -15,7 +15,7 @@ export function ReportFilePicker() {
       const result = parseReportDefinition(JSON.parse(await file.text()));
       if (!result.valid) throw new Error(`Invalid report: ${result.issues[0]?.path || "definition"} — ${result.issues[0]?.message}`);
       requestReplaceReport(() => {
-        useStore.getState().loadDoc(result.report as Doc);
+        useStore.getState().loadDoc(result.report as Doc, { dirty: true });
         useStore.getState().set({ dialog: null, mode: "design" });
       });
     } catch (cause) {

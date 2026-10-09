@@ -224,6 +224,7 @@ test('a host-managed designer opens a JSON file without accessing the server tem
   const next={...report,name:'Opened report file'};
   await frame.getByLabel('Open report JSON file').setInputFiles({name:'valid.report.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(next))});
   await expect(frame.getByLabel('Report name')).toHaveValue('Opened report file');
+  await expect(frame.getByTestId('save-state')).toHaveText('Unsaved changes');
   expect(templateLookups).toBe(0);
 });
 
