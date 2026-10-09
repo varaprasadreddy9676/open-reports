@@ -552,12 +552,3 @@ describe('host-owned report bundles', () => {
     expect((await app.inject({method:'GET',url:'/api/v1/templates/host-owned-bundle'})).statusCode).toBe(404);
   });
 });
-
-describe('hosted embed updates', () => {
-  it('revalidates the unversioned embed module instead of retaining it for an hour', async () => {
-    const response=await app.inject({method:'GET',url:'/embed/open-reports.js'});
-    expect(response.statusCode).toBe(200);
-    expect(response.headers['cache-control']).toContain('max-age=0');
-    expect(response.headers.etag).toBeTruthy();
-  });
-});

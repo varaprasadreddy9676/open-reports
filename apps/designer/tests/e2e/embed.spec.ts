@@ -275,3 +275,10 @@ test('the custom element uses the latest host save callback and reconnects with 
   await page.evaluate(()=>{const element=document.querySelector('open-report-designer')!;element.remove();document.body.append(element);});
   await expect(frame.getByLabel('Report name')).toHaveValue('Reconnected report');
 });
+
+test('hosted embed modules revalidate after deployment',async({request})=>{
+  const response=await request.get('/embed/open-reports.js');
+  expect(response.status()).toBe(200);
+  expect(response.headers()['cache-control']).toContain('max-age=0');
+  expect(response.headers().etag).toBeTruthy();
+});
