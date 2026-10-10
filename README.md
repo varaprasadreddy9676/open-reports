@@ -65,17 +65,16 @@ The demo's **What can I do?** guide explains these workflows and opens the right
 
 ## How it compares
 
-Every reporting tool makes trade-offs. This is where Open Reports sits against the kinds of tools teams usually compare it with.
+Choose based on the report format, runtime, designer, and ownership model your application needs. These products are not drop-in equivalents.
 
-| | Open Reports | Classic report servers<br><sub>e.g. JasperReports, SSRS, Crystal</sub> | Commercial JS SDKs<br><sub>e.g. ActiveReportsJS, Stimulsoft</sub> | Document-template APIs<br><sub>e.g. Carbone</sub> |
-|---|---|---|---|---|
-| **Cost to start** | Free, MIT licence | Free library to paid suite | Paid, from about $900 a year | Free tier with hosting limits |
-| **Where you design** | In the browser | Desktop designer | In the browser | Word or LibreOffice |
-| **Your users edit reports in your app** | Included, free | Rarely | With a licence | Not built in |
-| **Template format** | Open JSON schema | XML (JRXML, RDL) | Vendor format | DOCX or ODT files |
-| **Call it from** | Any language, over REST | Mainly JVM or .NET | A JavaScript runtime | Any language, over REST |
+| | Open Reports | JasperReports |
+|---|---|---|
+| **Report definition** | Versioned JSON schema owned by your application if you choose | JRXML templates and compiled `.jasper` artifacts |
+| **Design tools** | Browser-based visual designer; can be embedded in host applications | Jaspersoft Studio desktop designer; JasperReports Web Studio is offered in Jaspersoft's commercial edition and can run standalone or plug into JasperReports Server ([product editions](https://www.jaspersoft.com/products)) |
+| **Render integration** | REST API accepts a report definition and data; the host can keep template storage, user access, and persistence | Java reporting library, plus Jaspersoft Server and IO products with their own deployment and licensing requirements ([JasperReports project](https://github.com/Jaspersoft/jasperreports)) |
+| **Migration** | JRXML imports create drafts with review notes; no `.jasper` execution or full-parity claim | Native support for the JasperReports format and ecosystem |
 
-Categories describe typical setups; individual products differ. Prices come from vendor and reseller listings in October 2026 and change over time. Where another tool is a better fit, for example when you need PDF/A or digital signatures today, use it.
+Open Reports may fit when you want an MIT-licensed, JSON-native designer and renderer that your application can embed and manage. JasperReports is a better fit when you depend on its mature Java ecosystem, native JRXML behavior, or existing Jasper deployments. Verify current product editions, licensing, and required features with each vendor before choosing.
 
 ## A quick tour
 

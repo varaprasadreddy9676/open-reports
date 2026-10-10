@@ -20,13 +20,13 @@
     <section class="panel"><strong>It is not a drop-in JasperReports replacement.</strong><p>Open Reports uses its own JSON report definition and rendering engine. JRXML import is partial: imported files become editable drafts with conversion notes, and output must be reviewed against the source report. Existing `.jasper` compiled files do not run in Open Reports.</p><p>Keep JasperReports where you rely on behavior Open Reports has not implemented or parity-tested.</p></section>
     <h2>How the approaches differ</h2>
     <ul>
-      <li><strong>Design:</strong> Open Reports provides a browser designer that can run standalone or be embedded in an application. JasperReports commonly uses Jaspersoft Studio for visual design.</li>
+      <li><strong>Design:</strong> Open Reports provides a browser designer that can run standalone or be embedded in an application. JasperReports Community Edition includes the Jaspersoft Studio desktop designer; JasperReports Web Studio is offered in Jaspersoft's commercial edition and can run standalone or plug into JasperReports Server. See <a href="https://www.jaspersoft.com/products">Jaspersoft product editions</a>.</li>
       <li><strong>Definition:</strong> Open Reports uses versionable JSON definitions. JasperReports uses JRXML source and compiled `.jasper` artifacts.</li>
-      <li><strong>Integration:</strong> Open Reports exposes a REST render API and web components. The host application can own report definitions, data, authentication, and persistence.</li>
+      <li><strong>Integration:</strong> Open Reports exposes a REST render API and web components. The host application can own report definitions, data, authentication, and persistence. JasperReports offers a Java library, while Jaspersoft IO provides its own REST-based product; compare deployment and licensing needs.</li>
       <li><strong>Migration:</strong> JRXML can be imported as a starting point, with per-feature statuses such as converted, needs review, and unsupported. This does not establish full Jasper feature or PDF parity.</li>
     </ul>
     <h2>Where Open Reports may fit</h2>
-    <p>Evaluate it when you want users to design reports in a browser, embed a designer or viewer in your application, keep report JSON in your own storage, or render practical documents such as invoices, statements, labels, or receipts over HTTP.</p>
+    <p>Evaluate it when you want an MIT-licensed, JSON-native workflow where your application can own report definitions and persistence, and you can embed a browser designer or call a render API. Jaspersoft also offers a web designer, so compare the required edition, licensing, and integration model rather than assuming web design is unique to either product.</p>
     <p>It supports PDF, Word, Excel, HTML, CSV, ZPL and ESC/POS output. Check the current examples and migration notes for the exact behavior your reports need.</p>
     <h2>Try one report before planning a migration</h2>
     <ol><li>Choose one representative report and its real data shape.</li><li>Import the JRXML and resolve every review or unsupported item.</li><li>Render the same input in both systems and compare page setup, pagination, fonts, images, and values.</li><li>Keep the original Jasper path available until your acceptance criteria pass.</li></ol>

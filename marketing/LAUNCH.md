@@ -23,7 +23,7 @@ Stagger over about a week, not one day: each channel brings different people, an
 |---|---|---|---|
 | 1 | Hacker News (Show HN) | Developers who have suffered JasperReports and HTML-to-PDF | Tue–Thu, 8–10 am US Eastern |
 | 1 | X / LinkedIn with the film | Your own network: they share it | Same morning |
-| 2 | r/selfhosted | Loves self-hosted, MIT, Docker one-liners | Weekday morning US |
+| 2 | r/selfhosted | Self-hosting and user control | Do not post while the project is early-stage; its current rule requires promoted apps to be production-ready. Recheck rules and release status before reconsidering. |
 | 3 | r/opensource, r/node | Broad open-source and Node audiences | Weekday |
 | 4 | r/webdev | Only on **Showoff Saturday** (rule) | Saturday |
 | 5 | dev.to / Hashnode article | Long-tail search traffic for "JasperReports alternative" | Any |
@@ -40,9 +40,9 @@ Lists to submit to once the project has some history: `awesome-selfhosted` (chec
 
 **Text:**
 
-I build software for clinics, and every project ends up needing invoices, lab reports, labels and receipts. The options were JasperReports (a desktop Eclipse designer and XML templates), per-seat commercial tools, or HTML-to-PDF and a pile of CSS hacks the day you need repeating headers or a Zebra label.
+I build software for clinics, and many applications need invoices, lab reports, labels and receipts. JasperReports has Jaspersoft Studio and also offers JasperReports Web Studio (Professional Edition); there are commercial JavaScript designers and custom HTML-to-PDF approaches too. Open Reports explores a different trade-off: an MIT-licensed, JSON-native report definition that the host application can own, with a browser designer and an HTTP rendering API.
 
-Open Reports is my attempt at the tool I wanted:
+Open Reports is an early-stage project, not a drop-in JasperReports replacement:
 
 - A browser designer with real report bands: page and group headers and footers, nested groups, keep-together, first/last/odd/even page layouts.
 - A pagination engine that measures with real font metrics and tells you *why* something moved to the next page, with a one-click fix.
@@ -50,7 +50,7 @@ Open Reports is my attempt at the tool I wanted:
 - Templates are plain JSON with a published schema, so they diff in git, and an AI assistant (bring your own key, or any MCP client) edits the template as a reviewable patch rather than generating numbers.
 - It imports JasperReports `.jrxml` files, whole folders at a time, as editable drafts with a list of what needs review.
 
-It's MIT and self-hosted (one `docker compose up`). It's v0.2 and young; imported JRXML drafts and their output still need review before production use.
+It's MIT and self-hostable with Docker Compose (`docker compose up --build`). It's v0.2 and young; imported JRXML drafts and their output still need review before production use. JasperReports Web Studio is an existing option; compare deployment, licensing, formats, and feature requirements for your own use case.
 
 Demo: https://open-reports-demo.onrender.com (free instance, may take a moment to wake up)
 Code: https://github.com/varaprasadreddy9676/open-reports
@@ -63,14 +63,14 @@ I'd love blunt feedback, especially from anyone who has fought JasperReports, Cr
 
 **Text:**
 
-I've been building an open-source alternative to JasperReports / Crystal Reports and it's finally at a point where I'd like people to try it.
+I've been building an open-source report designer and rendering engine. It's early-stage, and I'd like people to try it for suitable non-critical workflows and tell me what is missing.
 
 - Design reports in the browser, render PDF, HTML, Excel, CSV, Zebra labels (ZPL) and receipt-printer output (ESC/POS) from one template.
 - Data from JSON, REST APIs, PostgreSQL or MySQL; credentials stay on the server.
-- Runs as one container: `git clone … && docker compose up`, designer on :3000.
-- No telemetry, no accounts, MIT.
+- Self-hosts with Docker Compose; the designer and API run as separate services.
+- MIT-licensed. Use your own deployment and sample data when trying it.
 
-64-second tour: https://www.youtube.com/watch?v=_7LTG0cLO80
+10-minute invoice-to-application walkthrough: https://youtu.be/MtQdFujBUV0
 Repo: https://github.com/varaprasadreddy9676/open-reports
 
 It's v0.2, so I'm mainly after feedback: what do you generate documents with today, and what would you need to move?
