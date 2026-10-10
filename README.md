@@ -8,7 +8,7 @@ Design invoices, statements, grouped reports, crosstabs, labels, receipts and st
 
 Open source (MIT) · self-hosted · no seats, no per-document fees
 
-[Try the live demo](https://open-reports-demo.onrender.com) · [Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation) · [Give feedback](https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml)
+[Try the live demo](https://open-reports-demo.onrender.com) · [Quick start](#quick-start) · [How it compares](#how-it-compares) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation) · [Give feedback](https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml)
 
 If this is useful to your team, [star the repository](https://github.com/varaprasadreddy9676/open-reports) to help other developers discover it. Honest feedback and issue reports are welcome too.
 
@@ -59,7 +59,23 @@ The demo's **What can I do?** guide explains these workflows and opens the right
 | **Several output formats** | Render reports as PDF or HTML, export data as Excel or CSV, and design printer-specific layouts for Zebra (ZPL) and thermal (ESC/POS) printers in real millimetres. |
 | **Templates are plain JSON** | Review them in pull requests, generate them from code, edit them with AI. A published JSON Schema documents every field. |
 | **Your server, your data** | Self-hosted. Database credentials stay on the server; templates only reference `{{secrets.NAME}}`. Formulas run in a sandbox, never as code. |
-| **Bring in JRXML source** | Import one `.jrxml` file or a folder as editable drafts. The importer lists features that need review; data bindings and PDF output must be checked before production use. [Migration guide](docs/JRXML_MIGRATION.md) |
+| **Your app can own the templates** | Embed the designer in host mode: it loads JSON from your application and hands edits back to your save callback. Render that exact JSON through the API without storing a template in Open Reports. [Embedding](docs/EMBEDDING.md) |
+| **Reusable headers and subreports** | Attach a shared header, footer or child report from a `.json` file. The child definition travels inside the parent, so the engine renders it without template storage. |
+| **Bring in Word and JRXML** | Turn a `.docx` letterhead or form into an editable draft, or import one `.jrxml` file or a whole folder. Each importer lists what needs review; check data bindings and PDF output before production use. [Migration guide](docs/JRXML_MIGRATION.md) |
+
+## How it compares
+
+Every reporting tool makes trade-offs. This is where Open Reports sits against the kinds of tools teams usually compare it with.
+
+| | Open Reports | Classic report servers<br><sub>e.g. JasperReports, SSRS, Crystal</sub> | Commercial JS SDKs<br><sub>e.g. ActiveReportsJS, Stimulsoft</sub> | Document-template APIs<br><sub>e.g. Carbone</sub> |
+|---|---|---|---|---|
+| **Cost to start** | Free, MIT licence | Free library to paid suite | Paid, from about $900 a year | Free tier with hosting limits |
+| **Where you design** | In the browser | Desktop designer | In the browser | Word or LibreOffice |
+| **Your users edit reports in your app** | Included, free | Rarely | With a licence | Not built in |
+| **Template format** | Open JSON schema | XML (JRXML, RDL) | Vendor format | DOCX or ODT files |
+| **Call it from** | Any language, over REST | Mainly JVM or .NET | A JavaScript runtime | Any language, over REST |
+
+Categories describe typical setups; individual products differ. Prices come from vendor and reseller listings in October 2026 and change over time. Where another tool is a better fit, for example when you need PDF/A or digital signatures today, use it.
 
 ## A quick tour
 
@@ -94,17 +110,19 @@ The demo's **What can I do?** guide explains these workflows and opens the right
 
 ## What you can build
 
-25 starters ship with the designer. Open one, connect your data, publish.
+32 starters ship with the designer. Open one, connect your data, publish.
 
 | Documents | Starters |
 |---|---|
 | Invoices, purchase orders, statements | `invoice` · `purchase-order` · `account-statement` |
-| Grouped and summary reports | `grouped-sales` · `department-report` · `crosstab` · `charts` · `conditional` |
+| Grouped and summary reports | `grouping-basics` · `grouped-sales` · `department-report` · `crosstab` · `charts` · `conditional` |
 | Large exports (100,000+ rows) | `large-dataset` → Excel / CSV |
 | Thermal receipts (58 / 80 mm) | `receipt` · `receipt-58mm` |
 | Labels, wristbands, ID cards | `label-50x30` · `label-100x50` · `wristband` · `patient-id-card` · `specimen-label` · `pharmacy-label` · `blood-bag-label` |
 | Sticker sheets | `sticker-sheet` |
 | Long clinical and narrative reports | `lab-report` · `discharge-summary` · `radiology-report` · `prescription` |
+| Letterheads and pre-printed stationery | `hospital-letterhead` · `preprinted-letterhead` |
+| Retail, education, logistics, manufacturing | `retail-invoice` · `education-progress-report` · `logistics-manifest` · `manufacturing-work-order` |
 | Forms, certificates, multilingual output | `absolute-form` · `multilingual` (Latin, Devanagari, Telugu, Kannada, Tamil, Arabic) |
 
 Step-by-step recipes: [Use cases](docs/USE_CASES.md).
@@ -119,7 +137,23 @@ Drop a report viewer or the whole designer into your own pages, in any framework
 <open-report-designer template="invoice"></open-report-designer>
 ```
 
-The viewer shows a parameter form with Refresh, Print and PDF/Excel/CSV downloads; the designer reports saves back to your page. See [Embedding](docs/EMBEDDING.md).
+The viewer shows a parameter form with Refresh, Print and downloads, plus find, contents, click-to-sort columns, drill-down and drill-through. The designer reports saves back to your page.
+
+If your application stores the report JSON itself, run the designer in host mode. Open Reports keeps no template record; your callback decides where edits go:
+
+```js
+import { createDesigner } from "http://localhost:4000/embed/open-reports.js";
+
+createDesigner(document.querySelector("#designer"), {
+  server: "http://localhost:4000",
+  definition: await reportStore.get(tenantId, "invoice"),
+  data: { invoice: sampleInvoice },
+  saveMode: "host",
+  onSaveDefinition: (definition) => reportStore.save(tenantId, "invoice", definition),
+});
+```
+
+Save resolves only after your callback succeeds; failures and timeouts keep the edits for retry. See [Embedding](docs/EMBEDDING.md) for the viewer, events and security notes.
 
 Or render any template with one HTTP call, from any language:
 
@@ -129,7 +163,7 @@ curl -X POST http://localhost:4000/api/v1/render \
   -d "{\"format\":\"pdf\",\"report\":$(cat examples/invoice.report.json)}" -o invoice.pdf
 ```
 
-In production, save and publish templates once, then render them by id with fresh data. Published versions never change, large renders can run as background jobs, and the API is described by OpenAPI at `/openapi.json`. See the [integration guide](docs/INTEGRATION_GUIDE.md) for the host-application workflow and the [API guide](docs/API.md) for Node, Python, Java, C# and Go examples.
+Send the definition with each request, as above, when your application owns the JSON, or save and publish templates once and render them by id with fresh data. Published versions never change, large renders can run as background jobs, and the API is described by OpenAPI at `/openapi.json`. See the [integration guide](docs/INTEGRATION_GUIDE.md) for the host-application workflow and the [API guide](docs/API.md) for Node, Python, Java, C# and Go examples. A small TypeScript helper, [`@reporting/client`](packages/client/README.md), lives in this repository; it is not published to npm, so outside this workspace call the REST API directly.
 
 A report is a readable JSON document:
 
@@ -168,7 +202,7 @@ The [CI workflow](.github/workflows/ci.yml) runs unit, integration, browser and 
 
 ## Status
 
-Open Reports is young (v0.x) and moving fast: expect rough edges. Not yet supported: PDF/A and digital signatures, and importing Word or InDesign layouts. JRXML import creates drafts, not guaranteed Jasper-equivalent PDFs. Page breaks are measured with the bundled Noto fonts, so a different font changes line breaks; label and receipt output is verified as ZPL and ESC/POS bytes rather than on every printer model. The roadmap lives on the issue tracker.
+Open Reports is young (v0.x) and moving fast: expect rough edges. Not yet supported: PDF/A, digital signatures and SSRS (`.rdl`) import. Word and JRXML imports create editable drafts, not pixel-identical copies of the source. Page breaks are measured with the bundled Noto fonts, so a different font changes line breaks; label and receipt output is verified as ZPL and ESC/POS bytes rather than on every printer model. The roadmap lives on the issue tracker.
 
 ## Tried it? Tell us
 
