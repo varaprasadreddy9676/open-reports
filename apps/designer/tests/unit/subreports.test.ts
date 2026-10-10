@@ -24,3 +24,12 @@ describe("subreport files", () => {
     });
   });
 });
+
+describe("subreport layer name", () => {
+  it("names a subreport defined in JSON by its report id instead of asking to choose a file", async () => {
+    const { layerName } = await import("../../src/model/ops");
+    expect(layerName({ type: "subreport", reportId: "northstar-header" } as never)).toBe("Subreport · northstar-header");
+    expect(layerName({ type: "subreport", reportId: "northstar-header", reportName: "Northstar letterhead" } as never)).toBe("Subreport · Northstar letterhead");
+    expect(layerName({ type: "subreport", reportId: "" } as never)).toBe("Subreport · Choose report");
+  });
+});

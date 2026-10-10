@@ -519,7 +519,7 @@ export function layerName(c: Comp): string {
     return t.length > 28 ? `${t.slice(0, 26)}…` : t || "Text";
   }
   if (c.type === "table") return c.dataset ? `Table · ${c.dataset}` : "Table";
-  if (c.type === "subreport") return c.reportName ? `Subreport · ${c.reportName}` : "Subreport · Choose report";
+  if (c.type === "subreport") return c.reportName || c.reportId ? `Subreport · ${c.reportName || c.reportId}` : "Subreport · Choose report";
   if (c.type === "image") return "Image";
   if (c.type === "qrcode") return "QR code";
   if (c.type === "barcode") return "Barcode";
