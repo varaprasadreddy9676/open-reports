@@ -47,6 +47,14 @@ export function resolveNestedReport(
     if (!Array.isArray(rows)) return placeholder(`parent dataset "${component.dataset}" is not an array`);
     childData[child.datasets[0]!.id] = rows;
   }
+  // Real inline sample data is part of the child definition, so it can stand in when nothing was supplied.
+  // An empty inline dataset (as JRXML imports create) still means "the parent must supply this", and datasets
+  // that would run a source (SQL, REST) always need explicit data: a bundled child gets no host access.
+  for (const dataset of child.datasets) {
+    const sample = (dataset.query as { data?: unknown } | undefined)?.data;
+    const hasSample = Array.isArray(sample) ? sample.length > 0 : sample !== null && typeof sample === "object";
+    if (dataset.source === "inline" && hasSample && !own(childData, dataset.id)) childData[dataset.id] = sample;
+  }
   const missing = child.datasets.find((dataset) => !own(childData, dataset.id));
   if (missing) return placeholder(`child dataset "${missing.id}" has no supplied data`);
 

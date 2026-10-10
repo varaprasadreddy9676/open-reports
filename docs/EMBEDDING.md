@@ -162,7 +162,7 @@ createViewer(document.querySelector("#report"), {
 });
 ```
 
-For a custom viewer element, assign its `subreports` property. Child report IDs must match the parent component's `reportId`. Child datasets still need supplied data (or a parent dataset binding); bundled definitions do not grant access to the host database. See [subreport rendering](API.md) for the full request contract.
+For a custom viewer element, assign its `subreports` property. Child report IDs must match the parent component's `reportId`. A child dataset gets its rows from a parent dataset binding (in the designer: **Data for the subreport**), from supplied request data, or, failing those, from the child's own non-empty inline sample. Bundled definitions do not grant access to the host database: a child dataset that would run SQL or REST always needs supplied data. See [subreport rendering](API.md) for the full request contract.
 
 The existing `template` option and default `saveMode: "server"` continue to use Open Reports' optional template store. Use that for standalone deployments where you want Open Reports to own drafts and published versions.
 

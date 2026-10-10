@@ -70,7 +70,7 @@ const invoicePdf = await reports.renderInline({ ...common, report: invoice.defin
 const receiptPdf = await reports.renderInline({ ...common, report: receipt.definition, data: receipt.data });
 ```
 
-In each parent, the corresponding section contains `{ type: "subreport", reportId: "branding-heading" }`. A child may also receive explicit component parameters or bind its single dataset to an array in the current parent row. Open Reports renders the supplied child definitions and data; it does not look up `reportId`, execute the child's saved SQL, or retain the child between requests. See [`@reporting/client`](../packages/client/README.md) for the typed `renderInline` request shape.
+In each parent, the corresponding section contains `{ type: "subreport", reportId: "branding-heading" }`. A child may also receive explicit component parameters or bind its single dataset to a parent dataset or an array in the current parent row (the designer's **Data for the subreport** setting). When nothing is supplied, a child's non-empty inline sample data is used; empty inline placeholders, such as those created by JRXML import, still report missing data. Open Reports renders the supplied child definitions and data; it does not look up `reportId`, execute the child's saved SQL, or retain the child between requests. See [`@reporting/client`](../packages/client/README.md) for the typed `renderInline` request shape.
 
 ## Examples
 

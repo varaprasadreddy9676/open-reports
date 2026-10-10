@@ -96,3 +96,28 @@ describe("nested report rendering", () => {
     expect(validateReport(withParameterData).valid).toBe(true);
   });
 });
+
+describe("child inline data", () => {
+  it("uses a child's own inline sample data when the parent supplies none", async () => {
+    const header = parsed({
+      schemaVersion: "1.0", id: "branch-header", name: "Branch header",
+      datasets: [{ id: "branding", source: "inline", query: { data: [{ name: "SAMPLE BRANCH" }] } }],
+      sections: [{ type: "detail", children: [{ type: "text", binding: "row.name" }] }],
+    });
+    const parent = parsed({ schemaVersion: "1.0", id: "invoice", name: "Invoice", datasets: [], sections: [{ type: "detail", children: [{ type: "subreport", reportId: "branch-header" }] }] });
+    const result = await resolveReport(parent, { registry, subreports: { "branch-header": { report: header } } });
+    expect(JSON.stringify(result.resolved.sections)).toContain("SAMPLE BRANCH");
+    expect(JSON.stringify(result.resolved.sections)).not.toContain("has no supplied data");
+  });
+
+  it("still refuses a child dataset that would need a data source to run", async () => {
+    const header = parsed({
+      schemaVersion: "1.0", id: "remote-header", name: "Remote header",
+      datasets: [{ id: "branding", source: "rest", query: { url: "https://example.test/branding" } }],
+      sections: [{ type: "detail", children: [{ type: "text", binding: "row.name" }] }],
+    });
+    const parent = parsed({ schemaVersion: "1.0", id: "invoice", name: "Invoice", datasets: [], sections: [{ type: "detail", children: [{ type: "subreport", reportId: "remote-header" }] }] });
+    const result = await resolveReport(parent, { registry, subreports: { "remote-header": { report: header } } });
+    expect(JSON.stringify(result.resolved.sections)).toContain("has no supplied data");
+  });
+});
