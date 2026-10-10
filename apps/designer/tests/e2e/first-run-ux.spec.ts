@@ -250,3 +250,18 @@ test.describe("first steps on a blank report", () => {
     await expect(page.getByTestId("toast").filter({ hasText: "Saved draft version" })).toContainText("Publish it when");
   });
 });
+
+test("generated table columns give text the free space and keep numbers compact", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.loadDoc({ ...store.doc, datasets: [{ id: "items", source: "inline", query: { data: [{ description: "Consultation", category: "OPD", quantity: 1, rate: 800, amount: 800 }] } }] });
+  });
+  await page.getByTestId("left-tab-insert").click();
+  await page.getByTestId("palette-table").click();
+  await page.getByTestId("table-dataset").selectOption("items");
+  await page.getByTestId("generate-columns").click();
+  const columns = await page.evaluate(() => (window as any).__designer.getState().doc.sections.flatMap((s: any) => s.children).find((c: any) => c.type === "table").columns.map((c: any) => [c.id, c.width ?? null]));
+  expect(columns).toEqual([["description", null], ["category", null], ["quantity", 50], ["rate", 80], ["amount", 80]]);
+});

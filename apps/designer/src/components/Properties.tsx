@@ -649,13 +649,18 @@ function TableProps({ comp }: { comp: ops.Comp }) {
   const generate = () => {
     const fields = scalarFields(datasetFields(doc, sample, comp.dataset));
     patch(comp.id, {
-      columns: fields.slice(0, 10).map((f) => ({
-        id: f.name,
-        header: titleCase(f.name),
-        binding: `row.${f.path}`,
-        format: f.kind === "date" ? "date:dd MMM yyyy" : f.kind === "number" && /amount|price|total|rate|cost|balance/i.test(f.name) ? "currency" : undefined,
-        align: f.kind === "number" ? "right" : undefined,
-      })),
+      columns: fields.slice(0, 10).map((f) => {
+        const money = f.kind === "number" && /amount|price|total|rate|cost|balance/i.test(f.name);
+        return {
+          id: f.name,
+          header: titleCase(f.name),
+          binding: `row.${f.path}`,
+          format: f.kind === "date" ? "date:dd MMM yyyy" : money ? "currency" : undefined,
+          align: f.kind === "number" ? "right" : undefined,
+          // Numbers get compact fixed widths; text columns share the remaining space.
+          width: money ? 80 : f.kind === "number" ? 50 : f.kind === "date" ? 70 : undefined,
+        };
+      }),
       headerRows: undefined,
       cellSpans: undefined,
     });
