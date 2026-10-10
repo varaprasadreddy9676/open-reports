@@ -281,3 +281,10 @@ describe("table rules", () => {
     expect(html).toMatch(/<td[^>]*color:#b91c1c[^>]*>\(5\)<\/td>/);
   });
 });
+
+describe("default text size", () => {
+  it("sets the page's base font size to the layout's 10 pt so unsized text matches its measured box", async () => {
+    const html = await renderReport({ schemaVersion: "1.0", id: "plain", name: "Plain", datasets: [], sections: [{ type: "detail", children: [{ type: "text", value: "Unsized" }] }] });
+    expect(html.content.toString()).toMatch(/\.page \{[^}]*font-size: 13\.33px/);
+  });
+});
