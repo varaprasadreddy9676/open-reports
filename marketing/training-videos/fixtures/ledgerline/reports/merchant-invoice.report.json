@@ -1,0 +1,396 @@
+{
+  "schemaVersion": "1.0",
+  "id": "ledgerline-merchant-invoice",
+  "name": "Merchant invoice",
+  "description": "Invoice a Ledgerline merchant sends to its customer, with GST and payment status.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 16,
+      "right": 16,
+      "bottom": 18,
+      "left": 16
+    }
+  },
+  "datasets": [
+    {
+      "id": "invoice",
+      "source": "inline",
+      "query": {
+        "data": {
+          "id": "BSC-INV-1187",
+          "date": "2026-10-09",
+          "due": "2026-10-23",
+          "status": "Paid",
+          "method": "UPI · Ledgerline Pay",
+          "customer": {
+            "name": "Acme Technologies Pvt Ltd",
+            "address": "Embassy Tech Village, Bengaluru 560103",
+            "gstin": "29AABCA1234M1Z9"
+          },
+          "items": [
+            {
+              "description": "Office catering · coffee bar (per head)",
+              "quantity": 120,
+              "rate": 180
+            },
+            {
+              "description": "Barista on site · per hour",
+              "quantity": 6,
+              "rate": 900
+            },
+            {
+              "description": "Pastry box · 12 pcs",
+              "quantity": 10,
+              "rate": 720
+            }
+          ],
+          "subtotal": 34200,
+          "gst": 1710,
+          "total": 35910
+        }
+      }
+    },
+    {
+      "id": "merchant",
+      "source": "inline",
+      "query": {
+        "data": {
+          "name": "Brightside Coffee Co.",
+          "legalName": "Brightside Coffee Private Limited",
+          "address": "42 12th Main, Indiranagar, Bengaluru 560038",
+          "gstin": "29AAKCB7731L1Z2",
+          "email": "accounts@brightside.example",
+          "merchantId": "LDG-MER-30418",
+          "settlementAccount": "HDFC ···· 4417",
+          "logo": "http://127.0.0.1:3003/brightside-mark.png"
+        }
+      }
+    }
+  ],
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "gap": 4,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "image",
+              "binding": "data.merchant.logo",
+              "width": 34,
+              "height": 34,
+              "fit": "contain",
+              "alt": "Merchant logo"
+            },
+            {
+              "type": "column",
+              "width": "*",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.merchant.name",
+                  "style": {
+                    "fontSize": 14,
+                    "fontWeight": "bold",
+                    "color": "#0b1020"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "data.merchant.address + \" · GSTIN \" + data.merchant.gstin",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#5b6478"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "value": "TAX INVOICE",
+              "width": 150,
+              "style": {
+                "align": "right",
+                "fontSize": 12,
+                "fontWeight": "bold",
+                "color": "#4d7c0f"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 2
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "row",
+          "gap": 6,
+          "children": [
+            {
+              "type": "column",
+              "width": "*",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "BILLED TO",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#7b8499"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.name",
+                  "style": {
+                    "fontSize": 12,
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.address",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#5b6478"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"GSTIN \" + data.invoice.customer.gstin",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#5b6478"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "column",
+              "width": 200,
+              "children": [
+                {
+                  "type": "text",
+                  "value": "INVOICE",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#7b8499"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.id",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Issued \" + formatDate(data.invoice.date, \"dd MMM yyyy\") + \" · due \" + formatDate(data.invoice.due, \"dd MMM yyyy\")",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#5b6478"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "data.invoice.status + \" · \" + data.invoice.method",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#4d7c0f",
+                    "fontWeight": "bold"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "table",
+          "id": "lines",
+          "dataset": "invoice.items",
+          "showFooter": true,
+          "alternateRowStyle": true,
+          "columns": [
+            {
+              "id": "description",
+              "header": "Item",
+              "binding": "row.description",
+              "width": "*"
+            },
+            {
+              "id": "quantity",
+              "header": "Qty",
+              "binding": "row.quantity",
+              "width": 40,
+              "align": "right"
+            },
+            {
+              "id": "rate",
+              "header": "Rate",
+              "binding": "row.rate",
+              "format": "currency:INR",
+              "width": 80,
+              "align": "right"
+            },
+            {
+              "id": "amount",
+              "header": "Amount",
+              "expression": "row.quantity * row.rate",
+              "format": "currency:INR",
+              "width": 96,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Paid through Ledgerline. Settlement reference available in your merchant dashboard.",
+              "width": "*",
+              "style": {
+                "fontSize": 7.5,
+                "color": "#5b6478"
+              }
+            },
+            {
+              "type": "column",
+              "width": 220,
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Subtotal",
+                      "width": "*"
+                    },
+                    {
+                      "type": "text",
+                      "expression": "formatCurrency(data.invoice.subtotal)",
+                      "width": 110,
+                      "style": {
+                        "align": "right"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "GST 5%",
+                      "width": "*"
+                    },
+                    {
+                      "type": "text",
+                      "expression": "formatCurrency(data.invoice.gst)",
+                      "width": 110,
+                      "style": {
+                        "align": "right"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Total",
+                      "width": "*",
+                      "style": {
+                        "fontSize": 12,
+                        "fontWeight": "bold"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "expression": "formatCurrency(data.invoice.total)",
+                      "width": 110,
+                      "style": {
+                        "align": "right",
+                        "fontSize": 12,
+                        "fontWeight": "bold"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Generated by Ledgerline · payments for independent businesses",
+              "width": "*",
+              "style": {
+                "fontSize": 6.5,
+                "color": "#5b6478"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#5b6478"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

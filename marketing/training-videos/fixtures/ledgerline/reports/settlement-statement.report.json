@@ -1,0 +1,817 @@
+{
+  "schemaVersion": "1.0",
+  "id": "ledgerline-settlement-statement",
+  "name": "Settlement statement",
+  "description": "Monthly card, UPI and wallet settlements for a merchant, with fees and net payout.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 16,
+      "right": 16,
+      "bottom": 18,
+      "left": 16
+    }
+  },
+  "variables": [
+    {
+      "id": "gross",
+      "scope": "report",
+      "expression": "sumBy(data.settlements, \"gross\")"
+    },
+    {
+      "id": "fees",
+      "scope": "report",
+      "expression": "sumBy(data.settlements, \"fee\")"
+    },
+    {
+      "id": "net",
+      "scope": "report",
+      "expression": "sumBy(data.settlements, \"net\")"
+    }
+  ],
+  "datasets": [
+    {
+      "id": "merchant",
+      "source": "inline",
+      "query": {
+        "data": {
+          "name": "Brightside Coffee Co.",
+          "legalName": "Brightside Coffee Private Limited",
+          "address": "42 12th Main, Indiranagar, Bengaluru 560038",
+          "gstin": "29AAKCB7731L1Z2",
+          "email": "accounts@brightside.example",
+          "merchantId": "LDG-MER-30418",
+          "settlementAccount": "HDFC ···· 4417",
+          "logo": "http://127.0.0.1:3003/brightside-mark.png",
+          "period": "September 2026"
+        }
+      }
+    },
+    {
+      "id": "settlements",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "date": "2026-09-01",
+            "reference": "TXN904110",
+            "method": "Card",
+            "gross": 951,
+            "fee": 17.12,
+            "net": 933.88
+          },
+          {
+            "date": "2026-09-01",
+            "reference": "TXN904111",
+            "method": "UPI",
+            "gross": 1048,
+            "fee": 0,
+            "net": 1048
+          },
+          {
+            "date": "2026-09-02",
+            "reference": "TXN904120",
+            "method": "UPI",
+            "gross": 1082,
+            "fee": 0,
+            "net": 1082
+          },
+          {
+            "date": "2026-09-02",
+            "reference": "TXN904121",
+            "method": "UPI",
+            "gross": 1179,
+            "fee": 0,
+            "net": 1179
+          },
+          {
+            "date": "2026-09-02",
+            "reference": "TXN904122",
+            "method": "Card",
+            "gross": 1276,
+            "fee": 22.97,
+            "net": 1253.03
+          },
+          {
+            "date": "2026-09-03",
+            "reference": "TXN904130",
+            "method": "UPI",
+            "gross": 1213,
+            "fee": 0,
+            "net": 1213
+          },
+          {
+            "date": "2026-09-04",
+            "reference": "TXN904140",
+            "method": "Card",
+            "gross": 1344,
+            "fee": 24.19,
+            "net": 1319.81
+          },
+          {
+            "date": "2026-09-04",
+            "reference": "TXN904141",
+            "method": "Wallet",
+            "gross": 1441,
+            "fee": 17.29,
+            "net": 1423.71
+          },
+          {
+            "date": "2026-09-05",
+            "reference": "TXN904150",
+            "method": "Wallet",
+            "gross": 1475,
+            "fee": 17.7,
+            "net": 1457.3
+          },
+          {
+            "date": "2026-09-05",
+            "reference": "TXN904151",
+            "method": "UPI",
+            "gross": 1572,
+            "fee": 0,
+            "net": 1572
+          },
+          {
+            "date": "2026-09-05",
+            "reference": "TXN904152",
+            "method": "Card",
+            "gross": 1669,
+            "fee": 30.04,
+            "net": 1638.96
+          },
+          {
+            "date": "2026-09-06",
+            "reference": "TXN904160",
+            "method": "UPI",
+            "gross": 1606,
+            "fee": 0,
+            "net": 1606
+          },
+          {
+            "date": "2026-09-07",
+            "reference": "TXN904170",
+            "method": "Card",
+            "gross": 1737,
+            "fee": 31.27,
+            "net": 1705.73
+          },
+          {
+            "date": "2026-09-07",
+            "reference": "TXN904171",
+            "method": "UPI",
+            "gross": 1834,
+            "fee": 0,
+            "net": 1834
+          },
+          {
+            "date": "2026-09-08",
+            "reference": "TXN904180",
+            "method": "UPI",
+            "gross": 1868,
+            "fee": 0,
+            "net": 1868
+          },
+          {
+            "date": "2026-09-08",
+            "reference": "TXN904181",
+            "method": "UPI",
+            "gross": 1965,
+            "fee": 0,
+            "net": 1965
+          },
+          {
+            "date": "2026-09-08",
+            "reference": "TXN904182",
+            "method": "Card",
+            "gross": 2062,
+            "fee": 37.12,
+            "net": 2024.88
+          },
+          {
+            "date": "2026-09-09",
+            "reference": "TXN904190",
+            "method": "UPI",
+            "gross": 1999,
+            "fee": 0,
+            "net": 1999
+          },
+          {
+            "date": "2026-09-10",
+            "reference": "TXN904200",
+            "method": "Card",
+            "gross": 2130,
+            "fee": 38.34,
+            "net": 2091.66
+          },
+          {
+            "date": "2026-09-10",
+            "reference": "TXN904201",
+            "method": "Wallet",
+            "gross": 2227,
+            "fee": 26.72,
+            "net": 2200.28
+          },
+          {
+            "date": "2026-09-11",
+            "reference": "TXN904210",
+            "method": "Wallet",
+            "gross": 2261,
+            "fee": 27.13,
+            "net": 2233.87
+          },
+          {
+            "date": "2026-09-11",
+            "reference": "TXN904211",
+            "method": "UPI",
+            "gross": 2358,
+            "fee": 0,
+            "net": 2358
+          },
+          {
+            "date": "2026-09-11",
+            "reference": "TXN904212",
+            "method": "Card",
+            "gross": 2455,
+            "fee": 44.19,
+            "net": 2410.81
+          },
+          {
+            "date": "2026-09-12",
+            "reference": "TXN904220",
+            "method": "UPI",
+            "gross": 2392,
+            "fee": 0,
+            "net": 2392
+          },
+          {
+            "date": "2026-09-13",
+            "reference": "TXN904230",
+            "method": "Card",
+            "gross": 2523,
+            "fee": 45.41,
+            "net": 2477.59
+          },
+          {
+            "date": "2026-09-13",
+            "reference": "TXN904231",
+            "method": "UPI",
+            "gross": 2620,
+            "fee": 0,
+            "net": 2620
+          },
+          {
+            "date": "2026-09-14",
+            "reference": "TXN904240",
+            "method": "UPI",
+            "gross": 2654,
+            "fee": 0,
+            "net": 2654
+          },
+          {
+            "date": "2026-09-14",
+            "reference": "TXN904241",
+            "method": "UPI",
+            "gross": 2751,
+            "fee": 0,
+            "net": 2751
+          },
+          {
+            "date": "2026-09-14",
+            "reference": "TXN904242",
+            "method": "Card",
+            "gross": 2848,
+            "fee": 51.26,
+            "net": 2796.74
+          },
+          {
+            "date": "2026-09-15",
+            "reference": "TXN904250",
+            "method": "UPI",
+            "gross": 2785,
+            "fee": 0,
+            "net": 2785
+          },
+          {
+            "date": "2026-09-16",
+            "reference": "TXN904260",
+            "method": "Card",
+            "gross": 2916,
+            "fee": 52.49,
+            "net": 2863.51
+          },
+          {
+            "date": "2026-09-16",
+            "reference": "TXN904261",
+            "method": "Wallet",
+            "gross": 3013,
+            "fee": 36.16,
+            "net": 2976.84
+          },
+          {
+            "date": "2026-09-17",
+            "reference": "TXN904270",
+            "method": "Wallet",
+            "gross": 3047,
+            "fee": 36.56,
+            "net": 3010.44
+          },
+          {
+            "date": "2026-09-17",
+            "reference": "TXN904271",
+            "method": "UPI",
+            "gross": 3144,
+            "fee": 0,
+            "net": 3144
+          },
+          {
+            "date": "2026-09-17",
+            "reference": "TXN904272",
+            "method": "Card",
+            "gross": 841,
+            "fee": 15.14,
+            "net": 825.86
+          },
+          {
+            "date": "2026-09-18",
+            "reference": "TXN904280",
+            "method": "UPI",
+            "gross": 3178,
+            "fee": 0,
+            "net": 3178
+          },
+          {
+            "date": "2026-09-19",
+            "reference": "TXN904290",
+            "method": "Card",
+            "gross": 909,
+            "fee": 16.36,
+            "net": 892.64
+          },
+          {
+            "date": "2026-09-19",
+            "reference": "TXN904291",
+            "method": "UPI",
+            "gross": 1006,
+            "fee": 0,
+            "net": 1006
+          },
+          {
+            "date": "2026-09-20",
+            "reference": "TXN904300",
+            "method": "UPI",
+            "gross": 1040,
+            "fee": 0,
+            "net": 1040
+          },
+          {
+            "date": "2026-09-20",
+            "reference": "TXN904301",
+            "method": "UPI",
+            "gross": 1137,
+            "fee": 0,
+            "net": 1137
+          },
+          {
+            "date": "2026-09-20",
+            "reference": "TXN904302",
+            "method": "Card",
+            "gross": 1234,
+            "fee": 22.21,
+            "net": 1211.79
+          },
+          {
+            "date": "2026-09-21",
+            "reference": "TXN904310",
+            "method": "UPI",
+            "gross": 1171,
+            "fee": 0,
+            "net": 1171
+          },
+          {
+            "date": "2026-09-22",
+            "reference": "TXN904320",
+            "method": "Card",
+            "gross": 1302,
+            "fee": 23.44,
+            "net": 1278.56
+          },
+          {
+            "date": "2026-09-22",
+            "reference": "TXN904321",
+            "method": "Wallet",
+            "gross": 1399,
+            "fee": 16.79,
+            "net": 1382.21
+          },
+          {
+            "date": "2026-09-23",
+            "reference": "TXN904330",
+            "method": "Wallet",
+            "gross": 1433,
+            "fee": 17.2,
+            "net": 1415.8
+          },
+          {
+            "date": "2026-09-23",
+            "reference": "TXN904331",
+            "method": "UPI",
+            "gross": 1530,
+            "fee": 0,
+            "net": 1530
+          },
+          {
+            "date": "2026-09-23",
+            "reference": "TXN904332",
+            "method": "Card",
+            "gross": 1627,
+            "fee": 29.29,
+            "net": 1597.71
+          },
+          {
+            "date": "2026-09-24",
+            "reference": "TXN904340",
+            "method": "UPI",
+            "gross": 1564,
+            "fee": 0,
+            "net": 1564
+          },
+          {
+            "date": "2026-09-25",
+            "reference": "TXN904350",
+            "method": "Card",
+            "gross": 1695,
+            "fee": 30.51,
+            "net": 1664.49
+          },
+          {
+            "date": "2026-09-25",
+            "reference": "TXN904351",
+            "method": "UPI",
+            "gross": 1792,
+            "fee": 0,
+            "net": 1792
+          },
+          {
+            "date": "2026-09-26",
+            "reference": "TXN904360",
+            "method": "UPI",
+            "gross": 1826,
+            "fee": 0,
+            "net": 1826
+          },
+          {
+            "date": "2026-09-26",
+            "reference": "TXN904361",
+            "method": "UPI",
+            "gross": 1923,
+            "fee": 0,
+            "net": 1923
+          },
+          {
+            "date": "2026-09-26",
+            "reference": "TXN904362",
+            "method": "Card",
+            "gross": 2020,
+            "fee": 36.36,
+            "net": 1983.64
+          },
+          {
+            "date": "2026-09-27",
+            "reference": "TXN904370",
+            "method": "UPI",
+            "gross": 1957,
+            "fee": 0,
+            "net": 1957
+          },
+          {
+            "date": "2026-09-28",
+            "reference": "TXN904380",
+            "method": "Card",
+            "gross": 2088,
+            "fee": 37.58,
+            "net": 2050.42
+          },
+          {
+            "date": "2026-09-28",
+            "reference": "TXN904381",
+            "method": "Wallet",
+            "gross": 2185,
+            "fee": 26.22,
+            "net": 2158.78
+          },
+          {
+            "date": "2026-09-29",
+            "reference": "TXN904390",
+            "method": "Wallet",
+            "gross": 2219,
+            "fee": 26.63,
+            "net": 2192.37
+          },
+          {
+            "date": "2026-09-29",
+            "reference": "TXN904391",
+            "method": "UPI",
+            "gross": 2316,
+            "fee": 0,
+            "net": 2316
+          },
+          {
+            "date": "2026-09-29",
+            "reference": "TXN904392",
+            "method": "Card",
+            "gross": 2413,
+            "fee": 43.43,
+            "net": 2369.57
+          },
+          {
+            "date": "2026-09-30",
+            "reference": "TXN904400",
+            "method": "UPI",
+            "gross": 2350,
+            "fee": 0,
+            "net": 2350
+          }
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "row",
+          "gap": 4,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "image",
+              "binding": "data.merchant.logo",
+              "width": 34,
+              "height": 34,
+              "fit": "contain",
+              "alt": "Merchant logo"
+            },
+            {
+              "type": "column",
+              "width": "*",
+              "children": [
+                {
+                  "type": "text",
+                  "binding": "data.merchant.name",
+                  "style": {
+                    "fontSize": 14,
+                    "fontWeight": "bold",
+                    "color": "#0b1020"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "data.merchant.address + \" · GSTIN \" + data.merchant.gstin",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#5b6478"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "value": "SETTLEMENTS",
+              "width": 150,
+              "style": {
+                "align": "right",
+                "fontSize": 12,
+                "fontWeight": "bold",
+                "color": "#4d7c0f"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 2
+        },
+        {
+          "type": "line"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "row",
+          "gap": 6,
+          "children": [
+            {
+              "type": "column",
+              "width": "*",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "PERIOD",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#7b8499"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.merchant.period",
+                  "style": {
+                    "fontSize": 12,
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Merchant \" + data.merchant.merchantId + \" · payout to \" + data.merchant.settlementAccount",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#5b6478"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "column",
+              "width": 230,
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Gross collected",
+                      "width": "*"
+                    },
+                    {
+                      "type": "text",
+                      "expression": "formatCurrency(vars.gross)",
+                      "width": 110,
+                      "style": {
+                        "align": "right"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Processing fees",
+                      "width": "*"
+                    },
+                    {
+                      "type": "text",
+                      "expression": "formatCurrency(vars.fees)",
+                      "width": 110,
+                      "style": {
+                        "align": "right"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "line"
+                },
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "Net payout",
+                      "width": "*",
+                      "style": {
+                        "fontWeight": "bold"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "expression": "formatCurrency(vars.net)",
+                      "width": 110,
+                      "style": {
+                        "align": "right",
+                        "fontWeight": "bold"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 8
+        },
+        {
+          "type": "table",
+          "id": "settlements",
+          "dataset": "settlements",
+          "showFooter": true,
+          "alternateRowStyle": true,
+          "repeatHeader": true,
+          "columns": [
+            {
+              "id": "date",
+              "header": "Date",
+              "expression": "formatDate(row.date, \"dd MMM\")",
+              "width": 60
+            },
+            {
+              "id": "reference",
+              "header": "Reference",
+              "binding": "row.reference",
+              "width": "*"
+            },
+            {
+              "id": "method",
+              "header": "Method",
+              "binding": "row.method",
+              "width": 60
+            },
+            {
+              "id": "gross",
+              "header": "Gross",
+              "binding": "row.gross",
+              "format": "currency:INR",
+              "width": 84,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            },
+            {
+              "id": "fee",
+              "header": "Fee",
+              "binding": "row.fee",
+              "format": "currency:INR",
+              "width": 70,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            },
+            {
+              "id": "net",
+              "header": "Net",
+              "binding": "row.net",
+              "format": "currency:INR",
+              "width": 84,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Ledgerline settlement statement · amounts in INR",
+              "width": "*",
+              "style": {
+                "fontSize": 6.5,
+                "color": "#5b6478"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#5b6478"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

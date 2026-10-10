@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0",
+  "id": "northstar-header",
+  "name": "Northstar letterhead",
+  "description": "Shared hospital letterhead for invoices, receipts and lab reports. Bind the parent's branding dataset; each branch supplies its own name, address and logos.",
+  "page": { "size": "A4", "orientation": "portrait", "unit": "mm", "margin": { "top": 0, "right": 0, "bottom": 0, "left": 0 } },
+  "datasets": [
+    {
+      "id": "branding",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "name": "NORTHSTAR MEDICAL CENTER",
+            "tagline": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+            "address": "123 Meridian Avenue, Bengaluru 560001",
+            "phone": "+91 80 4567 8900",
+            "email": "billing@northstar.example",
+            "gstin": "29AANCN4821K1Z6",
+            "logo": "http://127.0.0.1:3002/assets/northstar-logo.png",
+            "seal": "http://127.0.0.1:3002/assets/northstar-seal.png"
+          }
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "row",
+          "gap": 4,
+          "alignItems": "center",
+          "children": [
+            { "type": "image", "id": "letterhead-logo", "binding": "row.logo", "width": 40, "height": 40, "fit": "contain", "alt": "Hospital logo" },
+            {
+              "type": "column",
+              "width": "*",
+              "children": [
+                { "type": "text", "id": "letterhead-name", "binding": "row.name", "style": { "fontSize": 15, "fontWeight": "bold", "color": "#143753" } },
+                { "type": "text", "id": "letterhead-tagline", "binding": "row.tagline", "style": { "fontSize": 6.5, "fontWeight": "bold", "color": "#167c80" } },
+                { "type": "text", "id": "letterhead-contact", "expression": "row.address + \" · \" + row.phone + \" · \" + row.email", "style": { "fontSize": 6.5, "color": "#526575" } },
+                { "type": "text", "id": "letterhead-gstin", "expression": "\"GSTIN \" + row.gstin", "style": { "fontSize": 6.5, "color": "#526575" } }
+              ]
+            },
+            { "type": "image", "id": "letterhead-seal", "binding": "row.seal", "width": 34, "height": 34, "fit": "contain", "alt": "Accreditation seal" }
+          ]
+        }
+      ]
+    }
+  ]
+}

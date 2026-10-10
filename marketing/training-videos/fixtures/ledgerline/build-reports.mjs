@@ -1,0 +1,127 @@
+// Writes the two Ledgerline report definitions that the dashboard publishes to Open Reports as stored templates.
+// Run: node marketing/training-videos/fixtures/ledgerline/build-reports.mjs
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { invoiceData, invoices, statementData } from "./data.mjs";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const ORIGIN = "http://127.0.0.1:3003";
+const INK = "#0b1020";
+const muted = { fontSize: 7.5, color: "#5b6478" };
+const label = (value) => ({ type: "text", value, style: { fontSize: 6.5, fontWeight: "bold", color: "#7b8499" } });
+const page = { size: "A4", orientation: "portrait", unit: "mm", margin: { top: 16, right: 16, bottom: 18, left: 16 } };
+const money = (expression, extra = {}) => ({ type: "text", expression: `formatCurrency(${expression})`, width: 110, style: { align: "right", ...extra } });
+const merchantHeader = (title) => ({
+  type: "pageHeader",
+  children: [
+    {
+      type: "row", gap: 4, alignItems: "center",
+      children: [
+        { type: "image", binding: "data.merchant.logo", width: 34, height: 34, fit: "contain", alt: "Merchant logo" },
+        { type: "column", width: "*", children: [
+          { type: "text", binding: "data.merchant.name", style: { fontSize: 14, fontWeight: "bold", color: INK } },
+          { type: "text", expression: "data.merchant.address + \" · GSTIN \" + data.merchant.gstin", style: muted },
+        ] },
+        { type: "text", value: title, width: 150, style: { align: "right", fontSize: 12, fontWeight: "bold", color: "#4d7c0f" } },
+      ],
+    },
+    { type: "spacer", height: 2 },
+    { type: "line" },
+  ],
+});
+const footer = (text) => ({
+  type: "pageFooter",
+  children: [
+    { type: "line" },
+    { type: "row", children: [
+      { type: "text", value: text, width: "*", style: { fontSize: 6.5, color: "#5b6478" } },
+      { type: "text", expression: "\"Page \" + page.number + \" of \" + page.total", style: { align: "right", fontSize: 7, color: "#5b6478" } },
+    ] },
+  ],
+});
+
+const sampleInvoice = invoiceData(invoices[0], ORIGIN);
+const invoice = {
+  schemaVersion: "1.0", id: "ledgerline-merchant-invoice", name: "Merchant invoice",
+  description: "Invoice a Ledgerline merchant sends to its customer, with GST and payment status.",
+  locale: "en-IN", theme: { currency: "INR" }, page,
+  datasets: [
+    { id: "invoice", source: "inline", query: { data: sampleInvoice.invoice } },
+    { id: "merchant", source: "inline", query: { data: sampleInvoice.merchant } },
+  ],
+  sections: [
+    merchantHeader("TAX INVOICE"),
+    { type: "detail", children: [
+      { type: "spacer", height: 6 },
+      { type: "row", gap: 6, children: [
+        { type: "column", width: "*", children: [label("BILLED TO"), { type: "text", binding: "data.invoice.customer.name", style: { fontSize: 12, fontWeight: "bold" } }, { type: "text", binding: "data.invoice.customer.address", style: muted }, { type: "text", expression: "\"GSTIN \" + data.invoice.customer.gstin", style: muted }] },
+        { type: "column", width: 200, children: [label("INVOICE"), { type: "text", binding: "data.invoice.id", style: { fontWeight: "bold" } }, { type: "text", expression: "\"Issued \" + formatDate(data.invoice.date, \"dd MMM yyyy\") + \" · due \" + formatDate(data.invoice.due, \"dd MMM yyyy\")", style: muted }, { type: "text", expression: "data.invoice.status + \" · \" + data.invoice.method", style: { ...muted, fontWeight: "bold", color: "#4d7c0f" } }] },
+      ] },
+      { type: "spacer", height: 8 },
+      { type: "table", id: "lines", dataset: "invoice.items", showFooter: true, alternateRowStyle: true, columns: [
+        { id: "description", header: "Item", binding: "row.description", width: "*" },
+        { id: "quantity", header: "Qty", binding: "row.quantity", width: 40, align: "right" },
+        { id: "rate", header: "Rate", binding: "row.rate", format: "currency:INR", width: 80, align: "right" },
+        { id: "amount", header: "Amount", expression: "row.quantity * row.rate", format: "currency:INR", width: 96, align: "right", footer: { aggregate: "sum" } },
+      ] },
+      { type: "spacer", height: 8 },
+      { type: "row", children: [
+        { type: "text", value: "Paid through Ledgerline. Settlement reference available in your merchant dashboard.", width: "*", style: muted },
+        { type: "column", width: 220, children: [
+          { type: "row", children: [{ type: "text", value: "Subtotal", width: "*" }, money("data.invoice.subtotal")] },
+          { type: "row", children: [{ type: "text", value: "GST 5%", width: "*" }, money("data.invoice.gst")] },
+          { type: "line" },
+          { type: "row", children: [{ type: "text", value: "Total", width: "*", style: { fontSize: 12, fontWeight: "bold" } }, money("data.invoice.total", { fontSize: 12, fontWeight: "bold" })] },
+        ] },
+      ] },
+    ] },
+    footer("Generated by Ledgerline · payments for independent businesses"),
+  ],
+};
+
+const sampleStatement = statementData(ORIGIN);
+const statement = {
+  schemaVersion: "1.0", id: "ledgerline-settlement-statement", name: "Settlement statement",
+  description: "Monthly card, UPI and wallet settlements for a merchant, with fees and net payout.",
+  locale: "en-IN", theme: { currency: "INR" }, page,
+  variables: [
+    { id: "gross", scope: "report", expression: "sumBy(data.settlements, \"gross\")" },
+    { id: "fees", scope: "report", expression: "sumBy(data.settlements, \"fee\")" },
+    { id: "net", scope: "report", expression: "sumBy(data.settlements, \"net\")" },
+  ],
+  datasets: [
+    { id: "merchant", source: "inline", query: { data: sampleStatement.merchant } },
+    { id: "settlements", source: "inline", query: { data: sampleStatement.settlements } },
+  ],
+  sections: [
+    merchantHeader("SETTLEMENTS"),
+    { type: "detail", children: [
+      { type: "spacer", height: 6 },
+      { type: "row", gap: 6, children: [
+        { type: "column", width: "*", children: [label("PERIOD"), { type: "text", binding: "data.merchant.period", style: { fontSize: 12, fontWeight: "bold" } }, { type: "text", expression: "\"Merchant \" + data.merchant.merchantId + \" · payout to \" + data.merchant.settlementAccount", style: muted }] },
+        { type: "column", width: 230, children: [
+          { type: "row", children: [{ type: "text", value: "Gross collected", width: "*" }, money("vars.gross")] },
+          { type: "row", children: [{ type: "text", value: "Processing fees", width: "*" }, money("vars.fees")] },
+          { type: "line" },
+          { type: "row", children: [{ type: "text", value: "Net payout", width: "*", style: { fontWeight: "bold" } }, money("vars.net", { fontWeight: "bold" })] },
+        ] },
+      ] },
+      { type: "spacer", height: 8 },
+      { type: "table", id: "settlements", dataset: "settlements", showFooter: true, alternateRowStyle: true, repeatHeader: true, columns: [
+        { id: "date", header: "Date", expression: "formatDate(row.date, \"dd MMM\")", width: 60 },
+        { id: "reference", header: "Reference", binding: "row.reference", width: "*" },
+        { id: "method", header: "Method", binding: "row.method", width: 60 },
+        { id: "gross", header: "Gross", binding: "row.gross", format: "currency:INR", width: 84, align: "right", footer: { aggregate: "sum" } },
+        { id: "fee", header: "Fee", binding: "row.fee", format: "currency:INR", width: 70, align: "right", footer: { aggregate: "sum" } },
+        { id: "net", header: "Net", binding: "row.net", format: "currency:INR", width: 84, align: "right", footer: { aggregate: "sum" } },
+      ] },
+    ] },
+    footer("Ledgerline settlement statement · amounts in INR"),
+  ],
+};
+
+await mkdir(path.join(here, "reports"), { recursive: true });
+await writeFile(path.join(here, "reports/merchant-invoice.report.json"), `${JSON.stringify(invoice, null, 2)}\n`);
+await writeFile(path.join(here, "reports/settlement-statement.report.json"), `${JSON.stringify(statement, null, 2)}\n`);
+console.log("Wrote reports/merchant-invoice.report.json and reports/settlement-statement.report.json");

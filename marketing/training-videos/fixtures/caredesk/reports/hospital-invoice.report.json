@@ -1,0 +1,655 @@
+{
+  "schemaVersion": "1.0",
+  "id": "hospital-invoice",
+  "name": "Hospital invoice",
+  "description": "Patient invoice for CareDesk HIMS with a shared letterhead subreport, itemised services and payment summary.",
+  "locale": "en-IN",
+  "theme": {
+    "currency": "INR"
+  },
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 14,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "datasets": [
+    {
+      "id": "invoice",
+      "source": "inline",
+      "query": {
+        "data": {
+          "id": "NMC-OPD-24817",
+          "date": "2026-10-09",
+          "visit": "OPD · Cardiology",
+          "doctor": "Dr. Kavya Raman",
+          "payer": "Self pay",
+          "paymentMode": "UPI",
+          "status": "Paid",
+          "discount": 500,
+          "paid": 6715,
+          "patient": {
+            "name": "Arjun Mehta",
+            "uhid": "NMC-0098213",
+            "age": 54,
+            "sex": "M",
+            "phone": "+91 98450 11223",
+            "address": "14 Lavelle Road, Bengaluru 560001"
+          },
+          "items": [
+            {
+              "description": "Consultation · Cardiology",
+              "category": "Consultation",
+              "quantity": 1,
+              "rate": 1200
+            },
+            {
+              "description": "ECG · 12 lead",
+              "category": "Diagnostics",
+              "quantity": 1,
+              "rate": 400
+            },
+            {
+              "description": "2D Echocardiogram",
+              "category": "Diagnostics",
+              "quantity": 1,
+              "rate": 2800
+            },
+            {
+              "description": "Lipid Profile",
+              "category": "Laboratory",
+              "quantity": 1,
+              "rate": 900
+            },
+            {
+              "description": "HbA1c",
+              "category": "Laboratory",
+              "quantity": 1,
+              "rate": 650
+            },
+            {
+              "description": "Pharmacy · Dispensed medicines",
+              "category": "Pharmacy",
+              "quantity": 1,
+              "rate": 1265
+            }
+          ],
+          "subtotal": 7215,
+          "net": 6715,
+          "balance": 0
+        }
+      }
+    },
+    {
+      "id": "branding",
+      "source": "inline",
+      "query": {
+        "data": [
+          {
+            "name": "NORTHSTAR MEDICAL CENTER",
+            "tagline": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+            "address": "123 Meridian Avenue, Bengaluru 560001",
+            "phone": "+91 80 4567 8900",
+            "email": "billing@northstar.example",
+            "gstin": "29AANCN4821K1Z6",
+            "logo": "http://127.0.0.1:3002/assets/northstar-logo.png",
+            "seal": "http://127.0.0.1:3002/assets/northstar-seal.png",
+            "accent": "#143753"
+          }
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "type": "pageHeader",
+      "children": [
+        {
+          "type": "subreport",
+          "id": "letterhead",
+          "reportId": "northstar-header",
+          "dataset": "branding"
+        },
+        {
+          "type": "spacer",
+          "height": 2
+        },
+        {
+          "type": "line"
+        },
+        {
+          "type": "spacer",
+          "height": 2
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "id": "invoice-title",
+              "value": "TAX INVOICE",
+              "width": "*",
+              "style": {
+                "fontSize": 11,
+                "fontWeight": "bold",
+                "color": "#143753"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Bill \" + data.invoice.id",
+              "style": {
+                "align": "right",
+                "fontWeight": "bold"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 4
+        },
+        {
+          "type": "row",
+          "gap": 6,
+          "children": [
+            {
+              "type": "column",
+              "width": "*",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "PATIENT",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#7a8a99"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.patient.name",
+                  "style": {
+                    "fontSize": 12,
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"UHID \" + data.invoice.patient.uhid + \" · \" + data.invoice.patient.age + \" y · \" + data.invoice.patient.sex",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#526575"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.patient.address",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#526575"
+                  }
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.patient.phone",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#526575"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "column",
+              "width": 210,
+              "children": [
+                {
+                  "type": "text",
+                  "value": "VISIT",
+                  "style": {
+                    "fontSize": 6.5,
+                    "fontWeight": "bold",
+                    "color": "#7a8a99"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "formatDate(data.invoice.date, \"dd MMM yyyy\") + \" · \" + data.invoice.visit",
+                  "style": {
+                    "fontWeight": "bold"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Consultant: \" + data.invoice.doctor",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#526575"
+                  }
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Payer: \" + data.invoice.payer",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#526575"
+                  }
+                },
+                {
+                  "type": "text",
+                  "id": "invoice-status",
+                  "expression": "\"Status: \" + data.invoice.status",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#b45309",
+                    "fontWeight": "bold"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "table",
+          "id": "services",
+          "dataset": "invoice.items",
+          "showFooter": true,
+          "alternateRowStyle": true,
+          "keepRowTogether": true,
+          "columns": [
+            {
+              "id": "description",
+              "header": "Service",
+              "binding": "row.description",
+              "width": "*"
+            },
+            {
+              "id": "category",
+              "header": "Department",
+              "binding": "row.category",
+              "width": 90
+            },
+            {
+              "id": "quantity",
+              "header": "Qty",
+              "binding": "row.quantity",
+              "width": 36,
+              "align": "right"
+            },
+            {
+              "id": "rate",
+              "header": "Rate",
+              "binding": "row.rate",
+              "format": "currency:INR",
+              "width": 80,
+              "align": "right"
+            },
+            {
+              "id": "amount",
+              "header": "Amount",
+              "expression": "row.quantity * row.rate",
+              "format": "currency:INR",
+              "width": 92,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 6
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "row",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "column",
+                  "width": "*",
+                  "children": [
+                    {
+                      "type": "text",
+                      "value": "PAYMENT",
+                      "style": {
+                        "fontSize": 6.5,
+                        "fontWeight": "bold",
+                        "color": "#7a8a99"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "expression": "data.invoice.paymentMode + \" · \" + data.invoice.status",
+                      "style": {
+                        "fontWeight": "bold"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "value": "Medical services are exempt from GST under notification 12/2017.",
+                      "style": {
+                        "fontSize": 7.5,
+                        "color": "#526575"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "column",
+                  "width": 220,
+                  "children": [
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Subtotal",
+                          "width": "*",
+                          "style": {
+                            "color": "#374151"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(data.invoice.subtotal)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Discount",
+                          "width": "*",
+                          "style": {
+                            "color": "#374151"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(data.invoice.discount)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Net payable",
+                          "width": "*",
+                          "style": {
+                            "color": "#374151"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(data.invoice.net)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Paid",
+                          "width": "*",
+                          "style": {
+                            "color": "#374151"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(data.invoice.paid)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "line"
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Balance due",
+                          "width": "*",
+                          "style": {
+                            "fontSize": 11,
+                            "fontWeight": "bold"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(data.invoice.balance)",
+                          "width": 110,
+                          "style": {
+                            "align": "right",
+                            "fontSize": 11,
+                            "fontWeight": "bold"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "spacer",
+              "height": 14
+            },
+            {
+              "type": "row",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "invoice-note",
+                  "value": "Thank you for trusting Northstar with your care. Please keep this invoice for insurance claims.",
+                  "width": "*",
+                  "style": {
+                    "fontSize": 7.5,
+                    "color": "#526575"
+                  }
+                },
+                {
+                  "type": "text",
+                  "value": "Authorised signatory",
+                  "width": 130,
+                  "style": {
+                    "align": "right",
+                    "fontSize": 7.5,
+                    "fontWeight": "bold"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Computer-generated invoice · CareDesk HIMS",
+              "width": "*",
+              "style": {
+                "fontSize": 6.5,
+                "color": "#526575"
+              }
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#526575"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "subreports": {
+    "northstar-header": {
+      "schemaVersion": "1.0",
+      "id": "northstar-header",
+      "name": "Northstar letterhead",
+      "description": "Shared hospital letterhead for invoices, receipts and lab reports. Bind the parent's branding dataset; each branch supplies its own name, address and logos.",
+      "page": {
+        "size": "A4",
+        "orientation": "portrait",
+        "unit": "mm",
+        "margin": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "datasets": [
+        {
+          "id": "branding",
+          "source": "inline",
+          "query": {
+            "data": [
+              {
+                "name": "NORTHSTAR MEDICAL CENTER",
+                "tagline": "CARE WITH CLARITY · COMPASSION IN EVERY STEP",
+                "address": "123 Meridian Avenue, Bengaluru 560001",
+                "phone": "+91 80 4567 8900",
+                "email": "billing@northstar.example",
+                "gstin": "29AANCN4821K1Z6",
+                "logo": "http://127.0.0.1:3002/assets/northstar-logo.png",
+                "seal": "http://127.0.0.1:3002/assets/northstar-seal.png"
+              }
+            ]
+          }
+        }
+      ],
+      "sections": [
+        {
+          "type": "detail",
+          "children": [
+            {
+              "type": "row",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "image",
+                  "id": "letterhead-logo",
+                  "binding": "row.logo",
+                  "width": 40,
+                  "height": 40,
+                  "fit": "contain",
+                  "alt": "Hospital logo"
+                },
+                {
+                  "type": "column",
+                  "width": "*",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "letterhead-name",
+                      "binding": "row.name",
+                      "style": {
+                        "fontSize": 15,
+                        "fontWeight": "bold",
+                        "color": "#143753"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "id": "letterhead-tagline",
+                      "binding": "row.tagline",
+                      "style": {
+                        "fontSize": 6.5,
+                        "fontWeight": "bold",
+                        "color": "#167c80"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "id": "letterhead-contact",
+                      "expression": "row.address + \" · \" + row.phone + \" · \" + row.email",
+                      "style": {
+                        "fontSize": 6.5,
+                        "color": "#526575"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "id": "letterhead-gstin",
+                      "expression": "\"GSTIN \" + row.gstin",
+                      "style": {
+                        "fontSize": 6.5,
+                        "color": "#526575"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "image",
+                  "id": "letterhead-seal",
+                  "binding": "row.seal",
+                  "width": 34,
+                  "height": 34,
+                  "fit": "contain",
+                  "alt": "Accreditation seal"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

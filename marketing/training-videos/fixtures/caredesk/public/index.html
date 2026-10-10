@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareDesk HIMS · Billing</title>
+  <link rel="icon" href="/assets/northstar-logo.png">
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/shared/devtrace.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="CareDesk navigation">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">+</span><div><strong>CareDesk</strong><small>Hospital information system</small></div></div>
+      <nav>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">▦</span>Dashboard</a>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">☺</span>Patients</a>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">✚</span>OPD</a>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">▤</span>IPD &amp; wards</a>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">⚗</span>Laboratory</a>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">℞</span>Pharmacy</a>
+        <a href="#/bills" class="is-active" aria-current="page"><span aria-hidden="true">₹</span>Billing</a>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">▥</span>MIS reports</a>
+        <a href="#" aria-disabled="true"><span aria-hidden="true">⚙</span>Settings</a>
+      </nav>
+      <div class="sidebar-user"><span class="avatar" aria-hidden="true">RI</span><div><strong>Radha Iyer</strong><small>Billing desk</small></div></div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="crumbs" id="crumbs">Billing</div>
+        <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search patient, UHID or bill number" aria-label="Search bills"></label>
+        <label class="branch"><span class="sr-only">Branch</span><select id="branch" aria-label="Branch"></select></label>
+        <button type="button" class="ghost-button" id="dev-toggle" aria-pressed="false"><span aria-hidden="true">&lt;/&gt;</span> Developer view</button>
+      </header>
+      <main id="view" tabindex="-1"></main>
+    </div>
+  </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
