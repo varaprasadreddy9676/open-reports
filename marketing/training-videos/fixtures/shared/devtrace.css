@@ -2,10 +2,11 @@
 .devtrace {
   position: fixed; z-index: 60; top: 0; right: 0; bottom: 0; width: min(440px, 92vw);
   display: flex; flex-direction: column; background: #0b1020; color: #e6eaf5;
-  font: 13px/1.5 Inter, system-ui, sans-serif; box-shadow: -24px 0 60px rgb(5 8 20 / .35);
-  transform: translateX(105%); transition: transform .35s cubic-bezier(.16, 1, .3, 1);
+  font: 13px/1.5 Inter, system-ui, sans-serif;
+  transform: translateX(105%); visibility: hidden; box-shadow: none;
+  transition: transform .35s cubic-bezier(.16, 1, .3, 1), visibility 0s linear .35s;
 }
-.devtrace.is-open { transform: none; }
+.devtrace.is-open { transform: none; visibility: visible; box-shadow: -24px 0 60px rgb(5 8 20 / .35); transition-delay: 0s; }
 .devtrace header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid rgb(255 255 255 / .08); }
 .devtrace header div { flex: 1; display: grid; }
 .devtrace header strong { font-size: 14px; }

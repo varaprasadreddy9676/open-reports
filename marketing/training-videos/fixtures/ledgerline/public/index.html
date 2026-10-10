@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ledgerline · Merchant dashboard</title>
+  <link rel="icon" href="/ledgerline-mark.png">
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/shared/devtrace.css">
+</head>
+<body>
+  <header class="nav">
+    <a class="logo" href="#/invoices"><img src="/ledgerline-mark.png" alt="" width="30" height="30"><span>Ledgerline</span></a>
+    <nav aria-label="Dashboard">
+      <a href="#/overview" aria-disabled="true">Overview</a>
+      <a href="#/invoices" data-page="invoices">Invoices</a>
+      <a href="#/statements" data-page="statements">Statements</a>
+      <a href="#/payouts" aria-disabled="true">Payouts</a>
+      <a href="#/developers" data-page="developers">Developers</a>
+    </nav>
+    <div class="merchant"><img src="/brightside-mark.png" alt="" width="28" height="28"><div><strong>Brightside Coffee Co.</strong><small>Merchant LDG-MER-30418</small></div></div>
+    <button type="button" class="dev" id="dev-toggle" aria-pressed="false">&lt;/&gt; Developer view</button>
+  </header>
+  <main id="view" tabindex="-1"></main>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
