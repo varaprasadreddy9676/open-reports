@@ -53,10 +53,10 @@ export function createDevTrace(names) {
     if (event.type === "host:step") {
       step(event.flowId, `<span class="hop hop-host">${esc(names.server)}</span><p>${esc(event.text)}</p>${event.detail ? `<code>${esc(event.detail)}</code>` : ""}`);
     } else if (event.type === "engine:request") {
-      if (animate.checked) overlay.hop("server", "engine", `${event.method} ${new URL(event.url).pathname}`);
+      if (flows.get(event.flowId).animate && animate.checked) overlay.hop("server", "engine", `${event.method} ${new URL(event.url).pathname}`);
       step(event.flowId, `<span class="hop hop-out">${esc(names.server)} → Open Reports</span><p><b>${esc(event.method)}</b> ${esc(event.url)}</p>${jsonBlock("Request body", event.body)}`);
     } else if (event.type === "engine:response") {
-      if (animate.checked) overlay.hop("engine", "server", event.status ? `${event.status} · ${kb(event.bytes ?? 0)}` : "failed");
+      if (flows.get(event.flowId).animate && animate.checked) overlay.hop("engine", "server", event.status ? `${event.status} · ${kb(event.bytes ?? 0)}` : "failed");
       const ok = event.status >= 200 && event.status < 300;
       step(event.flowId, `<span class="hop ${ok ? "hop-ok" : "hop-bad"}">Open Reports → ${esc(names.server)}</span>
         <p><b>${event.status || "No response"}</b> ${esc(event.contentType ?? "")} · ${kb(event.bytes ?? 0)} · ${event.ms} ms</p>
@@ -64,9 +64,13 @@ export function createDevTrace(names) {
     }
   };
 
-  /** fetch() that records the browser → server hop and its response. */
-  async function tracedFetch(url, init = {}, label = "Request") {
+  /**
+   * fetch() that records the browser → server hop and its response. `animate: false` keeps non-render requests
+   * (saves, publishing) out of the flow overlay, whose wording is about rendering a document.
+   */
+  async function tracedFetch(url, init = {}, label = "Request", { animate: animateFlow = true } = {}) {
     const flowId = newFlowId();
+    const overlayOn = () => animateFlow && animate.checked;
     const steps = document.createElement("ol");
     const item = document.createElement("li");
     item.className = "devtrace-flow";
@@ -74,20 +78,20 @@ export function createDevTrace(names) {
     item.append(steps);
     list.querySelector(".devtrace-empty")?.remove();
     list.prepend(item);
-    flows.set(flowId, { steps });
+    flows.set(flowId, { steps, animate: animateFlow });
     const body = typeof init.body === "string" && init.headers?.["content-type"]?.includes("json") ? JSON.parse(init.body) : undefined;
     step(flowId, `<span class="hop hop-in">Browser → ${esc(names.server)}</span><p><b>${esc(init.method ?? "GET")}</b> ${esc(new URL(url, location.href).pathname)}</p>${jsonBlock("Request body", body)}`);
-    if (animate.checked) overlay.start(label, "browser", "server", `${init.method ?? "GET"} ${new URL(url, location.href).pathname}`);
+    if (overlayOn()) overlay.start(label, "browser", "server", `${init.method ?? "GET"} ${new URL(url, location.href).pathname}`);
     const headers = { ...(init.headers ?? {}), "x-flow-id": flowId };
     try {
       const response = await fetch(url, { ...init, headers });
       const size = Number(response.headers.get("content-length") ?? 0);
       const type = response.headers.get("content-type") ?? "";
-      if (animate.checked) overlay.hop("server", "browser", `${response.status} · ${type.split(";")[0]}`, { done: true, ok: response.ok });
+      if (overlayOn()) overlay.hop("server", "browser", `${response.status} · ${type.split(";")[0]}`, { done: true, ok: response.ok });
       step(flowId, `<span class="hop ${response.ok ? "hop-ok" : "hop-bad"}">${esc(names.server)} → Browser</span><p><b>${response.status}</b> ${esc(type)}${size ? ` · ${kb(size)}` : ""}</p>`);
       return response;
     } catch (error) {
-      if (animate.checked) overlay.hop("server", "browser", "network error", { done: true, ok: false });
+      if (overlayOn()) overlay.hop("server", "browser", "network error", { done: true, ok: false });
       step(flowId, `<span class="hop hop-bad">Network</span><p class="devtrace-error">${esc(error.message)}</p>`);
       throw error;
     }

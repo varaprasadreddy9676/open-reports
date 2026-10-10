@@ -11,7 +11,6 @@ const state = { config: null, branch: sessionStorage.getItem("caredesk-branch") 
 const devToggle = $("#dev-toggle");
 devToggle.addEventListener("click", () => trace.toggle());
 document.addEventListener("devtrace-toggle", (event) => devToggle.setAttribute("aria-pressed", String(event.detail.open)));
-if (trace.film) trace.setOpen(true);
 
 async function api(path) {
   const response = await fetch(path);

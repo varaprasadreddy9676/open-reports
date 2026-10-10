@@ -3,7 +3,7 @@ import { $, esc, showSource, toast } from "./ui.js";
 
 /** Renders the designer screen into `view`; returns a cleanup function for when the user leaves. */
 export async function openDesigner(view, { branch, config, trace, onSaved }) {
-  const response = await fetch(`/app-api/definition?branch=${branch}`);
+  const response = await globalThis.fetch(`/app-api/definition?branch=${branch}`);
   if (!response.ok) throw new Error("Could not load the invoice layout");
   const { definition, file, preview } = await response.json();
   view.innerHTML = `<div class="designer-screen">
@@ -24,6 +24,9 @@ export async function openDesigner(view, { branch, config, trace, onSaved }) {
 
   const { createDesigner } = await import(`${config.designerUrl}/embed/open-reports.js`);
 
+  // CareDesk's fetch, wrapped so each save also appears in the developer view.
+  const fetch = (url, init) => trace.fetch(url, init, "Save invoice layout", { animate: false });
+
   // #region embed-designer
   const designer = createDesigner($("#designer-host"), {
     server: config.designerUrl,           // where Open Reports runs; the designer loads in an iframe from there
@@ -33,9 +36,9 @@ export async function openDesigner(view, { branch, config, trace, onSaved }) {
     height: "100%",
     onSaveDefinition: async (edited) => {
       setStatus("saving", "Saving…");
-      const saved = await trace.fetch(`/app-api/definition?branch=${branch}`, {
+      const saved = await fetch(`/app-api/definition?branch=${branch}`, {
         method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(edited),
-      }, "Save invoice layout");
+      });
       if (!saved.ok) throw new Error((await saved.json()).error ?? "CareDesk could not save the layout");
       const result = await saved.json();  // resolve only after CareDesk has stored it
       setStatus("saved", `Saved · version ${result.version}`);

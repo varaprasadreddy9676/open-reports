@@ -10,7 +10,6 @@ const trace = createDevTrace({ app: "Ledgerline", server: "Ledgerline server" })
 const devToggle = document.querySelector("#dev-toggle");
 devToggle.addEventListener("click", () => trace.toggle());
 document.addEventListener("devtrace-toggle", (event) => devToggle.setAttribute("aria-pressed", String(event.detail.open)));
-if (trace.film) trace.setOpen(true);
 let config;
 let cleanup = () => {};
 
@@ -102,7 +101,7 @@ async function renderDevelopers() {
     const button = event.currentTarget;
     button.setAttribute("aria-busy", "true");
     try {
-      const response = await trace.fetch("/app-api/templates/publish", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }, "Publish report templates");
+      const response = await trace.fetch("/app-api/templates/publish", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }, "Publish report templates", { animate: false });
       if (!response.ok) throw new Error((await response.json()).error);
       toast("Templates published to Open Reports");
       await render();
