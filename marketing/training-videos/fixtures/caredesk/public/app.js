@@ -1,6 +1,7 @@
 // CareDesk HIMS front end: bill list, bill detail with Print / Download PDF, and the invoice designer screen.
 import { createDevTrace } from "/shared/devtrace.js";
 import { openDesigner } from "./designer.js";
+import { printPdf, renderPdf } from "/shared/pdf-preview.js";
 import { $, date, esc, inr, openModal, showSource, statusChip, toast } from "./ui.js";
 
 const trace = createDevTrace({ app: "CareDesk HIMS", server: "CareDesk server" });
@@ -114,24 +115,31 @@ async function deliver(bill, purpose, button) {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ purpose }),
     }, `${purpose === "print" ? "Print" : "Download PDF"} · ${bill.id}`);
     if (!response.ok) throw new Error((await response.json()).error ?? "Could not create the invoice PDF");
-    const url = URL.createObjectURL(await response.blob());
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
     if (purpose === "download") {
-      const link = Object.assign(document.createElement("a"), { href: url, download: `${bill.id}.pdf` });
-      link.click();
+      Object.assign(document.createElement("a"), { href: url, download: `${bill.id}.pdf` }).click();
       toast(`Downloaded ${bill.id}.pdf`);
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } else {
-      const frame = Object.assign(document.createElement("iframe"), { className: "pdf-frame", src: url, title: `${bill.id} invoice PDF` });
-      const dialog = openModal({ title: `Print ${bill.id}`, body: frame, wide: true });
-      frame.addEventListener("load", () => setTimeout(() => { try { frame.contentWindow.print(); } catch { /* the PDF toolbar's print button still works */ } }, 500));
-      dialog.addEventListener("close", () => URL.revokeObjectURL(url));
+      printPdf(url);
     }
+    await showPdf(purpose === "download" ? `Downloaded ${bill.id}.pdf` : `Printing ${bill.id}`, blob);
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     toast(error.message, "error");
   } finally {
     button.removeAttribute("aria-busy");
     button.disabled = false;
   }
+}
+
+async function showPdf(title, blob) {
+  const pages = document.createElement("div");
+  pages.className = "pdf-pages";
+  pages.setAttribute("data-testid", "pdf-preview");
+  openModal({ title, body: pages, wide: true });
+  const count = await renderPdf(pages, blob);
+  pages.dataset.pages = String(count);
 }
 
 async function renderDesigner() {

@@ -5,7 +5,7 @@ import http from "node:http";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { createEventHub, flowIdOf, readJson, readRegion, sendJson, serveStatic, tracedEngineCall } from "../shared/host-kit.mjs";
+import { createEventHub, flowIdOf, readJson, pdfjsDir, readRegion, sendJson, serveStatic, tracedEngineCall } from "../shared/host-kit.mjs";
 import { invoiceAmounts, invoiceData, invoices, merchant, statementData } from "./data.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -89,7 +89,7 @@ async function route(req, res, url) {
   }
   if (req.method === "GET") {
     const pathname = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
-    if (await serveStatic(res, pathname, { "/shared/": path.join(here, "../shared"), "/": path.join(here, "public") })) return;
+    if (await serveStatic(res, pathname, { "/vendor/pdfjs/": pdfjsDir(), "/shared/": path.join(here, "../shared"), "/": path.join(here, "public") })) return;
   }
   sendJson(res, 404, { error: "Not found" });
 }

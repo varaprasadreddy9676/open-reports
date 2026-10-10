@@ -106,7 +106,7 @@ export const amounts = (bill) => {
 export function renderData(bill, origin) {
   const branding = branches[bill.branch].branding;
   return {
-    invoice: { ...bill, branch: undefined, ...amounts(bill) },
+    invoice: { ...bill, branch: undefined, items: bill.items.map((item) => ({ ...item, amount: item.quantity * item.rate })), ...amounts(bill) },
     branding: [{ ...branding, logo: new URL(branding.logo, origin).href, seal: new URL(branding.seal, origin).href }],
   };
 }

@@ -1,7 +1,9 @@
 // Small server helpers shared by the CareDesk and Ledgerline training hosts.
 // They are local demo servers with no authentication: never deploy them as production code.
 import { readFile, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -122,4 +124,10 @@ export async function readRegion(file, name) {
 export function flowIdOf(req) {
   const value = req.headers["x-flow-id"];
   return typeof value === "string" && /^[\w-]{6,64}$/.test(value) ? value : `flow-${Date.now().toString(36)}`;
+}
+
+/** The pdf.js build that ships with the designer, served to the hosts at /vendor/pdfjs/. */
+export function pdfjsDir() {
+  const designer = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../apps/designer/package.json");
+  return path.join(path.dirname(createRequire(designer).resolve("pdfjs-dist/package.json")), "build");
 }

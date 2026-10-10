@@ -46,37 +46,43 @@
               "description": "Consultation · Cardiology",
               "category": "Consultation",
               "quantity": 1,
-              "rate": 1200
+              "rate": 1200,
+              "amount": 1200
             },
             {
               "description": "ECG · 12 lead",
               "category": "Diagnostics",
               "quantity": 1,
-              "rate": 400
+              "rate": 400,
+              "amount": 400
             },
             {
               "description": "2D Echocardiogram",
               "category": "Diagnostics",
               "quantity": 1,
-              "rate": 2800
+              "rate": 2800,
+              "amount": 2800
             },
             {
               "description": "Lipid Profile",
               "category": "Laboratory",
               "quantity": 1,
-              "rate": 900
+              "rate": 900,
+              "amount": 900
             },
             {
               "description": "HbA1c",
               "category": "Laboratory",
               "quantity": 1,
-              "rate": 650
+              "rate": 650,
+              "amount": 650
             },
             {
               "description": "Pharmacy · Dispensed medicines",
               "category": "Pharmacy",
               "quantity": 1,
-              "rate": 1265
+              "rate": 1265,
+              "amount": 1265
             }
           ],
           "subtotal": 7215,
