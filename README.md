@@ -16,7 +16,7 @@ If this is useful to your team, [star the repository](https://github.com/varapra
 
 [![Watch practical Open Reports demos](apps/designer/public/demo-videos/invoice-to-pdf-poster.jpg)](https://open-reports-demo.onrender.com/?tour=1)
 
-**[Browse practical product videos in the demo](https://open-reports-demo.onrender.com/?tour=1)** · [Watch the launch film](https://www.youtube.com/watch?v=_7LTG0cLO80)
+**[Browse practical product videos in the demo](https://open-reports-demo.onrender.com/?tour=1)** · [Watch the updated 64-second launch film](docs/media/open-reports-launch.mp4)
 
 </div>
 
