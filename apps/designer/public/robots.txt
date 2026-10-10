@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /health
+Disallow: /openapi.json
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /health
+Disallow: /openapi.json
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /health
+Disallow: /openapi.json
+
+User-agent: Claude-User
+Allow: /
+Disallow: /api/
+Disallow: /health
+Disallow: /openapi.json
+
+Sitemap: https://open-reports-demo.onrender.com/sitemap.xml
