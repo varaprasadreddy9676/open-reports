@@ -1,4 +1,5 @@
-// v2 — the executable director's brief (BRIEF.md). Picture (composition/main.mjs) and sound (audio.mjs) both read it.
+// v2 — executable director's brief (BRIEF.md). Picture (composition/main.mjs) and sound (audio.mjs) both read it.
+// Claims are scoped to Open Reports; JRXML import is shown as partial and review-required.
 // 120 BPM, 32 bars = 64 s. Positions are in beats (1 beat = 0.5 s = 15 frames).
 
 export const FPS = 30;
@@ -19,8 +20,8 @@ export const SCENES = [
     words: [["Invoices.", 0, "invoice.png"], ["Statements.", 1, "account-statement.png"], ["Lab reports.", 2, "lab-report.png"], ["Receipts.", 3, "receipt.png"], ["Labels.", 4, "pharmacy-label.png"]],
     lines: [["Every business", 5], ["runs on", 6], ["documents.", 7, "accent"]] },
   { id: "pain", from: 8, to: 16, kind: "pain",
-    headline: [["Building them still", 8], ["feels like 2005.", 8.5, "accent"]],
-    cards: [["Desktop-only designers", 10], ["Page breaks nobody can explain", 11], ["Per-seat licences", 12], ["A different tool per format", 13]],
+    headline: [["Report work gets", 8], ["hard to follow.", 8.5, "accent"]],
+    cards: [["Data and layout live apart", 10], ["Page breaks take trial and error", 11], ["Report logic is hard to version", 12], ["App integration takes glue code", 13]],
     turn: ["There's a better way.", 14.5] },
   // ---- Act 2: reveal (drop)
   { id: "reveal", from: 16, to: 24, kind: "reveal", wordmarkAt: 16, taglineAt: [18, 19], chipsAt: 21,
@@ -41,13 +42,13 @@ export const SCENES = [
   { id: "api", from: 88, to: 96, kind: "terminal", number: "07", title: ["Ship it from", "any app."],
     command: "curl -X POST $API/v1/templates/invoice/render -d @order.json -o invoice.pdf", typeFrom: 89, typeTo: 91.5,
     response: [[92, "200 OK  ·  application/pdf"], [92.5, "also html · xlsx · csv · zpl · escpos"]], pageAt: 93 },
-  { id: "migrate", from: 96, to: 104, kind: "migrate", number: "08", title: ["Bring your", "JasperReports."],
+  { id: "migrate", from: 96, to: 104, kind: "migrate", number: "08", title: ["Start from a", "JRXML draft."], note: "Partial import · review every report before use",
     files: ["invoice.jrxml", "statement.jrxml", "lab-result.jrxml", "discharge.jrxml", "receipt.jrxml", "label.jrxml"], filesAt: 97.5 },
   // ---- Act 4: payoff
   { id: "montage", from: 104, to: 112, kind: "montage",
     cuts: [["Design.", "data", 0.95], ["Bind.", "drag", 0.97], ["Paginate.", "pages", 0.72], ["Highlight.", "rules", 0.98], ["Export.", "formats", 0.08], ["Print.", "formats", 0.75], ["Automate.", "ai", 0.98], ["Own it.", null, 0]] },
   { id: "stats", from: 112, to: 120, kind: "stats",
-    stats: [[112, "6", "output formats"], [114, "24", "ready-made starters"], [116, "0", "per-seat fees"]] },
+    stats: [[112, "6", "output formats"], [114, "24", "ready-made starters"], [116, "MIT", "open-source licence"]] },
   { id: "end", from: 120, to: 128, kind: "end", wordmarkAt: 120, taglineAt: 121, ctaAt: 122, statsAt: 123,
     tagline: "Design documents in your browser. Render them anywhere.", accent: "anywhere.",
     stats: "MIT  ·  self-hosted  ·  PDF  ·  HTML  ·  Excel  ·  CSV  ·  ZPL  ·  ESC/POS" },

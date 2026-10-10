@@ -242,9 +242,11 @@ scene(byId("api"), C.navy, (root, def) => {
   }];
 });
 
-// ---------------------------------------------------------------- Act 3: JasperReports migration
+// ---------------------------------------------------------------- Act 3: JRXML draft import
 scene(byId("migrate"), "#f3f0ff", (root, def) => {
   const parts = [title(root, def, C.ink, "#6d28d9", "#6d28d9")];
+  const note = css(el("div", "abs", root, def.note), { left: `${M}px`, top: "190px", font: "700 28px/1.2 Mono", color: "#6d28d9" });
+  parts.push((time) => { note.style.opacity = enter(time, def.from + 0.75, 0.5); });
   const list = css(el("div", "abs", root), { left: `${M}px`, top: "290px", width: "900px", display: "flex", flexDirection: "column", gap: "14px" });
   const rows = def.files.map((file) => {
     const row = css(el("div", "", list), { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: "14px", padding: "20px 28px", font: "400 32px/1 Mono", color: C.ink, boxShadow: "0 10px 30px rgba(26,43,73,0.08)" });
@@ -263,7 +265,7 @@ scene(byId("migrate"), "#f3f0ff", (root, def) => {
       row.style.opacity = appear;
       row.style.transform = `translateX(${(1 - appear) * -60}px)`;
       const done = time >= beatTime(def.filesAt + i * 0.5);
-      status.textContent = done ? "✓ editable draft" : "converting…";
+      status.textContent = done ? "✓ draft · review" : "importing…";
       status.style.color = done ? "#15803d" : C.muted;
     });
     docs.forEach((page, i) => {
@@ -298,15 +300,16 @@ scene(byId("montage"), C.navy, (root, def) => {
 scene(byId("stats"), C.navy, (root, def) => {
   const cols = def.stats.map(([at, value, label], i) => {
     const col = css(el("div", "abs", root), { left: `${M + i * 590}px`, top: "300px", width: "560px", color: "#fff" });
-    const num = css(el("div", "display", col, "0"), { fontSize: "300px", color: i === 2 ? C.gold : "#fff" });
+    const numeric = Number.isFinite(Number(value));
+    const num = css(el("div", "display", col, numeric ? "0" : value), { fontSize: numeric ? "300px" : "220px", color: i === 2 ? C.gold : "#fff" });
     css(el("div", "", col, label), { font: "400 48px/1.2 Display", color: "rgba(255,255,255,0.75)", marginTop: "10px" });
-    return { col, num, at, value: Number(value) };
+    return { col, num, at, value: Number(value), numeric };
   });
-  return [(time) => cols.forEach(({ col, num, at, value }) => {
+  return [(time) => cols.forEach(({ col, num, at, value, numeric }) => {
     const p = enter(time, at, 0.6, back);
     col.style.opacity = clamp(p * 2);
     col.style.transform = `translateY(${(1 - p) * 60}px)`;
-    num.textContent = String(Math.round(value * expo(clamp((time - beatTime(at)) / (BEAT * 1.5)))));
+    if (numeric) num.textContent = String(Math.round(value * expo(clamp((time - beatTime(at)) / (BEAT * 1.5)))));
   })];
 });
 

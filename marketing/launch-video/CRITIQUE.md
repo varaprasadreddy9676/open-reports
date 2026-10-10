@@ -72,3 +72,10 @@ Kinetic hook, stamped pain cards, iris reveal, live footage, stamps, montage and
 - Scene detection finds every scheduled scene start (4, 8, 12, 18, 22, 28, 34, 38, 44, 48, 52, 56, 60 s) plus the intended per-beat cuts in the hook, the format stamps and the montage.
 - 182 sound cues, 93 of them from captured clicks and keystrokes.
 - Loudness −12.6 LUFS integrated, −2.2 dBFS peak after AAC (first master peaked at −0.3; headroom added).
+
+## Accuracy pass — 11 October 2026
+
+- Removed the inaccurate "desktop-only designers" and "per-seat licences" comparison. Jaspersoft offers Web Studio, and its community edition is free; the film now focuses on common report-workflow friction without implying those are universal competitor limitations.
+- Changed the JRXML scene from an implied conversion to a reviewable starting draft. The encoded frame says "Partial import · review every report before use" and each sample file ends as "draft · review".
+- Replaced the zero-fee comparison with the project's MIT open-source licence. Updated the stats renderer to support a non-numeric value without displaying `NaN`.
+- Rendered a fresh contact sheet and inspected the encoded JRXML and MIT frames. The film is 1920 × 1080, H.264/AAC, 30 fps, 64 seconds.
