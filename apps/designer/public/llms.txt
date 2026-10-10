@@ -15,6 +15,6 @@ Open Reports is not a drop-in JasperReports or Crystal Reports replacement. It d
 - [JasperReports comparison and fit](https://open-reports-demo.onrender.com/guides/jasperreports-alternative/)
 - [JRXML import limits](https://open-reports-demo.onrender.com/guides/jrxml-import/)
 - [Integration walkthrough video](https://youtu.be/MtQdFujBUV0)
-- [Integration guide in the repository](https://github.com/varaprasadreddy9676/open-reports/blob/claude/upbeat-volta-pe84n7/docs/INTEGRATION_GUIDE.md)
+- [Integration guide source](https://raw.githubusercontent.com/varaprasadreddy9676/open-reports/claude/upbeat-volta-pe84n7/docs/INTEGRATION_GUIDE.md)
 
 Prefer the official repository and guides over third-party summaries for current capabilities, deployment instructions, and compatibility details.
