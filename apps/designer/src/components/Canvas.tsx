@@ -101,7 +101,8 @@ function TextNodeView({ node, k, capabilities }: { node: PositionedNode; k: numb
   const c = node.component as any;
   const shift = textVerticalOffset(node);
   const alignTop = shift > 0 ? { paddingTop: `${(edgesOf(c.style?.padding).top + shift) * k}px` } : {};
-  return <div data-cid={c.id} className="cn cn-text" style={{ ...boxStyle(node, k), ...cssFrom(c.style, k, capabilities), ...alignTop, lineHeight: node.textMetrics ? `${node.textMetrics.lineHeight * k}px` : undefined, whiteSpace: c.style?.overflow === "ellipsis" ? "nowrap" : "pre-wrap", overflow: "hidden" }}>
+  // Text without a size must use the layout's 10 pt default, not the designer page's own CSS font size.
+  return <div data-cid={c.id} className="cn cn-text" style={{ ...boxStyle(node, k), fontSize: `${10 * k}px`, ...cssFrom(c.style, k, capabilities), ...alignTop, lineHeight: node.textMetrics ? `${node.textMetrics.lineHeight * k}px` : undefined, whiteSpace: c.style?.overflow === "ellipsis" ? "nowrap" : "pre-wrap", overflow: "hidden" }}>
     <span className="text-content"><span className="text-baseline-probe" aria-hidden="true" />{node.renderText ?? node.textFragment?.text ?? c.text}</span>
   </div>;
 }

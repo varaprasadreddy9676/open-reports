@@ -68,3 +68,19 @@ test("canvas loads the PDF renderer's Telugu face and exports it embedded", asyn
     fs.rmSync(file, { force: true });
   }
 });
+
+test("canvas text without a size uses the layout's 10 pt default", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("starter-blank").click();
+  await expect(page.getByTestId("page-1")).toBeVisible();
+  await page.evaluate(() => {
+    const store = (window as any).__designer.getState();
+    store.loadDoc({ ...store.doc, id: "default-size", name: "Default size", sections: [{ type: "detail", children: [
+      { type: "text", id: "sized", value: "Twenty point", style: { fontSize: 20 } },
+      { type: "text", id: "unsized", value: "Default size" },
+    ] }] });
+  });
+  await expect(page.locator('[data-cid="unsized"]')).toBeVisible();
+  const size = (id: string) => page.locator(`[data-cid="${id}"]`).evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
+  expect((await size("unsized")) / (await size("sized"))).toBeCloseTo(0.5, 2);
+});
