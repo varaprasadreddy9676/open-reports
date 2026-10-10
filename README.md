@@ -10,6 +10,8 @@ Open source (MIT) · self-hosted · no seats, no per-document fees
 
 [Try the live demo](https://open-reports-demo.onrender.com) · [Quick start](#quick-start) · [Tour](#a-quick-tour) · [Use it from your app](#use-it-from-your-app) · [Docs](#documentation) · [Give feedback](https://github.com/varaprasadreddy9676/open-reports/issues/new?template=1-feedback.yml)
 
+If this is useful to your team, [star the repository](https://github.com/varaprasadreddy9676/open-reports) to help other developers discover it. Honest feedback and issue reports are welcome too.
+
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/varaprasadreddy9676/open-reports) [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/varaprasadreddy9676/open-reports)
 
 [![Watch practical Open Reports demos](apps/designer/public/demo-videos/invoice-to-pdf-poster.jpg)](https://open-reports-demo.onrender.com/?tour=1)
