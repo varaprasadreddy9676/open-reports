@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open Reports: an open-source JasperReports alternative for embedded web design</title>
+  <meta name="description" content="Compare Open Reports with JasperReports: a self-hosted browser designer and JSON rendering engine for applications, with a partial JRXML importer that requires review.">
+  <link rel="canonical" href="https://open-reports-demo.onrender.com/guides/jasperreports-alternative/">
+  <link rel="stylesheet" href="/guides/guides.css">
+  <meta property="og:title" content="Open Reports and JasperReports: what is different">
+  <meta property="og:description" content="A practical comparison for teams evaluating an embeddable, self-hosted report designer and rendering API.">
+  <meta property="og:type" content="article">
+</head>
+<body>
+  <header class="top"><nav><a class="brand" href="/">open.reports</a><a href="https://github.com/varaprasadreddy9676/open-reports">Source code on GitHub ↗</a></nav></header>
+  <main>
+    <p class="eyebrow">Reporting tools · Practical comparison</p>
+    <h1>Considering an open-source JasperReports alternative?</h1>
+    <p class="lede">Open Reports is a self-hosted reporting engine with a browser-based visual designer. It is designed for teams that want to create and render reports from applications, including letting their own users edit layouts.</p>
+    <div class="actions"><a href="/">Try the live designer</a><a href="https://github.com/varaprasadreddy9676/open-reports">Review the source and license</a></div>
+    <section class="panel"><strong>It is not a drop-in JasperReports replacement.</strong><p>Open Reports uses its own JSON report definition and rendering engine. JRXML import is partial: imported files become editable drafts with conversion notes, and output must be reviewed against the source report. Existing `.jasper` compiled files do not run in Open Reports.</p><p>Keep JasperReports where you rely on behavior Open Reports has not implemented or parity-tested.</p></section>
+    <h2>How the approaches differ</h2>
+    <ul>
+      <li><strong>Design:</strong> Open Reports provides a browser designer that can run standalone or be embedded in an application. JasperReports commonly uses Jaspersoft Studio for visual design.</li>
+      <li><strong>Definition:</strong> Open Reports uses versionable JSON definitions. JasperReports uses JRXML source and compiled `.jasper` artifacts.</li>
+      <li><strong>Integration:</strong> Open Reports exposes a REST render API and web components. The host application can own report definitions, data, authentication, and persistence.</li>
+      <li><strong>Migration:</strong> JRXML can be imported as a starting point, with per-feature statuses such as converted, needs review, and unsupported. This does not establish full Jasper feature or PDF parity.</li>
+    </ul>
+    <h2>Where Open Reports may fit</h2>
+    <p>Evaluate it when you want users to design reports in a browser, embed a designer or viewer in your application, keep report JSON in your own storage, or render practical documents such as invoices, statements, labels, or receipts over HTTP.</p>
+    <p>It supports PDF, Word, Excel, HTML, CSV, ZPL and ESC/POS output. Check the current examples and migration notes for the exact behavior your reports need.</p>
+    <h2>Try one report before planning a migration</h2>
+    <ol><li>Choose one representative report and its real data shape.</li><li>Import the JRXML and resolve every review or unsupported item.</li><li>Render the same input in both systems and compare page setup, pagination, fonts, images, and values.</li><li>Keep the original Jasper path available until your acceptance criteria pass.</li></ol>
+    <p class="callout">See the <a href="/guides/jrxml-import/">JRXML import scope</a>, the <a href="/guides/embed-report-designer/">embedding guide</a>, or the <a href="/guides/render-json-report-api/">JSON render API example</a>.</p>
+  </main>
+  <footer><p><a href="/">Open Reports demo</a> · <a href="https://github.com/varaprasadreddy9676/open-reports">GitHub repository</a> · MIT license</p><p>Claims on this page describe the current project; verify compatibility with your own reports and release.</p></footer>
+</body>
+</html>

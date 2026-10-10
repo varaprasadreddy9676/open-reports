@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import JRXML into Open Reports: scope and migration checks</title>
+  <meta name="description" content="Open Reports can import JRXML files or folders into editable JSON drafts. Review converted, needs-review, and unsupported items; this is not full JasperReports parity.">
+  <link rel="canonical" href="https://open-reports-demo.onrender.com/guides/jrxml-import/">
+  <link rel="stylesheet" href="/guides/guides.css"><meta property="og:type" content="article">
+</head>
+<body>
+  <header class="top"><nav><a class="brand" href="/">open.reports</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/JRXML_MIGRATION.md">Full migration evidence ↗</a></nav></header>
+  <main>
+    <p class="eyebrow">Migration guide · JasperReports source</p>
+    <h1>What happens when you import a JRXML report?</h1>
+    <p class="lede">Open Reports reads JasperReports XML source and creates an editable JSON draft. Import gives you a starting point for migration; it does not guarantee the same output or behavior.</p>
+    <div class="actions"><a href="/">Try importing in the designer</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/JRXML_MIGRATION.md">Read the detailed migration report</a></div>
+    <section class="panel"><strong>JRXML is source. `.jasper` is not used.</strong><p>Open Reports does not execute or load compiled `.jasper` files. Its native editable report definition is JSON. Import a `.jrxml` file or folder, then save or export the resulting JSON definitions.</p></section>
+    <h2>Read each import status</h2>
+    <ul><li><strong>Converted:</strong> a source feature was mapped to an Open Reports component or behavior.</li><li><strong>Needs review:</strong> an approximation or semantic difference may need a manual correction.</li><li><strong>Unsupported:</strong> the source feature does not currently have an equivalent conversion.</li></ul>
+    <p>Use the import report to locate each item. Rebind datasets and parameters in the host environment; database connection credentials and query execution are not copied as trusted live connections.</p>
+    <h2>Common review areas</h2>
+    <p>Expression languages, variable evaluation and reset rules, complex subreports, data-source behavior, fonts, linked images, pagination, and renderer-specific details can affect parity. The importer may convert some common forms, but every report's diagnostics and output are the evidence for that report.</p>
+    <h2>Migration checklist</h2>
+    <ol><li>Choose a representative JRXML and collect its referenced assets and a safe sample data set.</li><li>Import the JRXML and any related report files; inspect every diagnostic.</li><li>Rebind parameters, datasets, image paths, fonts, and any child reports.</li><li>Render the same input in JasperReports and Open Reports.</li><li>Compare page size, orientation, margins, repeated bands, page breaks, text, totals, fonts, images, and printer output as applicable.</li><li>Keep the existing Jasper workflow until the report meets your own acceptance criteria.</li></ol>
+    <p class="callout">The project documents both successful synthetic comparisons and remaining gaps. A result for one sample is not proof of parity for another JRXML file. See the <a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/JRXML_MIGRATION.md">migration evidence and limitations</a>.</p>
+  </main>
+  <footer><p><a href="/">Open Reports demo</a> · <a href="https://github.com/varaprasadreddy9676/open-reports">GitHub repository</a> · MIT license</p><p>Migration outcomes vary by report, input data, fonts, and source runtime.</p></footer>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Embed a report designer or viewer in your application | Open Reports</title>
+  <meta name="description" content="Embed the Open Reports designer or report viewer in a web application with custom elements or JavaScript. Keep authentication, data access, and saved JSON in your host app.">
+  <link rel="canonical" href="https://open-reports-demo.onrender.com/guides/embed-report-designer/">
+  <link rel="stylesheet" href="/guides/guides.css"><meta property="og:type" content="article">
+</head>
+<body>
+  <header class="top"><nav><a class="brand" href="/">open.reports</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/EMBEDDING.md">Full embedding reference ↗</a></nav></header>
+  <main>
+    <p class="eyebrow">Integration guide · Web components</p>
+    <h1>Put the report designer inside your application</h1>
+    <p class="lede">Open Reports can provide a report viewer or the full visual designer inside a web application. Your application remains responsible for user identity, permissions, business data, and where saved report definitions live.</p>
+    <div class="actions"><a href="/">Open the demo</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/EMBEDDING.md">Read all embed options</a></div>
+    <h2>Start with a viewer or designer element</h2>
+    <p>Load the embed module from your Open Reports server, then add the element to a page. The element works in plain HTML and can be used from React, Vue, or Angular.</p>
+    <pre><code>&lt;script type="module"
+  src="https://reports.example.com/embed/open-reports.js"&gt;
+&lt;/script&gt;
+
+&lt;open-report-viewer
+  server="https://reports.example.com"
+  template="invoice"
+  style="height: 720px"&gt;
+&lt;/open-report-viewer&gt;
+
+&lt;open-report-designer
+  server="https://reports.example.com"
+  template="invoice"
+  height="720px"&gt;
+&lt;/open-report-designer&gt;</code></pre>
+    <p>The <code>template</code> attribute selects a report saved in Open Reports' optional template store. For host-owned report JSON, initialize the viewer or designer through the JavaScript API instead.</p>
+    <h2>Keep definitions in your host application</h2>
+    <p>In host mode, load the authorized JSON definition from your application and save edits through your own callback. The host decides the tenant, user permissions, versioning, and persistence.</p>
+    <pre><code>const designer = createDesigner(document.querySelector("#designer"), {
+  server: OPEN_REPORTS_URL,
+  definition: await reportStore.get(tenantId, "invoice"),
+  saveMode: "host",
+  onSaveDefinition: async (nextDefinition) =&gt; {
+    await reportStore.save(tenantId, "invoice", nextDefinition);
+  },
+});</code></pre>
+    <h2>Keep private keys and data on the server</h2>
+    <p>Do not put a privileged API key in browser markup or JavaScript. For private records, let your backend authenticate the user, authorize the requested record, prepare allowed data, and call the render API. Only send sample data to a designer when that editor user is allowed to see it.</p>
+    <p class="callout">The browser integration is a UI surface, not your application’s authorization boundary. Read the <a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/EMBEDDING.md#security">security notes</a> before exposing private reports.</p>
+    <h2>Use a practical first integration</h2>
+    <p>Embed the designer on an internal report-settings screen, save the returned JSON in the host application's normal storage, then call <a href="/guides/render-json-report-api/">POST /api/v1/render</a> from the backend when a user prints or downloads a document.</p>
+  </main>
+  <footer><p><a href="/">Open Reports demo</a> · <a href="https://github.com/varaprasadreddy9676/open-reports">GitHub repository</a> · MIT license</p><p>For exact SDK options and events, use the versioned source documentation linked above.</p></footer>
+</body>
+</html>

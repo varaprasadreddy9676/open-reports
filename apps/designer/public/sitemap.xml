@@ -4,4 +4,8 @@
     <loc>https://open-reports-demo.onrender.com/</loc>
     <lastmod>2026-10-10</lastmod>
   </url>
+  <url><loc>https://open-reports-demo.onrender.com/guides/jasperreports-alternative/</loc><lastmod>2026-10-10</lastmod></url>
+  <url><loc>https://open-reports-demo.onrender.com/guides/embed-report-designer/</loc><lastmod>2026-10-10</lastmod></url>
+  <url><loc>https://open-reports-demo.onrender.com/guides/render-json-report-api/</loc><lastmod>2026-10-10</lastmod></url>
+  <url><loc>https://open-reports-demo.onrender.com/guides/jrxml-import/</loc><lastmod>2026-10-10</lastmod></url>
 </urlset>

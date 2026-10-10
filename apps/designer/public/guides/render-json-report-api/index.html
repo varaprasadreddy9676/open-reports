@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Render a PDF from JSON with the Open Reports REST API</title>
+  <meta name="description" content="Send a report definition, data, and output format to POST /api/v1/render. Open Reports renders inline JSON without requiring a saved template ID.">
+  <link rel="canonical" href="https://open-reports-demo.onrender.com/guides/render-json-report-api/">
+  <link rel="stylesheet" href="/guides/guides.css"><meta property="og:type" content="article">
+</head>
+<body>
+  <header class="top"><nav><a class="brand" href="/">open.reports</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/API.md">Full REST API reference ↗</a></nav></header>
+  <main>
+    <p class="eyebrow">Integration guide · REST API</p>
+    <h1>Render a PDF by sending JSON and data</h1>
+    <p class="lede">The host application can keep each report definition and send it with the data for a render. Open Reports validates the JSON and returns the generated file bytes; it does not look up a stored template for this endpoint.</p>
+    <div class="actions"><a href="/">Try the live demo</a><a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/INTEGRATION_GUIDE.md">Application integration guide</a></div>
+    <h2>Inline definition request</h2>
+    <p>Call <code>POST /api/v1/render</code> from a trusted backend and send <code>report</code>, <code>format</code>, and optional <code>data</code> and <code>parameters</code>.</p>
+    <pre><code>const response = await fetch(`${OPEN_REPORTS_URL}/api/v1/render`, {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    "x-api-key": OPEN_REPORTS_API_KEY,
+  },
+  body: JSON.stringify({
+    report: invoiceDefinition,
+    format: "pdf",
+    data: { invoice: authorizedInvoice },
+  }),
+});
+if (!response.ok) throw new Error(`Render failed: ${response.status}`);
+const pdfBytes = Buffer.from(await response.arrayBuffer());</code></pre>
+    <h2>Do you need a template ID?</h2>
+    <p><strong>No</strong>, not for <code>POST /api/v1/render</code> when you include the full report definition in the request. The <code>id</code> inside that JSON is report metadata, not a lookup key.</p>
+    <p>A template ID is needed only for the separate optional saved-template endpoint <code>POST /api/v1/templates/{templateId}/render</code>. Use that when Open Reports should manage saved drafts and published versions.</p>
+    <h2>Different customers and branding</h2>
+    <p>The host can select the customer's report definition using its own authenticated tenant/report mapping. If customers share one layout, send their logo URL, header text, footer text, and business data as render data. For different layouts, send the definition selected by the host. Open Reports does not infer customer identity or authorize access to records.</p>
+    <h2>Security and output</h2>
+    <ul><li>Keep API keys in the host backend or secret store; do not expose privileged keys in browser code.</li><li>Authorize the current user and retrieve only the data they may print.</li><li>The REST response contains raw bytes such as <code>application/pdf</code>. If another system requires Base64, encode those bytes in the host application.</li></ul>
+    <p class="callout">See the <a href="https://github.com/varaprasadreddy9676/open-reports/blob/main/docs/API.md">API reference</a> for cURL, Node, Python, Java, C#, and Go examples, errors, template endpoints, and asynchronous rendering.</p>
+  </main>
+  <footer><p><a href="/">Open Reports demo</a> · <a href="https://github.com/varaprasadreddy9676/open-reports">GitHub repository</a> · MIT license</p><p>Confirm the host's authorization, data handling, and output requirements before using a report in production.</p></footer>
+</body>
+</html>
