@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acme Orders · Reporting integration walkthrough</title>
+  <style>
+    :root { color-scheme: light; --ink:#16263d; --muted:#65758b; --line:#e1e7ef; --blue:#2f68dc; --blue-bg:#edf3ff; --green:#087a55; }
+    * { box-sizing:border-box }
+    body { margin:0; background:#f5f7fb; color:var(--ink); font:14px/1.45 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif }
+    header { height:68px; display:flex; align-items:center; justify-content:space-between; padding:0 36px; background:#fff; border-bottom:1px solid var(--line) }
+    .brand { display:flex; align-items:center; gap:11px; font-size:17px; font-weight:750; letter-spacing:-.03em }
+    .mark { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:linear-gradient(145deg,#244b85,#3478dc); color:#fff; font-weight:800 }
+    .top-right { display:flex; align-items:center; gap:20px; color:var(--muted); font-size:13px }
+    main { max-width:1480px; margin:28px auto; padding:0 28px }
+    .crumb { color:var(--muted); margin-bottom:14px }
+    h1 { margin:0; font-size:28px; letter-spacing:-.04em }
+    .sub { margin:5px 0 24px; color:var(--muted) }
+    .bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px }
+    .tabs { display:flex; gap:5px; padding:4px; background:#e9edf4; border-radius:10px }
+    .tabs button { border:0; background:transparent; color:#5c6c82; padding:9px 15px; border-radius:7px; font:inherit; cursor:pointer }
+    .tabs button.active { background:#fff; color:#183458; box-shadow:0 1px 4px #1c33531c; font-weight:650 }
+    button.action { border:0; border-radius:8px; padding:10px 16px; background:var(--blue); color:#fff; font:inherit; font-weight:650; cursor:pointer; box-shadow:0 3px 9px #2f68dc30 }
+    button.action.secondary { background:#fff; color:#24436e; border:1px solid #d3ddea; box-shadow:none }
+    button:disabled { opacity:.55; cursor:wait }
+    .sheet { min-height:660px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 34px #2036540b; overflow:hidden }
+    .invoice { max-width:1100px; margin:0 auto; padding:30px 0 42px }
+    .invoice-head { display:flex; align-items:center; justify-content:space-between; padding:20px 26px 24px; border-bottom:1px solid var(--line) }
+    .seller { display:flex; gap:16px; align-items:center }
+    .seller-logo { width:56px; height:56px; border:1px solid #dce5ef; border-radius:12px; object-fit:contain; padding:7px }
+    .seller h2 { margin:0; font-size:20px; letter-spacing:-.03em }
+    .seller p,.bill-meta p { margin:3px 0 0; color:var(--muted); font-size:12px }
+    .bill-meta { text-align:right }
+    .bill-meta strong { display:block; font-size:22px; letter-spacing:-.03em }
+    .invoice-info { display:grid; grid-template-columns:1fr 1fr; padding:24px 26px 18px }
+    .invoice-info small,.label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:700 }
+    .invoice-info strong { display:block; margin-top:4px; font-size:15px }
+    table { width:100%; border-collapse:collapse; margin-top:6px }
+    th { background:#f7f9fc; color:#607189; font-size:11px; letter-spacing:.07em; text-transform:uppercase; text-align:left }
+    th,td { padding:13px 26px; border-bottom:1px solid #edf0f4 }
+    td:not(:first-child),th:not(:first-child) { text-align:right }
+    .totals { width:360px; margin:20px 26px 0 auto }
+    .total-row { display:flex; justify-content:space-between; padding:6px 0; color:#53647a }
+    .total-row.grand { margin-top:7px; padding-top:14px; border-top:1px solid #cbd5e2; color:var(--ink); font-size:19px; font-weight:750 }
+    .invoice-foot { margin-top:35px; padding:13px 26px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; display:flex; justify-content:space-between }
+    .hidden { display:none!important }
+    #editor-view { min-height:720px }
+    #designer { display:block; min-height:720px; border-radius:10px; overflow:hidden; background:white }
+    .edit-header { display:flex; align-items:center; justify-content:space-between; padding:13px 20px; background:#fff; border-bottom:1px solid var(--line) }
+    .edit-header strong { font-size:15px }
+    .edit-header span { color:var(--muted); font-size:12px }
+    #save-state[data-state="saved"] { color:var(--green); font-weight:650 }
+    .trace { margin-top:16px; border:1px solid var(--line); border-radius:10px; background:#fff; overflow:hidden }
+    .trace summary { padding:12px 16px; cursor:pointer; font-weight:650; color:#445974 }
+    .trace pre { margin:0; padding:16px 18px; background:#10243d; color:#dce8f7; font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; overflow:auto }
+    .toast { position:fixed; right:24px; bottom:24px; padding:13px 17px; border-radius:9px; color:#fff; background:#173d65; box-shadow:0 8px 24px #15283d33; opacity:0; transform:translateY(8px); transition:.2s; pointer-events:none }
+    .toast.show { opacity:1; transform:translateY(0) }
+    .preview-wrap { position:fixed; inset:0; z-index:20; display:grid; grid-template-rows:auto 1fr; background:#1c2532; padding:18px }
+    .preview-head { display:flex; justify-content:space-between; align-items:center; color:#fff; padding:0 6px 12px }
+    .preview-head button { background:#fff; color:#1b2d46; border:0; border-radius:7px; padding:8px 13px; cursor:pointer; font:inherit }
+    .pdf-surface { display:flex; align-items:center; justify-content:center; min-height:0; overflow:auto; border-radius:8px; background:#69727e }
+    #pdf-canvas { display:block; max-width:100%; max-height:100%; background:#fff; box-shadow:0 8px 28px #10172255 }
+    @media(max-width:900px) { main{padding:0 14px}.invoice{padding:10px}.invoice-head{padding:18px}.totals{width:auto;margin-right:18px} }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><span class="mark">A</span><span>Acme Orders</span></div><div class="top-right"><span>Orders</span><span>Customers</span><span>Reports</span><span>● Maya Chen</span></div></header>
+  <main>
+    <div class="crumb">Sales <span> / </span> Invoices <span> / </span> <strong>INV-2048</strong></div>
+    <div class="bar">
+      <div><h1 id="title">Invoice INV-2048</h1><p class="sub" id="subtitle">Asha Rao · Issued 9 October 2026 · Paid</p></div>
+      <div style="display:flex;gap:9px"><button class="action secondary" id="print" data-testid="print">Print</button><button class="action secondary" id="download" data-testid="download">Download PDF</button><button class="action" id="design" data-testid="design">Design report</button></div>
+    </div>
+    <div class="tabs" role="tablist"><button id="tab-invoice" class="active" data-testid="tab-invoice">Invoice</button><button id="tab-report" data-testid="tab-report">Report editor</button></div>
+    <section class="sheet" id="invoice-view">
+      <article class="invoice">
+        <div class="invoice-head"><div class="seller"><img class="seller-logo" id="seller-logo" src="/assets/acme-mark.png" alt="Acme company mark"><div><h2 id="seller-name">ACME SUPPLY CO.</h2><p>1200 Market Street · Bengaluru 560001 · +91 80 5550 2048</p></div></div><div class="bill-meta"><strong>TAX INVOICE</strong><p>INV-2048</p></div></div>
+        <div class="invoice-info"><div><small>Bill to</small><strong>Asha Rao</strong><p>asha.rao@example.test</p></div><div style="text-align:right"><small>Invoice date</small><strong>9 October 2026</strong><p>Payment status · Paid</p></div></div>
+        <table><thead><tr><th>Description</th><th>Qty</th><th>Unit price</th><th>Amount</th></tr></thead><tbody id="items"></tbody></table>
+        <div class="totals"><div class="total-row"><span>Subtotal</span><span id="subtotal">₹0.00</span></div><div class="total-row"><span>GST · 18%</span><span id="tax">₹0.00</span></div><div class="total-row grand"><span>Total paid</span><span id="total">₹0.00</span></div></div>
+        <div class="invoice-foot"><span>Thank you for your business.</span><span id="footer-brand">ACME SUPPLY CO. · GSTIN 29ABCDE1234F1Z5</span></div>
+      </article>
+    </section>
+    <section class="sheet hidden" id="editor-view"><div class="edit-header"><div><strong>Invoice layout</strong><span> · Host owned definition</span></div><span id="save-state" data-state="saved">Saved · version 1</span></div><div id="designer"></div></section>
+    <details class="trace" id="developer-trace" data-testid="developer-trace"><summary>Developer view · integration request</summary><div style="display:flex;align-items:center;gap:12px;padding:12px 16px;color:#52647d;border-bottom:1px solid var(--line)"><label for="definition-source">Report definition source</label><select id="definition-source" data-testid="definition-source" style="padding:7px 10px;border:1px solid #d8e1ec;border-radius:7px;color:#263d5d"><option value="file">Host file path</option><option value="object">JSON already in memory</option><option value="url">Trusted definition URL</option></select><label for="client-brand">Client branding</label><select id="client-brand" data-testid="client-brand" style="padding:7px 10px;border:1px solid #d8e1ec;border-radius:7px;color:#263d5d"><option value="acme">Acme Supply</option><option value="northstar">Northstar Clinic</option></select><span>Each source becomes <code>{ report, format, data }</code> at the engine.</span></div><pre id="trace-output" data-testid="trace-output">No render request yet. The application will record the real host-to-engine request here.</pre></details>
+  </main>
+  <div class="toast" id="toast" aria-live="polite"></div>
+  <div id="pdf-modal" class="preview-wrap hidden" data-testid="pdf-modal"><div class="preview-head"><strong id="pdf-title">Invoice PDF</strong><div><button id="open-print" data-testid="open-print">Open print dialog</button> <button id="close-pdf" data-testid="close-pdf">Close</button></div></div><div class="pdf-surface" id="pdf-surface"><canvas id="pdf-canvas" aria-label="First page of the rendered invoice PDF"></canvas></div></div>
+  <script type="module">
+    import "http://localhost:3000/embed/open-reports.js";
+    import { loadPdfjs } from "http://localhost:3000/src/lib/pdf-viewer.ts";
+    const $ = (id) => document.getElementById(id);
+    const data = { invoice:{ number:"INV-2048", customer:"Asha Rao", email:"asha.rao@example.test", date:"9 October 2026", status:"Paid", subtotal:15400, tax:2772, total:18172 }, items:[
+      {description:"Professional services",quantity:2,rate:4200,amount:8400},
+      {description:"Implementation package",quantity:1,rate:3800,amount:3800},
+      {description:"Annual support plan",quantity:1,rate:3200,amount:3200}
+    ], branding:[{name:"ACME SUPPLY CO.",address:"1200 Market Street · Bengaluru 560001",phone:"+91 80 5550 2048",gstin:"29ABCDE1234F1Z5",footer:"Thank you for your business."}] };
+    const money = new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"});
+    const brands={acme:{name:"ACME SUPPLY CO.",logo:"/assets/acme-mark.png",address:"1200 Market Street · Bengaluru 560001",phone:"+91 80 5550 2048",gstin:"29ABCDE1234F1Z5",footer:"Thank you for your business."},northstar:{name:"NORTHSTAR CLINIC",logo:"/assets/acme-certification.png",address:"44 Residency Road · Bengaluru 560025",phone:"+91 80 4567 8900",gstin:"29NORTH1234F1Z8",footer:"Thank you for choosing Northstar Clinic."}};
+    $("items").innerHTML = data.items.map(r=>`<tr><td>${r.description}</td><td>${r.quantity}</td><td>${money.format(r.rate)}</td><td>${money.format(r.amount)}</td></tr>`).join("");
+    $("subtotal").textContent=money.format(15400); $("tax").textContent=money.format(2772); $("total").textContent=money.format(18172);
+    let designer = null; let pdfUrl = null; let sourceMode = "file";
+    function toast(text){$("toast").textContent=text;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2400)}
+    function showTab(tab){const editing=tab==="report";$("invoice-view").classList.toggle("hidden",editing);$("editor-view").classList.toggle("hidden",!editing);$("tab-invoice").classList.toggle("active",!editing);$("tab-report").classList.toggle("active",editing);if(editing)void startDesigner()}
+    async function startDesigner(){if(designer)return;const response=await fetch("/app-api/definition");const definition=await response.json();const el=document.createElement("open-report-designer");el.setAttribute("server","http://localhost:3000");el.setAttribute("save-mode","host");el.setAttribute("height","710px");el.definition=definition;el.data=data;el.onSaveDefinition=async next=>{const saved=await fetch("/app-api/definition",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(next)});if(!saved.ok)throw new Error("Host could not save the definition");const result=await saved.json();$("save-state").dataset.state="saved";$("save-state").textContent=`Saved · version ${result.version}`;toast("Report definition saved in Acme Orders");};el.addEventListener("designer-ready",()=>{el.designer?.load(definition,{data})});el.addEventListener("report-dirty",e=>{if(e.detail.dirty){$("save-state").dataset.state="dirty";$("save-state").textContent="Unsaved changes"}});el.addEventListener("report-error",e=>{$("save-state").textContent=`Save failed · ${e.detail.message}`});$("designer").replaceChildren(el);designer=el;}
+    async function render(kind) {
+      const button = $(kind); button.disabled = true;
+      const original = button.textContent;
+      button.textContent = kind === "print" ? "Preparing print…" : "Generating PDF…";
+      try {
+        const reportSource = $("definition-source").value; sourceMode = reportSource;
+        const request = { source: sourceMode, format: "pdf", brandId: $("client-brand").value, data };
+        if (sourceMode === "object") request.report = await fetch("/app-api/definition").then((r) => r.json());
+        const response = await fetch("/app-api/render", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
+        if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+        const bytes = await response.arrayBuffer();
+        const byteLength = bytes.byteLength;
+        const id = response.headers.get("x-render-id") || "not returned";
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        pdfUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        const trace = await fetch("/app-api/trace").then((r) => r.json());
+        $("trace-output").textContent = JSON.stringify(trace, null, 2);
+        $("pdf-modal").classList.remove("hidden");
+        await new Promise(requestAnimationFrame);
+        const pdfjs = await loadPdfjs();
+        const pdf = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
+        const firstPage = await pdf.getPage(1);
+        const base = firstPage.getViewport({ scale: 1 });
+        const surface = $("pdf-surface");
+        const scale = Math.min((surface.clientWidth - 32) / base.width, (surface.clientHeight - 32) / base.height);
+        const viewport = firstPage.getViewport({ scale });
+        const canvas = $("pdf-canvas");
+        canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+        await firstPage.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        $("pdf-title").textContent = `${kind === "print" ? "Print preview" : "Download ready"} · ${pdf.numPages} page${pdf.numPages === 1 ? "" : "s"} · ${byteLength.toLocaleString()} bytes · ${id}`;
+        if (kind === "download") {
+          const link = document.createElement("a"); link.href = pdfUrl; link.download = "INV-2048-Acme-Orders.pdf"; link.click();
+          toast("PDF downloaded from the reporting engine");
+        } else toast("Printable PDF is ready");
+      } catch (error) { toast(`Could not create PDF · ${error.message}`); }
+      finally { button.disabled = false; button.textContent = original; }
+    }
+    $("tab-invoice").onclick=()=>showTab("invoice");$("tab-report").onclick=()=>showTab("report");$("design").onclick=()=>showTab("report");$("download").onclick=()=>void render("download");$("print").onclick=()=>void render("print");$("close-pdf").onclick=()=>$("pdf-modal").classList.add("hidden");$("open-print").onclick=()=>{
+      if(!pdfUrl)return;
+      const printWindow=window.open(pdfUrl,"_blank");
+      if(!printWindow){toast("Allow pop-ups to open the print dialog");return;}
+      printWindow.addEventListener("load",()=>setTimeout(()=>printWindow.print(),250),{once:true});
+    };
+    $("definition-source").onchange=()=>{sourceMode=$("definition-source").value};
+    $("client-brand").onchange=()=>{const brand=brands[$("client-brand").value];$("seller-name").textContent=brand.name;$("seller-logo").src=brand.logo;$("footer-brand").textContent=`${brand.name} · GSTIN ${brand.gstin}`;data.branding=[brand];};
+    window.acmeTraining={showTab,render,setSource(mode){sourceMode=mode;$("definition-source").value=mode;return mode}};
+  </script>
+</body>
+</html>

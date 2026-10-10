@@ -1,0 +1,76 @@
+WEBVTT
+
+00:00:04.948 --> 00:00:26.729
+We are going to build an invoice from an empty report, save its JSON in a separate business application, and use that exact definition for Download PDF and Print. Then we will open the designer inside that application, change the invoice, save it back to the host, reload it, and prove the next PDF reflects the edit. Every company and invoice in this walkthrough is fictional.
+
+00:00:29.146 --> 00:00:51.057
+This is Acme Orders, a small fictional order-management application. It has an invoice detail page, a print action, a PDF download action and a report editor. Open Reports is the rendering engine and designer that Acme has embedded into its own product. The application remains responsible for the invoice record, its customers, client branding and access rules.
+
+00:00:54.829 --> 00:01:12.080
+Choose Design report to open the embedded designer. The host starts with a blank A4 portrait definition. We are not opening a prebuilt invoice: the invoice structure will be created in this editor and saved to the host application. The canvas starts empty so we can see each section and component being added.
+
+00:01:17.947 --> 00:01:37.080
+First, add the invoice dataset. The host supplies a representative invoice object with a number, customer, issue date, subtotal, tax and total. We use a single object here because one invoice is being printed. Previewing the sample lets us confirm the JSON is valid and gives the designer field names to bind to.
+
+00:01:42.959 --> 00:02:02.178
+Now add the invoice items as a separate list dataset. This sample has three rows, and each row has a description, quantity, unit rate and amount. Keeping the invoice and its line items separate makes the report easy to render from ordinary application data. At runtime Acme can send current authorized values instead of these examples.
+
+00:02:07.866 --> 00:02:16.739
+Set the report locale and currency once so formatted amounts in the table and summary stay consistent. The host still supplies the invoice values as data.
+
+00:02:29.215 --> 00:02:49.154
+A page header repeats at the top of every printed page, so it is a good place for an organization logo and invoice title. Add that section, place the logo file at a server-reachable URL, and set its size. A public link, an application URL or an embedded image can be used, as long as the rendering server can access the resource.
+
+00:02:50.641 --> 00:03:09.946
+The heading is editable text and the logo is its own image element. That means a report designer can change their positions independently. The host application can also select a client-specific logo when preparing a render. In this example the host keeps approved brand choices and applies the chosen logo to the definition before calling the engine.
+
+00:03:29.959 --> 00:03:48.711
+The detail section holds information for this one invoice, so leave it unbound to a repeating list. Add fields for its number, customer and date from the invoice object. These are values from the sample, not labels hard-coded into the finished bill. When Acme selects another invoice, the same bindings show that invoice’s values.
+
+00:03:57.806 --> 00:04:14.874
+The line-item table uses the items list. Generate its starting columns from the sample fields, then adjust the description, quantity, unit rate and amount. Table Designer is where you can change widths, headers, alignment and totals. The host data already includes each row amount.
+
+00:04:34.808 --> 00:04:46.337
+The subtotal, tax and total are formatted by report formulas from the invoice values the host supplies. The application remains the source of the amounts; the template controls how they are presented.
+
+00:04:53.502 --> 00:05:09.892
+A page footer appears at the bottom of each printed page. Add the company contact line there and preview it with the header. For long invoices this is where repeated page numbers or a short business footer can go. The header and footer belong to the page, while the line-item table repeats with its records.
+
+00:05:16.071 --> 00:05:36.651
+Preview inside the designer runs the actual report renderer. Check the A4 page, company logo, invoice identity, all line items and the totals before using this layout in the host application. If anything overlaps, return to Design and correct the position or size. A canvas selection is not a substitute for checking the resulting PDF.
+
+00:05:41.282 --> 00:05:58.496
+Save now. The designer is embedded in host-save mode, so this Save action sends the edited JSON definition to Acme Orders. The application writes it to its configured report file and confirms the new version. Open Reports has not created a template record or taken ownership of Acme’s storage.
+
+00:06:02.360 --> 00:06:20.124
+Here is the key integration distinction. Acme has an Open Reports base URL, and Acme has its own reportPath, which points to the JSON file in Acme’s storage. The path is meaningful to the host only. Open Reports does not receive that filesystem path and cannot look up the host’s file by itself.
+
+00:06:23.054 --> 00:06:47.414
+When a user clicks Download PDF, Acme’s backend reads the definition at reportPath, checks which invoice this user may access, and prepares the data. The backend then sends POST to the Open Reports render endpoint with a report JSON object, the PDF format and data. The engine returns PDF bytes. Acme can send those bytes to the browser as a download, save them, or attach them to an email.
+
+00:06:48.894 --> 00:07:11.113
+The same request contract works if the host already has the JSON in memory or fetches it from an approved definition URL. In either case the host resolves that source first and sends the definition object as report. A request containing only reportPath or reportUrl is not the render API contract. The templateId workflow is a separate option for teams that choose Open Reports storage.
+
+00:07:14.060 --> 00:07:34.987
+Open Developer view and click Download PDF. This is the real Acme application request. The host trace records which definition source it resolved, the Open Reports endpoint, the render status, content type, response size and render ID. The large PDF is delivered to the browser, while the host keeps its API credentials on the backend.
+
+00:07:39.251 --> 00:08:00.012
+The browser now has the rendered invoice PDF. The user can save this copy, email it or open it for printing. Click Print to run the same host render flow and show the printable PDF. From this preview, the user can choose Open print dialog to continue. This recording shows the returned PDF and print handoff; it does not claim that a physical printer was used.
+
+00:08:04.291 --> 00:08:24.188
+A second client can use the same invoice layout with its own approved logo and footer. Acme selects that client’s brand in its backend and applies those values to a request-specific copy of the JSON definition. The saved standard report stays unchanged. The host then sends this branded report and that client’s invoice data in the same render request.
+
+00:08:27.039 --> 00:08:40.534
+Before leaving the embedded editor, make a small customer-specific change to the business heading. The actual Open Reports designer is running inside Acme Orders, with the host-owned JSON and safe preview data supplied by the application.
+
+00:08:43.349 --> 00:08:57.142
+The selected client logo and business name now come from Acme’s approved branding configuration. The rendering call still uses one report definition and the same endpoint; the host prepares the brand-specific JSON before it sends the request.
+
+00:09:02.358 --> 00:09:21.932
+Select the business heading and edit its text in the content inspector. The designer marks the report as changed, calls Acme’s save callback, and waits for the host to confirm that the JSON was stored. If the host save fails, the editor retains the edits so the user can retry. A success state should only appear after persistence succeeds.
+
+00:09:26.296 --> 00:09:44.110
+Reload the application and reopen the report editor. The updated heading comes back from Acme’s storage, which proves that the host owns the saved definition. Download the invoice again and check the changed heading in the actual rendered PDF. Editing, host save, reload and render all use the same report JSON.
+
+00:09:51.321 --> 00:10:17.918
+The working pattern is simple: the host owns authentication, report lookup, invoice data, client assets and saved JSON; Open Reports owns the report designer and rendering. The host resolves a file, database record, in-memory object or trusted URL, then sends the JSON definition and authorized data to the render endpoint. Keep privileged keys on the backend and validate the PDF with representative invoices before production.

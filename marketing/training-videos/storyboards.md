@@ -408,3 +408,17 @@ The spoken script and real-browser action sequence are maintained together in [`
 **Editable source:** [`record.mjs`](../use-case-videos/record.mjs), demo ID `jasper-folder-migration`.
 
 **Assets:** [MP4](../../apps/designer/public/demo-videos/jasper-folder-migration.mp4) · [captions](../../apps/designer/public/demo-videos/jasper-folder-migration.vtt) · [poster](../../apps/designer/public/demo-videos/jasper-folder-migration-poster.jpg)
+
+### 35. Build and integrate an invoice report (`invoice-application-walkthrough` · 10:23)
+
+**Audience:** Application developers and report authors
+
+**Goal:** Create an invoice from a blank A4 page, save its JSON to a host application, render with file, object and trusted URL sources, apply client branding, then edit, host-save, reload and verify the resulting PDF.
+
+**Chapters:** 00:27 The host application owns the invoice → 00:53 Start with an empty A4 report → 02:18 Create the repeating page header → 03:49 Build the repeating invoice table → 05:10 Check the actual PDF output → 05:37 Save the JSON in Acme Orders → 05:59 Render from the host application → 08:59 Embed the designer and save edits.
+
+The walkthrough uses fictional data and a local Acme Orders fixture. It demonstrates that the host resolves its own report path, object or trusted URL and sends the JSON definition and authorized data to `POST /api/v1/render`. It shows PDF download and print handoff, but does not claim a physical printer was used.
+
+**Editable source:** [`record.mjs`](../use-case-videos/record.mjs), demo ID `invoice-application-walkthrough`.
+
+**Assets:** [MP4](../../apps/designer/public/demo-videos/invoice-application-walkthrough.mp4) · [captions](../../apps/designer/public/demo-videos/invoice-application-walkthrough.vtt) · [transcript](../../apps/designer/public/demo-videos/invoice-application-walkthrough.transcript.txt) · [chapters](../../apps/designer/public/demo-videos/invoice-application-walkthrough.chapters.md) · [poster](../../apps/designer/public/demo-videos/invoice-application-walkthrough-poster.jpg)
