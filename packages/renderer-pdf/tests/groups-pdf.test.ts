@@ -30,7 +30,7 @@ describe("banded report in a real PDF", () => {
     expect((text.match(/Department total/g) ?? []).length).toBe(3);
     pages.forEach((p, i) => expect(p).toContain(`Page ${i + 1} of ${pages.length}`));
     // a department that spans pages shows its header again at the top of the continuation page
-    const repeated = pages.slice(1).filter((p) => /^\s*ACME HOSPITAL\s+Department Revenue\s+Department: /.test(p));
+    const repeated = pages.slice(1).filter((p) => /^\s*NORTHSTAR MEDICAL CENTER\s+Department Revenue\s+Department: /.test(p));
     expect(repeated.length).toBeGreaterThan(0);
   });
 

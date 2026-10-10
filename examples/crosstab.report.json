@@ -11,17 +11,29 @@
       "query": {
         "data": [
           { "region": "North", "service": "Consultation", "amount": 42000 },
+          { "region": "North", "service": "Consultation", "amount": 46000 },
           { "region": "North", "service": "Laboratory", "amount": 28500 },
+          { "region": "North", "service": "Laboratory", "amount": 30500 },
           { "region": "North", "service": "Radiology", "amount": 19600 },
+          { "region": "North", "service": "Radiology", "amount": 21400 },
           { "region": "South", "service": "Consultation", "amount": 37800 },
+          { "region": "South", "service": "Consultation", "amount": 40200 },
           { "region": "South", "service": "Laboratory", "amount": 32100 },
+          { "region": "South", "service": "Laboratory", "amount": 33900 },
           { "region": "South", "service": "Radiology", "amount": 24400 },
+          { "region": "South", "service": "Radiology", "amount": 25600 },
           { "region": "East", "service": "Consultation", "amount": 29400 },
+          { "region": "East", "service": "Consultation", "amount": 30600 },
           { "region": "East", "service": "Laboratory", "amount": 17600 },
+          { "region": "East", "service": "Laboratory", "amount": 18400 },
           { "region": "East", "service": "Radiology", "amount": 22100 },
+          { "region": "East", "service": "Radiology", "amount": 23900 },
           { "region": "West", "service": "Consultation", "amount": 34600 },
+          { "region": "West", "service": "Consultation", "amount": 37400 },
           { "region": "West", "service": "Laboratory", "amount": 26900 },
-          { "region": "West", "service": "Radiology", "amount": 18200 }
+          { "region": "West", "service": "Laboratory", "amount": 29100 },
+          { "region": "West", "service": "Radiology", "amount": 18200 },
+          { "region": "West", "service": "Radiology", "amount": 19800 }
         ]
       }
     }
@@ -31,7 +43,7 @@
       "type": "reportHeader",
       "children": [
         { "type": "text", "value": "Sales by region and service", "style": { "fontSize": 20, "fontWeight": "bold", "color": "#1f2937" }, "bookmark": true },
-        { "type": "text", "value": "Each cell adds the sales amount for one region and one service. Change the row, column, or value fields to make a different summary.", "style": { "fontSize": 10, "color": "#475569" } },
+        { "type": "text", "value": "Each cell summarizes repeated sales for one region and one service. Change the row, column, or value fields to ask a different question.", "style": { "fontSize": 10, "color": "#475569" } },
         { "type": "spacer", "height": 16 }
       ]
     },

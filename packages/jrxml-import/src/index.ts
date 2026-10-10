@@ -15,6 +15,10 @@ export type MigrationIssue = {
   targetId?: string;
   original?: string;
 };
+export type JrxmlFontVariant = "regular" | "bold" | "italic" | "boldItalic";
+/** Logical JRXML font name -> exact PDF face/family selected for each declared style. */
+export type JrxmlFontMappings = Record<string, Partial<Record<JrxmlFontVariant, string>>>;
+export interface JrxmlImportOptions { id?: string; name?: string; sourceName?: string; fontMappings?: JrxmlFontMappings }
 export type ImportResult = {
   report?: ReportDefinition;
   format?: "v6-style" | "v7-style";
@@ -25,6 +29,7 @@ export type ImportResult = {
 type XmlNode = { name: string; attrs: Record<string, string>; text: string; children: XmlNode[]; path: string; line: number };
 type Component = Record<string, unknown>;
 type Section = { id: string; name: string; type: string; height: number; layout: "absolute"; children: Component[]; groupId?: string; dataset?: string; appliesTo?: string; allowSplit?: boolean; newPageBefore?: boolean };
+const STANDARD_PDF_FACES = new Set(["Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic"]);
 
 function local(name: string): string { return name.split(":").pop()!; }
 function children(node: XmlNode, name: string): XmlNode[] { return node.children.filter((c) => local(c.name) === name); }
@@ -69,16 +74,27 @@ function safeAst(expr: Expr): boolean {
     case "unary": return safeAst(expr.expr);
     case "binary": return safeAst(expr.left) && safeAst(expr.right);
     case "conditional": return safeAst(expr.cond) && safeAst(expr.then) && safeAst(expr.else);
-    case "call": return false;
+    case "call": return expr.name === "formatDate" && expr.args.every(safeAst);
   }
 }
 
 /** Translate only data references and operators supported by the expression engine. */
 export function translateJasperExpression(source: string, availableVariables: ReadonlySet<string> = new Set()): string | undefined {
-  const trimmed = source.trim();
+  let trimmed = source.trim();
   if (!trimmed || /\$[RS]\{/.test(trimmed)) return undefined;
+  // Support Jasper's common date-display idiom only when it has a literal
+  // SimpleDateFormat pattern and a single field/parameter/variable argument.
+  const dateFormat = trimmed.match(/^new\s+(?:java\.text\.)?SimpleDateFormat\(("(?:[^"\\]|\\.)*")\)\.format\((\$[FPV]\{[A-Za-z_][\w.]*\})\)$/);
+  if (dateFormat) trimmed = `formatDate(${dateFormat[2]}, ${dateFormat[1]})`;
+  else if (/\bnew\s/.test(trimmed)) {
+    // Jasper commonly boxes arithmetic in new Double(...). Strip only this
+    // wrapper and `.doubleValue()` calls directly attached to Jasper refs.
+    const boxedNumber = trimmed.match(/^new\s+(?:java\.lang\.)?Double\(([\s\S]+)\)$/);
+    if (!boxedNumber) return undefined;
+    trimmed = boxedNumber[1]!.replace(/(\$[FPV]\{[A-Za-z_][\w.]*\})\.doubleValue\(\)/g, "$1");
+  }
   // A Java method/constructor, cast, assignment, or block is never executed by the importer.
-  if (/\bnew\s|\binstanceof\b|(?:^|[^=!<>])=(?!=)|;/.test(trimmed)) return undefined;
+  if (/\bnew\s|\binstanceof\b|\.\w+\s*\(|(?:^|[^=!<>])=(?!=)|;/.test(trimmed)) return undefined;
   let result = trimmed
     .replace(/\$F\{([A-Za-z_][\w.]*)\}/g, (_full, name: string) => `row.${name}`)
     .replace(/\$P\{([A-Za-z_][\w.]*)\}/g, (_full, name: string) => `params.${name}`)
@@ -102,13 +118,13 @@ function javaType(value?: string): "string" | "number" | "boolean" | "date" | "d
 }
 
 function convertPattern(pattern: string): string | undefined {
-  const numeric = pattern.match(/^#,##0(?:\.(0+))?$/) ?? pattern.match(/^0(?:\.(0+))?$/);
-  if (numeric) return numeric[1] ? `number:${numeric[1].length}` : "number";
-  if (/^(?:yyyy|MM|M|dd|d|HH|mm|ss|[-/ :])+$/.test(pattern)) return `date:${pattern}`;
+  const numeric = pattern.match(/^((?:#*,##0|#+0|0))(?:\.(0+))?$/);
+  if (numeric) return `number:${numeric[2]?.length ?? 0}:${numeric[1]!.includes(",") ? "group" : "plain"}`;
+  if (/^(?:yyyy|MM|M|dd|d|HH|hh|H|h|mm|m|ss|s|a|[-/ :])+$/.test(pattern)) return `date:${pattern}`;
   return undefined;
 }
 
-export function importJrxml(xml: string, options: { id?: string; name?: string; sourceName?: string } = {}): ImportResult {
+export function importJrxml(xml: string, options: JrxmlImportOptions = {}): ImportResult {
   const issues: MigrationIssue[] = [];
   const summary: Record<MigrationStatus, number> = { converted: 0, "needs-review": 0, unsupported: 0 };
   const add = (status: MigrationStatus, feature: string, node: XmlNode, message: string, targetId?: string, original?: string) => {
@@ -137,18 +153,22 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
     const resetType = variable.attrs.resetType ?? "Report";
     const incrementType = variable.attrs.incrementType ?? "None";
     const source = content(expressionNode(variable, "variableExpression"));
-    const value = translateJasperExpression(source);
+    const value = translateJasperExpression(source, availableVariables);
     const resetOn = resetType === "Group" ? groupIds.get(variable.attrs.resetGroup) : undefined;
-    if (!name || !/^[A-Za-z_]\w*$/.test(name) || !["Sum", "Count"].includes(calculation) || !value || (resetType !== "Report" && !resetOn) || incrementType !== "None") {
+    if (!name || !/^[A-Za-z_]\w*$/.test(name) || !["Sum", "Count", "Nothing"].includes(calculation) || !value || (resetType !== "Report" && !resetOn) || incrementType !== "None") {
       add("unsupported", "Jasper variable", variable, "Variable calculation/reset needs manual migration.", undefined, source);
       continue;
     }
     const expression = calculation === "Sum"
       ? `(vars.${name} ?? 0) + (${value} ?? 0)`
-      : `(vars.${name} ?? 0) + (${value} != null ? 1 : 0)`;
+      : calculation === "Count"
+        ? `(vars.${name} ?? 0) + (${value} != null ? 1 : 0)`
+        : value;
     variables.push({ id: name, scope: "row", expression, ...(resetOn ? { resetOn } : {}) });
     availableVariables.add(name);
-    add("needs-review", "Jasper variable", variable, `${calculation} mapped to a running variable; check nulls, numeric precision and reset behavior against Jasper.`, name);
+    add("needs-review", "Jasper variable", variable, calculation === "Nothing"
+      ? "Mapped to the current row expression; verify evaluation timing and null handling against Jasper."
+      : `${calculation} mapped to a running variable; check nulls, numeric precision and reset behavior against Jasper.`, name);
   }
   const placeholder = (node: XmlNode, feature: string, expression?: string, base: Component = {}, targetId = id()): Component => {
     add("unsupported", feature, node, `${feature} requires manual migration; a visible placeholder was inserted.`, targetId, expression);
@@ -160,7 +180,7 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
     else add("needs-review", feature, node, "Jasper expression needs manual translation.", targetId, value);
     return expression;
   };
-  const geometry = (node: XmlNode, targetId: string): Component => {
+  const geometry = (node: XmlNode, targetId: string, textElement = false): Component => {
     const el = child(node, "reportElement") ?? node;
     const style: Record<string, unknown> = {};
     if (el.attrs.forecolor) style.color = el.attrs.forecolor;
@@ -168,8 +188,12 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
     const te = child(node, "textElement");
     const font = te && child(te, "font");
     const f = font?.attrs ?? (local(node.name) === "element" ? node.attrs : {});
-    if (f.fontName) style.fontFamily = f.fontName;
+    // Jasper's PDF font name controls the actual face in its PDF exporter. Keep
+    // that name when available so the PDF renderer can reproduce Jasper's
+    // standard PDF font metrics instead of substituting the logical AWT font.
+    if (f.pdfFontName || f.fontName) style.fontFamily = f.pdfFontName || f.fontName;
     if (f.size || f.fontSize) style.fontSize = num(f.size ?? f.fontSize);
+    if (textElement) style.pdfTextOffsetY = num(f.size ?? f.fontSize, 10) * 0.22;
     if (bool(f.isBold ?? f.bold)) style.fontWeight = "bold";
     if (bool(f.isItalic ?? f.italic)) style.italic = true;
     if (bool(f.isUnderline ?? f.underline)) style.underline = true;
@@ -177,8 +201,17 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
     if (align) style.align = align.toLowerCase() === "justified" ? "justify" : align.toLowerCase();
     const vertical = te?.attrs.verticalAlignment ?? el.attrs.vTextAlign;
     if (vertical) style.verticalAlign = vertical.toLowerCase();
-    if (f.pdfFontName || f.pdfEncoding || f.isPdfEmbedded === "true")
-      add("needs-review", "PDF font", font ?? node, "Jasper PDF font name, encoding, or embedding needs font-metric comparison.", targetId);
+    const bold = bool(f.isBold ?? f.bold);
+    const italic = bool(f.isItalic ?? f.italic);
+    const fontVariant: JrxmlFontVariant = bold && italic ? "boldItalic" : bold ? "bold" : italic ? "italic" : "regular";
+    const configuredMapping = Object.entries(options.fontMappings ?? {}).find(([name]) => name.toLowerCase() === (f.fontName ?? "").toLowerCase())?.[1]?.[fontVariant];
+    const pdfFontFace = configuredMapping ?? f.pdfFontName;
+    if (pdfFontFace) style.pdfFontFace = pdfFontFace;
+    const standardEncoding = !f.pdfEncoding || /^(?:cp1252|winansi)$/i.test(f.pdfEncoding);
+    if (!configuredMapping && ((f.pdfFontName && !STANDARD_PDF_FACES.has(f.pdfFontName)) || !standardEncoding || f.isPdfEmbedded === "true"))
+      add("needs-review", "PDF font", font ?? node, "The requested custom font or encoding is not represented by the PDF base fonts; provide the matching font file and compare metrics.", targetId);
+    if (f.fontName && !pdfFontFace && !STANDARD_PDF_FACES.has(f.fontName))
+      add("needs-review", "PDF font mapping", font ?? node, `Jasper logical font "${f.fontName}" has no explicit PDF face. Confirm the actual PDF face and compare weight and text metrics against Jasper.`, targetId);
     const box = child(node, "box");
     if (box) {
       const padding = { top: num(box.attrs.topPadding), right: num(box.attrs.rightPadding), bottom: num(box.attrs.bottomPadding), left: num(box.attrs.leftPadding) };
@@ -214,7 +247,7 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
   const convertElement = (node: XmlNode): Component => {
     const kind = local(node.name) === "element" ? (node.attrs.kind ?? "unknown element") : local(node.name);
     const targetId = id();
-    const g = geometry(node, targetId);
+    const g = geometry(node, targetId, kind === "staticText" || kind === "textField" || kind === "text");
     const base = { ...g, id: targetId };
     if (kind === "staticText") {
       add("converted", kind, node, "Static text and basic geometry converted.", targetId);
@@ -239,11 +272,11 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
     if (kind === "image") {
       const source = content(expressionNode(node, "imageExpression")).trim();
       const literal = source.match(/^"([^"\r\n]+)"$/)?.[1];
-      const binding = source.match(/^\$P\{([A-Za-z_]\w*)\}$/)?.[1];
+      const binding = literal ? undefined : translateJasperExpression(source, availableVariables);
       if (literal || binding) {
         add("converted", kind, node, "Image source retained as a path/URL or parameter binding.", targetId);
         add("needs-review", "image availability", node, "Confirm the rendering service can access this image source.", targetId);
-        return { ...base, type: "image", ...(literal ? { src: literal } : { binding: `params.${binding}` }), whenMissing: "placeholder" };
+        return { ...base, type: "image", ...(literal ? { src: literal } : { binding }), whenMissing: "placeholder" };
       }
       return placeholder(node, "image expression", source, g, targetId);
     }
@@ -430,11 +463,18 @@ export function importJrxml(xml: string, options: { id?: string; name?: string; 
   if (root.attrs.printOrder && root.attrs.printOrder !== "Vertical") add("needs-review", "print order", root, "Horizontal Jasper print order needs layout review.");
   if (bool(root.attrs.isIgnorePagination)) add("needs-review", "ignore pagination", root, "Jasper ignore-pagination output needs a separate Open Reports print profile.");
   if (root.attrs.whenNoDataType && root.attrs.whenNoDataType !== "NoPages") add("needs-review", "empty data behavior", root, `Jasper ${root.attrs.whenNoDataType} behavior needs review.`);
+  const pageWidth = num(root.attrs.pageWidth, 595);
+  const pageHeight = num(root.attrs.pageHeight, 842);
+  const declaredOrientation = root.attrs.orientation?.toLowerCase();
+  const dimensionsOrientation = pageWidth === pageHeight ? undefined : pageWidth > pageHeight ? "landscape" : "portrait";
+  const orientation = dimensionsOrientation ?? (declaredOrientation === "landscape" ? "landscape" : "portrait");
+  if (dimensionsOrientation && declaredOrientation && declaredOrientation !== dimensionsOrientation)
+    add("needs-review", "page orientation", root, `Jasper declares ${declaredOrientation} but pageWidth/pageHeight define ${dimensionsOrientation}; declared dimensions were preserved.`);
   const report = {
     schemaVersion: "1.0", id: options.id ?? `jrxml-${(root.attrs.name ?? "report").replace(/[^A-Za-z0-9_-]/g, "-").toLowerCase()}-${Date.now().toString(36)}`,
     name: options.name ?? root.attrs.name ?? "Imported JRXML", page: {
-      size: "custom", unit: "pt", width: num(root.attrs.pageWidth, 595), height: num(root.attrs.pageHeight, 842),
-      orientation: root.attrs.orientation?.toLowerCase() === "landscape" ? "landscape" : "portrait",
+      size: "custom", unit: "pt", width: pageWidth, height: pageHeight,
+      orientation,
       margin: { top: num(root.attrs.topMargin), right: num(root.attrs.rightMargin), bottom: num(root.attrs.bottomMargin), left: num(root.attrs.leftMargin) },
     },
     parameters, datasets: [{ id: "main", source: "inline", query: [], schema: { kind: "array", fields: fields.filter((f) => f.kind !== "object") } }],

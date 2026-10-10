@@ -57,6 +57,29 @@ const invoiceReport = {
 };
 
 describe("resolveReport (full pipeline)", () => {
+  it("resolves Jasper-style field references in report and page bands from the first main row", async () => {
+    const parsed = parseReportDefinition({
+      schemaVersion: "1.0", id: "receipt", name: "Receipt",
+      datasets: [{ id: "main", source: "inline", query: { data: [
+        { receiptNo: "R-1001", customer: "Test Patient" },
+        { receiptNo: "R-1002", customer: "Another Patient" },
+      ] } }],
+      sections: [
+        { type: "reportHeader", children: [{ type: "text", expression: "row.customer" }] },
+        { type: "pageHeader", children: [{ type: "text", expression: '"Receipt " + row.receiptNo' }] },
+        { type: "detail", dataset: "main", children: [{ type: "text", expression: "row.receiptNo" }] },
+      ],
+    });
+    if (!parsed.valid) throw new Error(JSON.stringify(parsed.issues));
+
+    const { resolved, resolvePageSection } = await resolveReport(parsed.report, { registry: registry() });
+    const reportHeader = sectionChildren(resolved, 0)[0] as ResolvedTextComponent;
+    const pageHeader = resolvePageSection(resolved.sections.find((section) => section.sourceIndex === 1)!, { number: 1, total: 1 })[0] as ResolvedTextComponent;
+
+    expect(reportHeader.text).toBe("Test Patient");
+    expect(pageHeader.text).toBe("Receipt R-1001");
+  });
+
   it("keeps absolute page-header children in one page-master layout", async () => {
     const parsed = parseReportDefinition({ schemaVersion: "1.0", id: "header", name: "Header", sections: [
       { type: "pageHeader", layout: "absolute", height: 20, children: [

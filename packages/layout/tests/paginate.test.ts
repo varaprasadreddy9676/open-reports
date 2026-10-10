@@ -291,6 +291,11 @@ describe("paginate: long flow text", () => {
     expect(result.warnings.some((warning) => warning.code === "TEXT_EXCEEDS_HEIGHT")).toBe(true);
   });
 
+  it("does not report text overflow for empty decorative text elements", () => {
+    const result = paginate(reportWithContentHeight(300, [{ type: "title", children: [{ ...paragraph, id: "separator", text: "", height: 7, style: { fontSize: 14 } }] }]));
+    expect(result.warnings.some((warning) => warning.code === "TEXT_EXCEEDS_HEIGHT" && warning.path === "separator")).toBe(false);
+  });
+
   it("uses one measured ellipsis line when truncation is explicitly requested", () => {
     const result = paginate(reportWithContentHeight(300, [{ type: "detail", children: [{ ...paragraph, height: 20, width: 65, style: { overflow: "ellipsis" } }] }]));
     const node = result.pages[0]!.content[0]!;

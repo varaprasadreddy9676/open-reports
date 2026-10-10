@@ -56,6 +56,38 @@ const invoiceReport = {
 };
 
 describe("PdfRenderer", () => {
+  it("draws imported per-side borders without turning zero-width sides into a full outline", async () => {
+    const pdf = (await renderPdf({
+      schemaVersion: "1.0", id: "side-border", name: "Side border",
+      page: { size: "custom", width: 100, height: 100, unit: "pt", margin: { top: 0, right: 0, bottom: 0, left: 0 } },
+      sections: [{ type: "detail", children: [{
+        type: "text", value: "", x: "10pt", y: "10pt", width: "40pt", height: "20pt",
+        style: { border: {
+          top: { width: 1, style: "solid", color: "#000000" },
+          right: { width: 0, style: "none", color: "#000000" },
+          bottom: { width: 0, style: "none", color: "#000000" },
+          left: { width: 0, style: "none", color: "#000000" },
+        } },
+      }] }],
+    })).content as Buffer;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-side-border-"));
+    try {
+      const file = path.join(dir, "side.pdf");
+      fs.writeFileSync(file, pdf);
+      execFileSync("pdftoppm", ["-r", "72", "-f", "1", "-l", "1", file, path.join(dir, "page")]);
+      const ppm = fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((entry) => entry.endsWith(".ppm"))!));
+      const headerEnd = ppm.indexOf("\n255\n") + 5;
+      const pixel = (x: number, y: number) => ppm.subarray(headerEnd + (y * 100 + x) * 3, headerEnd + (y * 100 + x) * 3 + 3);
+      const black = (x: number, y: number) => pixel(x, y).every((channel) => channel < 80);
+      expect(Array.from({ length: 40 }, (_, i) => black(i + 10, 10)).filter(Boolean).length).toBeGreaterThan(30);
+      expect(Array.from({ length: 18 }, (_, i) => black(10, i + 11)).filter(Boolean)).toHaveLength(0);
+      expect(Array.from({ length: 40 }, (_, i) => black(i + 10, 30)).filter(Boolean)).toHaveLength(0);
+      expect(Array.from({ length: 18 }, (_, i) => black(50, i + 11)).filter(Boolean)).toHaveLength(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("produces a valid, parseable PDF with the right mime type", async () => {
     const result = await renderPdf(invoiceReport);
     expect(result.mimeType).toBe("application/pdf");
@@ -73,6 +105,61 @@ describe("PdfRenderer", () => {
     expect(parsed.text).toContain("Acme Health");
     expect(parsed.text).toContain("Eye Examination");
     expect(parsed.text).toContain("$1,000.00");
+  });
+
+  it("uses JRXML standard PDF font families rather than substituting Helvetica", async () => {
+    const pdf = (await renderPdf({ schemaVersion: "1.0", id: "times-font", name: "Times font", sections: [
+      { type: "detail", children: [{ type: "text", value: "TIMES-FACE", style: { fontFamily: "Times-Roman" } }] },
+    ] })).content as Buffer;
+    const file = path.join(os.tmpdir(), `report-times-font-${process.pid}-${Date.now()}.pdf`);
+    fs.writeFileSync(file, pdf);
+    try {
+      const fonts = execFileSync("pdffonts", [file], { encoding: "utf-8" });
+      expect(fonts).toContain("Times-Roman");
+      expect(fonts).not.toContain("Helvetica");
+    } finally {
+      fs.rmSync(file, { force: true });
+    }
+  });
+
+  it("uses an exact mapped PDF face for drawing and centering, independent of logical bold styling", async () => {
+    const pdf = (await renderPdf({ schemaVersion: "1.0", id: "mapped-pdf-face", name: "Mapped PDF face", page: {
+      size: "custom", width: 288, height: 288, unit: "pt", margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    }, sections: [{ type: "detail", children: [{ type: "text", value: "Receipt Details", x: "0pt", y: "0pt", width: "288pt", height: "22pt", style: {
+      fontFamily: "Arial", fontSize: 12, fontWeight: "bold", pdfFontFace: "Helvetica", align: "center",
+    } }] }] })).content as Buffer;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), `report-mapped-font-${process.pid}-`));
+    try {
+      const file = path.join(dir, "mapped.pdf");
+      fs.writeFileSync(file, pdf);
+      const fonts = execFileSync("pdffonts", [file], { encoding: "utf-8" });
+      expect(fonts).toContain("Helvetica");
+      expect(fonts).not.toContain("Helvetica-Bold");
+      const words = execFileSync("pdftotext", ["-bbox", file, "-"], { encoding: "utf-8" });
+      const x = Number(words.match(/<word xMin="([\d.]+)"[^>]*>Receipt<\/word>/)?.[1]);
+      expect(x).toBeCloseTo(103.66, 1);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("applies PDF-only baseline corrections without changing component layout", async () => {
+    const renderWord = async (pdfTextOffsetY: number) => {
+      const pdf = (await renderPdf({ schemaVersion: "1.0", id: "baseline-offset", name: "Baseline offset", page: {
+        size: "custom", width: 200, height: 200, unit: "pt", orientation: "portrait", margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      }, sections: [{ type: "detail", children: [{ type: "text", value: "BASELINE", x: "10pt", y: "10pt", width: "100pt", height: "20pt", style: { fontSize: 12, pdfTextOffsetY } }] }] })).content as Buffer;
+      const file = path.join(os.tmpdir(), `report-baseline-${process.pid}-${Date.now()}-${pdfTextOffsetY}.pdf`);
+      fs.writeFileSync(file, pdf);
+      try {
+        const boxes = execFileSync("pdftotext", ["-bbox", file, "-"], { encoding: "utf-8" });
+        const y = boxes.match(/<word xMin="[\d.]+" yMin="([\d.]+)" xMax="[\d.]+" yMax="[\d.]+">BASELINE<\/word>/)?.[1];
+        if (!y) throw new Error("expected the word in the generated PDF");
+        return Number(y);
+      } finally {
+        fs.rmSync(file, { force: true });
+      }
+    };
+    expect(await renderWord(2.64) - await renderWord(0)).toBeCloseTo(2.64, 2);
   });
 
   it("draws explicit line height at the same advance used for layout", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { importJrxml, translateJasperExpression } from "./index.js";
+import { importJrxml, importJrxmlFolder, translateJasperExpression } from "./index.js";
 
 const v6 = `<?xml version="1.0"?>
 <jasperReport name="Pilot" pageWidth="595" pageHeight="842" leftMargin="20" rightMargin="20" topMargin="30" bottomMargin="30">
@@ -48,6 +48,44 @@ describe("JRXML import", () => {
     expect(result.report?.sections[1]?.children[0]).toMatchObject({ type: "field", expression: "row.name" });
   });
 
+  it("keeps declared page dimensions when Jasper's orientation attribute conflicts", () => {
+    const result = importJrxml(`<jasperReport name="LegacyPortrait" pageWidth="756" pageHeight="1008" orientation="Landscape"><detail><band height="20"><staticText><reportElement x="0" y="0" width="100" height="20"/><text>Page</text></staticText></band></detail></jasperReport>`);
+    expect(result.report?.page).toMatchObject({ width: 756, height: 1008, orientation: "portrait" });
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "page orientation", status: "needs-review" })]));
+  });
+
+  it("uses Jasper's PDF face when it differs from the logical font family", () => {
+    const result = importJrxml(`<jasperReport name="Fonts" pageWidth="300" pageHeight="500"><detail><band height="20"><staticText><reportElement x="0" y="0" width="100" height="20"/><textElement><font fontName="Arial" pdfFontName="Times-Roman" size="12"/></textElement><text>Label</text></staticText></band></detail></jasperReport>`);
+    expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "text", style: { fontFamily: "Times-Roman", pdfFontFace: "Times-Roman", pdfTextOffsetY: 2.64 } });
+    expect(result.issues).not.toEqual(expect.arrayContaining([expect.objectContaining({ feature: "PDF font" })]));
+  });
+
+  it("flags a logical font without an explicit Jasper PDF face for metric review", () => {
+    const result = importJrxml(`<jasperReport name="FontFallback" pageWidth="300" pageHeight="500"><detail><band height="20"><staticText><reportElement x="0" y="0" width="100" height="20"/><textElement><font fontName="Arial" size="12" isBold="true"/></textElement><text>Label</text></staticText></band></detail></jasperReport>`);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({
+      feature: "PDF font mapping", status: "needs-review", message: expect.stringContaining("actual PDF face"),
+    })]));
+  });
+
+  it("applies an exact per-style PDF font mapping during import", () => {
+    const xml = `<jasperReport name="MappedFont" pageWidth="300" pageHeight="500"><detail><band height="20"><staticText><reportElement x="0" y="0" width="100" height="20"/><textElement><font fontName="Arial" size="12" isBold="true"/></textElement><text>Label</text></staticText></band></detail></jasperReport>`;
+    const result = importJrxml(xml, { fontMappings: { Arial: { bold: "Helvetica" } } });
+    expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "text", style: { fontFamily: "Arial", fontWeight: "bold", pdfFontFace: "Helvetica" } });
+    expect(result.issues).not.toEqual(expect.arrayContaining([expect.objectContaining({ feature: "PDF font mapping" })]));
+  });
+
+  it("threads font mappings through folder import", () => {
+    const xml = `<jasperReport name="MappedFont" pageWidth="300" pageHeight="500"><detail><band height="20"><staticText><reportElement x="0" y="0" width="100" height="20"/><textElement><font fontName="Arial" size="12" isBold="true"/></textElement><text>Label</text></staticText></band></detail></jasperReport>`;
+    const result = importJrxmlFolder([{ path: "Receipt.jrxml", xml }], { fontMappings: { Arial: { bold: "Helvetica" } } });
+    expect(result.entries[0]?.report?.sections[0]?.children[0]).toMatchObject({ style: { pdfFontFace: "Helvetica" } });
+  });
+
+  it("retains a safe parameter-based image path expression for subreport logos", () => {
+    const result = importJrxml(`<jasperReport name="Header" pageWidth="300" pageHeight="500"><parameter name="reportLogoPath" class="java.lang.String"/><detail><band height="20"><image><reportElement x="0" y="0" width="20" height="20"/><imageExpression><![CDATA[$P{reportLogoPath}+"hospital_logo.png"]]></imageExpression></image></band></detail></jasperReport>`);
+    expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "image", binding: 'params.reportLogoPath+"hospital_logo.png"', whenMissing: "placeholder" });
+    expect(result.issues).not.toEqual(expect.arrayContaining([expect.objectContaining({ feature: "image expression", status: "unsupported" })]));
+  });
+
   it("keeps group bands beside the detail dataset", () => {
     const result = importJrxml(`<jasperReport name="Grouped" pageWidth="300" pageHeight="500">
       <field name="category" class="java.lang.String"/>
@@ -72,9 +110,41 @@ describe("JRXML import", () => {
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "Jasper variable", status: "unsupported" })]));
   });
 
+  it("maps Jasper Nothing variables to the current row expression", () => {
+    const result = importJrxml(`<jasperReport name="Variables" pageWidth="300" pageHeight="500">
+      <field name="amount" class="java.lang.Double"/>
+      <variable name="currentAmount" class="java.lang.Double" calculation="Nothing"><variableExpression><![CDATA[new Double($F{amount}.doubleValue())]]></variableExpression></variable>
+      <detail><band height="20"><textField><reportElement x="0" y="0" width="100" height="20"/><textFieldExpression><![CDATA[$V{currentAmount}]]></textFieldExpression></textField></band></detail>
+    </jasperReport>`);
+    expect(result.report?.variables).toMatchObject([{ id: "currentAmount", scope: "row", expression: "row.amount" }]);
+    expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "field", expression: "vars.currentAmount" });
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ feature: "Jasper variable", status: "needs-review" })]));
+  });
+
+  it("maps a Jasper Nothing variable that references an earlier aggregate and parameters", () => {
+    const result = importJrxml(`<jasperReport name="ReceiptTotals" pageWidth="300" pageHeight="500">
+      <field name="amount" class="java.lang.Double"/>
+      <parameter name="advance" class="java.lang.Double"/>
+      <parameter name="paid" class="java.lang.Double"/>
+      <variable name="total" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[new Double($F{amount}.doubleValue())]]></variableExpression></variable>
+      <variable name="due" class="java.lang.Double"><variableExpression><![CDATA[new Double($V{total}.doubleValue() - $P{advance}.doubleValue() - $P{paid}.doubleValue())]]></variableExpression></variable>
+      <summary><band height="20"><textField><reportElement x="0" y="0" width="100" height="20"/><textFieldExpression><![CDATA[$V{due}]]></textFieldExpression></textField></band></summary>
+    </jasperReport>`);
+    expect(result.report?.variables).toMatchObject([
+      { id: "total", scope: "row", expression: "(vars.total ?? 0) + (row.amount ?? 0)" },
+      { id: "due", scope: "row", expression: "vars.total - params.advance - params.paid" },
+    ]);
+    expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "field", expression: "vars.due" });
+  });
+
   it("preserves unpadded Jasper date patterns used on receipts", () => {
     const result = importJrxml(`<jasperReport name="Receipt" pageWidth="288" pageHeight="288"><field name="paidOn" class="java.sql.Date"/><detail><band height="20"><textField pattern="d/M/yyyy"><reportElement x="0" y="0" width="90" height="20"/><textFieldExpression><![CDATA[$F{paidOn}]]></textFieldExpression></textField></band></detail></jasperReport>`);
     expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "field", expression: "row.paidOn", format: "date:d/M/yyyy" });
+  });
+
+  it("preserves Jasper numeric patterns with optional grouping and fixed decimal places", () => {
+    const result = importJrxml(`<jasperReport name="Amounts" pageWidth="300" pageHeight="500"><field name="amount" class="java.lang.Double"/><detail><band height="20"><textField pattern="###0.00"><reportElement x="0" y="0" width="90" height="20"/><textFieldExpression><![CDATA[$F{amount}]]></textFieldExpression></textField></band></detail></jasperReport>`);
+    expect(result.report?.sections[0]?.children[0]).toMatchObject({ type: "field", expression: "row.amount", format: "number:2:plain" });
   });
 
   it("stacks the page and column headers and maps individual border pens", () => {
@@ -100,6 +170,15 @@ describe("JRXML import", () => {
     expect(translateJasperExpression('new java.io.File($P{path})')).toBeUndefined();
     expect(translateJasperExpression('$F{name}.toUpperCase()')).toBeUndefined();
     expect(translateJasperExpression('$V{runningTotal}')).toBeUndefined();
+  });
+
+  it("translates common Jasper date formatting and numeric wrappers safely", () => {
+    expect(translateJasperExpression('new SimpleDateFormat("dd/MM/yyyy hh:mm a").format($F{paidOn})'))
+      .toBe('formatDate(row.paidOn, "dd/MM/yyyy hh:mm a")');
+    expect(translateJasperExpression('new Double($V{total}.doubleValue() - $P{paid}.doubleValue())', new Set(["total"])))
+      .toBe('vars.total - params.paid');
+    expect(translateJasperExpression('new java.io.File($P{path})')).toBeUndefined();
+    expect(translateJasperExpression('$F{name}.toUpperCase()')).toBeUndefined();
   });
 });
 

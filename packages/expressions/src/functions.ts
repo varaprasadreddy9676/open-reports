@@ -80,7 +80,7 @@ function dateParts(date: Date, timeZone?: string): DateParts {
   return { year: part("year"), month: part("month"), day: part("day"), hour: part("hour") % 24, minute: part("minute"), second: part("second") };
 }
 
-/** Formats with yyyy, MMMM, MMM, MM, M, dd, d, HH, mm and ss; `timeZone` is an IANA name such as "Asia/Kolkata". */
+/** Formats with common Java/Jasper date tokens; `timeZone` is an IANA name such as "Asia/Kolkata". */
 export function formatDate(date: Date, pattern: string, locale = "en-US", timeZone?: string): string {
   const pad = (n: number, len = 2) => String(n).padStart(len, "0");
   const d = dateParts(date, timeZone);
@@ -94,10 +94,16 @@ export function formatDate(date: Date, pattern: string, locale = "en-US", timeZo
     dd: () => pad(d.day),
     d: () => String(d.day),
     HH: () => pad(d.hour),
+    H: () => String(d.hour),
+    hh: () => pad(d.hour % 12 || 12),
+    h: () => String(d.hour % 12 || 12),
     mm: () => pad(d.minute),
+    m: () => String(d.minute),
     ss: () => pad(d.second),
+    s: () => String(d.second),
+    a: () => d.hour < 12 ? "AM" : "PM",
   };
-  return pattern.replace(/yyyy|MMMM|MMM|MM|M|dd|d|HH|mm|ss/g, (token) => map[token]?.() ?? token);
+  return pattern.replace(/[A-Za-z]+|[^A-Za-z]+/g, (token) => map[token]?.() ?? token);
 }
 
 export function createFormatFunctions(locale: string, currency: string, timeZone?: string): Record<string, ExpressionFunction> {

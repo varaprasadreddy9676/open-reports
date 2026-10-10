@@ -52,6 +52,8 @@ export type Spacing = z.infer<typeof spacingSchema>;
 export const styleSchema = z
   .object({
     fontFamily: z.string().optional(),
+    /** Exact PDF-only face selected by a JRXML font mapping or pdfFontName. */
+    pdfFontFace: z.string().optional(),
     fontSize: z.union([z.number(), tokenRefSchema]).optional(),
     fontWeight: z.union([z.enum(["normal", "bold"]), z.number()]).optional(),
     italic: z.boolean().optional(),
@@ -61,6 +63,8 @@ export const styleSchema = z
     verticalAlign: z.enum(["top", "middle", "bottom"]).optional(),
     lineHeight: z.number().optional(),
     letterSpacing: z.number().optional(),
+    /** Additive PDF-only text baseline correction in points, used by imported print formats. */
+    pdfTextOffsetY: z.number().optional(),
     color: colorSchema.optional(),
     background: colorSchema.optional(),
     padding: spacingSchema.optional(),

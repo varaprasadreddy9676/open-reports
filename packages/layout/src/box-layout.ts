@@ -33,7 +33,7 @@ export function marginOf(c: ResolvedComponent): Edges {
 
 function styleHint(component: ResolvedComponent): TextStyleHint {
   const s = (component.style ?? {}) as Record<string, any>;
-  return { family: s.fontFamily, bold: s.fontWeight === "bold" || (typeof s.fontWeight === "number" && s.fontWeight >= 700), italic: Boolean(s.italic), lineHeight: s.lineHeight };
+  return { family: s.fontFamily, pdfFontFace: s.pdfFontFace, bold: s.fontWeight === "bold" || (typeof s.fontWeight === "number" && s.fontWeight >= 700), italic: Boolean(s.italic), lineHeight: s.lineHeight };
 }
 
 export function styleFontSize(component: ResolvedComponent): number {

@@ -111,6 +111,14 @@ export async function resolveReport(report: ReportDefinition, options: RenderPip
   const reportVars = computeReportVariables(report.variables, engine, baseCtx);
   baseCtx.vars = reportVars;
 
+  // Jasper expressions in report/page bands can reference fields even though
+  // those bands are not iterated over a dataset. Seed their context with the
+  // first row of the primary dataset so imported $F references resolve.
+  const primaryRows = datasets[report.datasets[0]?.id ?? ""];
+  if (Array.isArray(primaryRows) && primaryRows[0] && typeof primaryRows[0] === "object") {
+    baseCtx.row = primaryRows[0] as Record<string, unknown>;
+  }
+
   const fragments = new Map<string, any[]>(report.fragments.map((f) => [f.id, f.children as any[]]));
   const warnings: ResolvedWarning[] = [...contractWarnings];
   const rowVarAccumulator: Record<string, unknown> = {};

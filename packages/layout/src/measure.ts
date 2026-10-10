@@ -8,6 +8,7 @@
  */
 export interface TextStyleHint {
   family?: string;
+  pdfFontFace?: string;
   bold?: boolean;
   italic?: boolean;
   /** CSS-style line-height multiplier, when explicitly set by the report. */

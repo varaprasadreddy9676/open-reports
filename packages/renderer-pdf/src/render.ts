@@ -92,14 +92,14 @@ export function createPdfMeasurer(doc: PDFKit.PDFDocument, fonts: PdfFontRegistr
   return {
     widthOf(text, fontSize, hint) {
       let width = 0;
-      for (const run of fonts.runs(text, hint?.family ?? defaultFamily, Boolean(hint?.bold), Boolean(hint?.italic))) {
+      for (const run of fonts.runs(text, hint?.family ?? defaultFamily, Boolean(hint?.bold), Boolean(hint?.italic), hint?.pdfFontFace)) {
         width += doc.font(run.font).fontSize(fontSize).widthOfString(run.text);
       }
       return width;
     },
     lineHeight(fontSize, hint) {
       if (hint?.lineHeight && hint.lineHeight > 0) return fontSize * hint.lineHeight;
-      return doc.font(fonts.resolve(hint?.family ?? defaultFamily, Boolean(hint?.bold), Boolean(hint?.italic))).fontSize(fontSize).currentLineHeight(true);
+      return doc.font(fonts.resolve(hint?.family ?? defaultFamily, Boolean(hint?.bold), Boolean(hint?.italic), "latin", hint?.pdfFontFace)).fontSize(fontSize).currentLineHeight(true);
     },
   };
 }

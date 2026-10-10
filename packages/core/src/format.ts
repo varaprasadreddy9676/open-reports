@@ -8,7 +8,7 @@ export interface FormatOptions {
 }
 
 /** Applies a named/parameterized format string to a resolved value.
- * Supported: "currency", "number", "number:2", "percent", "date", "date:yyyy-MM-dd". */
+ * Supported: "currency", "number", "number:2", "number:2:plain", "percent", "date", "date:yyyy-MM-dd". */
 export function formatValue(value: unknown, format: string | undefined, options: FormatOptions): string {
   if (format === undefined) return stringify(value);
   // Split at the first colon only: date patterns such as "HH:mm" contain colons.
@@ -21,11 +21,15 @@ export function formatValue(value: unknown, format: string | undefined, options:
       return new Intl.NumberFormat(options.locale, { style: "currency", currency: arg ?? options.currency }).format(
         toNumber(value)
       );
-    case "number":
+    case "number": {
+      const [digitsText, grouping] = (arg ?? "").split(":");
+      const digits = digitsText ? Number(digitsText) : undefined;
       return new Intl.NumberFormat(options.locale, {
-        minimumFractionDigits: arg ? Number(arg) : undefined,
-        maximumFractionDigits: arg ? Number(arg) : undefined,
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+        useGrouping: grouping !== "plain",
       }).format(toNumber(value));
+    }
     case "percent":
       return new Intl.NumberFormat(options.locale, { style: "percent" }).format(toNumber(value));
     case "date": {
@@ -47,4 +51,3 @@ function stringify(v: unknown): string {
   if (v instanceof Date) return v.toISOString();
   return String(v);
 }
-

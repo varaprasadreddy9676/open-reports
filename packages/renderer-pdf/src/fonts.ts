@@ -121,12 +121,36 @@ export class PdfFontRegistry {
       const exact = this.lower.get(family.toLowerCase());
       if (exact) return exact;
     }
-    return this.options.defaultFamily && this.families[this.options.defaultFamily] ? this.options.defaultFamily : undefined;
+    return undefined;
   }
 
-  resolve(familyName: string | undefined, bold: boolean, italic: boolean, script: Script = "latin"): string {
+  resolve(familyName: string | undefined, bold: boolean, italic: boolean, script: Script = "latin", pdfFontFace?: string): string {
+    if (pdfFontFace) {
+      const mappedFamily = this.lower.get(pdfFontFace.toLowerCase());
+      if (mappedFamily) return this.registeredFamily(mappedFamily, false, false);
+      const exactPdfFace = script === "latin" ? standardPdfFont(pdfFontFace, false, false, true) : undefined;
+      if (exactPdfFace) return exactPdfFace;
+    }
     const family = this.pick(familyName, script);
-    if (!family) return standard(bold, italic);
+    if (family) {
+      return this.registeredFamily(family, bold, italic);
+    }
+    const pdfStandard = script === "latin" ? standardPdfFont(familyName, bold, italic) : undefined;
+    if (pdfStandard) return pdfStandard;
+    const fallback = this.options.defaultFamily && this.families[this.options.defaultFamily] ? this.options.defaultFamily : undefined;
+    if (!fallback) return standard(bold, italic);
+    const v = this.families[fallback]!;
+    const file = bold && italic ? v.boldItalic ?? v.bold ?? v.regular : bold ? v.bold ?? v.regular : italic ? v.italic ?? v.regular : v.regular;
+    const key = `${fallback}:${file}`;
+    if (!this.registered.has(key)) {
+      if (!fs.existsSync(file)) return standard(bold, italic);
+      this.doc.registerFont(key, file);
+      this.registered.add(key);
+    }
+    return key;
+  }
+
+  private registeredFamily(family: string, bold: boolean, italic: boolean): string {
     const v = this.families[family]!;
     const file = bold && italic ? v.boldItalic ?? v.bold ?? v.regular : bold ? v.bold ?? v.regular : italic ? v.italic ?? v.regular : v.regular;
     const key = `${family}:${file}`;
@@ -139,8 +163,8 @@ export class PdfFontRegistry {
   }
 
   /** Text split into per-script runs, each with the font that can draw it. */
-  runs(text: string, familyName: string | undefined, bold: boolean, italic: boolean): { text: string; font: string }[] {
-    return splitRuns(text).map((r) => ({ text: r.text, font: this.resolve(familyName, bold, italic, r.script) }));
+  runs(text: string, familyName: string | undefined, bold: boolean, italic: boolean, pdfFontFace?: string): { text: string; font: string }[] {
+    return splitRuns(text).map((r) => ({ text: r.text, font: this.resolve(familyName, bold, italic, r.script, pdfFontFace) }));
   }
 }
 
@@ -149,4 +173,19 @@ function standard(bold: boolean, italic: boolean): string {
   if (bold) return STANDARD.bold!;
   if (italic) return STANDARD.italic!;
   return STANDARD.regular;
+}
+
+/** Resolve PDF base-14 families preserved by JRXML's pdfFontName attribute. */
+function standardPdfFont(familyName: string | undefined, bold: boolean, italic: boolean, exact = false): string | undefined {
+  const family = familyName?.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  if (!family) return undefined;
+  const face = family.match(/^(helvetica|times(?:-roman)?|courier)(?:-(bold(?:-italic)?|italic|oblique|boldoblique))?$/);
+  if (!face) return undefined;
+  const base = face[1] === "times" || face[1] === "times-roman" ? "Times" : face[1] === "courier" ? "Courier" : "Helvetica";
+  const explicitStyle = face[2];
+  const isBold = explicitStyle ? explicitStyle.startsWith("bold") : exact ? false : bold;
+  const isItalic = explicitStyle ? explicitStyle.includes("italic") || explicitStyle.includes("oblique") : exact ? false : italic;
+  if (base === "Times") return isBold && isItalic ? "Times-BoldItalic" : isBold ? "Times-Bold" : isItalic ? "Times-Italic" : "Times-Roman";
+  if (base === "Courier") return isBold && isItalic ? "Courier-BoldOblique" : isBold ? "Courier-Bold" : isItalic ? "Courier-Oblique" : "Courier";
+  return isBold && isItalic ? "Helvetica-BoldOblique" : isBold ? "Helvetica-Bold" : isItalic ? "Helvetica-Oblique" : "Helvetica";
 }

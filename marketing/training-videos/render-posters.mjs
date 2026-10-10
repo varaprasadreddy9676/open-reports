@@ -42,6 +42,7 @@ const catalog = [
   ['layout-precision', 'Set up a page and place elements precisely', 'Choose A4, A5 or A6 and orientation, then align and resize on the canvas.', 53],
   ['client-letterhead', 'Customize a client letterhead and footer', 'Replace logo sources, update organization details, and compare a pre-printed page.', 23],
   ['invoice-to-pdf', 'Create an invoice and preview the PDF', 'Edit a working invoice and inspect the printable result.', 27],
+  ['invoice-application-walkthrough', 'From a blank page to Print: integrate an invoice report', 'Build the invoice, render it in a host app, switch client branding, and save edits through the embedded designer.', 540],
   ['hospital-letterhead', 'Build a hospital letterhead with logos', 'Arrange separate left and right logos or use pre-printed stationery.', 55],
   ['sales-crosstab', 'Summarize sales with a crosstab', 'Compare regions and services with grouped totals.', 27],
   ['word-to-report', 'Turn a Word template into an editable report', 'Review DOCX counts and warnings, edit the draft, and compare its PDF.', 19],

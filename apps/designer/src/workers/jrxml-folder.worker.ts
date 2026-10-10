@@ -1,9 +1,9 @@
-import { finishJrxmlFolderImport, importJrxmlFolderFile, type JrxmlFolderEntry } from "@reporting/jrxml-import";
+import { finishJrxmlFolderImport, importJrxmlFolderFile, type JrxmlFolderEntry, type JrxmlFontMappings } from "@reporting/jrxml-import";
 
-type StartMessage = { files: { file: File; path: string }[]; idPrefix: string };
+type StartMessage = { files: { file: File; path: string }[]; idPrefix: string; fontMappings?: JrxmlFontMappings };
 
 self.onmessage = async (event: MessageEvent<StartMessage>) => {
-  const { files, idPrefix } = event.data;
+  const { files, idPrefix, fontMappings } = event.data;
   const entries: JrxmlFolderEntry[] = [];
   let failures = 0;
   let lastUpdate = 0;
@@ -12,7 +12,7 @@ self.onmessage = async (event: MessageEvent<StartMessage>) => {
       const { file, path } = files[index]!;
       let entry: JrxmlFolderEntry;
       try {
-        entry = importJrxmlFolderFile({ path, xml: await file.text() }, index, idPrefix);
+        entry = importJrxmlFolderFile({ path, xml: await file.text() }, index, idPrefix, { fontMappings });
       } catch (cause) {
         entry = { path, issues: [], summary: { converted: 0, "needs-review": 0, unsupported: 0 }, error: cause instanceof Error ? cause.message : String(cause) };
       }

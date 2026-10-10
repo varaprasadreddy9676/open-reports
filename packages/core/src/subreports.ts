@@ -70,6 +70,10 @@ export function resolveNestedReport(
       report: { id: child.id, name: child.name },
     };
     childCtx.vars = computeReportVariables(child.variables, env.engine, childCtx);
+    const primaryRows = childData[child.datasets[0]?.id ?? ""];
+    if (Array.isArray(primaryRows) && primaryRows[0] && typeof primaryRows[0] === "object") {
+      childCtx.row = primaryRows[0] as Record<string, unknown>;
+    }
   } catch (error) {
     return placeholder(`binding failed (${error instanceof Error ? error.message : String(error)})`);
   }

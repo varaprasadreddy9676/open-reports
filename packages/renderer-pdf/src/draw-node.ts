@@ -25,10 +25,10 @@ function spacing(value: unknown): { top: number; right: number; bottom: number; 
 }
 
 /** Draws text as per-script runs so each run uses a font that has its glyphs (Latin, Devanagari, Telugu, ...). */
-function drawRuns(ctx: DrawContext, text: string, x: number, y: number, opts: Record<string, any>, family: string | undefined, bold: boolean, italic: boolean, fontSize = 10, lineHeight?: number): void {
-  const runs = ctx.fonts.runs(text, family, bold, italic);
+function drawRuns(ctx: DrawContext, text: string, x: number, y: number, opts: Record<string, any>, family: string | undefined, bold: boolean, italic: boolean, fontSize = 10, lineHeight?: number, pdfFontFace?: string): void {
+  const runs = ctx.fonts.runs(text, family, bold, italic, pdfFontFace);
   if (lineHeight && lineHeight > 0) {
-    ctx.doc.font(runs[0]?.font ?? ctx.fonts.resolve(family, bold, italic)).fontSize(fontSize);
+    ctx.doc.font(runs[0]?.font ?? ctx.fonts.resolve(family, bold, italic, "latin", pdfFontFace)).fontSize(fontSize);
     opts = { ...opts, lineGap: fontSize * lineHeight - ctx.doc.currentLineHeight(true) };
   }
   if (runs.length <= 1) {
@@ -60,10 +60,32 @@ function drawBoxDecoration(ctx: DrawContext, box: PositionedNode["box"], style: 
   }
   if (style.border) {
     const b = style.border;
-    const width = b.width ?? 1;
-    const color = b.color ?? "#000000";
-    doc.lineWidth(width).strokeColor(color);
-    outline().stroke();
+    const sides = ["top", "right", "bottom", "left"] as const;
+    const sideSpecific = sides.some((side) => Object.prototype.hasOwnProperty.call(b, side));
+    const strokeLine = (x1: number, y1: number, x2: number, y2: number, border: any) => {
+      const width = border.width ?? 1;
+      if (width <= 0 || border.style === "none") return;
+      doc.lineWidth(width).strokeColor(border.color ?? "#000000");
+      if (border.style === "dashed") doc.dash(Math.max(width * 3, 1), { space: Math.max(width * 2, 1) });
+      else if (border.style === "dotted") doc.dash(Math.max(width, 1), { space: Math.max(width * 2, 1) });
+      doc.moveTo(x1, y1).lineTo(x2, y2).stroke();
+      if (border.style === "dashed" || border.style === "dotted") doc.undash();
+    };
+    if (sideSpecific) {
+      if (b.top) strokeLine(box.x, box.y, box.x + box.width, box.y, b.top);
+      if (b.right) strokeLine(box.x + box.width, box.y, box.x + box.width, box.y + box.height, b.right);
+      if (b.bottom) strokeLine(box.x, box.y + box.height, box.x + box.width, box.y + box.height, b.bottom);
+      if (b.left) strokeLine(box.x, box.y, box.x, box.y + box.height, b.left);
+    } else {
+      const width = b.width ?? 1;
+      if (width > 0 && b.style !== "none") {
+        doc.lineWidth(width).strokeColor(b.color ?? "#000000");
+        if (b.style === "dashed") doc.dash(Math.max(width * 3, 1), { space: Math.max(width * 2, 1) });
+        else if (b.style === "dotted") doc.dash(Math.max(width, 1), { space: Math.max(width * 2, 1) });
+        outline().stroke();
+        if (b.style === "dashed" || b.style === "dotted") doc.undash();
+      }
+    }
   }
 }
 
@@ -108,7 +130,7 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
       const innerY = node.box.y + pad.top;
       const innerWidth = Math.max(0, node.box.width - pad.left - pad.right);
       const innerHeight = Math.max(0, node.box.height - pad.top - pad.bottom);
-      const shift = textVerticalOffset(node);
+      const shift = textVerticalOffset(node) + (Number(style.pdfTextOffsetY) || 0);
       const constrained = component.height !== undefined || component.maxHeight !== undefined || ["clip", "hidden", "ellipsis"].includes(style.overflow);
       const options: Record<string, any> = {
         width: innerWidth,
@@ -121,7 +143,7 @@ export async function drawNode(ctx: DrawContext, node: PositionedNode): Promise<
         doc.save();
         doc.rect(innerX, innerY, innerWidth, innerHeight).clip();
       }
-      if (innerWidth > 0 && innerHeight > 0) drawRuns(ctx, text, innerX, innerY + shift, options, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight);
+      if (innerWidth > 0 && innerHeight > 0) drawRuns(ctx, text, innerX, innerY + shift, options, style.fontFamily ?? ctx.defaultFamily, isBold, Boolean(style.italic), style.fontSize ?? 10, style.lineHeight, style.pdfFontFace);
       if (constrained) doc.restore();
       break;
     }

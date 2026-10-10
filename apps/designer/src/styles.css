@@ -1607,6 +1607,7 @@ textarea {
 .demo-video-choice strong, .demo-video-choice small { display: block; }
 .demo-video-choice strong { font-size: var(--text-sm); line-height: 1.35; }
 .demo-video-choice small { margin-top: 4px; color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
+.demo-video-choice small.demo-video-meta { margin-top: 6px; color: var(--accent); font-weight: 650; }
 .demo-video-choice > span:last-child { color: var(--accent); font-size: var(--text-xs); padding-top: 3px; }
 .demo-video-player { min-width: 0; }
 .demo-video-player h3 { margin: 0 0 4px; font-size: var(--text-lg); }

@@ -164,6 +164,11 @@ describe("formatDate month names", () => {
   it("supports unpadded receipt dates", () => {
     expect(formatDate(new Date("2026-10-01T00:00:00Z"), "d/M/yyyy", "en-US", "UTC")).toBe("1/10/2026");
   });
+  it("supports Jasper 12-hour time and AM/PM tokens", () => {
+    expect(formatDate(new Date("2025-01-15T18:07:00Z"), "dd/MM/yyyy hh:mm a", "en-US", "UTC")).toBe("15/01/2025 06:07 PM");
+    expect(formatDate(new Date("2025-01-15T00:07:00Z"), "h:mm a", "en-US", "UTC")).toBe("12:07 AM");
+    expect(formatDate(new Date("2025-01-15T18:07:00Z"), "dd MMM yyyy 'at' h:mm a", "en-US", "UTC")).toBe("15 Jan 2025 'at' 6:07 PM");
+  });
 });
 
 describe("formatDate time zones", () => {

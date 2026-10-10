@@ -39,6 +39,24 @@ const texts = (components: any[]): string[] => components.flatMap((component) =>
   component.type === "text" ? [component.text] : texts(component.children ?? []));
 
 describe("nested report rendering", () => {
+  it("resolves the child report header against its first supplied data row", async () => {
+    const childWithRowHeader = parsed({
+      ...child,
+      sections: [
+        { type: "reportHeader", children: [{ type: "text", expression: '"For " + row.item' }] },
+        { type: "detail", dataset: "main", children: [{ type: "text", expression: '"Line " + row.item' }] },
+      ],
+    });
+    const output = await resolveReport(parent, { registry, subreports: { "receipt-lines": {
+      report: childWithRowHeader,
+      data: { main: [{ item: "first" }, { item: "second" }] },
+    } } });
+    const body = output.resolved.sections.find((section) => section.type === "body")!;
+    expect(texts(body.children)).toContain("For one");
+    expect(texts(body.children)).toContain("Line one");
+    expect(texts(body.children)).toContain("Line two");
+  });
+
   it("binds each parent row to the child dataset and parameters", async () => {
     const output = await resolveReport(parent, { registry, subreports: { "receipt-lines": { report: child } } });
     const body = output.resolved.sections.find((section) => section.type === "body")!;

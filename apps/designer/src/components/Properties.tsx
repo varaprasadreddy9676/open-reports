@@ -921,7 +921,7 @@ function SubreportProps({ comp }: { comp: ops.Comp }) {
     <p className="field-hint">Choose another Open Reports JSON file. It stays attached to this report and can be reused anywhere you add a Subreport.</p>
     <input ref={picker} type="file" accept=".json,application/json" hidden data-testid="subreport-file" aria-label="Choose subreport JSON file" onChange={(event) => void chooseFile(event.currentTarget.files?.[0])} />
     <button type="button" className="btn" data-testid="choose-subreport" onClick={() => picker.current?.click()}>{linked ? "Choose a different report file" : "Choose report file…"}</button>
-    {linked ? <div className="subreport-file-status" role="status"><strong>{String(linked.name ?? "Subreport")}</strong><small>Report ID: {comp.reportId}</small></div> : <p className="field-hint">No file selected yet. Choose a report definition to see it in the preview and include it when exporting.</p>}
+    {linked ? <div className="subreport-file-status" data-testid="subreport-file-status" role="status"><strong>{String(linked.name ?? "Subreport")}</strong><small>Report ID: {comp.reportId}</small></div> : <p className="field-hint">No file selected yet. Choose a report definition to see it in the preview and include it when exporting.</p>}
   </Section>;
 }
 

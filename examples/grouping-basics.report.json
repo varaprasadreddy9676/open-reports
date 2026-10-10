@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0",
+  "id": "grouping-basics",
+  "name": "Regional Sales · Grouping Practice",
+  "description": "A small fictional sales list for learning groups, headings, subtotals, and sort order.",
+  "locale": "en-IN",
+  "theme": { "currency": "INR" },
+  "datasets": [
+    {
+      "id": "sales",
+      "source": "inline",
+      "query": {
+        "data": [
+          { "region": "South", "city": "Bengaluru", "amount": 24000 },
+          { "region": "West", "city": "Mumbai", "amount": 31000 },
+          { "region": "South", "city": "Chennai", "amount": 18000 },
+          { "region": "North", "city": "Delhi", "amount": 26500 },
+          { "region": "West", "city": "Pune", "amount": 14500 },
+          { "region": "North", "city": "Jaipur", "amount": 12500 }
+        ]
+      }
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": { "top": 16, "right": 18, "bottom": 18, "left": 18 }
+  },
+  "sections": [
+    {
+      "type": "reportHeader",
+      "children": [
+        { "type": "text", "value": "Northstar · Regional Sales", "style": { "fontSize": 18, "fontWeight": "bold", "color": "#17365c" } },
+        { "type": "text", "value": "Group the sales by region to compare city revenue.", "style": { "fontSize": 9, "color": "#5e6d82" } },
+        { "type": "spacer", "height": 9 }
+      ]
+    },
+    { "type": "dataHeader", "dataset": "sales", "children": [{ "type": "row", "children": [{ "type": "text", "value": "City", "width": "*", "style": { "fontWeight": "bold" } }, { "type": "text", "value": "Sales", "width": 110, "style": { "align": "right", "fontWeight": "bold" } }] }, { "type": "line" }] },
+    {
+      "type": "detail",
+      "dataset": "sales",
+      "children": [
+        { "type": "row", "gap": 8, "children": [{ "type": "text", "binding": "row.city", "width": "*" }, { "type": "text", "expression": "formatCurrency(row.amount)", "width": 110, "style": { "align": "right" } }] }
+      ]
+    },
+    { "type": "pageFooter", "children": [{ "type": "text", "expression": "\"Page \" + page.number + \" of \" + page.total", "style": { "fontSize": 8, "color": "#64748b", "align": "right" } }] }
+  ]
+}

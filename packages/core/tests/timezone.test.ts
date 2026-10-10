@@ -25,6 +25,10 @@ describe("theme.timezone", () => {
   it("formatValue accepts a time zone", () => {
     expect(formatValue("2025-01-15T22:30:00Z", "date:yyyy-MM-dd HH:mm", { locale: "en-US", currency: "USD", timeZone: "America/Los_Angeles" })).toBe("2025-01-15 14:30");
   });
+  it("formats Jasper numeric patterns with or without grouping", () => {
+    expect(formatValue(1250, "number:2:plain", { locale: "en-US", currency: "USD" })).toBe("1250.00");
+    expect(formatValue(1250, "number:2:group", { locale: "en-US", currency: "USD" })).toBe("1,250.00");
+  });
   it("rejects an unknown time zone", () => {
     const { issues } = validateReport(report({ timezone: "Mars/Olympus" }));
     expect(issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "UNKNOWN_TIMEZONE", path: "theme.timezone" })]));

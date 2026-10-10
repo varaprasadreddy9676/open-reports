@@ -16,6 +16,7 @@ const GROUPS: Record<string, StarterTemplate["group"]> = {
   "account-statement": "Documents",
   "absolute-form": "Documents",
   "grouped-sales": "Data",
+  "grouping-basics": "Data",
   conditional: "Data",
   charts: "Data",
   crosstab: "Data",

@@ -194,11 +194,11 @@ function paginateFixed(report: ResolvedReport, options: PaginateOptions = {}, an
   const inspect = (nodes: PositionedNode[]) => {
     for (const node of nodes) {
       const c = node.component as any;
-      if (["text", "richText", "field"].includes(c.type) && !node.textFragment) {
+      if (["text", "richText", "field"].includes(c.type) && String(c.text ?? "").trim().length > 0 && !node.textFragment) {
         const style = c.style ?? {};
         const pad = edgesOf(style.padding);
         const fontSize = style.fontSize ?? 10;
-        const hint = { family: style.fontFamily, bold: style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700), italic: Boolean(style.italic), lineHeight: style.lineHeight };
+        const hint = { family: style.fontFamily, pdfFontFace: style.pdfFontFace, bold: style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700), italic: Boolean(style.italic), lineHeight: style.lineHeight };
         const width = Math.max(1, node.box.width - pad.left - pad.right);
         const lineHeight = measurer.lineHeight(fontSize, hint);
         const actualHeight = wrapTextLines(c.text ?? "", width, fontSize, measurer, hint).length * lineHeight + pad.top + pad.bottom;
@@ -365,7 +365,7 @@ function planTallRow(
       if (child.height !== undefined || child.minHeight !== undefined || child.maxHeight !== undefined || child.keepTogether
           || child.allowSplit === false || ["clip", "hidden", "ellipsis"].includes(style.overflow)
           || (child.minLinesAtTop ?? 1) > 1 || (child.minLinesAtBottom ?? 1) > 1) return undefined;
-      const hint = { family: style.fontFamily, bold: style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700), italic: Boolean(style.italic), lineHeight: style.lineHeight };
+      const hint = { family: style.fontFamily, pdfFontFace: style.pdfFontFace, bold: style.fontWeight === "bold" || (typeof style.fontWeight === "number" && style.fontWeight >= 700), italic: Boolean(style.italic), lineHeight: style.lineHeight };
       const padding = edgesOf(style.padding);
       part.lines = wrapTextLines(child.text ?? "", Math.max(1, node.box.width - padding.left - padding.right), style.fontSize ?? 10, measurer, hint);
       part.lineHeight = measurer.lineHeight(style.fontSize ?? 10, hint);
@@ -622,7 +622,7 @@ function layoutContentIntoPages(
     const textStyle = (component.style ?? {}) as Record<string, any>;
     const textPad = edgesOf(textStyle.padding);
     const textFontSize = textStyle.fontSize ?? 10;
-    const textHint = { family: textStyle.fontFamily, bold: textStyle.fontWeight === "bold" || (typeof textStyle.fontWeight === "number" && textStyle.fontWeight >= 700), italic: Boolean(textStyle.italic), lineHeight: textStyle.lineHeight };
+    const textHint = { family: textStyle.fontFamily, pdfFontFace: textStyle.pdfFontFace, bold: textStyle.fontWeight === "bold" || (typeof textStyle.fontWeight === "number" && textStyle.fontWeight >= 700), italic: Boolean(textStyle.italic), lineHeight: textStyle.lineHeight };
     const textProbe = textComponent ? layoutComponent(component, { x: 0, y: y + m.top, width: innerWidth, height: 0 }, measurer) : undefined;
     const textLines = textComponent ? wrapTextLines(anyC.text ?? "", Math.max(1, textProbe!.box.width - textPad.left - textPad.right), textFontSize, measurer, textHint) : [];
     const lineHeight = textComponent ? measurer.lineHeight(textFontSize, textHint) : 0;

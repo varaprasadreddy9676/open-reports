@@ -1,5 +1,5 @@
 import type { ReportDefinition } from "@reporting/schema";
-import { importJrxml, type ImportResult, type MigrationIssue } from "./index.js";
+import { importJrxml, type ImportResult, type JrxmlFontMappings, type MigrationIssue } from "./index.js";
 
 export interface JrxmlFolderSource { path: string; xml: string }
 export interface JrxmlFolderEntry extends ImportResult { path: string; error?: string }
@@ -22,10 +22,10 @@ function eachSubreport(report: ReportDefinition, visit: (node: Record<string, un
 }
 
 /** Converts one file; callers may run this in a Worker to report real progress. */
-export function importJrxmlFolderFile(source: JrxmlFolderSource, index: number, idPrefix: string): JrxmlFolderEntry {
+export function importJrxmlFolderFile(source: JrxmlFolderSource, index: number, idPrefix: string, options: { fontMappings?: JrxmlFontMappings } = {}): JrxmlFolderEntry {
   const path = normalized(source.path);
   try {
-    const result = importJrxml(source.xml, { id: `${slug(idPrefix)}-${index + 1}-${slug(stem(path))}`, sourceName: fileName(path) });
+    const result = importJrxml(source.xml, { ...options, id: `${slug(idPrefix)}-${index + 1}-${slug(stem(path))}`, sourceName: fileName(path) });
     return { path, ...result, ...(!result.report ? { error: "JRXML could not be converted into a valid report." } : {}) };
   } catch (cause) {
     return { path, issues: [], summary: { converted: 0, "needs-review": 0, unsupported: 0 }, error: cause instanceof Error ? cause.message : String(cause) };
@@ -76,7 +76,7 @@ export function finishJrxmlFolderImport(entries: JrxmlFolderEntry[]): JrxmlFolde
 }
 
 /** Converts a selected folder in memory. Only JRXML is read; source queries and code are never run. */
-export function importJrxmlFolder(sources: JrxmlFolderSource[], options: { idPrefix?: string } = {}): JrxmlFolderResult {
+export function importJrxmlFolder(sources: JrxmlFolderSource[], options: { idPrefix?: string; fontMappings?: JrxmlFontMappings } = {}): JrxmlFolderResult {
   const prefix = options.idPrefix ?? `jrxml-${Date.now().toString(36)}`;
-  return finishJrxmlFolderImport(sources.filter((source) => /\.jrxml$/i.test(source.path)).map((source, index) => importJrxmlFolderFile(source, index, prefix)));
+  return finishJrxmlFolderImport(sources.filter((source) => /\.jrxml$/i.test(source.path)).map((source, index) => importJrxmlFolderFile(source, index, prefix, options)));
 }
