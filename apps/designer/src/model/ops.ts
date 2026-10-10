@@ -373,7 +373,7 @@ export const PALETTE: Record<string, () => Comp> = {
   column: () => ({ type: "column", children: [] }),
   grid: () => ({ type: "grid", columns: 2, children: [] }),
   table: () => ({ type: "table", dataset: "", columns: [{ id: "col-1", header: "Column", binding: "row.value" }] }),
-  subreport: () => ({ type: "subreport", reportId: "", width: 120, height: 40 }),
+  subreport: () => ({ type: "subreport", reportId: "" }), // full width and its own height, like a shared header
   repeater: () => ({ type: "repeater", dataset: "", children: [] }),
   crosstab: () => ({ type: "crosstab", dataset: "", rows: [{ binding: "" }], columns: [{ binding: "" }], measures: [{ binding: "", aggregate: "sum" }] }),
   qrcode: () => ({ type: "qrcode", value: "https://example.com", width: 70, height: 70 }),

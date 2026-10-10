@@ -48,6 +48,9 @@ test("feed a parent dataset to the subreport so each customer gets its own heade
   await page.getByTestId("palette-subreport").click();
   await page.getByTestId("subreport-file").setInputFiles({ name: "branch-header.report.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(child)) });
   await expect(page.getByTestId("canvas")).toContainText("SAMPLE BRANCH");
+  // A shared header spans the page: a new subreport is not squeezed into a fixed box.
+  const size = await page.evaluate(() => { const c = (window as any).__designer.getState().doc.sections.flatMap((s: any) => s.children).find((c: any) => c.type === "subreport"); return [c.width ?? null, c.height ?? null]; });
+  expect(size).toEqual([null, null]);
 
   await page.getByTestId("subreport-dataset").selectOption("branding");
   await expect(page.getByTestId("canvas")).toContainText("MYSURU BRANCH");
