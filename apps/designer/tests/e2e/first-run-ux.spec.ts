@@ -150,6 +150,16 @@ test("an off-page element reports a printable-width error", async ({ page }) => 
   await expect.poll(async () => (await page.evaluate(() => (window as any).__designer.getState().engine.problems)).some((p: any) => p.code === "OUTSIDE_PRINTABLE_WIDTH")).toBe(true);
 });
 
+test("a landing deep link opens at its section", async ({ page }) => {
+  await page.goto("/#why");
+  await expect(page.locator("#switch-heading")).toBeInViewport();
+  await expect(page.locator("#landing-title")).not.toBeInViewport();
+  // The heading sits below the floating header, not under it.
+  const header = await page.locator(".landing-header").boundingBox();
+  const heading = await page.locator("#switch-heading").boundingBox();
+  expect(heading!.y).toBeGreaterThan(header!.y + header!.height);
+});
+
 test("phone visitors can view examples and a sample without entering the cramped designer", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

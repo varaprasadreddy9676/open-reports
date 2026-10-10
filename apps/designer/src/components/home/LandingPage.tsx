@@ -27,6 +27,13 @@ export function LandingPage({ onExample, onTemplate, children }: { onExample: (k
   const header = useRef<HTMLElement>(null);
   const root = useRef<HTMLElement>(null);
   useLandingMotion(root);
+  // The browser looks for a #section before the landing has rendered, and the landing scrolls inside its own
+  // container, so honour a deep link once the sections exist.
+  useEffect(() => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    const target = id ? root.current?.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`) : null;
+    target?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, []);
   const hasDraft = Boolean(loadDraft()?.doc);
   const closeMenu = () => setMenuOpen(false);
   useEffect(() => {
