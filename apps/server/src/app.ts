@@ -19,6 +19,7 @@ import { createRuntime, RenderPipelineError, runRender } from "./render-pipeline
 import type { PluginRegistry } from "@reporting/plugin-sdk";
 import { JobStore } from "./jobs.js";
 import { materializeChildren, materializeLinkedImages, readImageSource } from "./linked-images.js";
+import { registerMcpRoutes } from "./mcp-routes.js";
 
 export interface BuildAppOptions {
   dbPath: string;
@@ -61,6 +62,7 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   });
 
   app.get("/health", async () => ({ status: "ok" }));
+  registerMcpRoutes(app);
 
   app.get("/openapi.json", async () => buildOpenApiDocument());
 

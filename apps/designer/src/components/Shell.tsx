@@ -24,6 +24,7 @@ import { LandingPage } from "./home/LandingPage";
 import { LearningLibrary } from "./learning/LearningLibrary";
 import { ReportFilePicker } from "./ReportFilePicker";
 import { DesignerIntegrationExample } from "./DesignerIntegrationExample";
+import { McpSettingsPanel } from "./McpSettingsPanel";
 import "./integration.css";
 
 /** Opens the "I tried Open Reports" issue form on the upstream repository. */
@@ -800,7 +801,7 @@ function SettingsDialog() {
   const setInterfaceTheme = useStore((s) => s.setInterfaceTheme);
   const [key, setKey] = useState(settings.apiKey);
   const [base, setBase] = useState(settings.apiBase);
-  const [tab, setTab] = useState<"preferences" | "connection" | "integrate">("connection");
+  const [tab, setTab] = useState<"preferences" | "connection" | "integrate" | "ai">("connection");
   const [showKey, setShowKey] = useState(false);
   const [checking, setChecking] = useState(false);
   const [connection, setConnection] = useState<{ ok: boolean; message: string } | null>(null);
@@ -907,7 +908,7 @@ function SettingsDialog() {
         <p>Connect the designer to a reporting server, or follow the quick start to integrate it with your application.</p>
       </div>
       <div className="settings-tabs" role="tablist" aria-label="Settings sections" onKeyDown={onTabKeyDown}>
-        {([ ["connection", "Server connection"], ["integrate", "Integration guide"], ["preferences", "Preferences"] ] as const).map(([id, label]) => (
+        {([ ["connection", "Server connection"], ["integrate", "Integration guide"], ["ai", "AI tools (MCP)"], ["preferences", "Preferences"] ] as const).map(([id, label]) => (
           <button key={id} id={`settings-tab-${id}`} role="tab" aria-controls={`settings-panel-${id}`} tabIndex={tab === id ? 0 : -1} aria-selected={tab === id} data-testid={`settings-tab-${id}`} onClick={() => setTab(id)}>{label}</button>
         ))}
       </div>
@@ -919,6 +920,8 @@ function SettingsDialog() {
         {connection && <p className={connection.ok ? "ok-text settings-feedback" : "field-error settings-feedback"} role="status" data-testid="settings-connection-status">{connection.message}</p>}
         <div className="dialog-actions settings-actions"><button className="btn" type="button" data-testid="settings-test-connection" disabled={checking} onClick={testConnection}>{checking ? "Checking…" : "Test connection"}</button><span className="spacer" /><button className="btn primary" type="button" data-testid="settings-save" disabled={checking} onClick={() => { try { settings.apiBase = normalizeServerUrl(base); settings.apiKey = key.trim(); set({ dialog: null }); } catch { setConnection({ ok: false, message: "Enter a valid server URL, such as https://reports.example.com." }); } }}>Save connection</button></div>
       </section>}
+
+      {tab === "ai" && <McpSettingsPanel onTabKeyDown={onTabKeyDown} />}
 
       {tab === "preferences" && <section className="settings-section" id="settings-panel-preferences" role="tabpanel" aria-labelledby="settings-tab-preferences" tabIndex={0}>
         <h3>Appearance</h3><p>Choose how the designer looks in this browser.</p>

@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": "./dist", "rootDir": "./src" },
-  "references": [{ "path": "../ai-tools" }],
+  "references": [{ "path": "../ai-tools" }, { "path": "../jrxml-import" }],
   "include": ["src"]
 }

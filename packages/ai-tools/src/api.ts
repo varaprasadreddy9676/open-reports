@@ -33,7 +33,9 @@ export function createHttpApi(options: { baseUrl: string; apiKey?: string; fetch
   };
   return {
     async json(method, path, body) {
-      return (await call(method, path, body)).json() as any;
+      // Some routes answer 204 No Content (saving a block, deleting); report those as null.
+      const text = await (await call(method, path, body)).text();
+      return (text ? JSON.parse(text) : null) as any;
     },
     async binary(method, path, body) {
       const res = await call(method, path, body);

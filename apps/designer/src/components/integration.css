@@ -1,3 +1,11 @@
 .toolbar .brand .save-state.host-managed { display: inline; max-width: 190px; white-space: normal; line-height: 1.25; }
 .integration-next-steps > details > summary { cursor: pointer; color: var(--accent); padding: 8px 0; }
 .integration-next-steps > details > .btn { margin-top: 8px; }
+.mcp-download { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.mcp-download .btn { text-decoration: none; }
+.mcp-readonly { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-sm); line-height: 1.5; cursor: pointer; }
+.mcp-readonly input { margin-top: 3px; }
+.mcp-tools > details { border-top: 1px solid var(--border); }
+.mcp-tools > details > p { margin: 0 0 6px; }
+.mcp-tools ul { margin: 0 0 10px; padding-left: 18px; font-size: var(--text-sm); line-height: 1.55; }
+.mcp-tools code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .95em; }

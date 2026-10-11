@@ -4,10 +4,10 @@ import { createHttpApi } from "@reporting/ai-tools";
 import { createMcpServer } from "./index.js";
 
 // Configure in your MCP client, e.g. Claude Desktop / Claude Code / Cursor:
-//   { "command": "node", "args": ["packages/mcp-server/dist/cli.js"], "env": { "REPORTS_API_URL": "http://localhost:4000", "REPORTS_API_KEY": "..." } }
+//   { "command": "node", "args": ["/full/path/to/open-reports-mcp.mjs"], "env": { "REPORTS_API_URL": "http://localhost:4000", "REPORTS_API_KEY": "..." } }
 const baseUrl = process.env.REPORTS_API_URL ?? "http://localhost:4000";
 const api = createHttpApi({ baseUrl, apiKey: process.env.REPORTS_API_KEY });
 const readOnly = process.argv.includes("--read-only") || process.env.REPORTS_MCP_READ_ONLY === "1";
-const server = createMcpServer({ api, readOnly });
+const server = createMcpServer({ api, readOnly, local: true });
 await server.connect(new StdioServerTransport());
 console.error(`[open-reports-mcp] connected to ${baseUrl}${readOnly ? " (read-only)" : ""}`);

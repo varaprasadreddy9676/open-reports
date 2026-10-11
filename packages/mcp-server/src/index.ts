@@ -1,11 +1,14 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, GetPromptRequestSchema, ListPromptsRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AUTHORING_GUIDE, TOOLS, type ReportApi } from "@reporting/ai-tools";
+import { LOCAL_TOOLS } from "./local-tools.js";
 
 export interface McpOptions {
   api: ReportApi;
   /** Hide tools that write (save_template, publish_template). Recommended for untrusted agents. */
   readOnly?: boolean;
+  /** Add the tools that use this computer's files (open/save report files, render to file, JRXML import). */
+  local?: boolean;
   version?: string;
 }
 
@@ -14,11 +17,11 @@ export interface McpOptions {
  * so the AI (whatever model the *client* runs - BYOK) can only read, patch report JSON, analyze and render.
  */
 export function createMcpServer(options: McpOptions): Server {
-  const tools = TOOLS.filter((t) => !options.readOnly || t.readOnly);
+  const tools = [...TOOLS, ...(options.local ? LOCAL_TOOLS : [])].filter((t) => !options.readOnly || t.readOnly);
   const server = new Server({ name: "open-reports", version: options.version ?? "0.2.0" }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema as any, annotations: { readOnlyHint: t.readOnly, destructiveHint: false, idempotentHint: t.readOnly } })),
+    tools: tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema as any, annotations: { readOnlyHint: t.readOnly, destructiveHint: Boolean(t.destructive), idempotentHint: t.readOnly } })),
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
@@ -74,3 +77,5 @@ export function createMcpServer(options: McpOptions): Server {
 
   return server;
 }
+
+export { LOCAL_TOOLS } from "./local-tools.js";

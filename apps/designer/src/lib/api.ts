@@ -4,6 +4,7 @@ import type { PageConfig, PrintProfile } from "@reporting/schema";
 import type { SubreportSource } from "@reporting/core";
 import type { Doc } from "../model/ops";
 import { subreportSources } from "./subreports";
+import type { McpToolInfo } from "./mcp-config";
 const KEY = "designer.apiKey";
 const BASE = "designer.apiBase";
 let embeddedConnection: { apiKey: string; apiBase: string } | undefined;
@@ -116,6 +117,10 @@ export interface SavedPrinterProfile {
 }
 
 export const api = {
+  /** The downloadable MCP server and the tools it offers (Settings → AI tools). */
+  async mcpInfo(): Promise<{ available: boolean; downloadPath: string; version?: string; requires: string; tools: McpToolInfo[] }> {
+    return (await request("/api/v1/mcp")).json();
+  },
   async listTemplates(): Promise<TemplateRecord[]> {
     return (await request("/api/v1/templates")).json();
   },

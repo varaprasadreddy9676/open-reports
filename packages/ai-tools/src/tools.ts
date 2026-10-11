@@ -1,46 +1,10 @@
-import { ApiError, type ReportApi } from "./api.js";
+import { ApiError } from "./api.js";
 import { applyPatch, summarizeChanges, type PatchOp } from "./patch.js";
 import { describeStructure } from "./bands.js";
+import { FORMATS, guard, reportProp, subreportsProp, toBase64, viewerStateProp, type ToolSpec } from "./tool-kit.js";
+import { MORE_TOOLS } from "./more-tools.js";
 
-export interface ToolResult {
-  /** Short text for the model. */
-  text: string;
-  /** Structured payload (the model sees it serialised). */
-  data?: unknown;
-  isError?: boolean;
-}
-
-export interface ToolSpec<A = any> {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  /** Pure read-only tools can be auto-approved by clients. */
-  readOnly: boolean;
-  handler(args: A, api: ReportApi): Promise<ToolResult>;
-}
-
-const reportProp = { type: "object", description: "A complete report definition (JSON)." };
-const FORMATS = ["pdf", "html", "xlsx", "csv", "zpl"];
-
-function toBase64(bytes: Uint8Array): string {
-  const B = (globalThis as any).Buffer;
-  if (B) return B.from(bytes).toString("base64");
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin);
-}
-
-const fail = (e: unknown): ToolResult => {
-  if (e instanceof ApiError) return { text: `Error ${e.status}: ${e.message}`, data: e.details, isError: true };
-  return { text: `Error: ${e instanceof Error ? e.message : String(e)}`, isError: true };
-};
-const guard = <A>(fn: (a: A, api: ReportApi) => Promise<ToolResult>) => async (a: A, api: ReportApi) => {
-  try {
-    return await fn(a, api);
-  } catch (e) {
-    return fail(e);
-  }
-};
+export type { ToolResult, ToolSpec } from "./tool-kit.js";
 
 function summarizeAnalysis(a: any): string {
   const errors = (a.issues ?? []).filter((i: any) => i.severity === "error");
@@ -49,7 +13,7 @@ function summarizeAnalysis(a: any): string {
   return `${a.valid ? "Valid" : `${errors.length} error(s)`}; ${a.pageCount ?? "?"} page(s); ${warns} warning(s); ${(a.decisions ?? []).length} pagination decision(s).`;
 }
 
-export const TOOLS: ToolSpec[] = [
+const CORE_TOOLS: ToolSpec[] = [
   {
     name: "get_report_schema",
     description: "The JSON Schema of a report definition. Read this before writing or changing a report. Reports are JSON; you edit them with patch_report and never compute values yourself - the engine does that.",
@@ -91,9 +55,9 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "analyze_report",
     description: "Validate AND paginate a report without rendering: schema/expression problems, page count, and the pagination decision log (why content moved to the next page, with suggested fixes). Use after every change.",
-    inputSchema: { type: "object", properties: { report: reportProp, parameters: { type: "object" }, data: { type: "object", description: "Optional inline datasets keyed by dataset id." } }, required: ["report"] },
+    inputSchema: { type: "object", properties: { report: reportProp, parameters: { type: "object" }, data: { type: "object", description: "Optional inline datasets keyed by dataset id." }, subreports: subreportsProp }, required: ["report"] },
     readOnly: true,
-    handler: guard(async (a: { report: unknown; parameters?: object; data?: object }, api) => {
+    handler: guard(async (a: { report: unknown; parameters?: object; data?: object; subreports?: object }, api) => {
       const analysis = await api.json("POST", "/api/v1/analyze", a);
       return { text: summarizeAnalysis(analysis), data: analysis };
     }),
@@ -133,17 +97,20 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "render_report",
-    description: "Render a report (inline definition or stored template) to pdf, html, xlsx, csv or zpl. Text formats (html, csv, zpl) return their content; binary formats return size and a base64 payload when small. Rendering is deterministic: never estimate values or layout yourself.",
+    description: "Render a report (inline definition or stored template, optionally a specific version) to pdf, docx (editable Word), html, xlsx, csv, zpl (Zebra labels) or escpos (thermal receipts). Text formats (html, csv, zpl) return their content; binary formats return size and a base64 payload when small. To check what a page shows, use preview_report; to save the file, use render_to_file where available. Rendering is deterministic: never estimate values or layout yourself.",
     inputSchema: {
       type: "object",
-      properties: { report: reportProp, templateId: { type: "string" }, format: { enum: FORMATS }, parameters: { type: "object" }, data: { type: "object" }, maxInlineKb: { type: "number" } },
+      properties: { report: reportProp, templateId: { type: "string" }, version: { type: "number", description: "Template version (default: latest published)." }, format: { enum: FORMATS }, parameters: { type: "object" }, data: { type: "object", description: "Datasets keyed by dataset id, replacing the report's own data." }, subreports: subreportsProp, viewerState: viewerStateProp, maxInlineKb: { type: "number" } },
       required: ["format"],
     },
     readOnly: true,
-    handler: guard(async (a: { report?: unknown; templateId?: string; format: string; parameters?: object; data?: object; maxInlineKb?: number }, api) => {
+    handler: guard(async (a: { report?: unknown; templateId?: string; version?: number; format: string; parameters?: object; data?: object; subreports?: object; viewerState?: object; maxInlineKb?: number }, api) => {
       if (!a.report && !a.templateId) return { text: "Provide either report or templateId.", isError: true };
       const path = a.templateId ? `/api/v1/templates/${encodeURIComponent(a.templateId)}/render` : "/api/v1/render";
-      const out = await api.binary("POST", path, { report: a.report, format: a.format, parameters: a.parameters, data: a.data });
+      const body = a.templateId
+        ? { format: a.format, version: a.version, parameters: a.parameters, data: a.data, viewerState: a.viewerState }
+        : { report: a.report, format: a.format, parameters: a.parameters, data: a.data, subreports: a.subreports, viewerState: a.viewerState };
+      const out = await api.binary("POST", path, body);
       const limit = (a.maxInlineKb ?? 512) * 1024;
       const textual = ["html", "csv", "zpl"].includes(a.format);
       const data: Record<string, unknown> = { mimeType: out.mimeType, bytes: out.bytes.length, warnings: out.warnings };
@@ -203,6 +170,9 @@ export const TOOLS: ToolSpec[] = [
   },
 ];
 
+/** Every tool: report authoring and rendering first, then data, storage and server tools. */
+export const TOOLS: ToolSpec[] = [...CORE_TOOLS, ...MORE_TOOLS];
+
 export function findTool(name: string): ToolSpec | undefined {
   return TOOLS.find((t) => t.name === name);
 }
@@ -217,7 +187,10 @@ Rules
 4. Start from list_examples/get_example when the user wants a common document (invoice, lab report, label, receipt, sticker sheet).
 5. Units: component sizes are points; label sheet sizes are millimetres. Bind data with data.<dataset>.<field>; inside tables and repeaters use row.<field>.
 6. Never put secrets in a report. REST datasets use {{secrets.NAME}}; check list_capabilities for the names that exist.
-7. Do not save or publish unless the user asks. Explain what you changed in plain language.
+7. Do not save, publish or delete unless the user asks. Explain what you changed in plain language.
+8. Check your work the way a person would: preview_report shows the text of every page, so confirm the content, page breaks and repeated headers before you say a report is done.
+9. Before binding fields from a REST, SQL or CSV source, run test_dataset to see the real field names and sample rows.
+10. When the MCP server runs on the user's computer you can also open_report_file / save_report_file, render_to_file (the actual PDF, Word or Excel file), and import_jrxml / import_jrxml_folder to migrate JasperReports.
 
 Bands
 A report's "sections" are bands; describe_report lists them in order with their references.

@@ -40,7 +40,8 @@ describe("AI tools against the real server", () => {
       expect(t.description.length).toBeGreaterThan(30);
       expect((t.inputSchema as any).type).toBe("object");
     }
-    expect(TOOLS.filter((t) => !t.readOnly).map((t) => t.name).sort()).toEqual(["publish_template", "save_template"]);
+    expect(TOOLS.filter((t) => !t.readOnly).map((t) => t.name).sort()).toEqual(["delete_block", "delete_printer_profile", "delete_template", "publish_template", "save_block", "save_printer_profile", "save_template"]);
+    expect(TOOLS.filter((t) => t.destructive).map((t) => t.name).sort()).toEqual(["delete_block", "delete_printer_profile", "delete_template"]);
   });
 
   it("discovery: schema, capabilities, examples", async () => {
