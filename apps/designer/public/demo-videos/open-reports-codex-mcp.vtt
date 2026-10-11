@@ -1,0 +1,79 @@
+WEBVTT
+
+00:00:03.667 --> 00:00:08.955
+In this film, a real Codex client uses Open Reports through the Model Context Protocol.
+
+00:00:08.955 --> 00:00:14.181
+It starts with an invoice, makes a small customer-ready design, checks the report, and
+
+00:00:14.181 --> 00:00:19.286
+renders the PDF. Then we open the same report in the visual designer and inspect the
+
+00:00:19.286 --> 00:00:20.380
+finished document.
+
+00:00:22.416 --> 00:00:26.216
+This is the Codex command line running in a real terminal.
+
+00:00:26.216 --> 00:00:30.278
+For the film, its MCP configuration enables only Open Reports.
+
+00:00:30.278 --> 00:00:36.108
+Codex can inspect report examples, make validated JSON patches, preview pages, and render
+
+00:00:36.108 --> 00:00:42.005
+output. Its shell access is read-only, and the other personal MCP servers are disabled for
+
+00:00:42.005 --> 00:00:42.856
+this session.
+
+00:00:44.682 --> 00:00:50.231
+Codex has completed the tool sequence. I am opening the exact JSON output in the designer
+
+00:00:50.231 --> 00:00:53.411
+now, then I will compare it with the generated PDF.
+
+00:00:58.989 --> 00:01:03.908
+The visual designer now opens the exact report JSON produced in the Codex workflow.
+
+00:01:03.908 --> 00:01:08.945
+The report remains editable: the structure tree shows its sections and table, and the
+
+00:01:08.945 --> 00:01:14.220
+canvas shows the invoice on an A4 page. The local engine connection is configured, so the
+
+00:01:14.220 --> 00:01:17.183
+designer confirms there are no errors or warnings.
+
+00:01:19.568 --> 00:01:24.375
+Run Preview sends the report through the rendering engine and shows the printable result.
+
+00:01:24.375 --> 00:01:28.965
+This is useful for checking the actual output before handing the PDF to a customer or
+
+00:01:28.965 --> 00:01:29.397
+printer.
+
+00:01:34.441 --> 00:01:38.838
+Here is the actual PDF file rendered from that report definition.
+
+00:01:38.838 --> 00:01:44.589
+The line items, tax, total, QR payment block, and page footer all fit on one A4 page.
+
+00:01:44.589 --> 00:01:50.407
+The same API can return these PDF bytes directly to a host application for printing or
+
+00:01:50.407 --> 00:01:51.016
+download.
+
+00:01:55.136 --> 00:02:00.256
+The key idea is simple. An AI client can use Open Reports tools to prepare and check a
+
+00:02:00.256 --> 00:02:04.781
+report. Your application can keep the JSON definition and its customer data.
+
+00:02:04.781 --> 00:02:08.234
+The engine renders the PDF when your application needs it.
+
+00:02:08.234 --> 00:02:12.819
+Try the Open Reports demo and integration guide to connect your own workflow.

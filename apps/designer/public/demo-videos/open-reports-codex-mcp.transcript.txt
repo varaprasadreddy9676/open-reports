@@ -1,0 +1,22 @@
+In this film, a real Codex client uses Open Reports through the Model Context Protocol.
+It starts with an invoice, makes a small customer-ready design, checks the report, and renders the PDF.
+Then we open the same report in the visual designer and inspect the finished document.
+This is the Codex command line running in a real terminal.
+For the film, its MCP configuration enables only Open Reports.
+Codex can inspect report examples, make validated JSON patches, preview pages, and render output.
+Its shell access is read-only, and the other personal MCP servers are disabled for this session.
+Codex has completed the tool sequence.
+I am opening the exact JSON output in the designer now, then I will compare it with the generated PDF.
+The visual designer now opens the exact report JSON produced in the Codex workflow.
+The report remains editable: the structure tree shows its sections and table, and the canvas shows the invoice on an A4 page.
+The local engine connection is configured, so the designer confirms there are no errors or warnings.
+Run Preview sends the report through the rendering engine and shows the printable result.
+This is useful for checking the actual output before handing the PDF to a customer or printer.
+Here is the actual PDF file rendered from that report definition.
+The line items, tax, total, QR payment block, and page footer all fit on one A4 page.
+The same API can return these PDF bytes directly to a host application for printing or download.
+The key idea is simple.
+An AI client can use Open Reports tools to prepare and check a report.
+Your application can keep the JSON definition and its customer data.
+The engine renders the PDF when your application needs it.
+Try the Open Reports demo and integration guide to connect your own workflow.

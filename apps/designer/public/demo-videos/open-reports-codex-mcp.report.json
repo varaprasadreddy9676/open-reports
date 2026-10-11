@@ -1,0 +1,464 @@
+{
+  "schemaVersion": "1.0",
+  "id": "acme-office-invoice",
+  "name": "Acme Office Supply Invoice",
+  "description": "Professional fictional office-supply sales invoice with Acme branding, itemized charges, tax, payment QR, and page numbering.",
+  "locale": "en-US",
+  "theme": {
+    "currency": "USD"
+  },
+  "datasets": [
+    {
+      "id": "invoice",
+      "source": "inline",
+      "query": {
+        "data": {
+          "number": "AOS-2026-1042",
+          "date": "2026-10-11",
+          "status": "Due Oct 26, 2026",
+          "customer": {
+            "name": "Northwind Design Studio",
+            "address": "88 Harbor Avenue, Suite 410 · Portland, OR 97205",
+            "phone": "+1 (503) 555-0147 · accounts@northwind.example"
+          },
+          "items": [
+            {
+              "description": "Premium Copy Paper, Letter · 10-Ream Case",
+              "quantity": 8,
+              "rate": 42.5
+            },
+            {
+              "description": "Retractable Gel Pens · Black · Box of 24",
+              "quantity": 12,
+              "rate": 18.75
+            },
+            {
+              "description": "Ergonomic Mesh Task Chair",
+              "quantity": 4,
+              "rate": 189
+            },
+            {
+              "description": "Bamboo Cable Organizer Set",
+              "quantity": 10,
+              "rate": 14.5
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variables": [
+    {
+      "id": "subtotal",
+      "scope": "report",
+      "expression": "sumProduct(data.invoice.items, \"quantity\", \"rate\")"
+    },
+    {
+      "id": "tax",
+      "scope": "report",
+      "expression": "vars.subtotal * 0.0825"
+    },
+    {
+      "id": "total",
+      "scope": "report",
+      "expression": "vars.subtotal + vars.tax"
+    }
+  ],
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "mm",
+    "margin": {
+      "top": 15,
+      "right": 15,
+      "bottom": 18,
+      "left": 15
+    }
+  },
+  "sections": [
+    {
+      "type": "pageHeader",
+      "appliesTo": "first",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "id": "acme-monogram",
+              "value": "A",
+              "width": 30,
+              "style": {
+                "fontSize": 24,
+                "fontWeight": "bold",
+                "align": "center",
+                "color": "#0F766E"
+              }
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "ACME OFFICE SUPPLY",
+                  "style": {
+                    "fontSize": 16,
+                    "fontWeight": "bold",
+                    "color": "#17324D"
+                  },
+                  "id": "company"
+                },
+                {
+                  "type": "text",
+                  "value": "WORK SMARTER · STOCKED FOR WHAT'S NEXT",
+                  "style": {
+                    "fontSize": 7,
+                    "fontWeight": "bold",
+                    "color": "#0F766E"
+                  },
+                  "id": "text-3"
+                },
+                {
+                  "type": "text",
+                  "value": "2400 Commerce Way · Portland, OR 97205 · +1 (503) 555-0188 · acme-office.example",
+                  "style": {
+                    "fontSize": 6.5,
+                    "color": "#5B6B7A"
+                  },
+                  "id": "text-4"
+                }
+              ],
+              "width": "*",
+              "id": "column-2"
+            },
+            {
+              "type": "text",
+              "id": "payment-terms",
+              "value": "NET 15",
+              "width": 42,
+              "style": {
+                "fontSize": 9,
+                "fontWeight": "bold",
+                "align": "center",
+                "color": "#0F766E"
+              }
+            }
+          ],
+          "gap": 4,
+          "alignItems": "center",
+          "id": "row-1"
+        },
+        {
+          "type": "line",
+          "id": "line-5"
+        },
+        {
+          "type": "text",
+          "value": "SALES INVOICE",
+          "style": {
+            "fontSize": 11,
+            "fontWeight": "bold",
+            "color": "#17324D",
+            "align": "right"
+          },
+          "id": "text-6"
+        }
+      ]
+    },
+    {
+      "type": "detail",
+      "children": [
+        {
+          "type": "spacer",
+          "height": 8,
+          "id": "spacer-7"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "value": "BILL TO",
+                  "style": {
+                    "fontSize": 7,
+                    "fontWeight": "bold",
+                    "color": "#0F766E"
+                  },
+                  "id": "text-10"
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.name",
+                  "style": {
+                    "fontSize": 12,
+                    "fontWeight": "bold",
+                    "color": "#17324D"
+                  },
+                  "id": "text-11"
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.address",
+                  "id": "text-12"
+                },
+                {
+                  "type": "text",
+                  "binding": "data.invoice.customer.phone",
+                  "id": "text-13"
+                }
+              ],
+              "width": "*",
+              "id": "column-9"
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "text",
+                  "expression": "\"Invoice # \" + data.invoice.number",
+                  "style": {
+                    "align": "right",
+                    "fontWeight": "bold",
+                    "color": "#17324D"
+                  },
+                  "id": "text-15"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Date: \" + formatDate(data.invoice.date, \"dd MMM yyyy\")",
+                  "style": {
+                    "align": "right"
+                  },
+                  "id": "text-16"
+                },
+                {
+                  "type": "text",
+                  "expression": "\"Status: \" + data.invoice.status",
+                  "style": {
+                    "align": "right",
+                    "fontWeight": "bold",
+                    "color": "#0F766E"
+                  },
+                  "id": "text-17"
+                }
+              ],
+              "width": 200,
+              "id": "column-14"
+            }
+          ],
+          "id": "row-8"
+        },
+        {
+          "type": "spacer",
+          "height": 14,
+          "id": "spacer-18"
+        },
+        {
+          "type": "table",
+          "id": "items",
+          "dataset": "invoice.items",
+          "showFooter": true,
+          "alternateRowStyle": true,
+          "keepRowTogether": true,
+          "columns": [
+            {
+              "id": "description",
+              "header": "Description",
+              "binding": "row.description",
+              "width": "*"
+            },
+            {
+              "id": "quantity",
+              "header": "Qty",
+              "binding": "row.quantity",
+              "width": 50,
+              "align": "right"
+            },
+            {
+              "id": "rate",
+              "header": "Unit price",
+              "binding": "row.rate",
+              "format": "currency:USD",
+              "width": 90,
+              "align": "right"
+            },
+            {
+              "id": "amount",
+              "header": "Amount",
+              "expression": "row.quantity * row.rate",
+              "format": "currency:USD",
+              "width": 100,
+              "align": "right",
+              "footer": {
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "spacer",
+          "height": 14,
+          "id": "spacer-19"
+        },
+        {
+          "type": "keepTogether",
+          "children": [
+            {
+              "type": "row",
+              "children": [
+                {
+                  "type": "qrcode",
+                  "id": "pay-qr",
+                  "expression": "\"https://pay.acme-office.example/invoice/\" + data.invoice.number + \"?amount=\" + vars.total",
+                  "width": 100,
+                  "height": 80
+                },
+                {
+                  "type": "column",
+                  "children": [
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Subtotal",
+                          "width": "*",
+                          "id": "text-24",
+                          "style": {
+                            "fontWeight": "bold",
+                            "color": "#5B6B7A"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(vars.subtotal)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          },
+                          "id": "text-25"
+                        }
+                      ],
+                      "id": "row-23"
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Sales tax 8.25%",
+                          "width": "*",
+                          "id": "text-27",
+                          "style": {
+                            "fontWeight": "bold",
+                            "color": "#5B6B7A"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(vars.tax)",
+                          "width": 110,
+                          "style": {
+                            "align": "right"
+                          },
+                          "id": "text-28"
+                        }
+                      ],
+                      "id": "row-26"
+                    },
+                    {
+                      "type": "line",
+                      "id": "line-29"
+                    },
+                    {
+                      "type": "row",
+                      "children": [
+                        {
+                          "type": "text",
+                          "value": "Total",
+                          "width": "*",
+                          "style": {
+                            "fontSize": 13,
+                            "fontWeight": "bold",
+                            "color": "#17324D"
+                          },
+                          "id": "text-31"
+                        },
+                        {
+                          "type": "text",
+                          "expression": "formatCurrency(vars.total)",
+                          "width": 110,
+                          "style": {
+                            "align": "right",
+                            "fontSize": 13,
+                            "fontWeight": "bold",
+                            "color": "#0F766E"
+                          },
+                          "id": "text-32"
+                        }
+                      ],
+                      "id": "row-30"
+                    }
+                  ],
+                  "width": "*",
+                  "id": "column-22"
+                }
+              ],
+              "id": "row-21"
+            }
+          ],
+          "id": "keepTogether-20"
+        }
+      ]
+    },
+    {
+      "type": "pageFooter",
+      "children": [
+        {
+          "type": "line",
+          "id": "line-33"
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "text",
+              "value": "Acme Office Supply · +1 (503) 555-0188 · billing@acme-office.example",
+              "width": "*",
+              "style": {
+                "fontSize": 6.5,
+                "color": "#5B6B7A"
+              },
+              "id": "text-35"
+            },
+            {
+              "type": "text",
+              "expression": "\"Page \" + page.number + \" of \" + page.total",
+              "style": {
+                "align": "right",
+                "fontSize": 7,
+                "color": "#17324D"
+              },
+              "id": "text-36"
+            }
+          ],
+          "id": "row-34"
+        },
+        {
+          "type": "text",
+          "value": "Thank you for your business · Payment terms: Net 15",
+          "style": {
+            "fontSize": 6.5,
+            "align": "center",
+            "fontWeight": "bold",
+            "color": "#0F766E"
+          },
+          "id": "text-37"
+        }
+      ]
+    }
+  ]
+}
