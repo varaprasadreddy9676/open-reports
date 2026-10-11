@@ -24,11 +24,11 @@ const footerPages = () => ({
 });
 const HOSPITAL_LOGO = "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-primary-logo.png";
 const HOSPITAL_SEAL = "https://open-reports-demo.onrender.com/demo-videos/letterhead-assets/northstar-accreditation-mark.png";
-const hospitalMasthead = (title, compact = false) => [
+const hospitalMasthead = (title, compact = false, companyId) => [
   row([
     { type: "image", id: "hospital-left-logo", src: HOSPITAL_LOGO, width: compact ? 24 : 30, height: compact ? 24 : 30, fit: "contain", alt: "Replaceable hospital logo" },
     col([
-      T("NORTHSTAR MEDICAL CENTER", { style: { fontSize: compact ? 10.5 : 15, fontWeight: "bold", color: "#143753" } }),
+      T("NORTHSTAR MEDICAL CENTER", { style: { fontSize: compact ? 10.5 : 15, fontWeight: "bold", color: "#143753" }, ...(companyId ? { id: companyId } : {}) }),
       T("CARE WITH CLARITY · COMPASSION IN EVERY STEP", { style: { fontSize: compact ? 5.5 : 6.5, fontWeight: "bold", color: "#167c80" } }),
       T("123 Meridian Avenue · Bengaluru 560001 · +91 80 4567 8900", { style: { fontSize: compact ? 5.5 : 6.5, color: "#526575" } }),
     ], { width: "*" }),
@@ -37,7 +37,7 @@ const hospitalMasthead = (title, compact = false) => [
   line(),
   T(title.toUpperCase(), { style: { fontSize: 8, fontWeight: "bold", color: "#526575" } }),
 ];
-const hospitalHeader = (title, compact = false) => ({ type: "pageHeader", appliesTo: "first", children: hospitalMasthead(title, compact) });
+const hospitalHeader = (title, compact = false, companyId) => ({ type: "pageHeader", appliesTo: "first", children: hospitalMasthead(title, compact, companyId) });
 const hospitalRepeatHeader = (patientExpression, title) => ({
   type: "pageHeader",
   children: [row([
@@ -80,7 +80,7 @@ write("invoice", base("invoice", "Invoice", "Clinic invoice with replaceable lef
   ],
   page: A4(),
   sections: [
-    hospitalHeader("Invoice"),
+    hospitalHeader("Invoice", false, "company"),
     { type: "detail", children: [
       spacer(8),
       row([
