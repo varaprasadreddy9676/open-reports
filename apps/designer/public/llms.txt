@@ -14,6 +14,8 @@ Open Reports is not a drop-in JasperReports or Crystal Reports replacement. It d
 - [Render a JSON report through the API](https://open-reports-demo.onrender.com/guides/render-json-report-api/)
 - [JasperReports comparison and fit](https://open-reports-demo.onrender.com/guides/jasperreports-alternative/)
 - [JRXML import limits](https://open-reports-demo.onrender.com/guides/jrxml-import/)
+- [Full invoice-to-application video walkthrough](https://open-reports-demo.onrender.com/videos/invoice-report-integration/)
+- [Flagship walkthrough captions](https://open-reports-demo.onrender.com/demo-videos/open-reports-flagship.vtt)
 - [Integration walkthrough video](https://youtu.be/MtQdFujBUV0)
 - [Integration guide source](https://raw.githubusercontent.com/varaprasadreddy9676/open-reports/claude/upbeat-volta-pe84n7/docs/INTEGRATION_GUIDE.md)
 

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
   <url>
     <loc>https://open-reports-demo.onrender.com/</loc>
     <lastmod>2026-10-10</lastmod>
@@ -8,4 +8,20 @@
   <url><loc>https://open-reports-demo.onrender.com/guides/embed-report-designer/</loc><lastmod>2026-10-10</lastmod></url>
   <url><loc>https://open-reports-demo.onrender.com/guides/render-json-report-api/</loc><lastmod>2026-10-10</lastmod></url>
   <url><loc>https://open-reports-demo.onrender.com/guides/jrxml-import/</loc><lastmod>2026-10-10</lastmod></url>
+  <url>
+    <loc>https://open-reports-demo.onrender.com/videos/invoice-report-integration/</loc>
+    <lastmod>2026-10-11</lastmod>
+    <video:video>
+      <video:thumbnail_loc>https://open-reports-demo.onrender.com/demo-videos/open-reports-flagship-poster.jpg</video:thumbnail_loc>
+      <video:title>Build and integrate an invoice report</video:title>
+      <video:description>Build an invoice from a blank page, reuse a shared letterhead, render it from a hospital application, embed the designer for edits, and render a saved template from a fintech dashboard. The sample organizations and patient data are fictional. Open Reports is early v0.x; JRXML import is partial and compiled .jasper files are unsupported.</video:description>
+      <video:content_loc>https://open-reports-demo.onrender.com/demo-videos/open-reports-flagship.mp4</video:content_loc>
+      <video:duration>741</video:duration>
+      <video:publication_date>2026-10-11T00:44:36+00:00</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+      <video:tag>report designer</video:tag>
+      <video:tag>application integration</video:tag>
+      <video:tag>invoice PDF</video:tag>
+    </video:video>
+  </url>
 </urlset>
