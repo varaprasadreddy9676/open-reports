@@ -121,6 +121,9 @@ export async function createFilm({ browser, id, work, out, size = { width: 1920,
       await film.sleep(3000);
     },
 
+    /** A chapter mark without an on-screen card (the opening and the recap use full-screen cards instead). */
+    mark: (title) => { chapters.push({ title, at: at() }); },
+
     callout: (text, kind = "info") => tools("callout", text, kind),
     terminal: (command, output) => tools("terminal", command, output),
     clearTerminal: () => tools("terminal", null),
@@ -162,6 +165,6 @@ async function encode(raw, audio, target, work) {
     + `;${audio.map((_, index) => `[v${index}]`).join("")}amix=inputs=${audio.length}:duration=longest:normalize=0,alimiter=limit=0.93[out]`;
   await run("ffmpeg", ["-y", ...audio.flatMap((clip) => ["-i", clip.file]), "-filter_complex", filter, "-map", "[out]", "-ar", "48000", voice], { maxBuffer: 1 << 24 });
   // apad extends the narration with silence so the picture, not the last sentence, sets the length.
-  await run("ffmpeg", ["-y", "-i", raw, "-i", voice, "-map", "0:v", "-map", "1:a", "-af", "apad", "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-pix_fmt", "yuv420p",
+  await run("ffmpeg", ["-y", "-i", raw, "-i", voice, "-map", "0:v", "-map", "1:a", "-af", "apad", "-c:v", "libx264", "-preset", "slow", "-crf", "27", "-tune", "stillimage", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", "-shortest", target], { maxBuffer: 1 << 24 });
 }

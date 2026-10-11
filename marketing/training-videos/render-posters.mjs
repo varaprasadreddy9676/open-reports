@@ -12,6 +12,7 @@ const { chromium } = require('@playwright/test');
 const videos = path.join(root, 'apps/designer/public/demo-videos');
 const work = '/tmp/open-reports-training-posters';
 const catalog = [
+  ['open-reports-flagship', 'Build and integrate an invoice report', 'Create a report, print it from a hospital app, edit it in place, and render it from a fintech app.', 221],
   ['open-reports-intro', 'Open Reports in one minute', 'Turn report data into a polished document, then preview and share it.', 59],
   ['sections-explained', 'Sections and bands explained', 'Learn what runs once, repeats on each page, groups records and prints for each row.', 48],
   ['data-sources', 'Connect data from JSON, CSV and REST', 'Test an API request, pass a report parameter and bind a returned field.', 60],

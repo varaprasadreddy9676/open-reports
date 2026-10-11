@@ -4,6 +4,7 @@ import { closeModal } from "./06-caredesk-print.mjs";
 
 export async function coldOpen(film) {
   const { page } = film;
+  film.mark("Introduction");
   await film.goto(`${STACK.caredesk}/?film#/bills/NMC-OPD-24817`);
   await page.getByTestId("caredesk-print").waitFor();
   await film.say("A billing clerk clicks Print.", async () => {

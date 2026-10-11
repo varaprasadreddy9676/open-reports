@@ -122,6 +122,7 @@ async function deliver(bill, purpose, button) {
     } else {
       printPdf(url);
     }
+    await trace.settled();
     await showPdf(purpose === "download" ? `Downloaded ${bill.id}.pdf` : `Printing ${bill.id}`, blob);
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {

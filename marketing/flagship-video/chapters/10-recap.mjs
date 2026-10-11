@@ -1,5 +1,6 @@
 // Chapter 10: the five integration routes, then where to start.
 export async function run(film) {
+  film.mark("Recap: five ways to use it");
   await film.card("list", {
     kicker: "RECAP · FIVE WAYS TO USE IT",
     title: "Pick the route that fits.",

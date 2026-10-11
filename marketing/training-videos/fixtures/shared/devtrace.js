@@ -97,5 +97,8 @@ export function createDevTrace(names) {
     }
   }
 
-  return { fetch: tracedFetch, setOpen, toggle: () => setOpen(!panel.classList.contains("is-open")), film };
+  /** Waits for the flow animation (if any) to finish, so a result shown afterwards does not cover it. */
+  const settled = () => (animate.checked ? overlay.whenIdle() : Promise.resolve());
+
+  return { fetch: tracedFetch, settled, setOpen, toggle: () => setOpen(!panel.classList.contains("is-open")), film };
 }

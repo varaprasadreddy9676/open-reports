@@ -1,0 +1,137 @@
+A billing clerk clicks Print.
+A hospital system asked Open Reports for a branded invoice, and got a print ready PDF back.
+By the end of this film, you will have built that invoice yourself, from a blank page, and wired it into two real applications.
+Every report in Open Reports has three ingredients.
+A report definition, which is a JSON file describing the layout.
+Your data, which your application already has.
+And the engine, which takes both and returns a PDF, or Word, Excel, or label printer code.
+We will build the definition in the designer, then use it from a hospital system, and from a fintech product.
+Everything you see is real.
+The companies and patients are fictional.
+This is Open Reports.
+It runs in the browser, so there is nothing to install.
+We will start with an empty A4 page.
+First, the data.
+CareDesk will send two things with every invoice: the bill, and the branch's branding.
+We paste a sample of each, so the designer knows the field names.
+The invoice sample has the patient, the visit, every service line, and the amounts.
+The branding sample has the hospital name, address, and logo links.
+Amounts should print in rupees, so we set the report's locale and currency once.
+Now the layout.
+A page header repeats at the top of every page.
+We add the hospital logo and name.
+The body holds this one bill.
+Instead of typing a name, we bind fields from the data.
+When CareDesk sends another bill, these show that patient instead.
+The services table repeats once for every line on the bill.
+We point it at the items, and let the designer create the columns from the sample.
+Totals go in a report footer, which appears once, after the last line.
+Each total is a small formula that formats the amount as rupees.
+Last, a page footer with page numbers.
+It repeats on every page, so a long hospital stay still prints page one of two, and page two of two.
+Preview runs the real renderer.
+This is the actual PDF, with the same fonts and page breaks CareDesk will get.
+Hospitals print many documents with the same letterhead.
+Instead of rebuilding it in every report, keep it in one file and reuse it as a subreport.
+First, remove the header we drew by hand.
+Select the logo, press Shift and Enter to select the row around it, and delete the row.
+Now add a subreport, and choose the letterhead file from the hospital's report library.
+It holds the logo, the name, the address, and the accreditation seal.
+The letterhead has its own sample branding.
+We feed it this invoice's branding instead, so each branch prints its own name and logo.
+The file is now attached inside the invoice.
+It travels with the report, so nothing else needs to be installed on the server.
+Preview again.
+The full letterhead is at the top of the page, and it will repeat on every page of a long bill.
+Reports are plain JSON files.
+You can keep them in Git, share them, or hand them to your application.
+Export the report file from the menu.
+It is saved in Downloads, as hospital invoice dot report dot JSON.
+To prove the file is complete, go back Home and open it again from the file browser.
+Choose the file we just saved.
+Open Reports checks before replacing work that only exists in this browser.
+We have the file, so replace it.
+Everything came back: the data samples, the letterhead subreport, the table, and the totals.
+Opening a file does not change anything on the server until you choose to save it.
+This is CareDesk, a hospital information system.
+It is a separate application, with its own billing screens, its own data, and its own server.
+CareDesk keeps its invoice layout as a file in its own report folder, one per branch.
+We copy the file we exported into that folder.
+Here is today's billing list.
+Open Arjun Mehta's cardiology bill.
+Before clicking anything, let's see what CareDesk's server does when someone presses Print.
+Open the developer view.
+This is the real code that runs.
+Step one: CareDesk loads the bill, and checks this user may see it.
+Step two: it reads its own report file from its report folder.
+Step three: it sends the report and the data to Open Reports, with one request, to slash A P I slash v one slash render.
+Open Reports never sees the file path.
+It only receives the report itself, and the data.
+Step four: the PDF comes back, and CareDesk hands it to the browser.
+Now click Download PDF, and watch each step happen.
+The browser asked CareDesk.
+CareDesk read its report file, and called Open Reports.
+Open Reports rendered the PDF in a fraction of a second, and CareDesk sent it back.
+The file is saved, and here is exactly what it contains.
+The developer view keeps the real request.
+Here is the body CareDesk sent: the report, the format, and the bill's data.
+Nothing in it is invented for the film.
+Print works the same way.
+CareDesk gets the PDF, shows it, and hands it to the browser's print dialog.
+A long stay is the real test.
+Rohan Desai's fourteen day admission has forty two lines.
+It runs onto two pages.
+The letterhead repeats, the page numbers update, and the totals appear once, after the last line.
+Northstar has a children's hospital in Mysuru.
+Switch CareDesk to that branch.
+Open a bill, and download it.
+The report file is identical.
+CareDesk simply sent this branch's branding as data, so the shared letterhead shows the children's hospital name, its address, and its own logo.
+Billing teams change invoices all the time: a new note, a different footer.
+CareDesk lets them do it without leaving the application.
+Click Design invoice layout.
+This is the real Open Reports designer, running in a frame inside CareDesk's own page.
+It opened CareDesk's invoice file, with a sample bill for the preview.
+Embedding it takes one call.
+Here is CareDesk's code.
+Create designer gets the Open Reports address, CareDesk's report, and the preview data.
+Save mode host means edits come back to CareDesk.
+Open Reports does not store them.
+The save function sends the edited report to CareDesk's own server.
+Let's make a change.
+Select the balance due line.
+Change it to read amount payable.
+Now save.
+To be safe, let's see what happens if CareDesk's storage is down.
+We switched on a test failure for this one save.
+The save failed, and the designer says so.
+The edit is still there, nothing is lost.
+Save again.
+Saved.
+The developer view shows CareDesk checking the report with Open Reports, and then writing version two to its report folder.
+Back to the bill, and print again.
+The printed invoice now says amount payable.
+The edit, the save, and the next print all used CareDesk's own copy of the report.
+Ledgerline is a payments dashboard for small businesses.
+It uses Open Reports differently.
+Instead of keeping report files itself, it stores them in Open Reports once, as published templates.
+Publishing is one call per template, usually part of a deploy.
+Here it is, with the real requests.
+Each template now has a published version.
+Published versions never change, so every invoice uses exactly the layout that was reviewed.
+On the invoices page, Download PDF sends only the template ID, the format, and the data.
+No report definition travels with the request.
+Same flow as before: the browser asks Ledgerline, Ledgerline asks Open Reports for template ledgerline merchant invoice, and the PDF comes back.
+For screens where people read reports, there is a drop-in viewer.
+The statements page is one viewer element, given the template ID and this merchant's data.
+It comes with search, print, and downloads.
+Find one transaction.
+And the merchant can take the whole month to Excel, for their accountant.
+Five ways to use it.
+Your application keeps the report file, or keeps one per customer, and sends it with the data.
+Or Open Reports stores published templates, and you render them by ID.
+Drop in the viewer for reading screens.
+And embed the designer, so your own users can change their documents, while your application keeps control of saving.
+Open Reports is free and open source.
+Try the live demo, read the integration guide, and if it saves you a week of report work, a star on GitHub helps other developers find it.
+Thanks for watching.

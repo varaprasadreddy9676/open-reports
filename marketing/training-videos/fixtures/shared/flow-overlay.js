@@ -23,6 +23,7 @@ export function createFlowOverlay({ app, server, engine }) {
   document.body.append(root);
   const queue = [];
   let running = false;
+  let idleWaiters = [];
   let hideTimer;
 
   const edgeFor = (from, to) => root.querySelector(`[data-edge="${[from, to].includes("engine") ? "server-engine" : "browser-server"}"]`);
@@ -52,9 +53,16 @@ export function createFlowOverlay({ app, server, engine }) {
     running = true;
     while (queue.length) await play(queue.shift());
     running = false;
+    // Let the final "delivered" line be read before anything covers the overlay.
+    setTimeout(() => { idleWaiters.splice(0).forEach((resolve) => resolve()); }, 1200);
   }
 
   return {
+    /** Resolves once every queued hop has played, so the app can show its result without hiding the animation. */
+    whenIdle() {
+      if (!running && !queue.length) return Promise.resolve();
+      return new Promise((resolve) => idleWaiters.push(resolve));
+    },
     start(title, from, to, label) {
       root.querySelector(".flow-title").textContent = title;
       const result = root.querySelector(".flow-result");
