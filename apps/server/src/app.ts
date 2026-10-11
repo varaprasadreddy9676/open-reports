@@ -57,7 +57,8 @@ export function buildApp(options: BuildAppOptions): { app: FastifyInstance; stor
   const dataSources = runtime.dataSources;
 
   app.addHook("onRequest", async (request, reply) => {
-    if (request.url === "/health" || request.url === "/openapi.json" || request.url === "/api/v1/schema" || !request.url.startsWith("/api/")) return;
+    const isMcpEndpoint = request.url === "/mcp" || request.url.startsWith("/mcp?");
+    if (request.url === "/health" || request.url === "/openapi.json" || request.url === "/api/v1/schema" || (!request.url.startsWith("/api/") && !isMcpEndpoint)) return;
     await authHook(request, reply);
   });
 

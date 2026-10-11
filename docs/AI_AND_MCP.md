@@ -3,20 +3,36 @@
 **Principle:** AI edits report JSON — nothing else. The engine does all calculation, pagination and rendering, so results stay deterministic and auditable. You always bring your own model and key (BYOK); the platform ships no model and stores no AI keys on the server.
 
 ## 1. Use any AI tool through MCP (Claude, Codex, Cursor, …)
-`@reporting/mcp-server` is a stdio MCP server that talks to the REST API and runs on your computer.
+There are two ways to connect, and the designer's **Settings → AI tools (MCP)** writes the configuration for either, with your server's address filled in.
 
-**Get it:** open **Settings → AI tools (MCP)** in the designer and click **Download open-reports-mcp.mjs**. The panel fills in the configuration for Claude Desktop, Claude Code or Cursor with your server's address. The file is also served at `GET /mcp/open-reports-mcp.mjs` (no API key needed: it holds no keys or settings), and `GET /api/v1/mcp` describes the version and tools. It needs Node.js 18 or newer and nothing else. From a checkout, `pnpm --filter @reporting/mcp-server build` writes the same file to `packages/mcp-server/dist/open-reports-mcp.mjs`.
+**Connect by URL (nothing to install).** Every Open Reports server speaks MCP over Streamable HTTP at `POST /mcp`, with the same API keys as the REST API (`x-api-key` or `Authorization: Bearer`). Each tool call runs through the server's own REST routes with the caller's key. Add `?read-only` to the URL to hide write tools.
+
+```sh
+# Claude Code
+claude mcp add --transport http open-reports https://reports.example.com/mcp --header "x-api-key: <your key>"
+```
+```jsonc
+// Cursor (.cursor/mcp.json)
+{ "mcpServers": { "open-reports": { "url": "https://reports.example.com/mcp", "headers": { "x-api-key": "<your key>" } } } }
+```
+Claude Desktop adds remote servers under Settings → Connectors → Add custom connector. Custom connectors cannot send an API key, so use the npm package below for servers with keys.
+
+**Run on your computer: the [`open-reports-mcp`](https://www.npmjs.com/package/open-reports-mcp) npm package.** A stdio server (Node.js 18.3+, no dependencies) that adds tools for files on your computer and JasperReports import.
 
 ```jsonc
-// Claude Desktop / Cursor MCP config
+// Claude Desktop (Settings → Developer → Edit Config) / Cursor
 { "mcpServers": { "open-reports": {
-  "command": "node", "args": ["/full/path/to/open-reports-mcp.mjs"],
+  "command": "npx", "args": ["-y", "open-reports-mcp"],
   "env": { "REPORTS_API_URL": "http://localhost:4000", "REPORTS_API_KEY": "<your key>" } } } }
 ```
 ```sh
 # Claude Code
-claude mcp add open-reports -e REPORTS_API_URL=http://localhost:4000 -e REPORTS_API_KEY=<your key> -- node /full/path/to/open-reports-mcp.mjs
+claude mcp add open-reports -e REPORTS_API_URL=http://localhost:4000 -e REPORTS_API_KEY=<your key> -- npx -y open-reports-mcp
 ```
+`--url` and `--api-key` work in place of the environment variables; `--help` lists everything. Without npm, download the same program as one file from `GET /mcp/open-reports-mcp.mjs` and run it with `node /full/path/to/open-reports-mcp.mjs`. `GET /api/v1/mcp` describes the version and tools.
+
+**Releasing the package.** It is built from `packages/mcp-server` (`pnpm --filter @reporting/mcp-server build` writes it to `packages/mcp-server/dist/npm`). Bump the version in `packages/mcp-server/package.json` and push a tag `mcp-v<version>`: the *Release open-reports-mcp* workflow runs every MCP test against the built file and publishes to npm with provenance (it needs the `NPM_TOKEN` repository secret).
+
 Add `--read-only` (or `REPORTS_MCP_READ_ONLY=1`) to hide every tool that saves, publishes, deletes or writes files. Delete tools carry the MCP `destructiveHint`, so clients ask before running them. Run the API with `EXAMPLES_DIR=examples` so agents can start from known-good documents.
 
 | Tool | Purpose |
@@ -34,7 +50,7 @@ Add `--read-only` (or `REPORTS_MCP_READ_ONLY=1`) to hide every tool that saves, 
 | `list_blocks`, `get_block`, `save_block`, `delete_block` | Reusable components (the designer's *My Components*) |
 | `list_printer_profiles`, `save_printer_profile`, `delete_printer_profile` | Saved printer and label/receipt media setups |
 | `list_plugins` | Installed server plugins and what they add |
-| `open_report_file`, `save_report_file` | Read and write report JSON files on your computer |
+| `open_report_file`, `save_report_file` | Read and write report JSON files on your computer (npm package only, as are the two rows below) |
 | `render_to_file` | Render and save the output document on your computer |
 | `import_jrxml`, `import_jrxml_folder` | Convert JasperReports JRXML (one file, or a folder with its subreports) into Open Reports drafts with a review list |
 

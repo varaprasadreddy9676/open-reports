@@ -103,7 +103,7 @@ Open Reports may fit when you want an MIT-licensed, JSON-native designer and ren
 <td><img src="docs/images/sticker-sheet.png" alt="A4 sticker sheet, eight labels per page"></td>
 </tr></table>
 
-**Let AI do the tedious edits, safely.** Describe a change; the AI proposes an edit to the template, and you accept or reject it. It never invents numbers: the engine calculates everything. Bring your own key (Claude, OpenAI-compatible or local models), or connect any MCP client.
+**Let AI do the tedious edits, safely.** Describe a change; the AI proposes an edit to the template, and you accept or reject it. It never invents numbers: the engine calculates everything. Bring your own key (Claude, OpenAI-compatible or local models), or connect any MCP client: by URL to your server's `/mcp` endpoint, or with `npx -y open-reports-mcp` ([AI and MCP](docs/AI_AND_MCP.md)).
 
 ![AI proposes a change you review first](docs/images/ai-diff.png)
 

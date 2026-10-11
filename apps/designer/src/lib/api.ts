@@ -118,7 +118,7 @@ export interface SavedPrinterProfile {
 
 export const api = {
   /** The downloadable MCP server and the tools it offers (Settings → AI tools). */
-  async mcpInfo(): Promise<{ available: boolean; downloadPath: string; version?: string; requires: string; tools: McpToolInfo[] }> {
+  async mcpInfo(): Promise<{ available: boolean; downloadPath: string; endpoint?: string; npmPackage?: string; version?: string; requires: string; tools: McpToolInfo[] }> {
     return (await request("/api/v1/mcp")).json();
   },
   async listTemplates(): Promise<TemplateRecord[]> {

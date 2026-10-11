@@ -19,24 +19,27 @@
     "@fastify/cors": "^10.0.1",
     "@fastify/static": "^8.0.3",
     "@fastify/swagger": "^9.4.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@reporting/ai-tools": "workspace:*",
     "@reporting/core": "workspace:*",
+    "@reporting/datasource-json": "workspace:*",
+    "@reporting/datasource-rest": "workspace:*",
+    "@reporting/datasource-sql": "workspace:*",
     "@reporting/embed": "workspace:*",
     "@reporting/jrxml-import": "workspace:*",
-    "@reporting/datasource-rest": "workspace:*",
     "@reporting/layout": "workspace:*",
+    "@reporting/mcp-server": "workspace:*",
     "@reporting/plugin-sdk": "workspace:*",
     "@reporting/renderer-csv": "workspace:*",
     "@reporting/renderer-docx": "workspace:*",
+    "@reporting/renderer-escpos": "workspace:*",
     "@reporting/renderer-html": "workspace:*",
     "@reporting/renderer-pdf": "workspace:*",
     "@reporting/renderer-xlsx": "workspace:*",
     "@reporting/renderer-zpl": "workspace:*",
     "@reporting/schema": "workspace:*",
     "better-sqlite3": "^11.5.0",
-    "fastify": "^5.1.0",
-    "@reporting/datasource-json": "workspace:*",
-    "@reporting/renderer-escpos": "workspace:*",
-    "@reporting/datasource-sql": "workspace:*"
+    "fastify": "^5.1.0"
   },
   "devDependencies": {
     "@reporting/plugin-clinic-pack": "workspace:*",
@@ -45,9 +48,6 @@
     "pngjs": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.4",
-    "@reporting/ai-tools": "workspace:*",
-    "@reporting/mcp-server": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "vitest": "^2.1.4"
   }
 }

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { buildApp } from "../src/app.js";
 import type { FastifyInstance } from "fastify";
 
@@ -148,4 +149,49 @@ describe("downloadable MCP server", () => {
     expect(names).toEqual(expect.arrayContaining(["preview_report", "open_report_file", "import_jrxml", "render_report"]));
     await c.close();
   }, 30_000);
+
+  it("--help and --version explain themselves without starting the protocol", async () => {
+    const { spawnSync } = await import("node:child_process");
+    const help = spawnSync(process.execPath, [bundle, "--help"], { encoding: "utf8" });
+    expect(help.status).toBe(0);
+    expect(help.stdout).toBe("");
+    expect(help.stderr).toContain("--read-only");
+    expect(spawnSync(process.execPath, [bundle, "--version"], { encoding: "utf8" }).stderr.trim()).toMatch(/^\d+\.\d+\.\d+/);
+    expect(spawnSync(process.execPath, [bundle, "--url", "ftp://nope"], { encoding: "utf8" }).status).toBe(2);
+  });
+});
+
+describe("remote MCP over HTTP (POST /mcp)", () => {
+  const remote = async (path = "/mcp", key: string | undefined = "mcp-key") => {
+    const client = new Client({ name: "remote-test", version: "1.0.0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${url}${path}`), { requestInit: { headers: key ? { "x-api-key": key } : {} } }));
+    return client;
+  };
+
+  it("requires the API key like the REST API", async () => {
+    const res = await fetch(`${url}/mcp`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
+    expect(res.status).toBe(401);
+    await expect(remote("/mcp", "wrong-key")).rejects.toThrow();
+  });
+
+  it("offers the server tools (not the local file tools) and runs them with the caller's key", async () => {
+    const c = await remote();
+    const names = (await c.listTools()).tools.map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["preview_report", "test_dataset", "save_template", "delete_block"]));
+    expect(names).not.toContain("render_to_file");
+    const report = dataOf(await call(c, "get_example", { name: "conditional" }));
+    expect(textOf(await call(c, "preview_report", { report }))).toMatch(/--- Page 1 of \d+ ---/);
+    await call(c, "save_template", { id: "remote-mcp-demo", report });
+    expect(dataOf(await call(c, "list_templates", {})).map((t: any) => t.id)).toContain("remote-mcp-demo");
+    await call(c, "delete_template", { id: "remote-mcp-demo" });
+    await c.close();
+  }, 30_000);
+
+  it("?read-only hides every write tool", async () => {
+    const c = await remote("/mcp?read-only");
+    const names = (await c.listTools()).tools.map((t) => t.name);
+    expect(names).toContain("render_report");
+    for (const write of ["save_template", "publish_template", "delete_template", "save_block", "delete_printer_profile"]) expect(names).not.toContain(write);
+    await c.close();
+  });
 });

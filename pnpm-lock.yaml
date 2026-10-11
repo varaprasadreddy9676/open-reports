@@ -134,6 +134,12 @@ importers:
       '@fastify/swagger':
         specifier: ^9.4.0
         version: 9.9.1
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.0
+        version: 1.31.0(zod@3.25.76)
+      '@reporting/ai-tools':
+        specifier: workspace:*
+        version: link:../../packages/ai-tools
       '@reporting/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -155,6 +161,9 @@ importers:
       '@reporting/layout':
         specifier: workspace:*
         version: link:../../packages/layout
+      '@reporting/mcp-server':
+        specifier: workspace:*
+        version: link:../../packages/mcp-server
       '@reporting/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
@@ -189,15 +198,6 @@ importers:
         specifier: ^5.1.0
         version: 5.12.5
     devDependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.0.0
-        version: 1.31.0(zod@3.25.76)
-      '@reporting/ai-tools':
-        specifier: workspace:*
-        version: link:../../packages/ai-tools
-      '@reporting/mcp-server':
-        specifier: workspace:*
-        version: link:../../packages/mcp-server
       '@reporting/plugin-clinic-pack':
         specifier: workspace:*
         version: link:../../packages/plugin-clinic-pack
@@ -3790,6 +3790,14 @@ snapshots:
     optionalDependencies:
       vite: 5.4.21(@types/node@22.20.4)
 
+  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@26.6.4))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 5.4.21(@types/node@26.6.4)
+
   '@vitest/pretty-format@2.1.9':
     dependencies:
       tinyrainbow: 1.2.0
@@ -5551,7 +5559,7 @@ snapshots:
   vitest@2.1.9(@types/node@26.6.4):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.20.4))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@26.6.4))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

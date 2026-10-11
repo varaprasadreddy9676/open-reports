@@ -1,8 +1,13 @@
 .toolbar .brand .save-state.host-managed { display: inline; max-width: 190px; white-space: normal; line-height: 1.25; }
 .integration-next-steps > details > summary { cursor: pointer; color: var(--accent); padding: 8px 0; }
 .integration-next-steps > details > .btn { margin-top: 8px; }
-.mcp-download { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.mcp-download .btn { text-decoration: none; }
+.mcp-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.mcp-mode { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); line-height: 1.5; }
+.mcp-mode[data-selected="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.mcp-modes .mcp-mode input[type="radio"] { flex: 0 0 auto; width: auto; margin: 3px 0 0; padding: 0; }
+.mcp-mode > span { display: grid; gap: 2px; text-align: left; }
+.mcp-mode > span > span { color: var(--muted); }
+.mcp-mode:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
 .mcp-readonly { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-sm); line-height: 1.5; cursor: pointer; }
 .mcp-readonly input { margin-top: 3px; }
 .mcp-tools > details { border-top: 1px solid var(--border); }
