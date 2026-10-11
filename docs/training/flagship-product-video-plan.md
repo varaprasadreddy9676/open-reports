@@ -1,6 +1,6 @@
 # Flagship product video: from a blank page to Print in a real application
 
-Status: **approved scope, 10 October 2026**; build work not started. This supersedes the scope of [invoice-to-application-video-plan.md](invoice-to-application-video-plan.md) and the 10-minute *invoice application walkthrough* now in the Learning Studio. That walkthrough stays as a shorter lesson; this film is the one that represents the whole product.
+Status: **recorded 11 October 2026.** The film (12:21) and a 1:47 trailer are in the Learning Studio; see [marketing/flagship-video](../../marketing/flagship-video/README.md) to re-record. This supersedes the scope of [invoice-to-application-video-plan.md](invoice-to-application-video-plan.md) and the 10-minute *invoice application walkthrough* now in the Learning Studio. That walkthrough stays as a shorter lesson; this film is the one that represents the whole product.
 
 ## The film in one sentence
 
@@ -102,3 +102,24 @@ Rough effort: fixtures and overlays first (they are reusable for future lessons)
 - PDFs contain the right identity, all line items, totals, logos, header subreport and page setup; the long bill paginates with repeated headings.
 - Narration, captions, on-screen code and actions agree; no private data, keys or misleading success states.
 - A reviewer can reproduce the whole film from the published sample code on a clean checkout.
+
+## Decisions made while recording (11 October 2026)
+
+Taken on the owner's behalf while they were away; each is easy to revisit.
+
+- **Length.** The master is 12:21, not 20 minutes: narration plays over the actions instead of between them, and every planned chapter is still covered.
+- **File browser.** Headless recording cannot show the operating system's file dialog. The film shows a callout with the chosen file's path at each file chooser, instead of a simulated dialog.
+- **Copying the report into CareDesk.** Shown as a terminal card; the recorder runs the same `cp` command for real.
+- **PDF previews.** The training hosts render returned PDFs with pdf.js so they appear in a headless recording; real prints still go to the browser.
+- **Narration.** The macOS voice Samantha at rate 172, with the script written for it.
+- **Trailer.** Cut from the master at sentence boundaries rather than recorded separately; it is the first *Start here* lesson, so the landing page's *Watch it work* opens on it.
+- **Not done.** YouTube upload (public, left to the owner) and background music (no licensed track in the repository).
+
+Product fixes found while building and recording the film:
+
+- Structure tree named JSON-defined subreports "Choose report".
+- Canvas text without a font size was drawn larger than its layout box.
+- HTML output (the viewer) had the same default-size problem.
+- The designer had no way to choose which parent data feeds a subreport; a child's own inline sample data was ignored.
+- New subreports were fixed at 120 × 40 pt, squeezing shared headers.
+- Generated table columns now give numbers compact widths and text the remaining space.
