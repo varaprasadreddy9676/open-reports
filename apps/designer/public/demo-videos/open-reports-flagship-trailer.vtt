@@ -1,0 +1,61 @@
+WEBVTT
+
+00:00:00.400 --> 00:00:02.057
+A billing clerk clicks Print.
+
+00:00:07.214 --> 00:00:12.320
+A hospital system asked Open Reports for a branded invoice, and got a print ready PDF
+
+00:00:12.320 --> 00:00:17.486
+back. By the end of this film, you will have built that invoice yourself, from a blank
+
+00:00:17.486 --> 00:00:20.249
+page, and wired it into two real applications.
+
+00:00:29.331 --> 00:00:34.500
+Preview runs the real renderer. This is the actual PDF, with the same fonts and page
+
+00:00:34.500 --> 00:00:36.039
+breaks CareDesk will get.
+
+00:00:36.939 --> 00:00:41.782
+Preview again. The full letterhead is at the top of the page, and it will repeat on every
+
+00:00:41.782 --> 00:00:42.870
+page of a long bill.
+
+00:00:43.770 --> 00:00:47.304
+Now click Download PDF, and watch each step happen.
+
+00:00:50.537 --> 00:00:55.824
+The browser asked CareDesk. CareDesk read its report file, and called Open Reports.
+
+00:00:55.824 --> 00:01:01.111
+Open Reports rendered the PDF in a fraction of a second, and CareDesk sent it back.
+
+00:01:01.111 --> 00:01:04.678
+The file is saved, and here is exactly what it contains.
+
+00:01:05.578 --> 00:01:11.037
+The report file is identical. CareDesk simply sent this branch's branding as data, so the
+
+00:01:11.037 --> 00:01:16.190
+shared letterhead shows the children's hospital name, its address, and its own logo.
+
+00:01:17.090 --> 00:01:22.301
+The printed invoice now says amount payable. The edit, the save, and the next print all
+
+00:01:22.301 --> 00:01:24.637
+used CareDesk's own copy of the report.
+
+00:01:25.537 --> 00:01:30.120
+It comes with search, print, and downloads. Find one transaction.
+
+00:01:31.020 --> 00:01:36.288
+Open Reports is free and open source. Try the live demo, read the integration guide, and
+
+00:01:36.288 --> 00:01:41.496
+if it saves you a week of report work, a star on GitHub helps other developers find it.
+
+00:01:41.496 --> 00:01:42.693
+Thanks for watching.

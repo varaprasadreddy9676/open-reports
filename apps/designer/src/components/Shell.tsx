@@ -567,6 +567,7 @@ function GuideDialog() {
 }
 
 const PRACTICAL_VIDEOS = [
+  { id: "open-reports-flagship-trailer", title: "Open Reports in under two minutes", summary: "A hospital system prints an invoice designed in Open Reports, a second branch gets its own letterhead, staff edit the layout in place, and a fintech app renders statements.", duration: "1:47", category: "Start here" },
   { id: "open-reports-intro", title: "Open Reports in one minute", summary: "See how a report goes from data and design to a printable result.", duration: "1:15", category: "Start here" },
   { id: "designer-tour", title: "Find your way around the designer", summary: "Start at Home, explore Design, Data, Code and Preview, then return home.", duration: "2:02", category: "Start here" },
   { id: "first-report", title: "Build your first report from data", summary: "Create a heading, connect sample JSON, add a bound field and table, calculate a total, and preview the PDF.", duration: "2:07", category: "Start here" },

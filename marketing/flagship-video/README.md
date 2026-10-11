@@ -53,3 +53,12 @@ node marketing/training-videos/render-posters.mjs open-reports-flagship
 ```
 
 The recording runs in real time (about 20 minutes). Set `FILM_VOICE` or `FILM_RATE` to change the macOS voice. After recording, update the duration in `PRACTICAL_VIDEOS` (`apps/designer/src/components/Shell.tsx`) and play the film in **Home → Learn** to check captions, chapters and audio.
+
+## 4. Trailer
+
+```sh
+node marketing/flagship-video/trailer.mjs
+node marketing/training-videos/render-posters.mjs open-reports-flagship-trailer
+```
+
+`trailer.mjs` cuts `open-reports-flagship-trailer.mp4` (about 1:47) from the master at caption boundaries, with matching captions. Edit `SEGMENTS` to change which sentences it uses. The trailer is the first lesson in **Home → Learn**, so the landing page's *Watch it work* opens on it.
