@@ -56,6 +56,7 @@ export function createDevTrace(names) {
       if (flows.get(event.flowId).animate && animate.checked) overlay.hop("server", "engine", `${event.method} ${new URL(event.url).pathname}`);
       step(event.flowId, `<span class="hop hop-out">${esc(names.server)} → Open Reports</span><p><b>${esc(event.method)}</b> ${esc(event.url)}</p>${jsonBlock("Request body", event.body)}`);
     } else if (event.type === "engine:response") {
+      flows.get(event.flowId).engineReplied?.();
       if (flows.get(event.flowId).animate && animate.checked) overlay.hop("engine", "server", event.status ? `${event.status} · ${kb(event.bytes ?? 0)}` : "failed");
       const ok = event.status >= 200 && event.status < 300;
       step(event.flowId, `<span class="hop ${ok ? "hop-ok" : "hop-bad"}">Open Reports → ${esc(names.server)}</span>
@@ -78,7 +79,11 @@ export function createDevTrace(names) {
     item.append(steps);
     list.querySelector(".devtrace-empty")?.remove();
     list.prepend(item);
-    flows.set(flowId, { steps, animate: animateFlow });
+    // The engine's reply arrives over the event stream and can land after this fetch resolves;
+    // the final hop waits for it (briefly) so the animation plays in the real order.
+    let engineReplied;
+    const engineSettled = new Promise((resolve) => { engineReplied = resolve; });
+    flows.set(flowId, { steps, animate: animateFlow, engineReplied });
     const body = typeof init.body === "string" && init.headers?.["content-type"]?.includes("json") ? JSON.parse(init.body) : undefined;
     step(flowId, `<span class="hop hop-in">Browser → ${esc(names.server)}</span><p><b>${esc(init.method ?? "GET")}</b> ${esc(new URL(url, location.href).pathname)}</p>${jsonBlock("Request body", body)}`);
     if (overlayOn()) overlay.start(label, "browser", "server", `${init.method ?? "GET"} ${new URL(url, location.href).pathname}`);
@@ -87,6 +92,7 @@ export function createDevTrace(names) {
       const response = await fetch(url, { ...init, headers });
       const size = Number(response.headers.get("content-length") ?? 0);
       const type = response.headers.get("content-type") ?? "";
+      if (overlayOn()) await Promise.race([engineSettled, new Promise((resolve) => setTimeout(resolve, 1500))]);
       if (overlayOn()) overlay.hop("server", "browser", `${response.status} · ${type.split(";")[0]}`, { done: true, ok: response.ok });
       step(flowId, `<span class="hop ${response.ok ? "hop-ok" : "hop-bad"}">${esc(names.server)} → Browser</span><p><b>${response.status}</b> ${esc(type)}${size ? ` · ${kb(size)}` : ""}</p>`);
       return response;

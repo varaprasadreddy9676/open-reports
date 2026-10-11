@@ -31,7 +31,8 @@ export async function formulaText(film, formula, size, bold, align) {
   const { page } = film;
   await insert(film, "palette-text");
   await film.click(page.getByTestId("value-mode-formula"), { pause: 250 });
-  await film.fill(page.getByTestId("formula-input"), formula, { pause: 300 });
+  // Pasted, not typed: the formula editor's suggestions would complete words mid-typing.
+  await film.fill(page.getByTestId("formula-input"), formula, { pause: 300, paste: true });
   if (size || align) await styleText(film, size, bold, align);
 }
 
@@ -45,8 +46,6 @@ export async function run(film) {
     await page.getByTestId("page-1").waitFor();
   });
   await film.fill(page.getByRole("textbox", { name: /report name/i }), "Hospital invoice");
-  // Zoom the page so the invoice fills the frame while it is being built.
-  for (let step = 0; step < 4; step += 1) await film.click(page.getByRole("button", { name: "Zoom in" }), { pause: 120 });
 
   await film.say("First, the data. CareDesk will send two things with every invoice: the bill, and the branch's branding. We paste a sample of each, so the designer knows the field names.", async () => {
     await film.click(page.getByTestId("left-tab-data"));

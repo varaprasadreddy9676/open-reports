@@ -25,12 +25,14 @@ pnpm -r --filter "./packages/**" build && pnpm --filter @reporting/server build 
 
 # Open Reports engine + designer on :4200 (restart it after every designer build)
 cd apps/server && PORT=4200 DB_PATH=/tmp/open-reports-film.sqlite REPORT_IMAGE_ALLOWED_HOSTS=127.0.0.1,localhost \
-  FONTS_DIR=/path/to/noto-sans DESIGNER_DIST=$PWD/../designer/dist EXAMPLES_DIR=$PWD/../../examples node dist/index.js
+  FONTS_DIR=/path/to/noto-sans DESIGNER_DIST=/tmp/open-reports-film/designer-dist EXAMPLES_DIR=$PWD/../../examples node dist/index.js
 
 # CareDesk HIMS on :3002 and Ledgerline on :3003
 OPEN_REPORTS_URL=http://127.0.0.1:4200 OPEN_REPORTS_DESIGNER_URL=http://localhost:4200 node marketing/training-videos/fixtures/caredesk/server.mjs
 OPEN_REPORTS_URL=http://127.0.0.1:4200 node marketing/training-videos/fixtures/ledgerline/server.mjs
 ```
+
+Copy the designer build to `/tmp/open-reports-film/designer-dist` first (`cp -R apps/designer/dist /tmp/open-reports-film/designer-dist`): a frozen copy keeps a take working if anything rebuilds the designer while it records.
 
 `FONTS_DIR` must contain `NotoSans-{Regular,Bold,Italic,BoldItalic}.ttf` (Linux installs with `fonts-noto-core` need no setting). Port 4100 is reserved for the browser test suite, so the film uses 4200.
 

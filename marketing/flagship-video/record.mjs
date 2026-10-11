@@ -41,7 +41,7 @@ try {
     try {
       await chapter.run(film, state);
     } finally {
-      if (dry) await film.page.screenshot({ path: path.join(STACK.work, `dry-${chapter.id}.png`) }).catch(() => undefined);
+      await film.page.screenshot({ path: path.join(STACK.work, `${dry ? "dry" : "take"}-${chapter.id}.png`) }).catch(() => undefined);
     }
     console.log(`  ✓ ${chapter.id} in ${((Date.now() - t) / 1000).toFixed(0)} s`);
   }

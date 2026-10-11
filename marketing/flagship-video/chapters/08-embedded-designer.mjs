@@ -31,7 +31,7 @@ export async function run(film) {
   });
   await film.say("Change it to read amount payable.", async () => {
     const formula = designer.getByTestId("formula-input");
-    await film.fill(formula, "\"Amount payable: \" + formatCurrency(data.invoice.balance)");
+    await film.fill(formula, "\"Amount payable: \" + formatCurrency(data.invoice.balance)", { paste: true });
     await page.getByText("Unsaved changes").waitFor({ timeout: 15_000 });
   });
 

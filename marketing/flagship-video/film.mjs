@@ -98,9 +98,9 @@ export async function createFilm({ browser, id, work, out, size = { width: 1920,
     },
 
     /** Types visibly for short text; pastes long text (JSON) at once, as a person would. */
-    async fill(locator, text, { pause = 400 } = {}) {
+    async fill(locator, text, { pause = 400, paste = false } = {}) {
       await film.click(locator, { pause: 120 });
-      if (text.length <= 48 && !dry) {
+      if (text.length <= 48 && !dry && !paste) {
         await locator.fill("");
         await locator.pressSequentially(text, { delay: 32 });
       } else {

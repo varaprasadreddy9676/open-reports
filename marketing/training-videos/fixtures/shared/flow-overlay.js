@@ -24,6 +24,7 @@ export function createFlowOverlay({ app, server, engine }) {
   const queue = [];
   let running = false;
   let idleWaiters = [];
+  let finished = false;
   let hideTimer;
 
   const edgeFor = (from, to) => root.querySelector(`[data-edge="${[from, to].includes("engine") ? "server-engine" : "browser-server"}"]`);
@@ -44,7 +45,7 @@ export function createFlowOverlay({ app, server, engine }) {
       const result = root.querySelector(".flow-result");
       result.textContent = ok ? "PDF delivered to the browser" : "Request failed: see the developer view";
       result.dataset.ok = String(Boolean(ok));
-      hideTimer = setTimeout(() => root.classList.remove("is-visible"), HOLD_AFTER_MS);
+      finished = true;
     }
   }
 
@@ -53,6 +54,10 @@ export function createFlowOverlay({ app, server, engine }) {
     running = true;
     while (queue.length) await play(queue.shift());
     running = false;
+    if (finished) {
+      finished = false;
+      hideTimer = setTimeout(() => root.classList.remove("is-visible"), HOLD_AFTER_MS);
+    }
     // Let the final "delivered" line be read before anything covers the overlay.
     setTimeout(() => { idleWaiters.splice(0).forEach((resolve) => resolve()); }, 1200);
   }
