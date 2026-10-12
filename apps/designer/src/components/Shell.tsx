@@ -15,6 +15,7 @@ import { PublishDialogBody } from "./PublishDialog";
 import { AiSettingsBody } from "./AiBar";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { downloadReportFile, isPublicDemo } from "../lib/report-file";
+import { exportJrxml, downloadJrxml, downloadJrxmlPackage } from "../lib/jrxml-export";
 import { COMMANDS, shortcutLabel } from "../lib/commands";
 import { importJrxml, type ImportResult } from "@reporting/jrxml-import";
 import { JrxmlFolderImport } from "./JrxmlFolderImport";
@@ -173,6 +174,27 @@ export function Toolbar() {
             ))}
             <hr />
             <button role="menuitem" data-testid="export-definition" onClick={() => (setMenu(null), downloadDefinition())}>Report file (.json): your own copy</button>
+            <button role="menuitem" data-testid="export-jrxml" onClick={() => {
+              setMenu(null);
+              const doc = useStore.getState().doc;
+              const result = exportJrxml(doc);
+              const details = result.issues.slice(0, 8).map((issue) => `• ${issue.path}: ${issue.message}`).join("\n");
+              const more = result.issues.length > 8 ? `\n• …and ${result.issues.length - 8} more.` : "";
+              const dependencies = result.dependencies.length ? `\n\nThis report references ${result.dependencies.length} bundled subreport(s); they are not included in this single file. Choose “JasperReports source package (.zip)” to include them.` : "";
+              if (!window.confirm(`EXPERIMENTAL JRXML EXPORT\n\nUse this as an interoperability bridge or migration aid. For the best experience, plan to move authoring to Open Reports JSON as soon as practical; it preserves the full designer, renderer, and editing experience. JasperReports may behave differently, and this export is not a guarantee of complete feature parity.${result.issues.length ? `\n\n${result.issues.length} compatibility note(s):\n${details}${more}` : "\n\nNo known compatibility notes were found for this report; still compile and compare its output in your Jasper runtime."}${dependencies}\n\nDownload the JRXML source anyway?`)) return;
+              downloadJrxml(doc, result);
+              useStore.getState().toast("JRXML file downloaded.");
+            }}>Experimental · JasperReports 6 JRXML (.jrxml)</button>
+            <button role="menuitem" data-testid="export-jrxml-project" onClick={async () => {
+              setMenu(null);
+              const doc = useStore.getState().doc;
+              const result = exportJrxml(doc);
+              const details = result.issues.slice(0, 8).map((issue) => `• ${issue.path}: ${issue.message}`).join("\n");
+              const more = result.issues.length > 8 ? `\n• …and ${result.issues.length - 8} more.` : "";
+              if (!window.confirm(`EXPERIMENTAL JRXML EXPORT\n\nUse this as an interoperability bridge or migration aid. For the best experience, plan to move authoring to Open Reports JSON as soon as practical; it preserves the full designer, renderer, and editing experience. JasperReports may behave differently, and this export is not a guarantee of complete feature parity.${result.issues.length ? `\n\n${result.issues.length} compatibility note(s):\n${details}${more}` : "\n\nNo known compatibility notes were found for this report; still compile and compare its output in your Jasper runtime."}\n\nDownload the JasperReports source package anyway?`)) return;
+              await downloadJrxmlPackage(doc, result);
+              useStore.getState().toast(`JRXML source package downloaded${result.dependencies.length ? ` with ${result.dependencies.length} subreport source(s)` : ""}.`);
+            }}>Experimental · JasperReports source package (.zip)</button>
           </div>}
           {menu === "view" && <div className="menu right" role="menu">
             <button role="menuitem" onClick={() => setMenu("more")}>← Report actions</button>
